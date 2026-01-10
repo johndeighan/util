@@ -16,7 +16,7 @@ import {
 	undef, defined, notdefined, assert, char, deepEqual,
 	assertIsDefined, isHash, isArray, isNonEmptyString,
 	isArrayOfStrings, isEmpty, nonEmpty, isString, isInteger,
-	integer, hash, hashof, array, arrayof, voidFunc, isNonPrimitive,
+	integer, hash, hashof, array, arrayof, TVoidFunc, isNonPrimitive,
 	functionDef, croak, assertIsString, assertIsNumber,
 	TStringMapper,
 	} from 'datatypes'
@@ -69,7 +69,7 @@ export const sinceLoadStr = (datetime: ((Date | integer) | undefined) = undef) =
 // ---------------------------------------------------------------------------
 
 export const throwsError = (
-		func: voidFunc,
+		func: TVoidFunc,
 		msg: string = "Unexpected success"
 		): void => {
 
@@ -526,10 +526,8 @@ export const allMatches = function*(
 
 export const range = function*(n: number): Generator<number, void, void> {
 
-	let i = 0
-	while (i < n) {
+	for (let i2 = 0, asc = 0 <= n; asc ? i2 < n : i2 > n; asc ? ++i2 : --i2) {const i = i2;
 		yield i
-		i = i + 1
 	}
 	return
 }
@@ -570,22 +568,22 @@ export const interpolate = (
 
 const labelGen = function*(): Generator<string, void, void> {
 
-	for (let i2 = 65; i2 <= 90; ++i2) {const i = i2;
+	for (let i3 = 65; i3 <= 90; ++i3) {const i = i3;
 		const ch = String.fromCharCode(i)
 		yield ch
 	}
-	for (let i3 = 65; i3 <= 90; ++i3) {const i = i3;
+	for (let i4 = 65; i4 <= 90; ++i4) {const i = i4;
 		const ch = String.fromCharCode(i)
-		for (let i4 = 65; i4 <= 90; ++i4) {const j = i4;
+		for (let i5 = 65; i5 <= 90; ++i5) {const j = i5;
 			const ch2 = String.fromCharCode(j)
 			yield ch + ch2
 		}
 	}
-	for (let i5 = 65; i5 <= 90; ++i5) {const i = i5;
+	for (let i6 = 65; i6 <= 90; ++i6) {const i = i6;
 		const ch = String.fromCharCode(i)
-		for (let i6 = 65; i6 <= 90; ++i6) {const j = i6;
+		for (let i7 = 65; i7 <= 90; ++i7) {const j = i7;
 			const ch2 = String.fromCharCode(j)
-			for (let i7 = 65; i7 <= 90; ++i7) {const k = i7;
+			for (let i8 = 65; i8 <= 90; ++i8) {const k = i8;
 				const ch3 = String.fromCharCode(k)
 				yield ch + ch2 + ch3
 			}

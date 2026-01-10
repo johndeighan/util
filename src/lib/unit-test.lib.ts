@@ -13,8 +13,9 @@ import {
 	undef, defined, notdefined, isEmpty, nonEmpty,
 	array, arrayof, isArray, isHash, isString, hash, hashof,
 	isIterable, deepEqual, hashLike, integer, TObjCompareFunc,
-	TObjLikeFunc, TToStringFunc, normalizeCode,
-	voidFunc, croak, assertIsDefined, isGenerator, isIterator,
+	TObjLikeFunc, TToStringFunc, TFilterFunc,
+	normalizeCode,
+	TVoidFunc, croak, assertIsDefined, isGenerator, isIterator,
 	} from 'datatypes'
 import {
 	pass, o, keys, getOptions, spaces, blockToArray,
@@ -168,7 +169,7 @@ export const falsy = (value: unknown): void => {
  * ```
  * This test will pass.
  */
-export const fails = (func: voidFunc): void => {
+export const fails = (func: TVoidFunc): void => {
 	pushLogLevel('silent') // --- silence any errors generated
 	const name = getTestName()
 	DBG(`fails <func> (${name})`)
@@ -201,7 +202,7 @@ export const fails = (func: voidFunc): void => {
  * ```
  * This test will pass.
  */
-export const succeeds = (func: voidFunc): void => {
+export const succeeds = (func: TVoidFunc): void => {
 	assert((typeof func === 'function'), "test succeeds() passed non-function")
 	const name = getTestName()
 	DBG(`succeeds <func> (${name})`)
@@ -824,4 +825,80 @@ export const setDirTree_org = async (desc: string): AutoPromise1<AutoPromise<TFi
 	}
 }
 
+// ---------------------------------------------------------------------------
+// --- Create some values for testing
 
+export const val: hashof<unknown> = {
+	undef: undefined,
+	null: null,
+	emptyStr: '',
+	str: 'abc',
+	i: 42,
+	f: 3.14159,
+	b: true,
+	genFunc: function*() {
+		yield 42
+	},
+	regularFunc: function() {
+		return 42
+	},
+	lambdaFunc: () => {
+		return 42
+	},
+	emptyHash: {},
+	fullHash: {a: 42},
+	emptyList: [],
+	fullList: [42]
+	}
+
+// ---------------------------------------------------------------------------
+// --- Returns true only if all the named values return true
+//     AND all the not named values return false
+
+export const allTrue = (
+		lNames: string[],
+		pred: TFilterFunc
+		): boolean => {
+
+	for (const name in val) {const value = val[name];
+		if (lNames.includes(name)) {
+			if (!pred(value)) {
+//				console.log "#{name} returns false"
+				return false
+			}
+		}
+		else {
+			if (pred(value)) {
+//				console.log "#{name} returns true"
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// ---------------------------------------------------------------------------
+// --- Returns true only if all the named values return true
+//     AND all the not named values return false
+
+export const allFalse = (
+		lNames: string[],
+		pred: TFilterFunc
+		): boolean => {
+
+	for (const name in val) {const value = val[name];
+		if (lNames.includes(name)) {
+			if (pred(value)) {
+//				console.log "#{name} returns true"
+				return false
+			}
+		}
+		else {
+			if (!pred(value)) {
+//				console.log "#{name} returns false"
+				return false
+			}
+		}
+	}
+	return true
+}

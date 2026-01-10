@@ -8,7 +8,7 @@ import {
 	normalizeCode, normalizeExpr,
 	array, arrayof, isArray,
 	hash, hashof, isHash,
-	voidFunc, nonEmptyString,
+	TVoidFunc, nonEmptyString,
 	isString, char, isChar, isNonEmptyString, isBoolean,
 	isNumber, isPrimitive, isNonPrimitive, isInteger,
 	isArrayOfStrings, isArrayOfIntegers,

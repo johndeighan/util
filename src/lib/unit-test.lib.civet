@@ -10,9 +10,10 @@ import {esc, mesc} from 'unicode'
 import {
 	undef, defined, notdefined, isEmpty, nonEmpty,
 	array, arrayof, isArray, isHash, isString, hash, hashof,
-	isIterable, deepEqual, hashLike, integer, TObjCompareFunc,
-	TObjLikeFunc, TToStringFunc, normalizeCode,
-	voidFunc, croak, assertIsDefined, isGenerator, isIterator,
+	isIterable, deepEqual, hashLike, integer, THashCompareFunc,
+	THashLikeFunc, THashToStringFunc, TFilterFunc,
+	normalizeCode,
+	TVoidFunc, croak, assertIsDefined, isGenerator, isIterator,
 	} from 'datatypes'
 import {
 	pass, o, keys, getOptions, spaces, blockToArray,
@@ -156,7 +157,7 @@ export falsy := (value: unknown): void =>
  * ```
  * This test will pass.
  */
-export fails := (func: voidFunc): void =>
+export fails := (func: TVoidFunc): void =>
 	pushLogLevel 'silent' # --- silence any errors generated
 	name := getTestName()
 	DBG "fails <func> (#{name})"
@@ -185,7 +186,7 @@ export fails := (func: voidFunc): void =>
  * ```
  * This test will pass.
  */
-export succeeds := (func: voidFunc): void =>
+export succeeds := (func: TVoidFunc): void =>
 	assert (typeof func == 'function'), "test succeeds() passed non-function"
 	name := getTestName()
 	DBG "succeeds <func> (#{name})"
@@ -344,8 +345,8 @@ export strListLike := (value: string[], expected: string[]): void =>
 export objListLike := (
 		value: hash[],
 		expected: hash[],
-		strFunc: TToStringFunc? = undef,
-		likeFunc: TObjLikeFunc = hashLike # used for comparison
+		strFunc: THashToStringFunc? = undef,
+		likeFunc: THashLikeFunc = hashLike # used for comparison
 		): void =>
 
 	name := getTestName()
@@ -358,7 +359,7 @@ export objListLike := (
 	# --- create the arrays to actually be compared
 	let lVals: hash[] = value
 	if defined(strFunc)
-		compareFunc: TObjCompareFunc := (a: hash, b: hash) =>
+		compareFunc: THashCompareFunc := (a: hash, b: hash) =>
 			str1 := strFunc a
 			str2 := strFunc b
 			return if (str1 < str2) then -1 else if (str1 > str2) then 1 else 0
@@ -368,7 +369,7 @@ export objListLike := (
 	let lExp: hash[] = value
 	if defined(strFunc)
 		DBG "strFunc defined"
-		compareFunc: TObjCompareFunc := (a: hash, b: hash) =>
+		compareFunc: THashCompareFunc := (a: hash, b: hash) =>
 			str1 := strFunc a
 			str2 := strFunc b
 			return if (str1 < str2) then -1 else if (str1 > str2) then 1 else 0
@@ -724,4 +725,65 @@ export setDirTree_org := (desc: string): AutoPromise<TFileOp[]> =>
 		croak "ERROR in getFileOps(): #{getErrStr(err)}"
 		return [] as TFileOp[]
 
+# ---------------------------------------------------------------------------
+# --- Create some values for testing
 
+export val: hashof<unknown> := {
+	undef: undefined
+	null: null
+	emptyStr: ''
+	str: 'abc'
+	i: 42
+	f: 3.14159
+	b: true
+	genFunc: () ->
+		yield 42
+	regularFunc: () ->
+		return 42
+	lambdaFunc: () =>
+		return 42
+	emptyHash: {}
+	fullHash: {a: 42}
+	emptyList: []
+	fullList: [42]
+	}
+
+# ---------------------------------------------------------------------------
+# --- Returns true only if all the named values return true
+#     AND all the not named values return false
+
+export allTrue := (
+		lNames: string[],
+		pred: TFilterFunc
+		): boolean =>
+
+	for name,value in val
+		if lNames.includes name
+			if not pred(value)
+#				console.log "#{name} returns false"
+				return false
+		else
+			if pred(value)
+#				console.log "#{name} returns true"
+				return false
+	return true
+
+# ---------------------------------------------------------------------------
+# --- Returns true only if all the named values return true
+#     AND all the not named values return false
+
+export allFalse := (
+		lNames: string[],
+		pred: TFilterFunc
+		): boolean =>
+
+	for name,value in val
+		if lNames.includes name
+			if pred(value)
+#				console.log "#{name} returns true"
+				return false
+		else
+			if not pred(value)
+#				console.log "#{name} returns false"
+				return false
+	return true

@@ -28,7 +28,7 @@ import {
 	undef, defined, notdefined, assert, croak,
 	isEmpty, nonEmpty, isString, isNonEmptyString,
 	isBoolean, isNumber, isInteger, isArray, isArrayOfStrings,
-	isHash, isRegExp, integer, hash, hashof, voidFunc,
+	isHash, isRegExp, integer, hash, hashof, TVoidFunc,
 	} from 'datatypes'
 import {
 	getOptions, removeEmptyKeys, pass, encode, spaces,
@@ -346,7 +346,7 @@ export type TFsEventHandler = (kind: string, path: string) => void | boolean
  * class FileEventHandler
  *    handles file changed events when .handle(fsEvent) is called
  *    callback is a function, debounced by 200 ms
- *       that takes an FsEvent and returns a voidFunc
+ *       that takes an FsEvent and returns a TVoidFunc
  *       which will be called if the callback returns a function reference
  * [unit tests](../test/fs.test.civet#:~:text=%23%20%2D%2D%2D%20class%20FileEventHandler)
  */
@@ -359,7 +359,7 @@ export class FileEventHandler {
 
 	constructor(callback: TFsEventHandler, hOptions: hash = {}) {
 		type opt = {
-			onStop: voidFunc
+			onStop: TVoidFunc
 			debounceBy: number
 			}
 		const {onStop: onStop1, debounceBy} = getOptions<opt>(hOptions, {
@@ -373,7 +373,7 @@ export class FileEventHandler {
 	}
 
 	// ..........................................................
-	// --- Calls a voidFunc, but is debounced by @ms ms
+	// --- Calls a TVoidFunc, but is debounced by @ms ms
 
 	handle(fsEvent: FsEvent): void {
 		const {kind, paths} = fsEvent

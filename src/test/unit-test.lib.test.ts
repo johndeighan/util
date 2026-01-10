@@ -10,6 +10,7 @@ import {
 	like, strListLike, objListLike,
 	matches, includes, includesAll,
 	TFileOp, setDirTree, fileOpsTable,
+	val, allTrue, allFalse,
 	} from 'unit-test'
 
 // ---------------------------------------------------------------------------
@@ -154,17 +155,25 @@ DBG("fileOpsTable()");
 		{op: 'barf',  path: '/usr/bin/temp.txt', contents: 'abc\ndef'}
 		]
 	const block = fileOpsTable(lFileOps)
-	equal(block, `----------------------------------
+	equal(block, `-----------------------------------
 ${spaces(13)}FILE OPS
-----------------------------------
-mkdir /usr/bin
+-----------------------------------
+ op           path         contents
+----- -------------------- --------
+mkDir /usr/bin
 barf  /usr/bin/deighan.txt <empty>
 barf  /usr/bin/temp.txt    abc
-                           def
-----------------------------------`)
+${spaces(27)}def
+-----------------------------------`)
 }
 	)()
 
 // ---------------------------------------------------------------------------
 
-DBG("setDirTree()")
+truthy(allTrue(['emptyStr', 'str'],
+	(x) => (typeof x === 'string')
+	))
+
+truthy(allFalse(['genFunc', 'regularFunc', 'lambdaFunc'],
+	(x) => (typeof x !== 'function')
+	))

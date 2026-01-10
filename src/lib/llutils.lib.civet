@@ -14,7 +14,7 @@ import {
 	undef, defined, notdefined, assert, char, deepEqual,
 	assertIsDefined, isHash, isArray, isNonEmptyString,
 	isArrayOfStrings, isEmpty, nonEmpty, isString, isInteger,
-	integer, hash, hashof, array, arrayof, voidFunc, isNonPrimitive,
+	integer, hash, hashof, array, arrayof, TVoidFunc, isNonPrimitive,
 	functionDef, croak, assertIsString, assertIsNumber,
 	TStringMapper,
 	} from 'datatypes'
@@ -60,7 +60,7 @@ export sinceLoadStr := (datetime: (Date | integer)? = undef) =>
 # ---------------------------------------------------------------------------
 
 export throwsError := (
-		func: voidFunc,
+		func: TVoidFunc,
 		msg: string = "Unexpected success"
 		): void =>
 
@@ -431,10 +431,8 @@ export allMatches := (
 
 export range := (n: number): Generator<number, void, void> ->
 
-	let i = 0
-	while i < n
+	for i of [0...n]
 		yield i
-		i = i + 1
 	return
 
 # ---------------------------------------------------------------------------

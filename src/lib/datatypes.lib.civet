@@ -76,17 +76,17 @@ export function assertNotDefined(
 export type hashof<T> =
 	[key: string | symbol]: T
 export type hash = hashof<unknown>
+
 export type arrayof<T> = T[]
 export type array = arrayof<unknown>
 
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 
-export type voidFunc = => void
+export type TVoidFunc = () => void
 export type TFilterFunc = (item: unknown) => boolean
 export type TStringifier = (item: unknown) => string
 export type TStringMapper = (str: string) => string
-export type TStringGenerator = Generator<string, void, void>
 
 # ---------------------------------------------------------------------------
 
@@ -141,9 +141,9 @@ export className := (x: unknown): string? =>
 
 # ---------------------------------------------------------------------------
 
-export type TObjCompareFunc = (h1: hash, h2: hash) => number
-export type TObjLikeFunc = (h: hash, hPat: hash) => boolean
-export type TToStringFunc = (h: hash) => string
+export type THashCompareFunc = (h1: hash, h2: hash) => number
+export type THashLikeFunc = (h: hash, hPat: hash) => boolean
+export type THashToStringFunc = (h: hash) => string
 
 export hashLike := (h: hash, hPat: hash): boolean =>
 
@@ -229,24 +229,25 @@ export nonEmpty := (x: unknown): boolean =>
 
 # ---------------------------------------------------------------------------
 
-export genIDs := (id: number = 1): number ->
-	yield id++
+export uniqInt := (start: number = 1): Generator<number, void, void> ->
+	for i of [start..1000000]
+		yield i
 
 export addFunctionNames := (code: string): string =>
 	# --- The names we add will look like: '__dummy99' where
 	#     '99' can be any sequence of digits
 	#     to make it trivial to remove them later
 
-	let id = 99
-	re := /function\s*(\*)?\s*\(/g
-	replaceFunc := (match: string, ast: string?) =>
-		n := id
-		id += 1
-		if defined(ast)
-			return "function* __dummy#{n.toString()}("
-		else
-			return "function __dummy#{n.toString()}("
-	return code.replaceAll re, replaceFunc
+	gen := uniqInt()     # create an iterator
+
+	# --- Args to replacer function are:
+	#    function replacer(match, p1, p2, /* …, */ pN, offset, string, groups) {
+	#       return replacement;
+	#	     }
+
+	replaceFunc := (match: string, aster: string?) =>
+		return "function#{aster} __dummy#{gen.next().value}("
+	return code.replaceAll /function\s*(\*)?\s*\(/g, replaceFunc
 
 # ---------------------------------------------------------------------------
 

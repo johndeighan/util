@@ -10,7 +10,6 @@
     "@std/path": "jsr:@std/path@^1.1.3",
     "@std/streams": "jsr:@std/streams@^1.0.14",
 
-    "sample-values": "file:///C:/Users/johnd/utils/src/lib/sample-values.lib.ts",
     "datatypes":     "file:///C:/Users/johnd/utils/src/lib/datatypes.lib.ts",
     "source-map":    "file:///C:/Users/johnd/utils/src/lib/source-map.lib.ts",
     "llutils":       "file:///C:/Users/johnd/utils/src/lib/llutils.lib.ts",
