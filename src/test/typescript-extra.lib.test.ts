@@ -1,0 +1,11 @@
+"use strict";
+// typescript-extra.lib.test.civet
+
+import {civet2ts, a} from 'civet'
+import {pass, o, s, t} from 'llutils'
+import {equal} from 'unit-test'
+
+// ---------------------------------------------------------------------------
+
+equal(a`import {defined, notdefined} from 'datatypes'`, s`IMPORTS: datatypes: defined notdefined
+EXTRA: defined notdefined`)

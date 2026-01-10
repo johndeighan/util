@@ -1,0 +1,457 @@
+# walker.lib.test.civet
+
+import {undef, hash} from 'datatypes'
+import {hasKey, hasKeys} from 'llutils'
+import {LOG, DBG} from 'logger'
+import {Walker} from 'walker'
+import {equal, truthy, falsy} from 'unit-test'
+
+# ---------------------------------------------------------------------------
+
+DBG "class Walker"
+
+(() =>
+	# --- Try a very simple class
+
+	type TGender = 'male' | 'female'
+
+	class Person
+		name: string
+		gender: TGender
+		constructor(@name: string, @gender: TGender)
+
+	class PersonWalker extends Walker<Person>
+		override isNode = (x: object): x is Person =>
+			return x instanceof Person
+
+	walker := new PersonWalker()
+
+	# --- Walk a single node
+	person := new Person('John', 'male')
+	lStrings := for {name, gender} of walker.walk(person)
+		"#{name} is #{gender}"
+	equal lStrings, ['John is male']
+
+	# --- Walk an array
+	lStrings2 := for {name, gender} of walker.walk([
+			new Person('John', 'male')
+			new Person('Julie', 'female')
+			])
+		"#{name} is #{gender}"
+	equal lStrings2, ['John is male', 'Julie is female']
+
+	# --- Walk an object
+	lStrings3 := for {name, gender} of walker.walk({
+			first: new Person('John', 'male')
+			second: new Person('Julie', 'female')
+			})
+		"#{name} is #{gender}"
+	equal lStrings3, [
+		'John is male',
+		'Julie is female'     # TODO add key by querying for parent
+		]
+
+	h := {
+		friends: [
+			new Person('John Bowling', 'male')
+			new Person('Julie Booker', 'female')
+			]
+		name: 'John Deighan'
+		gender: 'male'
+		address: {
+			street: '1749 Main St.'
+			city: 'Blacksburg'
+			state: 'VA'
+			}
+		} as const
+
+	lNames := for {name} of walker.walk(h)
+		name
+	equal lNames, ['John Bowling', 'Julie Booker']
+
+	# --- put it in an array
+	arr := [{
+		friends: [
+			new Person('John Bowling', 'male')
+			new Person('Julie Booker', 'female')
+			]
+		name: 'John Deighan'
+		gender: 'male'
+		address: {
+			street: '1749 Main St.'
+			city: 'Blacksburg'
+			state: 'VA'
+			}
+		}] as const
+
+	lNames2 := for {name} of walker.walk(arr)
+		name
+	equal lNames2, ['John Bowling', 'Julie Booker']
+
+	# --- put it in a hash
+	h3 := { stuff: {
+		friends: [
+			new Person('John Bowling', 'male')
+			new Person('Julie Booker', 'female')
+			]
+		name: 'John Deighan'
+		gender: 'male'
+		address: {
+			street: '1749 Main St.'
+			city: 'Blacksburg'
+			state: 'VA'
+			}
+		}} as const
+
+	lNames3 := for {name} of walker.walk(h3)
+		"#{walker.level} #{name}"
+	equal lNames3, ['0 John Bowling', '0 Julie Booker']
+	)()
+
+# --- NOTE: In the above, the nodes must be Person objects,
+#           not just hashes with the keys 'name' and 'gender'
+# --- However, if you just want to check for those keys,
+#        you can overried the isNode() method
+
+(() =>
+	# --- A node is a hash with keys 'name' and 'gender'
+
+	type Person = {
+		name: string
+		gender: 'male' | 'female'
+		}
+
+	class PersonWalker extends Walker<Person>
+		override isNode = (x: object): x is Person =>
+			return hasKeys(x, 'name', 'gender')
+	walker := new PersonWalker()
+
+	# --- Walk a single node
+	person := {name: 'John', gender: 'male'}
+	lStrings := for {name, gender} of walker.walk(person)
+		"#{name} is #{gender}"
+	equal lStrings, ['John is male']
+
+	# --- Walk an array
+	lStrings2 := for {name, gender} of walker.walk([
+			{name: 'John', gender: 'male'}
+			{name: 'Julie', gender: 'female'}
+			])
+		"#{name} is #{gender}"
+	equal lStrings2, ['John is male', 'Julie is female']
+
+	# --- Walk an object
+	lStrings3 := for node of walker.walk({
+			first: {name: 'John', gender: 'male'}
+			second: {name: 'Julie', gender: 'female'}
+			})
+		"#{node.name} is #{node.gender}"
+	equal lStrings3, [
+		'John is male',
+		'Julie is female'
+		]
+
+	h := {
+		friends: [
+			{name: 'John Bowling', gender: 'male'}
+			{name: 'Julie Booker', gender: 'female'}
+			]
+		name: 'John Deighan'
+		gender: 'male'
+		address: {
+			street: '1749 Main St.'
+			city: 'Blacksburg'
+			state: 'VA'
+			}
+		} as const
+
+	lNames := for node of walker.walk(h)
+		node.name
+	equal lNames, ['John Deighan', 'John Bowling', 'Julie Booker']
+
+	# --- put it in an array
+	h2 := [{
+		friends: [
+			{name: 'John Bowling', gender: 'male'}
+			{name: 'Julie Booker', gender: 'female'}
+			]
+		name: 'John Deighan'
+		gender: 'male'
+		address: {
+			street: '1749 Main St.'
+			city: 'Blacksburg'
+			state: 'VA'
+			}
+		}] as const
+
+	lNames2 := for node of walker.walk(h2)
+		node.name
+	equal lNames2, ['John Deighan', 'John Bowling', 'Julie Booker']
+
+	# --- put it in a hash
+	h3 := { stuff: {
+		friends: [
+			{name: 'John Bowling', gender: 'male'}
+			{name: 'Julie Booker', gender: 'female'}
+			]
+		name: 'John Deighan'
+		gender: 'male'
+		address: {
+			street: '1749 Main St.'
+			city: 'Blacksburg'
+			state: 'VA'
+			}
+		}} as const
+
+	lNames3 := for node of walker.walk(h3)
+		node.name
+	equal lNames3, ['John Deighan', 'John Bowling', 'Julie Booker']
+	)()
+
+# ---------------------------------------------------------------------------
+
+(() =>
+	h := {
+		name: 'John D'
+		age: 72
+		friends: [
+			{
+				name: 'John B',
+				alias: {name: 'male JB'}
+				}
+			{
+				name: 'Julie',
+				aliases: [{name: 'female JB'}]
+				}
+			{name: 'Aaron'}
+			{notname: 'building'}
+			]
+		enemies: {
+			a: {name: 'Donald', kind: 'scumbag'}
+			b: {name: 'Satan',  kind: 'devil'}
+			c: {notname: 'woods', key: 'nothing'}
+			}
+		}
+
+	class PersonWalker extends Walker<Person>
+		override isNode(x: object): x is Person
+			return hasKey x, 'name'
+
+	walker := new PersonWalker()
+
+	lItems := for node of walker.walk(h)
+		[walker.level, node.name]
+
+	equal lItems, [
+		[ 0, "John D" ],
+		[ 1, "John B" ],
+		[ 2, "male JB" ],
+		[ 1, "Julie" ],
+		[ 2, "female JB" ],
+		[ 1, "Aaron" ],
+		[ 1, "Donald" ],
+		[ 1, "Satan" ]
+		]
+	)()
+
+# ---------------------------------------------------------------------------
+# --- Define some classes to use in subsequent tests
+
+class Person
+	name: string
+	gender: 'male' | 'female'
+	email: string?
+	constructor(
+			@name: string
+			@gender: 'male' | 'female'
+			@email: string? = undef
+			)
+
+class PersonWalker extends Walker<Person>
+	override isNode(x: object): x is Person
+		return x instanceof Person
+
+# ---------------------------------------------------------------------------
+# --- Walk a single node
+
+(() =>
+	hAst := new Person('John', 'male')
+
+	walker := new PersonWalker()
+
+	lNames := for {name} of walker.walk(hAst)
+		name
+	lGenders := for {gender} of walker.walk(hAst)
+		gender
+	lDesc := for {name, gender} of walker.walk(hAst)
+		"#{name} is #{gender}"
+
+	equal lNames,   ['John']
+	equal lGenders, ['male']
+	equal lDesc,    ['John is male']
+	)()
+
+# ---------------------------------------------------------------------------
+# --- Walk an array of nodes
+
+(() =>
+	hAst := [
+		new Person('John', 'male')
+		new Person('Julie', 'female')
+		]
+
+	walker := new PersonWalker()
+
+	lNames   := for {name} of walker.walk(hAst)
+		name
+	lGenders := for {gender} of walker.walk(hAst)
+		gender
+	lDesc    := for {name, gender} of walker.walk(hAst)
+		"#{name} is #{gender}"
+
+	equal lNames,   ['John', 'Julie']
+	equal lGenders, ['male', 'female']
+	equal lDesc,    ['John is male', 'Julie is female']
+	)()
+
+# ---------------------------------------------------------------------------
+# --- Walk a hash with node values
+
+(() =>
+	hAst := {
+		first: new Person('John', 'male')
+		second: new Person('Julie', 'female')
+		}
+
+	walker := new PersonWalker()
+
+	lNames   := for {name} of walker.walk(hAst)
+		name
+	lGenders := for {gender} of walker.walk(hAst)
+		gender
+	lDesc    := for {name, gender} of walker.walk(hAst)
+		"#{name} is #{gender}"
+
+	equal lNames,   ['John', 'Julie']
+	equal lGenders, ['male', 'female']
+	equal lDesc,    ['John is male', 'Julie is female']
+	)()
+
+# ---------------------------------------------------------------------------
+# --- Walk a complex structure with nodes inside
+#     including hashes that look like a Person, but it's not
+
+(() =>
+	hAst := {
+		first: new Person('John', 'male')
+		third: {name: 'Julie', gender: 'female'}
+		fourth: {name: 'Bob', gender: 'male', email: 'bob@gmail.com'}
+		pos: 1
+		end: 42
+		second: [
+			{
+				person: new Person('Julie', 'female')
+				index: 13.2
+				for: 'me'
+				}
+			[1,2,3]
+			]
+		}
+
+	walker := new PersonWalker()
+
+	lNames   := for {name} of walker.walk(hAst)
+		name
+	lGenders := for {gender} of walker.walk(hAst)
+		gender
+	lDesc    := for {name, gender} of walker.walk(hAst)
+		"#{name} is #{gender}"
+
+	equal lNames,   ['John', 'Julie']
+	equal lGenders, ['male', 'female']
+	equal lDesc,    ['John is male', 'Julie is female']
+	)()
+
+# ---------------------------------------------------------------------------
+# --- Redefine node to be anything with name and gender
+
+(() =>
+	hAst := {
+		first: new Person('John', 'male')
+		third: {name: 'Julie', gender: 'female'}
+		fourth: {name: 'Bob', gender: 'male', email: 'bob@gmail.com'}
+		pos: 1
+		end: 42
+		second: [
+			{
+				person: new Person('Jane', 'female')
+				index: 13.2
+				for: 'me'
+				}
+			[1,2,3]
+			]
+		}
+
+	class NewPersonWalker extends Walker<Person>
+		override isNode(x: object): x is Person
+			return hasKeys(x, 'name', 'gender')
+
+	walker := new NewPersonWalker()
+
+	lDesc := for {name, gender} of walker.walk(hAst)
+		"#{name} is #{gender}"
+
+	equal lDesc, [
+		'John is male'
+		'Julie is female'
+		'Bob is male'
+		'Jane is female'
+		]
+
+	# --- Try extended walking
+
+	lDesc2 := for [vkind, {name, gender}] of walker.walkEx(hAst)
+		when (vkind == 'enter')
+		"#{name} is #{gender}"
+
+	equal lDesc2, [
+		'John is male'
+		'Julie is female'
+		'Bob is male'
+		'Jane is female'
+		]
+	)()
+
+# ---------------------------------------------------------------------------
+# --- test extended walking
+
+(() =>
+	hAst := {
+		kind: 'top'
+		first: 'first'
+		next: {
+			kind: 'next'
+			a: 'one'
+			b: 'two'
+			c: 'three'
+			}
+		last: {
+			kind: 'last'
+			A: 'one'
+			B: 'two'
+			}
+		}
+
+
+	walker := new Walker()
+	lItems := for [vkind, item] of walker.walkEx(hAst)
+		"#{vkind} #{item.kind}"
+	equal lItems, [
+		'enter top'
+		'enter next'
+		'exit next'
+		'enter last'
+		'exit last'
+		'exit top'
+		]
+	)()

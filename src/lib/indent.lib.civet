@@ -1,0 +1,191 @@
+# indent.lib.civet
+
+import {esc} from unicode
+import {
+	undef, defined, notdefined, assert, croak, array,
+	isEmpty, isString, isArray, isArrayOfStrings,
+	hash, hashof, isHash, integer, isInteger,
+	} from 'datatypes'
+import {
+	rtrim, countChars, getOptions, blockToArray, arrayToBlock,
+	toArray, toBlock, widthOf, heightOf, blockify, keys,
+	} from 'llutils'
+import {OL} from 'to-nice'
+
+export let oneIndent: string? = undef
+
+# ---------------------------------------------------------------------------
+
+export resetOneIndent := (str: string? = undef): void =>
+
+	oneIndent = str
+	return
+
+# ---------------------------------------------------------------------------
+
+export indentLevel := (line: string): number =>
+
+	# --- This will always match, and it's greedy
+	#     (but TypeScript doesn't know that)
+	[prefix] := line.match(/^\s*/) || ['']
+	if (prefix.length == 0)
+		return 0
+
+	# --- Check if we're using TABs or spaces
+	numTABs := countChars prefix, "\t"
+	numSpaces := countChars prefix, " "
+	assert (numTABs == 0) || (numSpaces == 0),
+			"Invalid mix of TABs and spaces in #{esc(line)}"
+
+	# --- oneIndent must be one of:
+	#        undef
+	#        a single TAB character
+	#        some number of space characters
+	# --- Set variables oneIndent & level
+	switch oneIndent
+		case undef:
+			if (numTABs > 0)
+				oneIndent = "\t"
+				return numTABs
+			else
+				oneIndent = ' '.repeat(numSpaces)
+				return 1
+
+		case "\t":
+			assert (numSpaces == 0), "Expecting TABs, found spaces"
+			return numTABs
+
+		default:
+			# --- using some number of spaces
+			assert (numTABs == 0), "Expecting spaces, found TABs"
+			assert (numSpaces % oneIndent.length == 0),
+					"Invalid num spaces: #{numSpaces}, oneIndent = #{esc(oneIndent)}"
+			return numSpaces / oneIndent.length
+
+# ---------------------------------------------------------------------------
+
+export type lineDesc = [level: number, text: string]
+
+export splitLine := (line: string): lineDesc =>
+
+	[_, prefix, str] := line.match(/^(\s*)(.*)$/) || ['', '', '']
+	return [indentLevel(prefix), str.trim()]
+
+# ---------------------------------------------------------------------------
+
+export function indented(
+		input: string
+		level?: number
+		hOptions?: hash
+		): string
+export function indented(
+		input: string[]
+		level?: number
+		hOptions?: hash
+		): string[]
+export function indented(
+		input: string | string[]
+		level: number = 1
+		hOptions: hash = {}
+		): string | string[]
+
+	type opt = {
+		oneIndent: string?
+		}
+	# --- Because there's a global named oneIndent,
+	#     we have to put the option in a new variable, i.e. 'ind'
+	{oneIndent: ind} := getOptions<opt> hOptions, {
+		oneIndent: undef
+		}
+
+	useIndent: string := (
+		  defined(ind)       ? ind
+		: defined(oneIndent) ? oneIndent
+		:                      '\t'
+		)
+
+	lNewLines: string[] := for line of toArray(input)
+		(isEmpty(line) ? '' : useIndent.repeat(level) + line)
+	return (isArray(input) ? lNewLines : lNewLines.join('\n'))
+
+# ---------------------------------------------------------------------------
+
+export function undented(
+		input: string,
+		hOptions?: hash
+		): string
+export function undented(
+		input: string[],
+		hOptions?: hash
+		): string[]
+export function undented(
+		input: string | string[],
+		hOptions: hash = {}
+		): string | string[]
+
+	# --- NOTE: leave empty lines empty
+	let toRemove: string? = undef
+	let nToRemove: number = 0
+	lNewLines: string[] := []
+	for line of toArray(input)
+		assert isString(line), "Bad input to undented: #{OL(input)}"
+		trimmed := rtrim line
+		if (trimmed == '')
+			lNewLines.push ''
+		else if notdefined(toRemove)
+			[_, prefix, rest] := trimmed.match(/^(\s*)(.*)$/) || ['', '', '']
+			if prefix.length == 0
+				lNewLines.push trimmed
+			else
+				toRemove = prefix
+				nToRemove = prefix.length
+				lNewLines.push rest
+		else
+			assert (line.indexOf(toRemove) == 0),
+					"can't remove #{esc(toRemove)} from #{esc(line)}"
+			lNewLines.push trimmed.substr(nToRemove)
+	return isString(input) ? arrayToBlock(lNewLines) : lNewLines
+
+# ---------------------------------------------------------------------------
+
+export type TBlockDesc = string[] |
+	[key: string]: TBlockDesc
+
+export Blockify := (
+		desc: TBlockDesc,
+		hOptions: hash = {}
+		): string =>
+
+	type opt = {
+		sep: string
+		endsep: string
+		oneIndent: string
+		width: number
+		}
+	{sep, endsep, width, oneIndent} := getOptions<opt> hOptions, {
+		sep: ' '
+		endsep: ''
+		oneIndent: '   '
+		width: 64
+		}
+
+	if isArray(desc)
+		return (desc.length == 0) ? '' : blockify(desc, hOptions)
+	else
+		# --- width must be reduced since block will be indented
+		hOpts := {
+			sep
+			endsep
+			oneIndent
+			width: width - 3
+			}
+		lLines := []
+		for label of keys(desc)
+			block := Blockify desc[label], hOpts
+			if heightOf(block) == 0
+				lLines.push "#{label}: (none)"
+			else if (heightOf(block) == 1) && (label.length + widthOf(block) < width)
+				lLines.push "#{label}: #{block}"
+			else
+				lLines.push "#{label}:\n#{indented(block, 1, {oneIndent})}"
+		return lLines.join '\n'

@@ -1,0 +1,8 @@
+Program
+  A:a B:b ->
+    return a.length - b.length
+A
+  "a"*
+B
+  "b"*
+

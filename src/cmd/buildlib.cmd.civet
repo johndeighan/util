@@ -1,0 +1,46 @@
+# buildlib.cmd.civet
+
+import {stdChecks} from 'llutils'
+import {assert, defined} from 'datatypes'
+import {nonOption, allNonOptions, flag} from 'cmd-args'
+import {withExt, findFile} from 'fsys'
+import {
+	procFiles, procOneFile, doCompileCivet, doUnitTest, doInstallCmd,
+	} from 'exec'
+
+stdChecks "buildlib -nf (all | <stub>*)"
+
+// ---------------------------------------------------------------------------
+
+force := flag('f')
+if force
+	console.log "force = #{force}"
+
+# --- even with noTest, we'll compile and type check the unit tests
+noTest := flag('n')
+if noTest
+	console.log "noTest = #{noTest}"
+
+if (nonOption(0) == 'all')
+	await procFiles ['*.lib.civet', doCompileCivet], {force}
+	await procFiles ['*.lib.test.civet', doCompileCivet], {force}
+	if not noTest
+		await procFiles ['*.lib.test.ts',    doUnitTest]
+else
+	for stub of allNonOptions()
+		fileName := "#{stub}.lib.civet"
+		path := findFile fileName
+		assert defined(path), "No such file: #{fileName}"
+		await procOneFile path, doCompileCivet, {force}
+
+		# --- compile and check unit test file
+		testFileName := "#{stub}.lib.test.civet"
+		testPath := findFile testFileName
+		if defined(testPath)
+			await procOneFile testPath, doCompileCivet, {force}
+			if not noTest
+				hResult := await procOneFile withExt(testPath, '.ts'), doUnitTest
+				if ('stdout' in hResult) && defined(hResult.stdout)
+					console.log hResult.stdout.trim()
+		else
+			console.log "No unit test for #{stub}.lib"

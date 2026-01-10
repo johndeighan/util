@@ -1,0 +1,36 @@
+# parsestr.cmd.civet
+
+import {croak, assertIsDefined} from 'datatypes'
+import {findFile} from 'fsys'
+import {allNonOptions} from 'cmd-args'
+
+# ---------------------------------------------------------------------------
+
+lNonOptions := Array.from allNonOptions()
+[stub, str] := switch lNonOptions.length
+		case 0:
+			croak "No args!"
+			['dummy', '']
+		case 1:
+			['test', lNonOptions[0]]
+		default:
+			[lNonOptions[0], lNonOptions.slice(1).join(' ')]
+
+# console.log "stub = #{stub}"
+# console.log "str = #{str}"
+
+fileName := "#{stub}.parser.ts"
+
+# console.log "fileName = #{fileName}"
+
+path := findFile fileName
+
+# console.log "path = #{path}"
+
+assertIsDefined path, "No such file: #{fileName}"
+{parser} := await import "file:///#{path}"
+
+# console.log "parser found"
+
+result := parser.parse 'aaabbbbb'
+console.log "RESULT IS: #{result}"

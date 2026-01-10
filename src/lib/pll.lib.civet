@@ -1,0 +1,108 @@
+# pll.lib.civet
+
+import {esc} from 'unicode'
+import {undef, defined, notdefined, hash, isEmpty, nonEmpty} from 'datatypes'
+import {getOptions, allLinesInBlock} from 'llutils'
+import {DBG, DBGVALUE} from 'logger'
+import {oneIndent, indentLevel, splitLine} from 'indent'
+import {TextTable} from 'text-table'
+import {slurp} from 'fsys'
+
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# --- Common token types:
+#        'line', 'empty', 'indent', 'undent'
+export type TPLLToken =
+	kind: string
+	str?: string
+	name?: string
+	value?: unknown
+export tkIndent := kind: 'indent'
+export tkUndent := kind: 'undent'
+export tkEOF := kind: 'eof'
+export tokenWith := (tk: TPLLToken, s: string) =>
+	return { ...tk, str: s }
+
+# ---------------------------------------------------------------------------
+
+export type TTokenGenerator = (line: string) => Generator<TPLLToken, void, void>
+
+lineTokenGen: TTokenGenerator := (line: string) ->
+
+	yield kind: 'line', str: line
+	return
+
+# ---------------------------------------------------------------------------
+
+export allTokensIn := (
+		iterable: Iterable<string>,
+		gen: TTokenGenerator = lineTokenGen
+		): Generator<TPLLToken, void, void> ->
+
+	let level = 0
+	for str of iterable
+		DBG "LINE: '#{esc(str)}'"
+		if isEmpty(str)
+			yield kind: 'empty'
+		else
+			# --- NOTE: If indent > 0, oneIndent will be set
+			[indent, line] := splitLine str
+			if indent > level
+				level += 1
+				yield tkIndent
+				while indent > level
+					level += 1
+					yield tkIndent
+			if indent < level
+				level -= 1
+				yield tkUndent
+				while indent < level
+					level -= 1
+					yield tkUndent
+			for tok of gen(line)
+				yield tok
+	while level > 0
+		yield tkUndent
+		level -= 1
+	yield tkEOF
+	return
+
+# ---------------------------------------------------------------------------
+
+export allTokensInBlock := (
+		block: string,
+		gen: TTokenGenerator = lineTokenGen
+		): Generator<TPLLToken, void, void> ->
+
+	for tok of allTokensIn(allLinesInBlock(block), gen)
+		yield tok
+	return
+
+# ---------------------------------------------------------------------------
+
+export allTokensInFile := (
+		path: string
+		): Generator<TPLLToken, void, void> ->
+
+	for tok of allTokensInBlock(slurp path)
+		yield tok
+	return
+
+# ---------------------------------------------------------------------------
+
+export tokenTable := (
+		lTokens: Iterable<TPLLToken>,
+		title = 'Tokens'
+		): string =>
+
+	table := new TextTable('l l')
+	table.fullsep '='
+	table.title title
+	table.fullsep '='
+	table.labels ['kind', 'str']
+	table.sep()
+	for tok of lTokens
+		table.data [tok.kind, tok.str]
+	table.fullsep '='
+	return table.asString()

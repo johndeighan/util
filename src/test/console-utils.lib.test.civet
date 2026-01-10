@@ -1,0 +1,13 @@
+# console-utils.lib.test.civet
+
+import {defined, isFunction} from 'datatypes'
+import {
+	write, writeln, clearScreen, resetLine,
+	} from 'console-utils'
+import {
+	equal, like, succeeds, fails, truthy, falsy,
+	} from 'unit-test'
+
+# ---------------------------------------------------------------------------
+
+succeeds () => writeln('something')

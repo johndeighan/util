@@ -1,0 +1,43 @@
+# handle.civet
+
+import {allFilesMatching} from 'fsys'
+
+# ---------------------------------------------------------------------------
+
+export sleep := (sec: number): void =>
+
+	await new Promise((r) => setTimeout(r, 1000 * sec))
+	return
+
+# ---------------------------------------------------------------------------
+
+# --- return value is an error message, if any
+type TPathHandler = (path: string) => Promise<string?>
+
+# --- a hash with key path and result string, if error, else undef
+type THandlerResult = {[path: string]: string?}
+
+handleFiles := (
+		pattern: string
+		func: TPathHandler
+		): THandlerResult =>
+
+	lPaths := for path of allFilesMatching(pattern)
+		path
+	lPromises := for path of lPaths
+		func(path)
+	lResults := await Promise.all lPromises
+	hResults: THandlerResult := {}
+	for path,i of lPaths
+		hResults[path] = lResults[i]
+	return hResults
+
+logPath := (path: string): string? =>
+
+	await sleep 1
+	console.log path
+	return (path == 'abc') ? "FILE: #{path}" : undefined
+
+hResults := await handleFiles "**/*.test.civet", logPath
+console.dir hResults
+

@@ -1,0 +1,63 @@
+# symbols.lib.test.civet
+
+import {undef} from 'datatypes'
+import {LOG, DBG} from 'logger'
+import {
+	loadSymbols,
+	sourceLib, libsAndSymbols, getNeededImportStmts,
+	} from 'symbols'
+import {
+	equal, succeeds,
+	} from 'unit-test'
+
+
+# ---------------------------------------------------------------------------
+
+DBG "loadSymbols()"
+
+(() =>
+	myMap := loadSymbols("""
+		datatypes.lib.ts
+			undef defined
+		indent.lib.ts
+			splitLine
+		""")
+
+	equal sourceLib('undef', myMap), 'datatypes.lib.ts'
+	equal sourceLib('defined', myMap), 'datatypes.lib.ts'
+	equal sourceLib('splitLine', myMap), 'indent.lib.ts'
+	equal sourceLib('dummy', myMap), undef
+	)()
+
+DBG "sourceLib()"
+
+(() =>
+	myMap := new Map([['x', 'temp.ts'],['y', 'dummy.ts']])
+	equal sourceLib('x', myMap), 'temp.ts'
+	equal sourceLib('y', myMap), 'dummy.ts'
+	)()
+
+equal sourceLib('defined'), 'datatypes'
+equal sourceLib('isArray'), 'datatypes'
+
+equal sourceLib('array'), 'datatypes'
+equal sourceLib('hash'), 'datatypes'
+
+DBG "libsAndSymbols()"
+
+equal libsAndSymbols(['defined','array']), {
+	'datatypes': ['defined','array']
+	}
+equal libsAndSymbols(['defined','splitLine']), {
+	'datatypes': ['defined']
+	'indent': ['splitLine']
+	}
+
+DBG "getNeededImportStmts()"
+
+equal getNeededImportStmts(['defined','array']), [
+	"import {defined, array} from 'datatypes';"
+	]
+equal getNeededImportStmts(['arrayof','integer']), [
+	"import {arrayof, integer} from 'datatypes';"
+	]

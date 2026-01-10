@@ -1,0 +1,433 @@
+"use strict";
+// llutils.lib.test.civet
+
+import {LOG, DBG} from 'logger'
+import {
+	deepEqual, undef, functionDef, isArray, isHash,
+	} from 'datatypes'
+import {
+	sinceLoad, sinceLoadStr, throwsError, pass, truncStr,
+	o, s, t, strToHash, getOptions,
+	removeEmptyKeys, keys, hasKey, hasKeys, missingKeys,
+	merge, hit, sleep, spaces, tabs,
+	rtrim, countChars, wsSplit, words,
+	blockToArray, allLinesInBlock, mapEachLine, toArray,
+	arrayToBlock, toBlock,
+	getNExtra, rpad, lpad,
+	TAlignment, isAlignment, alignString, zpad,
+	TBlockSpec, isBlockSpec, allMatches,
+	range, getLineAndColumn, assertSameStr, interpolate,
+	widthOf, heightOf, blockify, CStringSetMap, f,
+	fromTAML,
+	} from 'llutils'
+import {
+	equal, truthy, falsy, succeeds, fails, codeLike,
+	} from 'unit-test'
+
+// ---------------------------------------------------------------------------
+
+DBG("sinceLoad()")
+
+succeeds(() => LOG(sinceLoad()))
+
+DBG("sinceLoadStr()")
+
+succeeds(() => LOG(sinceLoadStr()))
+
+DBG("throwsError()")
+
+succeeds(() => throwsError(() => { throw new Error("why?") }))
+// fails () => throwsError(() => return)
+
+DBG("pass()")
+
+succeeds(() => pass())
+
+DBG("deepEqual()")
+
+truthy(deepEqual(2, 2))
+truthy(deepEqual('a', 'a'))
+truthy(deepEqual(['a','b'], ['a','b']))
+falsy( deepEqual(['a','b'], ['a','b','c']))
+
+DBG("strToHash()")
+
+equal(strToHash('debug'), {debug: true})
+equal(strToHash('debug force'), {
+	debug: true,
+	force: true
+	})
+equal(strToHash('debug !force'), {
+	debug: true,
+	force: false
+	})
+equal(strToHash('debug !force  size=3'), {
+	debug: true,
+	force: false,
+	size: 3
+	})
+equal(strToHash('hide=1,2'), {
+	hide: '1,2'
+	})
+
+DBG("o()")
+
+equal(o`debug`, {debug: true})
+equal(o`!debug`, {debug: false})
+equal(o`  debug  `, {debug: true})
+equal(o`  !debug  `, {debug: false})
+equal(o`debug label=abc n=42`, {debug: true, label: 'abc', n: 42})
+
+DBG("s()")
+
+equal(s`\txxx`, "   xxx")
+equal(s`\t\tddd`, "      ddd")
+
+DBG("t()")
+
+equal(t`   wer`, "\twer")
+equal(t`      asd`, "\t\tasd")
+
+DBG("getOptions()");
+
+(() => {
+	type opt = {
+		debug: boolean
+		force: boolean
+		}
+	const hDefs: opt = {
+		debug: false,
+		force: false
+		}
+	equal(getOptions<opt>({debug: true}, hDefs), {
+		debug: true,
+		force: false
+		})
+	equal(getOptions<opt>(o`debug`, hDefs), {
+		debug: true,
+		force: false
+		})
+	equal(getOptions<opt>(o`!debug`, hDefs), {
+		debug: false,
+		force: false
+		})
+	equal(getOptions<opt>(o`debug`, hDefs), {
+		debug: true,
+		force: false
+		})
+}
+	)()
+
+DBG("removeEmptyKeys()")
+
+equal(removeEmptyKeys({a: 1, b: undef}), {a: 1})
+
+DBG("keys()")
+
+equal(keys({a:1, b:2, c:3}), ['a','b','c'])
+
+DBG("hasKey(), hasKeys()")
+
+truthy(hasKey({a:1, b:2}, 'a'))
+truthy(hasKeys({a:1, b:2}, 'a', 'b'))
+falsy( hasKey({a:1, b:2}, 'x'))
+falsy( hasKeys({a:1, b:2}, 'a', 'x'))
+
+DBG("missingKeys()");
+
+(() => {
+	const h = {a:1, b:2}
+	equal(missingKeys(h, 'a','b','c','d'), ['c','d'])
+}
+	)()
+
+DBG("merge()")
+
+equal(merge({a:1}, {b:2}), {a:1, b:2})
+equal(merge({a:1, b:2}, {b:3, c:4}), {a:1, b:3, c:4})
+
+DBG("hit()")
+
+succeeds(() => hit(25))
+truthy(hit(100))
+falsy( hit(0))
+
+DBG("sleep()")
+
+const ms0 = Date.now()
+await sleep(2)   // 2 seconds
+truthy((Date.now()-ms0 > 1000))
+
+DBG("spaces()")
+
+equal(spaces(3), '   ')
+
+DBG("tabs()")
+
+equal(tabs(3), '\t\t\t')
+
+DBG("rtrim(str)")
+
+equal(rtrim('bb   \t\t'), 'bb')
+
+DBG("countChars(str, ch)")
+
+equal(countChars('abcabcabc', 'a'), 3)
+
+DBG("blockToArray(block)")
+
+equal(blockToArray(`abcx
+def`), ['abcx','def'])
+
+DBG("allLinesInBlock(block)")
+
+equal(Array.from(allLinesInBlock(`abcy
+def`)), ['abcy', 'def'])
+
+equal(Array.from(allLinesInBlock(`qqq
+
+def`)), ['qqq', '', 'def'])
+
+equal(Array.from(allLinesInBlock("a\nb\n")), [
+	'a',
+	'b'
+	])
+
+DBG("mapEachLine()")
+
+equal(mapEachLine(`this is
+something`, (line) => `- ${line}`
+	), `- this is
+- something`)
+
+DBG("type TBlockSpec", "isBlockSpec()")
+
+truthy(isBlockSpec('vvv'))
+truthy(isBlockSpec(['ttt','def']))
+falsy( isBlockSpec(42))
+
+DBG("toArray(strOrArray)")
+
+equal(toArray("aaa\ndef\nx"), ['aaa','def','x'])
+equal(toArray(['a','b']), ['a', 'b'])
+
+DBG("arrayToBlock(x)")
+
+equal(arrayToBlock(['a','b']), 'a\nb')
+
+DBG("toBlock(strOrArray)")
+
+equal(toBlock(['a','b']), 'a\nb')
+equal(toBlock("bbb\ndef"), "bbb\ndef")
+
+DBG("wsSplit()")
+
+equal(wsSplit("abc def"), ["abc", "def"])
+equal(wsSplit("abc"), ["abc"])
+equal(wsSplit(""), [])
+equal(wsSplit("  "), [])
+equal(wsSplit("\t"), [])
+equal(wsSplit("  abc  def\t\t"), ["abc", "def"])
+
+DBG("words()")
+
+equal(words("abc def"), ["abc", "def"])
+equal(words("abc"), ["abc"])
+equal(words(""), [])
+equal(words("  "), [])
+equal(words("\t"), [])
+equal(words("  abc  def\t\t"), ["abc", "def"])
+equal(words(" abc  def", "ghi j "), [
+	"abc",
+	"def",
+	"ghi",
+	"j"
+	])
+
+DBG("getNExtra()")
+
+equal(getNExtra('abcd', 10), 6)
+equal(getNExtra('abcd', 2), 0)
+
+DBG("rpad()")
+
+equal(rpad('abcd', 10, '-'), 'abcd------')
+
+DBG("lpad()")
+
+equal(lpad('abcd', 10, '-'), '------abcd')
+
+DBG("type TAlignment", "isAlignment()")
+
+truthy(isAlignment('l'))
+truthy(isAlignment('left'))
+falsy( isAlignment('x'))
+
+DBG("alignString()")
+
+equal(alignString('abc', 5, 'left'), 'abc  ')
+equal(alignString('abc', 5, 'center'), ' abc ')
+equal(alignString('abc', 5, 'right'), '  abc')
+equal(alignString('abc', 5, 'l'), 'abc  ')
+equal(alignString('abc', 5, 'c'), ' abc ')
+equal(alignString('abc', 5, 'r'), '  abc')
+
+DBG("zpad()")
+
+equal(zpad(23, 5), '00023')
+
+DBG("allMatches()");
+
+(() => {
+	const str = '"a,b", "c,d"'
+	const re = /"([^"]*)"/
+	equal(Array.from(allMatches(str, re)).map((x) => x[1]), [
+		'a,b',
+		'c,d'
+		])
+}
+	)();
+
+(() => {
+	const str = 'DBG "type TBlockSpec", "function isBlockSpec"'
+	const re = /"\s*(?:(type|const|interface|enum|class|function)\s+)?([A-Za-z0-9_]+)(\(.*\))?\s*"/
+	const lMatches = Array.from(allMatches(str, re))
+	equal(lMatches.map((x) => x[1]), ['type', 'function'])
+	equal(lMatches.map((x) => x[2]), ['TBlockSpec', 'isBlockSpec'])
+	equal(lMatches.map((x) => x[3]), [undef, undef])
+}
+	)();
+
+(() => {
+	const str = 'DBG "type TBlockSpec", "function isBlockSpec"'
+	const re = /"\s*(?:(type|const|interface|enum|class|function)\s+)?([A-Za-z0-9_]+)(\(.*\))?\s*"/
+	const lIdents: string[] = []
+	for (const x of allMatches(str, re)) {
+		lIdents.push(x[2])
+	}
+	equal(lIdents, ['TBlockSpec', 'isBlockSpec'])
+}
+	)()
+
+DBG("range()")
+
+equal(Array.from(range(3)), [0, 1, 2])
+equal(Array.from(range(5)), [0, 1, 2, 3, 4])
+
+DBG("interpolate()")
+
+equal(interpolate("time: $time", {'$time': '3pm'}),
+	"time: 3pm");
+
+(() => {
+	const hReplace = {
+		'$time': '3pm',
+		'$name': 'John',
+		'$age' : '72'
+		}
+	const result = interpolate(
+		'$name is $age years old at $time',
+		hReplace
+		)
+	equal(result, 'John is 72 years old at 3pm')
+}
+	)()
+
+// --- all keys must begin with '$'
+fails(() => interpolate("abc", {'abc': 'def'}))
+
+DBG("getLineAndColumn(str, pos)")
+
+equal(getLineAndColumn('abc\ndef\nghi', 5), [2, 2])
+equal(getLineAndColumn('abcd\nefgh\nijkl', 5), [2, 1])
+
+DBG("truncStr(str, len)")
+
+equal(truncStr('abc', 12), 'abc')
+equal(truncStr('abcdefg', 5), 'ab...')
+
+DBG("widthOf(block)")
+
+equal(widthOf(`abc
+abcde
+xx`), 5)
+
+equal(widthOf(`xx
+abc
+abcde`), 5)
+
+equal(widthOf(`abcde
+abc
+xx`), 5)
+
+DBG("heightOf(block)")
+
+equal(heightOf(`abc
+def
+xx`), 3)
+
+equal(heightOf(''), 0)
+
+DBG("blockify(lStrings, hOptions)");
+(() => {
+	const lWords = ['abc','def','ghi','jkl']
+	equal(blockify(lWords, {width: 10}), `abc def
+ghi jkl`)
+	equal(blockify(lWords, {width: 5}), `abc
+def
+ghi
+jkl`)
+	equal(blockify(lWords, {width: 12}), `abc def ghi
+jkl`)
+	equal(blockify(lWords, {width: 64}), `abc def ghi jkl`)
+}
+	)()
+
+// ---------------------------------------------------------------------------
+
+DBG("class CStringSetMap")
+
+const ss = new CStringSetMap()
+ss.add('llutils', 'pass')
+ss.add('fsys', 'isFile')
+ss.add('llutils', 'require')
+
+equal(Array.from(ss.allKeys()), ['llutils', 'fsys'])
+equal(Array.from(ss.allValues('llutils')), ['pass','require'])
+
+// ---------------------------------------------------------------------------
+
+const imports = new CStringSetMap()
+imports.add('llutils', 'sep')
+imports.add('llutils', 'center')
+imports.add('base',    'is')
+
+equal(Array.from(imports.allKeys()), ['llutils', 'base'])
+equal(Array.from(imports.allValues('llutils')), ['sep','center'])
+
+equal(imports.asString(), `llutils: sep center
+base: is`)
+
+// ---------------------------------------------------------------------------
+
+equal(f`abc`, "abc")
+
+const meaning = 42
+equal(f`meaning is ${meaning}`,    "meaning is 42")
+equal(f`meaning is ${meaning}:3`,  "meaning is  42")
+equal(f`meaning is ${meaning}:3`,  "meaning is  42")
+equal(f`meaning is ${meaning}:!3`, "meaning is  42")
+
+const str = 'abc def'
+equal(f`str is ${str}`,    "str is abc def")
+equal(f`str is ${str}:10`, "str is abc def   ")
+
+// ---------------------------------------------------------------------------
+
+equal(fromTAML(`foo: bar
+baz:
+	- qux
+	- quux`), {
+		foo: 'bar',
+		baz: ['qux', 'quux']
+		})

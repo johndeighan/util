@@ -1,0 +1,76 @@
+# section.lib.civet
+
+import {
+	undef, defined, assert, croak, TStringMapper,
+	isArray, isEmpty, isFunction, isInteger,
+	} from 'datatypes'
+import {toBlock} from 'llutils'
+import {OL} from 'to-nice'
+import {indented} from 'indent'
+
+# ---------------------------------------------------------------------------
+
+export isSectionName := (name: string): boolean =>
+
+	return defined(name.match(/^[a-z][A-Za-z0-9_-]*/))
+
+# ---------------------------------------------------------------------------
+
+export class Section
+
+	name: string
+	mapper?: TStringMapper
+	level?: number
+
+	lLines: string[] = []
+
+	constructor(
+			@name: string,
+			level: number? = undef
+			mapper: TStringMapper? = undef)
+
+		assert isSectionName(@name), "Bad Section Name: #{@name}"
+		if defined(mapper)
+			assert isFunction(mapper),
+					"bad mapper in section #{OL(@name)}"
+			@mapper = mapper
+		if defined(level)
+			@level = level
+
+	# ..........................................................
+
+	add(...lLines: string[]): void
+
+		if isInteger(lLines[0])
+			level := lLines[0]
+			for line,i of lLines
+				if (i > 0)
+					@lLines.push indented(line, level)
+		else
+			for line of lLines
+				@lLines.push line
+		return
+
+	# ..........................................................
+
+	prepend(...lLines: string[])
+
+		if isInteger(lLines[0])
+			level := lLines[0]
+			for line,i of lLines.toReversed()
+				if (i < lLines.length-1)
+					@lLines.unshift indented(line, level)
+		else
+			for line of lLines.toReversed()
+				@lLines.unshift line
+		return
+
+	# ..........................................................
+
+	getBlock(): string?
+
+		if (@lLines.length == 0)
+			return undef
+		block := toBlock(@lLines)
+		mapped := defined(@mapper) ? @mapper(block) : block
+		return @level ? indented(mapped, @level) : mapped

@@ -1,0 +1,849 @@
+# fsys.lib.civet
+
+type AutoPromise<T> = Promise<Awaited<T>>
+import {parse: parseFilePath} from 'node:path'
+import {parse: parseJSONC, JsonValue} from 'jsr:@std/jsonc'
+import {debounce} from 'jsr:@std/async/debounce'
+import {existsSync, emptyDirSync, ensureDirSync} from 'jsr:@std/fs'
+import {appendFileSync, openSync, closeSync} from 'node:fs'
+import {EventEmitter} from 'node:events'
+import NReadLines from 'npm:n-readlines'
+
+# --- Deno's statSync and lstatSync are still unstable,
+#     so use this
+
+import {statSync} from 'node:fs'
+import {expandGlobSync} from 'jsr:@std/fs/expand-glob'
+import {TextLineStream} from 'jsr:@std/streams'
+
+# --- Use Deno's path library
+
+import {
+	parse, resolve, relative, fromFileUrl,
+	} from 'jsr:@std/path'
+
+import {
+	undef, defined, notdefined, assert, croak,
+	isEmpty, nonEmpty, isString, isNonEmptyString,
+	isBoolean, isNumber, isInteger, isArray, isArrayOfStrings,
+	isHash, isRegExp, integer, hash, hashof, voidFunc,
+	} from 'datatypes'
+import {
+	getOptions, removeEmptyKeys, pass, encode, spaces,
+	sinceLoadStr, sleep, arrayToBlock,
+	} from 'llutils'
+import {isMetaDataStart, convertMetaData} from './meta-data.lib.ts'
+import {debugging} from 'cmd-args'
+import {OL, ML} from 'to-nice'
+import {
+	pushLogLevel, popLogLevel, LOG, DBG, ERR,
+	INDENT, UNDENT, DBGVALUE, DBGLABELED,
+	} from 'logger'
+
+# --- Create a function capable of synchronously
+#     importing ESM modules
+
+Deno := globalThis.Deno
+export type FsEvent = Deno.FsEvent
+
+lDirs: string[] := []
+
+# ---------------------------------------------------------------------------
+
+export pushWD := (dir: string): void =>
+
+	lDirs.push Deno.cwd()
+	Deno.chdir(dir)
+	return
+
+# ---------------------------------------------------------------------------
+
+export popWD := (): void =>
+
+	dir := lDirs.pop()
+	if defined(dir)
+		Deno.chdir(dir)
+	else
+		croak "directory stack is empty"
+	return
+
+# ---------------------------------------------------------------------------
+/**
+ * returns one of:
+ *    'missing'  - does not exist
+ *    'dir'      - is a directory
+ *    'file'     - is a file
+ *    'symlink'  - is a symlink
+ *    'unknown'  - exists, but not a file, directory or symlink
+ */
+
+export type TPathType = 'missing' | 'file' | 'dir' | 'symlink' | 'unknown'
+
+export getPathType := (path: string): TPathType =>
+
+	assert isString(path), "not a string: #{OL(path)}"
+	if not existsSync(path)
+		return 'missing'
+	h := statSync path
+	return (
+		  h.isFile()         ? 'file'
+		: h.isDirectory()    ? 'dir'
+		: h.isSymbolicLink() ? 'symlink'
+		:                      'unknown'
+		)
+
+# ---------------------------------------------------------------------------
+
+export lStatFields: string[] := [
+	'dev', 'ino', 'mode', 'nlink', 'uid', 'gid',
+	'rdev', 'size', 'blksize', 'blocks',
+	'atimeMs', 'mtimeMs', 'ctimeMs',
+	'birthtimeMs', 'atime', 'mtime', 'ctime',
+	'birthtime',
+	]
+
+# ---------------------------------------------------------------------------
+# return statistics for a file or directory
+
+export getStats := (path: string): Deno.FileInfo =>
+
+	fileInfo := Deno.statSync path
+	return fileInfo
+
+# ---------------------------------------------------------------------------
+
+export isStub := (str: string): boolean =>
+
+	# --- a stub cannot contain any of '\\', '/'
+	return notdefined(str.match /[\\\/]/) && (str[0] != '.')
+
+# ---------------------------------------------------------------------------
+
+export touch := (path: string): void =>
+
+	fd := openSync(path, 'a')
+	closeSync(fd)
+	return
+
+# ---------------------------------------------------------------------------
+# ASYNC GENERATOR
+
+/**
+ * An async iterable - yields every line in the given file
+ *
+ * Usage:
+ *   for await line of allLinesIn('src/lib/temp.civet')
+ * 	  console.log "LINE: #{line}"
+ *   console.log "DONE"
+ */
+
+export allLinesIn := (path: string): AsyncGenerator<string, void, void> ->
+
+	assert isFile(path), "No such file: #{OL(path)} (allLinesIn)"
+	f := await Deno.open path
+	readable := f.readable.pipeThrough(new TextDecoderStream()).pipeThrough new TextLineStream()
+	for await line of readable
+		yield line
+	return
+
+# ---------------------------------------------------------------------------
+
+export pathToURL := (...lParts: string[]): string =>
+
+	path := resolve ...lParts
+	return new URL('file:' + path).href.replaceAll('\\', '/')
+
+# ---------------------------------------------------------------------------
+
+export mkpath := (...lParts: string[]): string =>
+
+	path := resolve ...lParts
+	return normalizePath path
+
+# ---------------------------------------------------------------------------
+
+export type TPathDesc = {
+	dir: string
+	root: string
+	lParts: string[]
+	}
+
+export pathSubDirs := (path: string, hOptions: hash = {}): TPathDesc =>
+
+	type opt = {
+		relative: boolean
+		}
+	{relative} := getOptions<opt> hOptions,
+		relative: false
+	path = relative ? relpath(path) : mkpath(path)
+	{root, dir} := parse path
+	return {
+		dir
+		root
+		lParts: dir.slice(root.length).split(/[\\\/]/)
+		}
+
+# ---------------------------------------------------------------------------
+# --- Should be called like: myself(import.meta.url)
+#     returns full path of current file
+
+export myself := (url: string): string =>
+
+	return relpath fromFileUrl url
+
+# ---------------------------------------------------------------------------
+
+export barf := (
+		path: string,
+		contents: string,
+		hOptions: hash = {}
+		): void =>
+
+	type opt = {
+		append: boolean
+		}
+	{append} := getOptions<opt> hOptions, {
+		append: false
+		}
+	mkDirsForFile path
+	data := encode contents
+	if append && isFile(path)
+		appendFileSync path, data
+	else
+		Deno.writeFileSync path, data
+	return
+
+# ---------------------------------------------------------------------------
+
+export barfTempFile := (
+		contents: string,
+		hOptions: hash = {}
+		): string =>
+
+	type opt = {
+		ext: string
+		}
+	{ext} := getOptions<opt> hOptions, {
+		ext: '.civet'
+		}
+	tempFilePath := Deno.makeTempFileSync suffix: ext
+	barf tempFilePath, contents
+	return tempFilePath
+
+# ---------------------------------------------------------------------------
+
+export isExt := (str: string): boolean =>
+
+	return /^\.[A-Za-z0-9_]+$/.test str
+
+# ---------------------------------------------------------------------------
+
+export newerDestFileExists := (
+		srcPath: string,
+		destPath: string    # --- can be a file extension
+		): boolean =>
+
+	if isExt(destPath)
+		destPath = withExt(srcPath, destPath)
+	assert isFile(srcPath), "No such file: #{OL(srcPath)}"
+	if not existsSync(destPath)
+		return false
+	srcModTime := statSync(srcPath).mtimeMs
+	destModTime := statSync(destPath).mtimeMs
+	return (destModTime > srcModTime)
+
+# ---------------------------------------------------------------------------
+
+export mkDir := (
+		dirPath: string,
+		clear: boolean = false
+		): void =>
+
+	if clear
+		# --- creates dir if it doesn't exist
+		emptyDirSync dirPath
+	else
+		ensureDirSync dirPath
+	return
+
+# ---------------------------------------------------------------------------
+
+export mkDirsForFile := (path: string): void =>
+
+	{root, lParts} := pathSubDirs path
+	let dir = root
+	for part of lParts
+		dir += "/#{part}"
+		if not isDir(dir)
+			mkDir dir
+	return
+
+# ---------------------------------------------------------------------------
+
+export clearDir := (dirPath: string): void =>
+
+	if existsSync(dirPath) && isDir(dirPath)
+		emptyDirSync dirPath
+	else
+		mkDir dirPath
+	return
+
+# ---------------------------------------------------------------------------
+
+# --- hOptions gets passed to allFilesMatching()
+export removeFilesMatching := (
+		pattern: string,
+		hOptions: hash = {}
+		): void =>
+
+	assert (pattern != '*') && (pattern != '**'),
+			"Can't delete files matching #{OL(pattern)}"
+	for path of allFilesMatching(pattern, hOptions)
+		Deno.removeSync path
+	return
+
+# ---------------------------------------------------------------------------
+
+export type TFsEventHandler = (kind: string, path: string) => void | boolean
+/**
+ * class FileEventHandler
+ *    handles file changed events when .handle(fsEvent) is called
+ *    callback is a function, debounced by 200 ms
+ *       that takes an FsEvent and returns a voidFunc
+ *       which will be called if the callback returns a function reference
+ * [unit tests](../test/fs.test.civet#:~:text=%23%20%2D%2D%2D%20class%20FileEventHandler)
+ */
+
+export class FileEventHandler
+	handler: TFsEventHandler # --- debounced handler
+	onStop: => void = pass
+
+	# ..........................................................
+
+	constructor(callback: TFsEventHandler, hOptions: hash = {})
+		type opt = {
+			onStop: voidFunc
+			debounceBy: number
+			}
+		{onStop: onStop1, debounceBy} := getOptions<opt> hOptions,
+			onStop: pass
+			debounceBy: 200
+		@onStop = onStop1
+		handler1 := debounce callback, debounceBy
+		@handler = handler1
+		DBG "FileEventHandler constructor() called"
+
+	# ..........................................................
+	# --- Calls a voidFunc, but is debounced by @ms ms
+
+	handle(fsEvent: FsEvent): void
+		{kind, paths} := fsEvent
+		DBG "HANDLE: [#{sinceLoadStr()}] #{kind} #{OL(paths)}"
+		for path of paths
+			@handler kind, path
+		return
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+/**
+ * a function that watches for changes one or more files or directories
+ *    and calls a callback function for each change.
+ * If the callback returns true, watching is halted
+ *
+ * Usage:
+ *   handler := (kind, path) => console.log path
+ *   await watchFile 'temp.txt', handler
+ *   await watchFile 'src/lib',  handler
+ *   await watchFile ['temp.txt', 'src/lib'], handler
+ */
+
+export watchFile := (
+		path: string | string[],
+		watcherCB: TFsEventHandler,
+		hOptions: hash = {}
+		): AutoPromise<void> ->
+
+	# --- debounceBy is milliseconds to debounce by, default is 200
+	type opt = {
+		debounceBy: number
+		}
+	{debounceBy} := getOptions<opt> hOptions, {
+		debounceBy: 200
+		}
+
+	DBG "WATCH: #{OL(path)}"
+	watcher := Deno.watchFs path
+	let doStop: boolean = false
+	fsCallback: TFsEventHandler := (kind, path): void =>
+		result := watcherCB kind, path
+		DBG "FCB: result = #{result}"
+		if result
+			watcher.close()
+		return
+	handler := new FileEventHandler(fsCallback, { debounceBy })
+	for await item of watcher
+		fsEvent: FsEvent := item
+		DBG "watcher event fired"
+		if doStop
+			DBG "doStop = #{doStop}, Closing watcher"
+			break
+		for path of fsEvent.paths
+			# --- fsCallback will be (eventually) called
+			handler.handle fsEvent
+export watchFiles := watchFile
+
+# ---------------------------------------------------------------------------
+
+export patchFirstLine := (path: string, str: string, newstr: string): void =>
+
+	# --- Replace str with newstr, but only on first line
+	contents := Deno.readTextFileSync path
+	nlPos := contents.indexOf "\n"
+	strPos := contents.indexOf str
+	if (strPos != -1) && ((nlPos == -1) || (strPos < nlPos))
+		Deno.writeTextFileSync path, contents.replace(str, newstr)
+	return
+
+# ---------------------------------------------------------------------------
+# --- EXAMPLE USAGE:
+#			importMap := await fromJsonFile('import_map.jsonc')
+#			console.dir importMap
+
+export fromJsonFile := (path: string): hash =>
+
+	if isFile(path)
+		contents := Deno.readTextFileSync path
+		if isEmpty(contents)
+			return {}
+		result := parseJSONC(contents)
+		return defined(result) ? result as hash : {}
+	else
+		return {}
+
+# ---------------------------------------------------------------------------
+
+export toJsonFile := (
+		data: hash
+		path: string
+		): void =>
+
+	Deno.writeTextFileSync path, JSON.stringify(data, null, 3)
+	return
+
+# ---------------------------------------------------------------------------
+
+export addJsonValue := (
+		path: string
+		key: string
+		value: unknown
+		): void =>
+
+	hData := fromJsonFile(path)
+	if defined(hData) && isHash(hData)
+		hData[key] = value
+		toJsonFile hData, path
+	return
+
+# ---------------------------------------------------------------------------
+
+export fileExt := (path: string): string =>
+	let ref
+	if (ref = path.match(/\.[^\.]+$/))
+		lMatches := ref
+		return lMatches[0]
+	else
+		return ''
+
+# ---------------------------------------------------------------------------
+
+export withExt := (path: string, ext: string): string =>
+	assert ext.startsWith('.'), "Bad file extension: #{ext}"
+	pos := path.lastIndexOf '.'
+	assert (pos >= 0), "path contains no period: #{path}"
+	return path.substring(0, pos) + ext
+
+# ---------------------------------------------------------------------------
+
+export removeCR := (str: string): string =>
+
+	return str.replaceAll '\r', ''
+
+# ---------------------------------------------------------------------------
+
+export slurp := (path: string): string =>
+
+	data := Deno.readTextFileSync path
+	return defined(data) ? removeCR(data) : ''
+
+# ---------------------------------------------------------------------------
+
+export slurpAsync := async (path: string): AutoPromise<string> =>
+
+	data := await Deno.readTextFile path
+	return defined(data) ? removeCR(data) : ''
+
+# ---------------------------------------------------------------------------
+
+export normalizePath := (path: string): string =>
+
+	if notdefined(path)
+		return ''
+
+	npath := path.replaceAll '\\', '/'
+	if npath.charAt(1) == ':'
+		return npath.charAt(0).toUpperCase() + npath.substring(1)
+	else
+		return npath
+
+# ---------------------------------------------------------------------------
+
+export pathStr := (path: string, root: string = 'src'): string =>
+	return normalizePath relative root, path
+
+# ---------------------------------------------------------------------------
+
+export splitPatterns := (
+		lAllPats: string | string?[],
+		lMorePats: string?[] = []
+		): [string[], string[]] =>
+
+	lPosPats: string[] := []
+	lNegPats: string[] := []
+	if (typeof lAllPats == 'string')
+		# --- A single string can't be a negative pattern
+		assert not lAllPats.match(/^\!/), "Bad glob pattern: #{lAllPats}"
+		lPosPats.push lAllPats
+	else
+		for pat of lAllPats
+			if not defined(pat)
+				continue
+			lMatches := pat.match /^(\!\s+)?(.*)$/
+			if lMatches
+				if lMatches[1]
+					lNegPats.push lMatches[2]
+				else
+					lPosPats.push lMatches[2]
+	if defined(lMorePats)
+		for pat of lMorePats
+			if not defined(pat)
+				continue
+			lMatches := pat.match /^(\!\s+)?(.*)$/
+			if lMatches
+				if lMatches[1]
+					lNegPats.push lMatches[2]
+				else
+					lPosPats.push lMatches[2]
+	return [lPosPats, lNegPats]
+
+# ---------------------------------------------------------------------------
+# GENERATOR
+#
+#    Use like:
+#       for path of allFilesMatching(lPats)
+#          OR
+#       lPaths := Array.from(allFilesMatching(lPats))
+#
+#    NOTE: By default, searches from ./src
+#          By default, ignores anything inside a folder
+#                      named 'temp' or 'hide'
+
+export allFilesMatching := (
+		lPatterns: string | string?[],
+		hOptions: hash = {}
+		): Generator<string, void, void> ->
+
+	type opt = {
+		root: string
+		hMoreGlobOptions: hash
+		lIgnoreDirs: string[]
+		includeDirs: boolean
+		}
+
+	{root, hMoreGlobOptions, lIgnoreDirs, includeDirs} := getOptions<opt> hOptions, {
+		root: './src'
+		hMoreGlobOptions: {}
+		lIgnoreDirs: ['temp', 'hide']
+		includeDirs: false
+		}
+
+	hGlobOptions: hash := {
+		root
+		includeDirs
+		followSymLinks: false
+		canonicalize: false
+		...hMoreGlobOptions
+	}
+	lMorePatterns := (if defined(lIgnoreDirs) then lIgnoreDirs.map((x) => '! **/' + x + '/**') else [])
+	[lPosPats, lNegPats] := splitPatterns lPatterns, lMorePatterns
+	if lNegPats.length > 0
+		hGlobOptions.exclude = lNegPats
+	if debugging
+		LOG "PATTERNS:"
+		for pat of lPosPats
+			LOG "   POS: #{pat}"
+		for pat of lNegPats
+			LOG "   NEG: #{pat}"
+	setSkip := new Set<string>()
+	for pat of lPosPats
+		for {path} of expandGlobSync(pat, hGlobOptions)
+			if not setSkip.has(path)
+				if debugging
+					LOG "PATH: #{path}"
+				yield path
+				setSkip.add path
+	return
+
+# ---------------------------------------------------------------------------
+
+export findFile := (
+		fileName: string
+		hOptions: hash = {}
+		): string? =>
+
+	type opt = {
+		root: string
+		lIgnoreDirs: string[]
+		}
+	{root, lIgnoreDirs} := getOptions<opt> hOptions, {
+		root: './src'
+		lIgnoreDirs: []
+		}
+
+	debugger
+	lPaths := Array.from allFilesMatching "**/#{fileName}", {
+		root
+		lIgnoreDirs
+		}
+	DBGVALUE 'lPaths', lPaths
+	switch lPaths.length
+		case 1:
+			path := normalizePath lPaths[0]
+			assert isFile(path), "Not a file: #{OL(path)}"
+			return path
+		case 0:
+			return undef
+		default:
+			for path of lPaths
+				console.log path
+			croak "Multiple files with name #{fileName}"
+			return ''
+
+# ---------------------------------------------------------------------------
+# GENERATOR
+#
+#    Use like:
+#       for path of allDirsMatching(lPats)
+#          OR
+#       lDirs := Array.from(allDirsMatching(lPats))
+#
+#    NOTE: By default, searches from ./src
+
+export allDirsMatching := (
+		lPatterns: string | string[],
+		hMoreGlobOptions: hash = {}
+		): Generator<string, void, void> ->
+
+	hGlobOptions: hash := {
+		root: './src'
+		includeDirs: true
+		followSymLinks: false
+		canonicalize: false
+		...hMoreGlobOptions
+		}
+	[lPosPats, lNegPats] := splitPatterns lPatterns
+	if lNegPats.length > 0
+		hGlobOptions.exclude = lNegPats
+	if debugging
+		LOG "PATTERNS:"
+		for pat of lPosPats
+			LOG "   POS: #{pat}"
+		for pat of lNegPats
+			LOG "   NEG: #{pat}"
+	setSkip := new Set<string>()
+	for pat of lPosPats
+		for {path} of expandGlobSync(pat, hGlobOptions)
+			if not setSkip.has(path) && Deno.statSync(path).isDirectory
+				if debugging
+					LOG "DIR: #{path}"
+				yield path
+				setSkip.add path
+	return
+
+# ---------------------------------------------------------------------------
+
+export type TPathInfo =
+	root: string
+	dir: string
+	fileName: string
+	stub: string
+	purpose: string?
+	ext: string?
+
+export parsePath := (path: string): TPathInfo =>
+
+	if defined(path.match /^file\:\/\//)
+		path = fromFileUrl(path)
+	{root, dir, base} := parseFilePath path
+	lParts := base.split '.'
+	nParts := lParts.length
+	let ref1
+	switch nParts
+		case 0:
+			throw new Error("Bad path: #{path}")
+		when 1
+			ref1 = base
+		when 2
+			ref1 = lParts[0]
+		default:
+			ref1 = lParts.slice(0, -2).join('.')
+	stub := ref1
+	return {
+		root: normalizePath(root)
+		dir: normalizePath(dir)
+		fileName: base
+		stub
+		purpose: if (nParts > 2) then lParts.at(-2) else undef
+		ext: if (nParts > 1) then ".#{lParts.at(-1)}" else undef
+	}
+
+# ---------------------------------------------------------------------------
+
+export relpath := (path: string): string =>
+
+	return normalizePath relative(Deno.cwd(), path)
+
+# ---------------------------------------------------------------------------
+
+export isFile := (path: string): boolean =>
+
+	return existsSync(path) && statSync(path).isFile()
+
+# ---------------------------------------------------------------------------
+
+export isDir := (path: string): boolean =>
+
+	return existsSync(path) && statSync(path).isDirectory()
+
+# ---------------------------------------------------------------------------
+
+export rmFile := (path: string): void =>
+
+	if isFile(path)
+		Deno.removeSync path
+	return
+
+# ---------------------------------------------------------------------------
+
+export rmDir := (path: string, hOptions: hash = {}): void =>
+
+	type opt = {
+		clear: boolean
+		}
+	{clear} := getOptions<opt> hOptions,
+		clear: false
+	if existsSync(path)
+		assert isDir(path), "Not a directory: #{path}"
+		if clear
+			Deno.removeSync path, recursive: true
+		else
+			Deno.removeSync path
+	return
+
+# ---------------------------------------------------------------------------
+
+export isValidStub := (stub: string): boolean =>
+
+	for ch of [',', '/', '\\']
+		if stub.includes(ch)
+			return false
+	return (stub != 'all')
+
+# ---------------------------------------------------------------------------
+
+export type TTextFileInfo = {
+	metaData: unknown
+	contents: string?
+	reader: Generator<string, void, void>?
+	nLines: number
+	}
+
+export openTextFile = (
+		path: string,
+		hOptions: hash = {}
+		): TTextFileInfo =>
+
+	type opt = {
+		eager: boolean
+		}
+	{eager} := getOptions<opt> hOptions, {
+		eager: false
+		}
+
+	assert isFile(path), "No such file: #{path}"
+	nReader := new NReadLines(path)
+	getLine := (): string? =>
+		buffer := nReader.next()
+		if defined(buffer)
+			return removeCR(buffer.toString())
+		else
+			return undef
+
+	# --- we need to get the first line to check if
+	#     there's meta data. But if there is not,
+	#     we need to return it by the reader
+
+	firstLine := getLine()
+	if notdefined(firstLine)
+		return {
+			metaData: undef
+			reader: undef
+			contents: undef
+			nLines: 0
+			}
+
+	# --- Get meta data if present
+	hasMetaData := isMetaDataStart(firstLine)
+	let nMetaLines = 0
+
+	metaData := (
+		if hasMetaData
+			lMetaLines: string[] := []
+			let line = getLine()
+			while line && (line != firstLine)
+				lMetaLines.push line
+				line = getLine()
+			nMetaLines = lMetaLines.length + 2
+			convertMetaData(firstLine, arrayToBlock(lMetaLines))
+		else
+			undef
+		)
+
+	# --- generator that allows reading contents
+	reader := (): Generator<string, void, void> ->
+		if not hasMetaData && defined(firstLine)
+			yield firstLine
+		let line = getLine()
+		while defined(line)
+			yield line
+			line = getLine()
+		return
+
+	# --- number of lines in file read so far
+	if eager
+		lLines := Array.from(reader())
+		return {
+			metaData
+			reader: undef
+			contents: arrayToBlock(lLines)
+			nLines: nMetaLines + lLines.length
+			}
+	else
+		return {
+			metaData
+			reader: reader()
+			contents: undef
+			nLines: nMetaLines
+			}
+
+

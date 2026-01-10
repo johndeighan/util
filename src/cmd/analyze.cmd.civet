@@ -1,0 +1,48 @@
+# analyze.cmd.civet
+
+import {stdChecks} from 'llutils'
+import {
+	undef, defined, notdefined, assert, assertIsDefined, croak,
+	} from 'datatypes'
+import {pushLogLevel, popLogLevel} from 'log-levels'
+import {LOG, DBG, DBGVALUE} from 'logger'
+import {flag, nonOption, checkCmdArgs} from 'cmd-args'
+import {toNice, DUMP} from 'to-nice'
+import {findFile, slurp, fileExt} from 'fsys'
+import {ts2ast, astAsString, analyze} from 'typescript'
+import {civet2ast, civet2ts} from 'civet'
+
+stdChecks()
+checkCmdArgs {
+	_:
+		desc: "name of file to analyze"
+		range: [0, 1]
+	t: 'debug walk of AST'
+	d: 'dump AST'
+	v: 'dump verbose analysis'
+	}
+
+# ---------------------------------------------------------------------------
+
+pushLogLevel 'info'     # --- temp disable debugging
+fileName := nonOption(0) || 'ast.civet'
+path := fileName.match(/[\\\/]/) ? fileName : findFile(fileName)
+assertIsDefined path
+LOG "-----  ANALYZE #{path}  -----"
+popLogLevel()
+tsCode := switch fileExt(path)
+	when '.ts'
+		slurp(path)
+	when '.civet'
+		civet2ts(slurp path)
+	default:
+		croak("Bad path: #{path}")
+hOptions := {
+	dump: flag('d')
+	trace: flag('t')
+	}
+analysis := analyze tsCode, hOptions
+if flag('v')
+	DUMP toNice(analysis), 'ANALYSIS'
+else
+	DUMP analysis.asString(), 'ANALYSIS'

@@ -1,0 +1,484 @@
+truthy deepEqual {a:1}, {a:1}
+truthy deepEqual {a: [1,2]}, {a: [1,2]}
+falsy  deepEqual 'a', 'b'
+falsy  deepEqual ['a'], ['b']
+falsy  deepEqual {a:1}, {a:2}
+falsy  deepEqual {a: [1,2]}, {a: [1,3]}
+
+DBG "const undef"
+
+truthy (undef == undefined)
+falsy  defined(undef)
+truthy notdefined(undef)
+
+DBG "defined(x)"
+
+truthy defined(42)
+truthy defined('abc')
+truthy defined([1,2])
+truthy defined({a: 13})
+truthy not defined(undefined)
+falsy  defined(null)
+
+# --- test if defined(x) is properly analyzed
+(() =>
+	logit := (x: string?) =>
+		let y: string = ''
+		if defined(x)
+			y = x
+		else
+			y = '<undef>'
+		console.log y
+
+	succeeds () => logit undef
+	succeeds () => logit 'abc'
+	)()
+
+DBG "notdefined(x)"
+
+truthy notdefined(null)
+truthy notdefined(undef)
+falsy  notdefined(42)
+falsy  notdefined('abc')
+
+# --- test if notdefined(x) is properly analyzed
+
+(() =>
+	logit := (x: string?) =>
+		let y: string = ''
+		if notdefined(x)
+			y = '<undef>'
+		else
+			y = x
+		console.log y
+
+	succeeds () => logit undef
+	succeeds () => logit 'abc'
+	)()
+
+DBG "type TFilterFunc"
+
+# isType 'TFilterFunc', (x: unknown) => return true
+
+DBG "type TAssertFunc"
+
+# isType 'TAssertFunc', (cond: boolean) => return
+
+DBG "croak()"
+
+fails () => croak("Bad")
+
+DBG "assert()"
+
+succeeds () => assert 2+2 == 4
+fails    () => assert 2+2 == 5
+
+DBG "isSymbol()"
+
+truthy isSymbol(Symbol('a'))
+falsy  isSymbol('abc')
+
+DBG "symbolName()"
+
+equal symbolName(Symbol('something')), 'something'
+
+DBG "functionName()"
+
+(() =>
+	func1 := (str: string): boolean =>
+		return true
+	function func2(str: string): boolean
+		return false
+	equal functionName(func1), 'func1'
+	equal functionName(func2), 'func2'
+	)()
+
+DBG "functionDef()"
+
+(() =>
+	func1 := (str: string): boolean =>
+		return true
+	function func2(str: string): boolean
+		return false
+	equal functionDef(func1), 'str=>{return true}'
+	equal functionDef(func2), 'function func2(str){return false}'
+	)()
+
+DBG "classDef()"
+
+# pass()
+
+DBG "regexpDef()"
+
+# pass()
+
+DBG "className()"
+
+# pass()
+
+DBG "type array"
+
+# isType 'array', [1,2]
+# isType 'array', ['a', 42]
+# notType 'array', 42
+
+DBG "type arrayof<T>"
+
+# isType 'arrayof<number>', [1,2]
+# isType 'arrayof<string>', ['a', 'b']
+# notType 'arrayof<number>', 42
+# isType "arrayof<integer>", [1,2]
+# isType "arrayof<string>", ['a','b']
+# notType "arrayof<integer>", [1,'b']
+# notType "arrayof<string>", [1,'b']
+
+DBG "isArray()"
+
+truthy isArray([undef, 42, 'abc', []])
+truthy isArray([1,2])
+falsy  isArray('abc')
+falsy  isArray(42)
+falsy  isArray(undef)
+falsy  isArray(null)
+
+DBG "type hash"
+
+# isType 'hash', {a: 1}
+# isType 'hash', {}
+# isType 'hash', {a:1, b:'def'}
+
+DBG "type hashof<T>"
+
+# isType  'hashof<integer>', {a: 1}
+# notType 'hashof<string>',  {a: 1}
+# isType  'hashof<integer>', ({a:1, b:2})
+# isType  'hashof<integer>', {}
+
+DBG "isHash()"
+
+(() =>
+	class TempClass
+		var: string = ''
+
+		constructor(str: string)
+			@var = str
+
+	truthy isHash({a:1, b:2})
+	truthy isHash({a:1, b: [1,2]})
+	falsy  isHash(42)
+	falsy  isHash([1, 2])
+	falsy  isHash(/abc/)
+	falsy  isHash(undef)
+	falsy  isHash(null)
+	falsy  isHash(Symbol())
+	truthy isHash(new TempClass('x'))
+	)()
+
+DBG "type TObjCompareFunc"
+
+# pass()
+
+DBG "type TObjLikeFunc"
+
+# pass()
+
+DBG "type TToStringFunc"
+
+# pass()
+
+DBG "hashLike()"
+
+truthy hashLike({a:1, b:2}, {a:1})
+truthy hashLike({a:1, b:2, c:3}, {a:1, c:3})
+
+DBG "type voidFunc"
+
+# isType 'voidFunc', () => return
+
+dump := () =>
+	console.log "Hello, World!"
+	return
+
+# isType 'voidFunc', dump
+
+DBG "isString(x)"
+
+truthy isString('abc')
+truthy isString('')
+falsy isString(42)
+falsy isString(undef)
+falsy isString([1,2])
+falsy isString({a:1, b:2})
+falsy isString(/\s/)
+
+DBG "type char"
+
+# isType 'char', 'a'
+# notType 'char', 42
+
+DBG "isChar()"
+
+truthy isChar('a')
+falsy  isChar(undef)
+falsy  isChar(42)
+falsy  isChar('abc')
+
+DBG "type nonEmptyString"
+
+# isType 'nonEmptyString', 'abc'
+# notType 'nonEmptyString', '', isNonEmptyString
+# notType 'nonEmptyString', 42
+
+DBG "isNonEmptyString()"
+
+str: nonEmptyString := 'abc'
+truthy isNonEmptyString('a')
+falsy  isNonEmptyString('')
+falsy  isNonEmptyString(undef)
+falsy  isNonEmptyString(42)
+
+DBG "isBoolean(x)"
+
+truthy isBoolean(true)
+falsy  isBoolean(42)
+
+DBG "isNumber(x)"
+
+truthy isNumber(42)
+truthy isNumber(new Number(42))
+falsy isNumber('abc')
+truthy isNumber(3.14159)
+
+DBG "isPrimitive(x)"
+
+truthy isPrimitive('abc')
+truthy isPrimitive(42)
+truthy isPrimitive(false)
+falsy  isPrimitive([])
+falsy  isPrimitive([1,2])
+falsy  isPrimitive({})
+falsy  isPrimitive({a:1, b:2})
+
+DBG "isNonPrimitive(x)"
+
+falsy  isNonPrimitive('abc')
+falsy  isNonPrimitive(42)
+falsy  isNonPrimitive(false)
+truthy isNonPrimitive([])
+truthy isNonPrimitive([1,2])
+truthy isNonPrimitive({})
+truthy isNonPrimitive({a:1, b:2})
+
+DBG "type integer"
+
+# isType 'integer', 42, isInteger
+# notType 'integer', 3.14, isInteger
+# notType 'integer', '42', isInteger
+
+DBG "isInteger()"
+
+truthy isInteger(42)
+falsy  isInteger(3.14159)
+falsy  isInteger('42')
+
+DBG "type intArray"
+
+# isType  'intArray', [1,13], isArrayOfIntegers
+# notType 'intArray', 42, isArrayOfIntegers
+# notType 'intArray', [1,'abc'], isArrayOfIntegers
+
+DBG "isArrayOfIntegers()"
+
+truthy isArrayOfIntegers([1,13])
+falsy  isArrayOfIntegers(42)
+falsy  isArrayOfIntegers([1,'abc'])
+
+DBG "isArrayOfStrings(x)"
+
+truthy isArrayOfStrings(['abc','def'])
+falsy  isArrayOfStrings(42)
+falsy  isArrayOfStrings([1,2])
+falsy  isArrayOfStrings(['abc',2])
+
+DBG "type regexp"
+
+# isType  'regexp', /^abc$/
+# notType 'regexp', 'abc'
+
+DBG "isRegExp()"
+
+truthy isRegExp(/^abc$/)
+falsy  isRegExp('abc')
+
+DBG "isFunction(x)"
+
+truthy isFunction((x: unknown) => return 42)
+falsy  isFunction(42)
+
+DBG "isEmpty(x)"
+
+truthy isEmpty(undefined)
+truthy isEmpty(null)
+truthy isEmpty('')
+truthy isEmpty('   ')
+truthy isEmpty('\t\t')
+truthy isEmpty([])
+truthy isEmpty({})
+falsy  isEmpty('abc')
+falsy  isEmpty([1,2])
+falsy  isEmpty({a:1})
+
+DBG "nonEmpty(x)"
+
+falsy  nonEmpty(undefined)
+falsy  nonEmpty(null)
+falsy  nonEmpty('')
+falsy  nonEmpty('   ')
+falsy  nonEmpty('\t\t')
+falsy  nonEmpty([])
+falsy  nonEmpty({})
+truthy nonEmpty('abc')
+truthy nonEmpty([1,2])
+truthy nonEmpty({a:1})
+
+DBG 'const lMark'
+
+# pass()
+
+DBG 'const rMark'
+
+# pass()
+
+DBG "hide(str)"
+
+equal hide('abc'), "#{lMark}abc#{rMark}"
+
+DBG "unhide(str)"
+
+equal unhide("\"#{lMark}abc#{rMark}\""), 'abc'
+equal unhide("\"#{lMark}a#{rMark}\"b\"#{lMark}c#{rMark}\""), 'abc'
+
+(() =>
+	hideq := (str: string) =>
+		return '"' + hide(str) + '"'
+	equal unhide("#{hideq('abc')}"), 'abc'
+	equal unhide("#{hideq('abc')}def#{hideq('ghi')}"), 'abcdefghi'
+	)()
+
+DBG "isClass(x)"
+
+falsy isClass(undef)
+falsy isClass(null)
+falsy isClass(true)
+falsy isClass(42)
+falsy isClass('abc')
+falsy isClass({})
+falsy isClass([])
+
+(() =>
+	class TempClass
+		var: string = ''
+
+		constructor(str: string)
+			@var = str
+	instance := new TempClass('xyz')
+	truthy isClassInstance(instance)
+
+	truthy isClass(TempClass)
+	equal className(TempClass), 'TempClass'
+	equal className(instance), 'TempClass'
+	)()
+
+DBG "isPromise(x)"
+
+# pass()
+
+DBG "isClassInstance(x)"
+
+# pass()
+
+DBG "isIterable(x)"
+
+truthy isIterable([1,2])
+(() =>
+	gen := () ->
+		yield 1
+		yield 2
+		return
+	truthy isIterable(gen())
+	)()
+
+DBG "normalizeCode(code)"
+
+equal normalizeCode("""
+	let x = 42
+	"""), 'let x=42;'
+
+DBG "addFunctionNames(code)"
+
+(() =>
+	str1 := """
+		function*(line) {
+			yield {
+				kind: 'line',
+				str: line
+				};
+			return;
+		}
+		"""
+
+	str2 := """
+		function(line) {
+		  return 42;
+		}
+		"""
+	str3 := "#{str1}\n#{str2}"
+
+	equal addFunctionNames(str1), """
+		function* __dummy99(line) {
+			yield {
+				kind: 'line',
+				str: line
+				};
+			return;
+		}
+		"""
+	equal addFunctionNames(str2), """
+		function __dummy99(line) {
+		  return 42;
+		}
+		"""
+	equal addFunctionNames(str3), """
+		function* __dummy99(line) {
+			yield {
+				kind: 'line',
+				str: line
+				};
+			return;
+		}
+		function __dummy100(line) {
+		  return 42;
+		}
+		"""
+	)()
+
+DBG "removeFunctionNames(code)"
+
+equal removeFunctionNames("function __dummy9999("),
+	"function ("
+equal removeFunctionNames("function* __dummy9999("),
+	"function* ("
+
+DBG "normalizeCode(code)"
+
+equal normalizeCode('  let x  =  42;'), 'let x=42;'
+
+(() =>
+	func := (str: string): boolean =>
+		// --- just return a true value
+		const s: string = 'abcde'
+		return true
+
+	equal normalizeCode(func.toString()),
+		"str=>{const s=\"abcde\";return true};"
+	)()

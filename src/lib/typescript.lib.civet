@@ -1,0 +1,639 @@
+# typescript.lib.civet
+
+import {cyan, blue} from 'jsr:@std/fmt/colors'
+import {existsSync} from 'jsr:@std/fs'
+import {statSync} from 'node:fs'
+import {
+	SourceFile, Node, ScriptTarget, SyntaxKind, ModuleKind,
+	NewLineKind, EmitHint, CompilerOptions, ModuleResolutionKind,
+	createSourceFile, createPrinter, createProgram,
+	transpileModule, getPreEmitDiagnostics, forEachChild,
+	flattenDiagnosticMessageText, getLineAndCharacterOfPosition,
+	} from 'npm:typescript'
+
+import {
+	undef, defined, notdefined, integer, TStringGenerator,
+	hash, hashof, isHash, TFilterFunc, isString, isEmpty, nonEmpty,
+	assert, croak, isFunction, functionDef, isClass, classDef,
+	} from 'datatypes'
+import {
+	truncStr, getOptions, spaces, o, words, hasKey,
+	CStringSetMap, keys, blockify, sep,
+	} from 'llutils'
+import {
+	extract, TPathItem, getString, getNumber, getArray,
+	} from 'extract'
+import {TBlockDesc, Blockify} from 'indent'
+import {
+	LOG, DBG, LOGVALUE, INDENT, UNDENT, DBGVALUE,
+	} from 'logger'
+import {slurp, barf, barfTempFile, fileExt} from 'fsys'
+import {OL, toNice, TMapFunc} from 'to-nice'
+import {execCmdSync} from 'exec'
+import {extractSourceMap} from 'source-map'
+import {getNeededImportStmts} from 'symbols'
+import {Walker, TVisitKind} from 'walker'
+import {CMainScope, CScope} from 'scope'
+
+decoder := new TextDecoder("utf-8")
+
+# ---------------------------------------------------------------------------
+
+export kindStr := (i: number): string =>
+
+	return SyntaxKind[i]
+
+# ---------------------------------------------------------------------------
+
+export ts2ast := (tsCode: string, hOptions: hash = {}): Node =>
+
+	type opt = {
+		fileName: string
+		}
+	{fileName} := getOptions<opt> hOptions,
+		fileName: 'temp.ts'
+
+	tsCode = extractSourceMap(tsCode)[0]
+	hAst := createSourceFile fileName, tsCode, ScriptTarget.Latest
+	return hAst
+
+# ---------------------------------------------------------------------------
+
+export ast2ts := (node: Node): string =>
+
+	assert (node.kind == 308), "Not a SourceFile node"
+	printer := createPrinter newLine: NewLineKind.LineFeed
+	return printer.printNode EmitHint.Unspecified, node, node as SourceFile
+
+# ---------------------------------------------------------------------------
+
+export typeCheckFiles := (
+		lFileNames: string | string[],
+		hOptions: CompilerOptions = hDefConfig
+		): string[] =>
+
+	if (typeof lFileNames == 'string')
+		lFileNames = [lFileNames]
+	program := createProgram lFileNames, hOptions
+	emitResult := program.emit()
+	lMsgs: string[] := []
+	getPreEmitDiagnostics(program).forEach (diag): void =>
+		{file, start, messageText} := diag
+		msg := flattenDiagnosticMessageText messageText, "\n"
+		if file
+			{fileName} := file
+			{line, character} := getLineAndCharacterOfPosition file, start!
+			lMsgs.push "#{fileName}:(#{line + 1}:#{character + 1}): #{msg}"
+		else
+			lMsgs.push msg
+	return lMsgs
+
+export typeCheckFile := typeCheckFiles # --- synonym
+
+# ---------------------------------------------------------------------------
+
+export tsMapFunc: TMapFunc := (key: string, value: unknown, hParent: hash): unknown =>
+
+	if (key == 'kind') && (typeof value == 'number')
+		desc := cyan ' (' + kindStr(value) + ')'
+		return value.toString() + desc
+	return undef
+
+# ---------------------------------------------------------------------------
+
+export astAsString := (hAst: Node, hOptions: hash = {}): string =>
+
+	return toNice hAst,
+		ignoreEmptyValues: true
+		mapFunc: tsMapFunc
+		lInclude: hOptions.lInclude
+		lExclude: words('pos end id flags modifierFlagsCache', 'transformFlags hasExtendedUnicodeEscape', 'numericLiteralFlags setExternalModuleIndicator', 'languageVersion languageVariant jsDocParsingMode', 'hasNoDefaultLib')
+
+# ---------------------------------------------------------------------------
+# --- We must place the TypeScript file at the project root
+#     so that paths gotten from .symbols resolve correctly
+
+export typeCheckCode := (tsCode: string): string[]? =>
+
+	path := "./_typecheck_.ts"
+	barf path, tsCode
+	{success, stderr} := execCmdSync 'deno', [
+		'check'
+		path
+		]
+	if success
+		return []
+	else if defined(stderr)
+		return [stderr]
+	else
+		return ['Unknown error']
+
+# ---------------------------------------------------------------------------
+
+export checkType := (
+		typeStr: string,
+		value: unknown,
+		expectSuccess: boolean = true
+		): string[] =>
+
+	DBG "CALL checkType():", INDENT
+	valueStr := (
+		  isFunction(value) ? functionDef(value)
+		: isClass(value)    ? classDef(value)
+		:                     JSON.stringify(value)
+		)
+	tsCode := getTsCode typeStr, valueStr
+	DBGVALUE 'tsCode', tsCode
+	# --- check if we need to import the type
+	importCode := getImportCode typeStr
+	DBGVALUE 'importCode', importCode
+	code := """
+		${importCode}
+		${tsCode}
+		"""
+	lDiagnostics := typeCheckCode code
+	if expectSuccess && nonEmpty(lDiagnostics)
+		LOG "typeCheckCode FAILED:"
+		LOG "CODE:"
+		LOG code
+		LOGVALUE 'lDiagnostics', lDiagnostics
+	else if not expectSuccess && isEmpty(lDiagnostics)
+		LOG "typeCheckCode SUCCEEDED:"
+		LOG "CODE:"
+		LOG code
+	DBG UNDENT
+	return lDiagnostics || []
+
+# ---------------------------------------------------------------------------
+
+# --- We need to add ':unknown' to any function parameters
+#     that don't have an explicit type
+
+export getTsCode := (
+		typeStr: string,
+		valueStr: string
+		): string =>
+
+	DBGVALUE 'typeStr', typeStr
+	DBGVALUE 'valueStr', valueStr
+	result := splitFuncStr valueStr
+	if defined(result)
+		[lParms, body] := result
+		addType := (parm: string): string =>
+			if parm.indexOf(':') >= 0
+				return parm
+			else
+				return "#{parm}: unknown"
+		parmStr := lParms.map(addType).join ', '
+		return "const x: #{typeStr} = (#{parmStr}) => #{body}"
+	else
+		return "const x: #{typeStr} = #{valueStr}"
+
+# ---------------------------------------------------------------------------
+
+type splitResult = [string[], string]
+
+export splitFuncStr := (valueStr: string): splitResult? =>
+
+	let ref
+	if (ref = valueStr.match(/^\(([^\)]*)\)\s*[\=\-]\>\s*(.*)$/))
+		lMatches := ref
+		[_, strParms, strBody] := lMatches
+		if isEmpty(strParms)
+			return [[], strBody]
+		else
+			return [
+				strParms.split(',').map((x) => x.trim())
+				strBody
+				]
+	else
+		return undef
+
+# ---------------------------------------------------------------------------
+
+export getImportCode := (typeStr: string): string =>
+
+	DBG "CALL getImportCode()"
+	lSymbols := getSymbolsFromType typeStr
+	DBGVALUE 'lSymbols', lSymbols
+	if nonEmpty(lSymbols)
+		lStmts := getNeededImportStmts lSymbols
+		DBGVALUE 'lStmts', lStmts
+		return lStmts.join '\n'
+	else
+		return ''
+
+# ---------------------------------------------------------------------------
+
+export getSymbolsFromType := (typeStr: string): string[] =>
+
+	let ref1
+	let ref2
+	if (ref1 = typeStr.match(/^([A-Za-z][A-Za-z0-9+]*)(?:\<([A-Za-z][A-Za-z0-9+]*)\>)?$/))
+		lMatches := ref1
+		[_, type, subtype] := lMatches
+		return if nonEmpty(subtype) then [type, subtype] else [type]
+	else if (ref2 = typeStr.match(/^\(\)\s*\=\>\s*([A-Za-z][A-Za-z0-9+]*)$/))
+		lMatches := ref2
+		return [lMatches[1]]
+	else
+		return []
+
+# ---------------------------------------------------------------------------
+
+hDefConfig: CompilerOptions := {
+	"allowJs": false
+	"allowUmdGlobalAccess": false
+	"allowUnreachableCode": false
+	"allowUnusedLabels": false
+	"alwaysStrict": true
+	"assumeChangesOnlyAffectDirectDependencies": false
+	"checkJs": false
+	"composite": false
+	"declaration": false
+	"declarationDir": undefined
+	"declarationMap": false
+	"emitBOM": false
+	"emitDeclarationOnly": false
+	"exactOptionalPropertyTypes": false
+	"experimentalDecorators": false
+	"forceConsistentCasingInFileNames": true
+	"generateCpuProfile": null
+	"generateTrace": null
+	"ignoreDeprecations": "5.0"
+	"importHelpers": false
+	"inlineSourceMap": false
+	"inlineSources": false
+	"isolatedModules": false
+	#	"jsx": "react-jsx",
+	#	"jsxFactory": "React.createElement",
+	#	"jsxFragmentFactory": "React.Fragment",
+	#	"jsxImportSource": "react",
+	"lib": [
+		"esnext"
+		"dom"
+		"dom.iterable"
+	]
+	"mapRoot": undefined
+	"maxNodeModuleJsDepth": 0
+	"module": ModuleKind.ESNext
+	"moduleDetection": undefined
+	"moduleResolution": ModuleResolutionKind.NodeNext
+	"newLine": NewLineKind.LineFeed
+	"noEmit": true
+	"noEmitHelpers": false
+	"noEmitOnError": false
+	"noErrorTruncation": false
+	"noFallthroughCasesInSwitch": true
+	"noImplicitAny": true
+	"noImplicitOverride": true
+	"noImplicitReturns": true
+	"noImplicitThis": true
+	"noPropertyAccessFromIndexSignature": true
+	"noUncheckedIndexedAccess": true
+	"noUnusedLocals": true
+	"noUnusedParameters": true
+	"outDir": undefined
+	"outFile": undefined
+	"paths": {}
+	"preserveConstEnums": false
+	"preserveSymlinks": false
+	"preserveValueImports": false
+	"reactNamespace": "React"
+	"removeComments": false
+	"resolveJsonModule": true
+	"rootDir": undefined
+	"rootDirs": []
+	"skipDefaultLibCheck": false
+	"skipLibCheck": false
+	"sourceMap": false
+	"sourceRoot": undefined
+	"strict": true
+	"strictBindCallApply": true
+	"strictFunctionTypes": true
+	"strictNullChecks": true
+	"strictPropertyInitialization": true
+	"stripInternal": false
+	"suppressExcessPropertyErrors": false
+	"suppressImplicitAnyIndexErrors": false
+	"target": ScriptTarget.ES2022
+	"traceResolution": false
+	"tsBuildInfoFile": undefined
+	"typeRoots": []
+	"useDefineForClassFields": true
+	"useUnknownInCatchVariables": true
+}
+
+# ---------------------------------------------------------------------------
+
+type TAstFilterFunc = (node: Node) => boolean
+
+export class AstWalker < Walker<Node>
+
+	filterFunc: TAstFilterFunc?
+	hOptions: hash
+
+	# ..........................................................
+
+	constructor(
+			@filterFunc: TAstFilterFunc? = undef,
+			@hOptions = {}
+			)
+		super()
+
+	# ..........................................................
+
+	dbg(op: 'push' | 'pop', node: Node): void
+		prefix := '   '
+		kind := node.kind
+		console.log "#{prefix}#{op.toUpperCase()}: #{kind} [#{@stackDesc()}]"
+		return
+
+	# ..........................................................
+
+	stackDesc(): string
+		results := []
+		for node of @lNodeStack
+			results.push node.kind.toString()
+		lStack := results
+		return lStack.join ','
+
+	# ..........................................................
+
+	override pushNode(node: Node): void
+		super.pushNode node
+		if @hOptions.trace
+			@dbg 'push', node
+		return
+
+	# ..........................................................
+
+	override popNode(): Node?
+		node := super.popNode()
+		if @hOptions.trace
+			if defined(node)
+				@dbg 'pop', node
+			else
+				console.log "STACK EMPTY"
+		return node
+
+	# ..........................................................
+
+	override isNode(x: object): x is Node
+		return Object.hasOwn x, 'kind'
+
+	# ..........................................................
+
+	override filter(node: Node): boolean
+		return if defined(@filterFunc) then @filterFunc(node) else true
+
+# ---------------------------------------------------------------------------
+
+export class CAnalysis
+	mImports: CStringSetMap = new CStringSetMap()
+	mExports: Map<string, string> = new Map<string, string>()
+	mainScope: CMainScope = new CMainScope()
+	curScope: CScope
+	finished: boolean = false
+
+	# ..........................................................
+
+	constructor()
+		@curScope = @mainScope
+
+	# ..........................................................
+
+	define(name: string): void
+		@curScope.define name
+		return
+
+	# ..........................................................
+
+	use(name: string): void
+		if not hasKey(globalThis, name)
+			@curScope.use name
+		return
+
+	# ..........................................................
+
+	addImport(lib: string, name: string): void
+		@mImports.add lib, name
+		@define name
+		return
+
+	# ..........................................................
+
+	addExport(name: string, type: string): void
+		@mExports.set name, type
+		return
+
+	# ..........................................................
+
+	getImports(): TBlockDesc
+		hImports: hashof<string[]> := {}
+		for [lib, sNames] of @mImports.entries()
+			hImports[lib] = Array.from(sNames.values())
+		return hImports
+
+	# ..........................................................
+
+	getExports(): string[]
+		return Array.from @mExports.keys()
+
+	# ..........................................................
+
+	newScope(name: string?, lArgs: string[]): void
+		@curScope = @mainScope.newScope(name, lArgs)
+		return
+
+	# ..........................................................
+
+	endScope(): void
+		scope := @mainScope.endScope @curScope
+		if defined(scope)
+			@curScope = scope
+		else
+			@finished = true
+		return
+
+	# ..........................................................
+
+	getMissing(): string[]
+		walker := new Walker<CScope>()
+		walker.isNode = (x: unknown) =>
+			return (x instanceof CScope)
+		# --- Find all names that are used, but not defined
+		sNames := new Set<string>()
+		for scope of walker.walk(@mainScope)
+			for name of scope.allUsed()
+				if not scope.isDefined(name)
+					sNames.add name
+		return Array.from sNames.values()
+
+	# ..........................................................
+
+	getExtra(): string[]
+		walker := new Walker<CScope>()
+		walker.isNode = (x: unknown) =>
+			return (x instanceof CScope)
+		# --- Find all names that are defined, but never used or exported
+		sNames := new Set<string>()
+		for scope of walker.walk(@mainScope)
+			for name of scope.allDefined()
+				if not scope.isUsed(name) && !@mExports.has(name)
+					sNames.add name
+		return Array.from sNames.values()
+
+	# ..........................................................
+
+	asString(width: integer = 64): string
+		h: TBlockDesc := {
+			IMPORTS: @getImports()
+			EXPORTS: @getExports()
+			MISSING: @getMissing()
+			EXTRA: @getExtra()
+			}
+
+		if isEmpty(h.IMPORTS)
+			delete h.IMPORTS
+		if isEmpty(h.EXPORTS)
+			delete h.EXPORTS
+		if isEmpty(h.MISSING)
+			delete h.MISSING
+		if isEmpty(h.EXTRA)
+			delete h.EXTRA
+		return Blockify h
+
+# ---------------------------------------------------------------------------
+
+export assertIsNode: (x: unknown) => asserts x is Node := (x: unknown): asserts x is Node =>
+
+	assert hasKey(x, 'kind'), "Not a Node: #{typeof x}"
+
+# ---------------------------------------------------------------------------
+
+export getNode := (x: unknown, dspath: string | TPathItem[]): Node =>
+
+	val := extract x, dspath
+	assertIsNode val
+	return val
+
+# ---------------------------------------------------------------------------
+
+export analyze := (tsCode: string, hOptions: hash = {}): CAnalysis =>
+
+	type opt = {
+		fileName: string?
+		dump: boolean
+		trace: boolean
+		}
+	{fileName, dump, trace} := getOptions<opt> hOptions, {
+		fileName: undef
+		dump: false
+		trace: false
+		}
+
+	analysis := new CAnalysis()
+	walker := new AstWalker()
+	hAst := ts2ast tsCode
+	if dump
+		LOG sep '=', 'AST'
+		LOG astAsString hAst
+		LOG sep '='
+
+	# ..........................................................
+
+	checkNode := (node: unknown, dspath: string? = undef): void =>
+		assertIsNode node
+		if defined(dspath)
+			node = getNode(node, dspath)
+			assertIsNode node
+		if node.kind == 80
+			name := getString node, '.escapedText'
+			analysis.use name
+		return
+
+	# ..........................................................
+
+	for [vkind, node] of walker.walkEx(hAst)
+		{kind} := node
+		if trace
+			LOG "NODE KIND: #{kind} (#{kindStr(kind)})"
+		if vkind == 'exit'
+			switch kind
+				case 220:
+				when 263
+					analysis.endScope()
+		else if vkind == 'enter'
+			switch kind
+				when 220
+					do
+						results1 := []
+						for parm of getArray(node, '.parameters')
+							results1.push getString parm, '.name.escapedText'
+						lParms := results1
+						analysis.newScope undef, lParms
+				when 261
+					try
+						varName := getString node, '.name.escapedText'
+						analysis.define varName
+				when 263
+					do
+						funcName := getString node, '.name.escapedText'
+						results2 := []
+						for parm of getArray(node, '.parameters')
+							results2.push getString parm, '.name.escapedText'
+						lParms := results2
+						analysis.define funcName
+						analysis.newScope funcName, lParms
+				when 227
+					checkNode node, '.left'
+					checkNode node, '.right'
+				when 214
+					checkNode node, '.expression'
+					for arg of getArray(node, '.arguments')
+						checkNode arg
+				when 273
+					lib := getString node, '.moduleSpecifier.text'
+					for h of getArray(node, '.importClause.namedBindings.elements')
+						name := getString h, '.name.escapedText'
+						if trace
+							console.log "NAME: '#{name}' in '#{lib}'"
+						analysis.addImport lib, name
+				when 280
+					for elem of getArray(node, '.elements')
+						name := getString elem, '.name.escapedText'
+						analysis.addExport name, 're-export'
+				when 95
+					parent := walker.parent()
+					switch getNumber(parent, '.kind')
+						when 244
+							for decl of getArray(parent, '.declarationList.declarations')
+								switch getNumber(decl, '.kind')
+									when 261
+										name := getString decl, '.name.escapedText'
+										# --- Check initializer to find the type
+										initKind := getNumber decl, '.initializer.kind'
+										switch initKind
+											when 220
+												analysis.addExport name, 'function'
+											case 261:
+											when 9
+												analysis.addExport name, 'const'
+											default:
+												analysis.addExport name, 'unknown'
+						when 263
+							name := getString parent, '.name.escapedText'
+							analysis.addExport name, 'function'
+						when 264
+							name := getString parent, '.name.escapedText'
+							analysis.addExport name, 'class'
+						when 266
+							name := getString parent, '.name.escapedText'
+							analysis.addExport name, 'type'
+						default:
+							croak "Unexpected subtype of 95: #{parent.kind}"
+				default:
+					if trace
+						LOG "   ...ignored"
+	return analysis

@@ -1,0 +1,175 @@
+# unicode.lib.civet
+
+import {
+	undef, defined, hash, hashof, char,
+	} from 'datatypes'
+
+# ---------------------------------------------------------------------------
+
+export uni := {
+	lsmartq: '“'      # U+201C
+	rsmartq: '”'      # U+201D
+	vbar: '│'
+	hbar: '─'
+	tlcorner: '┌'
+	trcorner: '┐'
+	blcorner: '└'
+	brcorner: '┘'
+	tee: '├'
+	arrowhead: '>'
+	backarrow: '<'
+	space: ' '
+	dot: '.'
+	fatdot: '˳'
+	lI18N: '◄'
+	rI18N: '►'
+	leftshift: '«'
+	rightshift: '»'
+	poschar: '┊'
+	startchar: '｟'
+	endchar: '｠'
+	leftarrow: '←'
+	rightarrow: '→'
+	downarrow: '↓'
+	uparrow: '↑'
+	shiftin: '\x0F'
+	shiftout: '\x0E' # U+000E
+	}
+
+# ---------------------------------------------------------------------------
+
+export lit := (str: string): string =>
+
+	return "｟" + str + "｠"
+
+# ---------------------------------------------------------------------------
+
+export delit := (str: string): string? =>
+
+	lMatches := str.match /^｟(.*)｠$/
+	return defined(lMatches) ? lMatches[1].trim() : undef
+
+# ---------------------------------------------------------------------------
+
+export litC := (str: string): string =>
+
+	return "\\" + str
+
+# ---------------------------------------------------------------------------
+
+hEsc: hashof<string> := {
+	"\r": '←'
+	"\n": '↓'
+	"\t": '→'
+	" ": '˳'
+	"←": lit("←")
+	"↓": lit("↓")
+	"→": lit("→")
+	"˳": lit("˳")
+	'\x0F': uni.rightshift
+	'\x0E': uni.leftshift
+	}
+
+hEscMulti: hashof<string> := {
+	"\r": '←'
+	"\n": '↓\n'
+	"\t": '→  '
+	" ": '˳'
+	"←": lit("←")
+	"↓": lit("↓")
+	"→": lit("→")
+	"˳": lit("˳")
+	'\x0F': uni.rightshift
+	'\x0E': uni.leftshift
+	}
+
+export esc := (
+		str: string,
+		style: 'oneline' | 'multiline' = 'oneline',
+		pos: number? = undef,
+		len: number = 0
+		): string =>
+
+	hReplace := if (style == 'multiline') then hEscMulti else hEsc
+	lParts: string[] := []
+	let i1 = 0
+	for ch of str
+		i := i1++
+		if defined(pos)
+			if i == pos
+				lParts.push if (len == 0) then uni.poschar else uni.startchar
+			if (len > 0) && (i == pos + len)
+				lParts.push uni.endchar
+		lParts.push (hReplace[ch] || ch)
+	return lParts.join ''
+
+export mesc := (str: string): string =>
+	return esc(str, 'multiline')
+
+# ---------------------------------------------------------------------------
+
+export unesc := (
+		str: string
+		): string =>
+
+	hUnEsc: hashof<string> := {}
+	for key,val in hEsc
+		hUnEsc[val] = key
+	lParts: string[] := []
+	for ch of str
+		if (ch != '\n')
+			lParts.push (hUnEsc[ch] || ch)
+	return lParts.join ''
+
+# ---------------------------------------------------------------------------
+
+pre := {
+	fourSpaces: uni.space + uni.space + uni.space + uni.space
+	oneIndent: uni.vbar + uni.space + uni.space + uni.space
+	arrow: uni.blcorner + uni.hbar + uni.arrowhead + uni.space
+	flat: uni.tee + uni.hbar + uni.hbar + uni.space
+	resume: uni.tee + uni.hbar + uni.arrowhead + uni.space
+	yieldSym: uni.tee + uni.backarrow + uni.hbar + uni.space
+	}
+
+# ---------------------------------------------------------------------------
+
+# --- options (level = 2):
+#        plain         '│   │   '
+#        withArrow     '│   └─> '
+#        withResume    '│   ├─> '
+#        withFlat      '│   ├── '
+#        withYield     '│   ├<─ '
+#        noLastVbar    '│       '
+#        none
+
+export getPrefix := (level: number, option = 'none'): string =>
+	switch option
+		case 'plain':
+			return pre.oneIndent.repeat level
+		case 'withArrow':
+			if level == 0
+				return pre.arrow
+			else
+				return pre.oneIndent.repeat(level - 1) + pre.arrow
+		case 'withResume':
+			if level == 0
+				return pre.resume
+			else
+				return pre.oneIndent.repeat(level - 1) + pre.resume
+		case 'withFlat':
+			if level == 0
+				return pre.flat
+			else
+				return pre.oneIndent.repeat(level - 1) + pre.flat
+		case 'withYield':
+			if level == 0
+				return pre.yieldSym
+			else
+				return pre.oneIndent.repeat(level - 1) + pre.yieldSym
+		case 'noLastVbar':
+			if level == 0
+				throw new Error("getPrefix(): noLastVbar but level is 0")
+			return pre.oneIndent.repeat(level - 1) + pre.fourSpaces
+		default:
+			return pre.fourSpaces.repeat level

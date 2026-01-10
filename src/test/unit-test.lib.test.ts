@@ -1,0 +1,170 @@
+"use strict";
+// unit-test.lib.test.civet
+
+import {undef, assert, hash} from 'datatypes'
+import {DBG} from 'logger'
+import {range, o, spaces} from 'llutils'
+import {pathToURL} from 'fsys'
+import {
+	equal, truthy, falsy, fails, succeeds, iterEqual, iterLike,
+	like, strListLike, objListLike,
+	matches, includes, includesAll,
+	TFileOp, setDirTree, fileOpsTable,
+	} from 'unit-test'
+
+// ---------------------------------------------------------------------------
+
+DBG("equal()")
+
+equal(   2+2, 4)
+equal(   'abc'+'def', 'abcdef')
+equal(   'abc   '.trim(), 'abc')
+equal(   {a:1, b:2}, {b:2, a:1})
+
+DBG("truthy()")
+
+truthy(  42)
+truthy(  'abc')
+truthy(  '   ')
+
+DBG("falsy()")
+
+falsy(   false)
+falsy(   undefined)
+falsy(   null)
+falsy(   '')
+
+DBG("fails(func)")
+
+fails(() => { throw new Error("bad") });
+
+(() => {
+	const func = (h: hash, key: string) => {
+		assert((key !== '_'), "Cannot ask for '_'")
+		return
+	}
+	fails(() => func({}, '_'))
+}
+	)()
+
+DBG("succeeds(func)")
+
+succeeds(() => { return 'me' })
+
+DBG("iterEqual(iterable, array)")
+
+iterEqual([1,2,3], [1,2,3])
+iterEqual(range(5), [0,1,2,3,4]);
+
+(() => {
+	const gen = function*() {
+		yield 'a'
+		yield 'x'
+		return
+	}
+	iterEqual(gen(), ['a', 'x'])
+}
+	)()
+
+DBG("iterLike(iterable, array)")
+
+iterLike([{a:1, b:2}], [{a:1}]);
+
+(() => {
+	const gen = function*() {
+		yield {a:1, b:2}
+		yield {c:3, d:4}
+		return
+	}
+	iterLike(gen(), [
+		{a:1},
+		{d:4}
+		])
+}
+	)()
+
+DBG("matches()")
+
+matches( "this is a long sentence", "long")
+matches( "another 42 lines", /\d+/)
+matches( "abcdef", "abc")
+
+DBG("like()")
+
+like(    {a:1, b:2, c:3}, {a:1, c:3})
+
+DBG("strListLike()")
+
+strListLike(['a','b'], ['a', 'b'])
+strListLike(['b','a'], ['a', 'b'])
+
+DBG("objListLike()")
+
+objListLike([{a:1, b:2, c:3}], [{a:1, c:3}])
+
+DBG("includes()")
+
+includes(['a','b','c'], 'b')
+
+DBG("includesAll()")
+
+includesAll(['a','b','c'], ['a', 'c'])
+
+DBG("isType()")
+
+const dump = () => {
+	return
+}
+
+// isType 'number', 23
+// isType 'string', 'abc'
+// isType 'boolean', false
+// isType '() => void', () => return
+// isType '() => void', dump
+// isType 'voidFunc', dump
+// isType 'TFilterFunc', (x: unknown) => return true
+
+DBG("# notType()")
+
+// notType 'string', 23
+
+DBG("type TFileOp")
+
+// isType 'TFileOp', {
+//	op: 'mkDir',
+//	path: '/usr/bin'
+//	}
+// isType 'TFileOp', {
+//	op: 'barf',
+//	path: '/usr/bin/deighan.txt'
+//	contents: 'abc'
+//	}
+// isType 'TFileOp', {
+//	op: 'barf',
+//	path: '/usr/bin/temp.txt',
+//	contents: 'abc\ndef'
+//	}
+
+DBG("fileOpsTable()");
+
+(() => {
+	const lFileOps: TFileOp[] = [
+		{op: 'mkDir', path: '/usr/bin'},
+		{op: 'barf',  path: '/usr/bin/deighan.txt', contents: ''},
+		{op: 'barf',  path: '/usr/bin/temp.txt', contents: 'abc\ndef'}
+		]
+	const block = fileOpsTable(lFileOps)
+	equal(block, `----------------------------------
+${spaces(13)}FILE OPS
+----------------------------------
+mkdir /usr/bin
+barf  /usr/bin/deighan.txt <empty>
+barf  /usr/bin/temp.txt    abc
+                           def
+----------------------------------`)
+}
+	)()
+
+// ---------------------------------------------------------------------------
+
+DBG("setDirTree()")

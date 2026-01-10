@@ -1,0 +1,83 @@
+"use strict";
+// cmd-args.lib.test.civet
+
+import {undef} from 'datatypes'
+import {getLogLevel} from 'logger'
+import {
+	flag, numNonOptions, nonOption, allNonOptions,
+	argValue, setCmdArgs, checkCmdArgs, helpStr,
+	} from 'cmd-args'
+import {
+	equal, succeeds, fails, truthy, falsy,
+	} from 'unit-test';
+
+// ---------------------------------------------------------------------------
+
+(() => {
+	setCmdArgs([
+		'-n',
+		'-xtE',
+		'abc',
+		'-label=xyz',
+		'-width=32',
+		'-prop=0.25',
+		'!'
+		])
+	truthy(flag('n'))
+	truthy(flag('x'))
+	truthy(flag('t'))
+	truthy(flag('E'))
+	falsy( flag('a'))
+	falsy( flag('l'))
+
+	equal(getLogLevel(), 'error')
+
+	equal(Array.from(allNonOptions()), ['abc'])
+	equal(nonOption(0), 'abc')
+	equal(nonOption(1), undef)
+
+	equal(argValue('label'), 'xyz')
+	equal(argValue('width'), '32')
+	equal(argValue('prop'), '0.25')
+	equal(argValue('dummy'), undef)
+	equal(argValue('n'), undef)
+
+	const hDesc = {
+		_: {
+			desc: 'the alphabet'
+			},
+		n: {
+			desc: 'do not test',
+			type: 'boolean'
+			},
+		x: {
+			desc: 'a lower case X',
+			type: 'boolean'
+			},
+		t: {
+			desc: 'set flag t'
+			},
+		label: {
+			desc: 'a label to use'
+			},
+		width: {
+			type: 'number'
+			},
+		prop: {
+			type: 'number'
+			}
+		}
+
+	equal(helpStr(hDesc), `Usage:
+   non-options: the alphabet
+   n: do not test
+   x: a lower case X
+   t: set flag t
+   label: a label to use`)
+
+	succeeds(() => {
+		checkCmdArgs(hDesc)
+	})
+}
+
+	)()

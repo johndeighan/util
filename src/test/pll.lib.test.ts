@@ -1,0 +1,254 @@
+"use strict";
+// pll.lib.test.civet
+
+type AutoPromise<T> = Promise<Awaited<T>>;
+import {undef} from 'datatypes'
+import {DBG} from 'logger'
+import {allLinesInBlock, o} from 'llutils'
+import {
+	TPLLToken, tokenWith, TTokenGenerator,
+	allTokensIn, allTokensInBlock, allTokensInFile,
+	tkIndent, tkUndent, tkEOF, tokenTable,
+	} from 'pll'
+import {
+	equal, iterEqual, iterLike, objListLike, setDirTree,
+	} from 'unit-test'
+
+// ---------------------------------------------------------------------------
+// ASYNC
+
+const setup = async (): AutoPromise<void> => {
+
+	await setDirTree(`./src/test/pll clear
+tokens.txt
+	if x==1
+		print "OK"
+	exit`)
+	return
+}
+
+await setup()
+
+// ---------------------------------------------------------------------------
+
+DBG("type TPLLToken")
+
+// isType 'TPLLToken', {kind: 'xxx', str: 'yyy'}
+// isType 'TPLLToken', {kind: 'xxx', str: 'yyy', value: undef}
+// isType 'TPLLToken', {kind: 'xxx', str: 'yyy', value: 42}
+
+DBG("tokenWith")
+
+equal(tokenWith(tkIndent, '\t'), {
+	kind: 'indent',
+	str: '\t'
+	})
+
+DBG("type TTokenGenerator");
+
+(() => {
+	const identGen = function*(line: string) {
+		yield {kind: 'line', str: line}
+		return
+	}
+}
+	// isType 'TTokenGenerator', identGen
+	)();
+
+(() => {
+	const charGen = function*(line: string) {
+		for (const ch of line) {
+			yield {kind: 'char', str: ch}
+		}
+		return
+	}
+}
+	// isType 'TTokenGenerator', charGen
+	)()
+
+DBG("allTokensIn()")
+
+iterLike(allTokensIn(allLinesInBlock("abc\ndef")), [
+	{kind: 'line', str: 'abc'},
+	{kind: 'line', str: 'def'},
+	{kind: 'eof'}
+	])
+
+iterEqual(allTokensIn(allLinesInBlock('abc\ndef')), [
+	{kind: 'line', str: 'abc'},
+	{kind: 'line', str: 'def'},
+	{kind: 'eof'}
+	])
+
+DBG("allTokensInBlock(str)")
+
+iterEqual(allTokensInBlock('abc\ndef'), [
+	{kind: 'line', str: 'abc'},
+	{kind: 'line', str: 'def'},
+	{kind: 'eof'}
+	])
+
+iterLike(allTokensInBlock(`abc
+def`), [
+	{kind: 'line', str: 'abc'},
+	{kind: 'line', str: 'def'},
+	{kind: 'eof'}
+	])
+
+iterLike(allTokensInBlock("abc\n\tdef"), [
+	{kind: 'line', str: 'abc'},
+	{kind: 'indent'},
+	{kind: 'line', str: 'def'},
+	{kind: 'undent'},
+	{kind: 'eof'}
+	])
+
+iterLike(allTokensInBlock(`abc
+	def
+	ghi
+jkl
+	mno
+		pqr`), [
+	{kind: 'line', str: 'abc'},
+	{kind: 'indent'},
+	{kind: 'line', str: 'def'},
+	{kind: 'line', str: 'ghi'},
+	{kind: 'undent'},
+	{kind: 'line', str: 'jkl'},
+	{kind: 'indent'},
+	{kind: 'line', str: 'mno'},
+	{kind: 'indent'},
+	{kind: 'line', str: 'pqr'},
+	{kind: 'undent'},
+	{kind: 'undent'},
+	{kind: 'eof'}
+	])
+
+iterLike(allTokensInBlock(`abc
+	def
+	ghi
+jkl
+	mno
+		pqr
+`), [
+	{kind: 'line', str: 'abc'},
+	{kind: 'indent'},
+	{kind: 'line', str: 'def'},
+	{kind: 'line', str: 'ghi'},
+	{kind: 'undent'},
+	{kind: 'line', str: 'jkl'},
+	{kind: 'indent'},
+	{kind: 'line', str: 'mno'},
+	{kind: 'indent'},
+	{kind: 'line', str: 'pqr'},
+	{kind: 'undent'},
+	{kind: 'undent'},
+	{kind: 'eof'}
+	])
+
+// --- by default, empty lines return no tokens
+
+iterLike(allTokensInBlock(`abc
+	def
+	ghi
+
+jkl
+	mno
+		pqr`), [
+	{kind: 'line',  str: 'abc'},
+	{kind: 'indent'},
+	{kind: 'line',  str: 'def'},
+	{kind: 'line',  str: 'ghi'},
+	{kind: 'empty'},
+	{kind: 'undent'},
+	{kind: 'line',  str: 'jkl'},
+	{kind: 'indent'},
+	{kind: 'line',  str: 'mno'},
+	{kind: 'indent'},
+	{kind: 'line',  str: 'pqr'},
+	{kind: 'undent'},
+	{kind: 'undent'},
+	{kind: 'eof'}
+	]);
+
+// --- Test allTokensInBlock() with a custom token generator
+
+(() => {
+	const charGenerator: TTokenGenerator = function*(line: string) {
+		for (const ch of line) {
+			yield {kind: 'char', str: ch}
+		}
+		return
+	}
+
+	iterLike(allTokensInBlock(`abc
+	def`, charGenerator), [
+		{ kind: "char", str: "a" },
+		{ kind: "char", str: "b" },
+		{ kind: "char", str: "c" },
+		{ kind: "indent"},
+		{ kind: "char", str: "d" },
+		{ kind: "char", str: "e" },
+		{ kind: "char", str: "f" },
+		{ kind: "undent"},
+		{kind: 'eof'}
+		])
+}
+	)();
+
+(() => {
+	const niceGenerator: TTokenGenerator = function*(line: string) {
+		let ref;if ((ref = line.match(/^-\s+(.*)$/))) {let lMatches = ref;
+			yield {
+				kind: 'list-item',
+				str: line,
+				value: lMatches[1]
+				}
+		}
+		else {
+			yield {
+				kind: 'line',
+				str: line
+				}
+		}
+		return
+	}
+
+	iterLike(allTokensInBlock(`- a
+- b`, niceGenerator), [
+		{ kind: "list-item", str: "- a", value: "a" },
+		{ kind: "list-item", str: "- b", value: "b" },
+		{kind: 'eof'}
+		])
+}
+	)()
+
+DBG("allTokensInFile()")
+
+objListLike(Array.from(allTokensInFile('src/test/pll/tokens.txt')), [
+	{kind: 'line',   str: 'if x==1'},
+	{kind: 'indent'},
+	{kind: 'line',   str: 'print "OK"'},
+	{kind: 'undent'},
+	{kind: 'line',   str: 'exit'},
+	{kind: 'eof'}
+	])
+DBG("tokenTable()")
+
+equal(tokenTable([
+	{kind: 'line',   str: 'abc'},
+	{kind: 'indent', str: ''},
+	{kind: 'line',   str: 'def'},
+	{kind: 'undent', str: ''},
+	{kind: 'eof'}
+	]), `==========
+  Tokens
+==========
+ kind  str
+------ ---
+line   abc
+indent
+line   def
+undent
+eof
+==========`)

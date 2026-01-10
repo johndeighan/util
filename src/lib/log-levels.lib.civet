@@ -1,0 +1,71 @@
+# log-levels.lib.civet
+
+import {
+	undef, defined, notdefined, assert, croak, hashof,
+	} from 'datatypes'
+
+# ---------------------------------------------------------------------------
+
+export type TLogLevel = 'profile' | 'debug' | 'info' | 'warn' | 'error' | 'silent' | 'none' # log nothing
+hNum: hashof<number> := {
+	profile: 1
+	debug: 2
+	info: 3
+	warn: 4
+	error: 5
+	silent: 6
+	none: 7
+	}
+
+# --- stack should never be empty
+lStack: TLogLevel[] := ['info']
+
+# ---------------------------------------------------------------------------
+
+export getLogLevel := (): TLogLevel =>
+	if lStack.length == 0
+		croak "empty stack"
+		return 'none'
+	else
+		return lStack[lStack.length - 1]
+
+# ---------------------------------------------------------------------------
+
+export isLogLevel := (x: string): x is TLogLevel =>
+	return defined hNum[x]
+
+# ---------------------------------------------------------------------------
+
+export isInactiveLevel := (level: TLogLevel): boolean =>
+	return hNum[level] < hNum[getLogLevel()]
+
+# ---------------------------------------------------------------------------
+
+export setLogLevel := (level: TLogLevel): void =>
+	assert (lStack.length > 0), "empty stack"
+	lStack[lStack.length - 1] = level
+	return
+
+# ---------------------------------------------------------------------------
+
+export pushLogLevel := (level: TLogLevel): void =>
+	lStack.push level
+	return
+
+# ---------------------------------------------------------------------------
+
+export popLogLevel := (): TLogLevel =>
+	result := lStack.pop()
+	if defined(result)
+		return result
+	else
+		console.error "empty logger stack"
+		resetLogLevel()
+		return 'none'
+
+# ---------------------------------------------------------------------------
+
+export resetLogLevel := (): void =>
+	lStack.length = 0
+	lStack.push 'info'
+	return

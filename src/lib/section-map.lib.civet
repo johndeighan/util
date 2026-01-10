@@ -1,0 +1,168 @@
+# section-map.lib.civet
+
+import {
+	undef, defined, notdefined, assert, croak, hash, hashof,
+	TStringMapper, assertIsHash,
+	isEmpty, nonEmpty, isString, isHash, isArray, isFunction,
+	} from 'datatypes'
+import {
+	f, toBlock, isTAML, fromTAML, hasKey, hasKeys,
+	} from 'llutils'
+import {OL, ML} from 'to-nice'
+import {isSectionName, Section} from 'section'
+
+# ---------------------------------------------------------------------------
+
+export isSetName := (name: string): boolean =>
+
+	return defined(name.match(/^[A-Z][A-Za-z0-9_-]*/))
+
+# ---------------------------------------------------------------------------
+# --- NOTE: section names begin with a lower case letter
+#           set names begin with an upper case letter
+# --- tree is a tree of section/set names
+# --- hMappers are callbacks that are called
+#        when a set or section is processed
+#        should be <name> -> <function>
+#     <name> can be a section name or a set name
+#     <function> should be <block> -> <block>
+
+export type TSectionTree = {
+	name: string
+	mapper?: TStringMapper
+	level?: number
+	lChildren: (string | Section | TSectionTree)[]
+	}
+
+# ---------------------------------------------------------------------------
+
+export isSectionTree := (h: unknown): h is TSectionTree =>
+
+	if isHash(h)
+		if not hasKeys(h, 'name', 'mapper', 'lChildren')
+			return false
+		{name, mapper, lChildren} := h
+		if not isString(name) || not isSetName(name)
+			return false
+		if defined(mapper) && not isFunction(mapper)
+			return false
+		if not isArray(lChildren)
+			return false
+		for item of lChildren
+			if (not isString(item)
+					&& (item not instanceof Section)
+					&& not isSectionTree(item)
+					)
+				return false
+		return true
+	else
+		return false
+
+# ---------------------------------------------------------------------------
+
+emptyTree: TSectionTree := {
+	name: ''
+	mapper: undef
+	lChildren: []
+	}
+
+# ---------------------------------------------------------------------------
+
+export nonEmptyFilter := (x: unknown) =>
+
+	return nonEmpty(x)
+
+# ---------------------------------------------------------------------------
+
+export class SectionMap
+
+	hTree: TSectionTree = emptyTree
+
+	# --- These index parts of @hTree
+	hSections: hashof<Section>       = {}
+	hSets:     hashof<TSectionTree>  = {}
+	hMappers:  hashof<TStringMapper> = {}
+
+	constructor(
+			tree: string | TSectionTree,
+			@hMappers: hashof<TStringMapper> = {}
+			)
+
+		if isString(tree)
+			if isTAML(tree)
+				x := fromTAML(tree)
+				if isSectionTree(x)
+					@hTree = x
+				else
+					croak "Bad Section Tree: #{tree}"
+			else
+				croak "Bad Section Tree: #{tree}"
+		else
+			@hTree = tree
+		@analyze(@hTree)
+
+	# ..........................................................
+	# --- converts all children that are strings
+	#     into true Section objects
+
+	analyze(hTree: TSectionTree): void
+
+		{name: rootName, lChildren} := hTree
+		@hSets[rootName] = hTree
+
+		for child,i of lChildren
+			if isString(child)
+				# --- convert to a Section object
+				sec := new Section(child)
+				@hSections[child] = lChildren[i] = sec
+				if (child in @hMappers)
+					sec.mapper = @hMappers[child]
+			else if (child instanceof Section)
+				{name, mapper} := child
+				@hSections[name] = child
+				if defined(mapper)
+					@hMappers[name] = mapper
+				else if (name in @hMappers)
+					child.mapper = @hMappers[name]
+			else                # --- (child instanceof TSectionTree)
+				@analyze(child)
+
+	# ..........................................................
+
+	add(name: string, ...lLines: string[]): void
+
+		assert isSectionName(name), "Bad section name: #{name}"
+		assert (name in @hSections), "No such section: #{name}"
+		section := @hSections[name]
+		section.add ...lLines
+		return
+
+	# ..........................................................
+
+	getTreeBlock(tree: TSectionTree): string
+
+		{name, mapper, level, lChildren} := tree
+		lParts := for child of lChildren
+			if isString(child)
+				croak "child is a string"
+			else if (child instanceof Section)
+				child.getBlock()
+			else
+				@getTreeBlock(child)
+		return lParts.filter(nonEmptyFilter).join('\n')
+
+	# ..........................................................
+
+	getBlock(name: string? = undef): string?
+
+		if defined(name)
+			if isSectionName(name)
+				assert (name in @hSections), "No such section: #{name}"
+				section := @hSections[name]
+				return section.getBlock()
+			else if isSetName(name)
+				assert (name in @hSets), "No such set: #{name}"
+				return @getTreeBlock @hSets[name]
+		else
+			return @getTreeBlock @hTree
+

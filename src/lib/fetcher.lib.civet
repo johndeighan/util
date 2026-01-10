@@ -1,0 +1,61 @@
+# fetcher.civet
+
+import {
+	undef, defined, notdefined, assert, deepEqual,
+	} from 'datatypes'
+
+# ---------------------------------------------------------------------------
+
+export class Fetcher<T>
+	iter: Iterator<T>
+	eofValue: T
+	buffer: T? = undef
+
+	constructor(iter1: Iterator<T>, eofValue1: T)
+		@iter = iter1
+		@eofValue = eofValue1
+
+	toArray(): T[]
+		lItems: T[] := []
+		let item = @get()
+		while defined(item) && (item != @eofValue)
+			lItems.push item
+			item = @get()
+		return lItems
+
+	peek(): T
+		if defined(@buffer)
+			return @buffer
+		else
+			{value, done} := @iter.next()
+			if done
+				return @eofValue
+			else
+				@buffer = value
+				return value
+
+	get(expected: T? = undef): T
+		let result: T = @eofValue
+		if defined(@buffer)
+			result = @buffer
+			@buffer = undef
+		else
+			{value, done} := @iter.next()
+			result = if done then @eofValue else value
+		if defined(expected)
+			assert deepEqual(result, expected), "#{expected} expected"
+		return result
+
+	skip(expected: T? = undef): void
+		@get expected
+		return
+
+	atEnd(): boolean
+		if defined(@buffer)
+			return false
+		{value, done} := @iter.next()
+		if done || (value == @eofValue)
+			return true
+		else
+			@buffer = value
+			return false

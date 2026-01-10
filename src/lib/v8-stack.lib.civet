@@ -1,0 +1,314 @@
+# v8-stack.lib.civet
+
+import {sprintf} from 'jsr:@std/fmt/printf'
+import {CallSite} from 'npm:@types/node'
+
+import {
+	undef, defined, notdefined, assert, croak,
+	isEmpty, nonEmpty, hash, isString,
+	isNonEmptyString, isInteger, assertIsDefined,
+	} from 'datatypes'
+import {f, sep, rpad, getOptions} from 'llutils'
+import {OL, ML, DUMP} from 'to-nice'
+import {pushLogLevel, popLogLevel} from 'log-levels'
+import {
+	DBG, DBGLABELED, LOG, LOGLABELED, WARN, ERR,
+	} from 'logger'
+import {
+	isFile, mkpath, fileExt, withExt, normalizePath, relpath,
+	} from 'fsys'
+import {getErrStr} from 'exec'
+import {
+	hSourceMaps, TFilePos, mapSourcePos, haveSourceMapFor,
+	} from 'source-map'
+
+# ---------------------------------------------------------------------------
+
+export type TFrameType = (
+	'eval' |
+	'native' |
+	'constructor' |
+	'method' |
+	'function' |
+	'script' |
+	'unknown'
+	)
+
+export type TStackFrame = {
+	type?: string
+
+	source: string      # source file name or 'unknown'
+	line: number
+	col: number
+
+	org_source?: string      # source file name
+	org_line?: number
+	org_col?: number
+	errMsg?: string       # reason mapping failed, if applicable
+
+	functionName: string
+	methodName: string
+
+	isTopLevel: boolean
+	isConstructor: boolean
+	isAsync: boolean
+	isEval: boolean
+	isNative: boolean
+	}
+
+# ---------------------------------------------------------------------------
+
+fixPath := (source: string): string =>
+
+	# --- Find position of instances of 'src'
+	lPos: number[] := []
+	lParts := source.split(/[\\\/]/)
+	for word,i of lParts
+		if (word == 'src')
+			lPos.push i
+	if (lPos.length > 1)
+		assert (lPos.length == 2), "Too many 'src's: #{lPos.length}"
+		pos := lPos[1]
+		return [
+			...lParts.slice(0, pos)
+			...lParts.slice(pos+2)
+			].join('/')
+	else
+		return source
+
+# ---------------------------------------------------------------------------
+
+frameInThisLib := (frame: TStackFrame): boolean =>
+
+	{source} := frame
+	return defined(source) &&
+		defined(source.match(/\bv8-stack\.lib\.[^.]+$/))
+
+# ---------------------------------------------------------------------------
+
+export dumpFrame := (
+		frame: TStackFrame,
+		i: number? = undef,
+		label: string = 'FRAME'
+		): void =>
+
+	{type, source, line, col, org_source, org_line, org_col,
+		functionName, methodName,
+		isTopLevel, isConstructor, isAsync, isEval, isNative} := frame
+
+	lLines := ["type: #{type}", "source: #{source}"]
+
+	addIfDefined := (label: string, value: unknown) =>
+		if defined(value)
+			lLines.push "#{label}: #{OL(value)}"
+
+	addIfTrue := (label: string, value: unknown) =>
+		if value
+			lLines.push "#{label}: #{OL(value)}"
+
+	addIfDefined 'line', line
+	addIfDefined 'col', col
+	addIfDefined 'org_source', org_source
+	addIfDefined 'org_line', org_line
+	addIfDefined 'org_col', org_col
+	addIfDefined 'functionName', functionName
+	addIfDefined 'methodName', methodName
+
+	addIfTrue 'isTopLevel', isTopLevel
+	addIfTrue 'isConstructor', isConstructor
+	addIfTrue 'isAsync', isAsync
+	addIfTrue 'isEval', isEval
+	addIfTrue 'isNative', isNative
+
+	block := lLines.join('\n')
+	DUMP block, label + (defined(i) ? "[#{i}]" : '')
+	return
+
+# ---------------------------------------------------------------------------
+# --- return true to keep
+
+export type TFrameFilter = (frame: TStackFrame) => boolean
+
+defaultFilter: TFrameFilter := (frame) =>
+
+	return not frameInThisLib(frame) && (frame.source != 'unknown')
+
+# ---------------------------------------------------------------------------
+
+# --- ignores any stack frames from this module
+#     files will be mapped to original source files
+#        if a source map is available
+
+export allStackFrames := (
+		hOptions: hash = {}
+		): Generator<TStackFrame, void, void> ->
+
+	type opt = {
+		debug: boolean
+		useSourceMap: boolean
+		filter: TFrameFilter
+		}
+	{debug, useSourceMap, filter} := getOptions<opt> hOptions, {
+		debug: false
+		useSourceMap: true
+		filter: defaultFilter
+		}
+
+	try
+		# @ts-ignore
+		oldLimit := Error.stackTraceLimit
+		# @ts-ignore
+		oldPreparer := Error.prepareStackTrace
+		# @ts-ignore
+		Error.stackTraceLimit = Infinity
+
+		# @ts-ignore
+		Error.prepareStackTrace = (error, lOrgFrames) =>
+
+			let prevFrame: TStackFrame? = undef
+
+			lFrames: TStackFrame[] := for orgFrame,i of lOrgFrames
+				fileName := orgFrame.getFileName()
+				source: string := fileName ? normalizePath(fileName) : 'unknown'
+				if (source != 'unknown')
+					assert isFile(source), "No such file: #{source}"
+					assert not source.includes('\\ext')
+
+				frame: TStackFrame := {
+					type:          undef
+					source
+					line :         orgFrame.getLineNumber()
+					col:           orgFrame.getColumnNumber()
+					functionName:  orgFrame.getFunctionName()
+					methodName:    orgFrame.getMethodName()
+
+					isTopLevel:    orgFrame.isToplevel()
+					isConstructor: orgFrame.isConstructor()
+					isAsync:       orgFrame.isAsync()
+					isEval:        orgFrame.isEval()
+					isNative:      orgFrame.isNative()
+					}
+				frame.type = (
+					  frame.isEval        ? 'eval'
+					: frame.isNative      ? 'native'
+					: frame.isConstructor ? 'constructor'
+					: frame.methodName    ? 'method'
+					: frame.functionName  ? 'function'
+					: frame.isTopLevel    ? 'script'
+					:                       'unknown'
+					)
+				if (frame.type == 'script')
+					frame.functionName = ''
+					frame.methodName = ''
+
+				# --- fix a bug in the V8 engine where calls inside a
+				#     top level anonymous function is reported as
+				#     being of type 'script'
+
+				if defined(prevFrame)
+					if (frame.type == 'script') && (prevFrame.type == 'script')
+						DBG "Patch current TOS"
+						prevFrame.type = 'function'
+						prevFrame.functionName = '<anon>'
+
+				if useSourceMap
+					try
+						h := mapSourcePos frame, {debug}
+						if defined(h)
+							frame.org_source = frame.source
+							frame.org_line   = frame.line
+							frame.org_col    = frame.col
+							frame.source     = h.source || 'unknown'
+							frame.line       = h.line
+							frame.col        = h.col
+					catch err
+						msg := getErrStr(err)
+						if debug
+							console.log "MAP ERROR: #{msg}"
+						frame.errMsg = msg
+				if debug
+					dumpFrame frame, i
+				prevFrame = frame
+				frame
+
+			return lFrames
+
+		# --- This kicks everything off
+		errObj := new Error()
+
+		# @ts-ignore - because errObj.stack will be an array
+		lStack: TStackFrame[] := errObj.stack
+
+		# --- reset to previous values
+		# @ts-ignore
+		Error.stackTraceLimit = oldLimit
+		# @ts-ignore
+		Error.prepareStackTrace = oldPreparer
+
+		for frame of lStack
+			if filter(frame)
+				yield frame
+		return
+
+	catch e
+		ERR getErrStr e
+		return
+
+# ---------------------------------------------------------------------------
+
+export getV8Stack := (
+		hOptions: hash = {}
+		): TStackFrame[] =>
+
+	return Array.from(allStackFrames(hOptions))
+
+# ---------------------------------------------------------------------------
+
+export getV8StackStr := (lStack: TStackFrame[]? = undef): string =>
+
+	if notdefined(lStack)
+		lStack = getV8Stack()
+
+	lLines := lStack.map (h) =>
+		{type, functionName, methodName, source, line, col} := h
+		name := functionName || methodName || ''
+		nameStr := (name ? "#{type} #{name}" : type)
+		lineStr := f"#{line}:3"
+		colStr := f"#{col}:3"
+		sourceStr := [
+			f"#{relpath(source)}:32"
+			f"#{line}:3"
+			f"#{col}:3"
+			].join(':')
+		return f"[#{nameStr}:18] #{sourceStr}"
+	return lLines.join '\n'
+
+# ---------------------------------------------------------------------------
+
+export getMyCaller := (): TStackFrame? =>
+
+	# --- First frame will be where this was called from
+	#     Second frame will be who called that
+	for frame,i of allStackFrames()
+		if (i == 1)
+			return frame
+	return undef
+
+# ---------------------------------------------------------------------------
+
+export getMyOutsideCaller := (
+		hOptions: hash = {}
+		): TStackFrame? =>
+
+	# --- First frame will be where this was called from
+	#     Save that source and return next frame with a different source
+	#     All frames will have a defined and existing source
+	let source: string = ''
+	for frame,i of allStackFrames()
+		if (i == 0)
+			assertIsDefined frame.source
+			source = frame.source
+		else
+			if (frame.source != source)
+				return frame
+	return undef

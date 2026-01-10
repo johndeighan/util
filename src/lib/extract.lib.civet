@@ -1,0 +1,89 @@
+# extract.lib.civet
+
+import {
+	undef, defined, notdefined, isString, isArray,
+	isEmpty, nonEmpty, integer, assert,
+	assertIsString, assertIsNumber, assertIsArray,
+	} from 'datatypes'
+import {o, sep} from 'llutils'
+import {toNice} from 'to-nice'
+
+# ---------------------------------------------------------------------------
+
+export type TPathItem = string | number
+
+export getDsPath := (lPath: TPathItem[]): string =>
+
+	results := []
+	for x of lPath
+		results.push if isString(x) then ".#{x}" else "[#{x}]"
+	lParts := results
+	return lParts.join ''
+
+# ---------------------------------------------------------------------------
+
+export extract := (x: unknown, dspath: string | TPathItem[]): unknown =>
+
+	pathstr := if isArray(dspath) then getDsPath(dspath) else dspath
+	if nonEmpty(pathstr)
+		expr := "x = x#{pathstr}"
+		try
+			eval expr
+		catch err
+			msg: string := (
+				  isString(err)          ? err
+				: (err instanceof Error) ? err.message
+				:                          'Unknown error'
+				)
+			try
+				console.log sep '=', "EVAL ERROR in #{expr}"
+				console.log msg
+				console.log sep '='
+				console.log toNice x, o"ignoreEmptyValues"
+				console.log sep '='
+			console.log "EVAL ERROR in '#{expr}'"
+			console.log sep '='
+			Deno.exit 99
+	return x
+
+# ---------------------------------------------------------------------------
+
+export getString := (
+		x: unknown,
+		dspath: string | TPathItem[],
+		value: string? = undef
+		): string =>
+
+	val := extract x, dspath
+	assertIsString val
+	if value
+		assert (val == value), "Expected #{value}, got #{val}"
+	return val
+
+# ---------------------------------------------------------------------------
+
+export getNumber := (
+		x: unknown,
+		dspath: string | TPathItem[],
+		value: number? = undef
+		): number =>
+
+	val := extract x, dspath
+	assertIsNumber val
+	if value
+		assert (val == value), "Expected #{value}, got #{val}"
+	return val
+
+# ---------------------------------------------------------------------------
+
+export getArray := (
+		x: unknown,
+		dspath: string | TPathItem[],
+		len: integer? = undef
+		): unknown[] =>
+
+	val := extract x, dspath
+	assertIsArray val
+	if len
+		assert (val.length == len), "Expected #{len} len array, got #{val}"
+	return val

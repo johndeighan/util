@@ -1,0 +1,64 @@
+# compile.cmd.civet
+
+import {assert, croak, isArray} from 'datatypes'
+import {pass} from 'llutils'
+import {OL} from 'to-nice'
+import {flag, numNonOptions, allNonOptions} from 'cmd-args'
+import {watchFiles, allFilesMatching} from 'fsys'
+import {DBG, LOG, WARN, ERR} from 'logger'
+import {compileFile, TCompileResult} from 'automate'
+
+let numCompiled = 0
+
+# ---------------------------------------------------------------------------
+
+logResult := (hResult: TCompileResult): void =>
+
+	{path, status} := hResult
+	switch status
+		when 'compiled'
+			LOG "COMPILED: #{OL(path)}"
+			numCompiled += 1
+		when 'exists'
+			pass()
+		default:
+			ERR "NOT COMPILED: #{OL(path)}"
+	return
+
+# ---------------------------------------------------------------------------
+
+if (numNonOptions() == 0)
+	DBG "=====  Compiling all files  ====="
+	for path of allFilesMatching('**/*.{lib,cmd}.civet')
+		hResult := compileFile path
+		logResult hResult
+else
+	# --- Files can be specified as:
+	#        - <stub>.(lib|cmd)
+	#        - <stub>.(lib|cmd).test
+	#        - a full or relative path
+	#     Multiple files can be comma-separated
+	for str of allNonOptions()
+		DBG "non-option: #{OL(str)}"
+		for item of str.split(',')
+			str: string := item
+			if (lMatches := str.match(/^([A-Za-z0-9_-]+)\.(lib|cmd)$/))
+				[_, stub, purpose] := lMatches
+				pat := '**/' + stub + '.' + purpose + '.*'
+				for path of allFilesMatching(pat)
+					DBG "compile file #{OL(path)}"
+					logResult compileFile path
+			else if (lMatches2 := str.match(/^([A-Za-z0-9_-]+)\.(lib|cmd)\.test$/))
+				[_, stub, purpose] := lMatches2
+				pat := '**/' + stub + '.' + purpose + '.test.*'
+				for path of allFilesMatching(pat)
+					DBG "compile file #{OL(path)}"
+					logResult compileFile(path)
+			else
+				DBG "compile file #{OL(str)}"
+				logResult compileFile(str)
+LOG "(#{numCompiled} files compiled)"
+if flag('w')
+	watchFiles Deno.cwd(), (kind, path) =>
+		console.log "EVENT: #{kind} #{OL(path)}"
+		return false

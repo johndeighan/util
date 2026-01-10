@@ -1,0 +1,125 @@
+# dir-tree.parse.hera
+
+# $S = sequence
+# $C = choice
+# $P = plus
+# $Q = star
+
+```
+import {CParseMatches} from 'parse-utils'
+export let pm = new CParseMatches();
+let ruleMatch = (
+		name: string,
+		loc: [pos: number, length: number],
+		data: unknown = undefined
+		): void => {
+	pm.match(name, loc, data);
+	}
+
+import {undef, defined, assert, hash} from 'datatypes';
+import {indented, undented} from 'indent';
+
+export type TFileOp = {
+		op: 'clearDir' | 'compile'
+		path: string
+		}
+	| {
+		op: 'barf'
+		path: string
+		contents: string
+		};
+let lOps: TFileOp[] = [];
+let lPathParts: string[] = [];
+
+let getPath = (name: string) => {
+	return [...lPathParts, name].join('/');
+	};
+
+```
+
+
+FullDesc
+	Root (FileDesc / DirDesc)+ ->
+		return lOps;
+
+Root
+	/\.\.?\/[A-Za-z_$\/-]+/ _ "clear"? NL ->
+		lOps.length = 0;
+		pm = new CParseMatches();
+		if (defined($3)) {
+			lOps.push({
+				op: 'clearDir',
+				path: $1
+				})
+		lPathParts = [$1];
+
+FileDesc
+	FileName INDENT Block UNDENT ->
+		let [name, compile] = $1;
+		lOps.push({
+			op: 'barf',
+			path: getPath(name),
+			contents: $3
+			});
+		if (compile) {
+			lOps.push({
+				op: 'compile',
+				path: getPath(name)
+				});
+			}
+
+FileName
+	Name _ "compile"? NL ->
+		return [$1, defined($3)]
+
+DirDesc
+	DirName INDENT (DirDesc / FileDesc)+ UNDENT ->
+		lParts.pop()
+		return
+
+DirName
+	"/" Name _ "clear"? ->
+		lPathParts.push($2);
+		if (defined($4)) {
+			lOps.push({
+				op: 'clearDir',
+				path: getPath($2)
+				});
+			}
+
+Part
+	(IndentedBlock / Line) ->
+		return $1
+
+Block
+	Part (NL Part)* ->
+		const lParts: string[] = [$1];
+		for (const [_, text] of $2) {
+			lParts.push(text);
+			}
+		return lParts.join('\n');
+
+Line
+	/[^\x0F\x0E\n]*/ ->
+		return $0
+
+IndentedBlock
+	INDENT Block UNDENT ->
+		return indented($2)
+
+
+Name
+	/[A-Za-z_.-][A-Za-z0-9_.-]*/ ->
+		return $0
+
+INDENT
+	/\x0F/
+
+UNDENT
+	/\x0E/
+
+NL
+	/\r?\n/
+
+_
+	/\s+/

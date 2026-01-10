@@ -1,0 +1,43 @@
+# datatypes.lib.test.civet
+
+import {val} from 'sample-values'
+import {
+	deepEqual, undef, defined, notdefined,
+	croak, assert,
+	addFunctionNames, removeFunctionNames,
+	normalizeCode, normalizeExpr,
+	array, arrayof, isArray,
+	hash, hashof, isHash,
+	voidFunc, nonEmptyString,
+	isString, char, isChar, isNonEmptyString, isBoolean,
+	isNumber, isPrimitive, isNonPrimitive, isInteger,
+	isArrayOfStrings, isArrayOfIntegers,
+	isFunction, isRegExp,
+	isEmpty, nonEmpty,
+	isClass, className, isPromise, isClassInstance, isIterable,
+	isSymbol, symbolName, functionName, functionDef,
+	classDef, regexpDef, hashLike,
+	isObject, isGenerator, isIterator,
+	} from 'datatypes'
+import {DBG} from 'logger'
+import {
+	equal, truthy, falsy, fails, succeeds, isType, notType,
+	} from 'unit-test'
+
+# ---------------------------------------------------------------------------
+
+DBG "deepEqual()"
+
+truthy deepEqual 'a', 'a'
+truthy deepEqual ['a'], ['a']
+
+# ---------------------------------------------------------------------------
+
+truthy isGenerator(val.genFunc)
+falsy  isGenerator(val.regularFunc)
+falsy  isGenerator(val.lambdaFunc)
+
+truthy isIterator(val.genFunc())
+falsy  isIterator(val.genFunc)
+falsy  isIterator(val.regularFunc)
+falsy  isIterator(val.lambdaFunc)

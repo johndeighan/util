@@ -1,0 +1,121 @@
+# scope.lib.civet
+
+import {
+	undef, defined, notdefined, assert, croak, hash,
+	} from 'datatypes'
+import {hasKey} from 'llutils'
+import {LOG} from 'logger'
+
+# ---------------------------------------------------------------------------
+
+export class CScope
+	name: string? # --- undef for anonymous functions
+	sDefined = new Set<string>()
+	sUsed = new Set<string>()
+	parent: CScope?
+	lChildren: CScope[]
+
+	# ..........................................................
+
+	*allDefined(): Generator<string, void, void>
+		for name of @sDefined.values()
+			yield name
+		return
+
+	# ..........................................................
+
+	getDefined(): string[]
+		return Array.from @sDefined.keys()
+
+	# ..........................................................
+
+	*allUsed(): Generator<string, void, void>
+		for name of @sUsed.values()
+			yield name
+		return
+
+	# ..........................................................
+
+	getUsed(): string[]
+		return Array.from @sUsed.keys()
+
+	# ..........................................................
+
+	asString(): string
+		return """
+			----------
+			NAME: #{@name || '.undef'}
+			DEFINED: #{@getDefined().join(' ')}
+			USED: #{@getUsed().join(' ')}
+			PARENT: #{defined(@parent) ? @parent.name : '.undef'}
+			CHILDREN: #{@lChildren.length}
+			"""
+
+	# ..........................................................
+
+	constructor(
+			@name: string?,
+			lArgs: string[],
+			@parent: CScope? = undef
+			)
+
+		for name of lArgs
+			@define name
+		@lChildren = []
+
+	# ..........................................................
+
+	newChildScope(name: string?, lArgs: string[])
+		scope := new CScope(name, lArgs, @)
+		@lChildren.push scope
+		return scope
+
+	# ..........................................................
+
+	define(name: string): void
+		@sDefined.add name
+		return
+
+	# ..........................................................
+
+	use(name: string): void
+		@sUsed.add name
+		return
+
+	# ..........................................................
+	# --- is name defined in current function or any ancestor
+
+	isDefined(name: string): boolean
+		if @sDefined.has(name)
+			return true
+		if defined(@parent)
+			return @parent.isDefined name
+		return false
+
+	# ..........................................................
+	# --- is name used in the current scope or in child scopes
+
+	isUsed(name: string): boolean
+		if @sUsed.has(name)
+			return true
+		for childScope of @lChildren
+			if childScope.isUsed(name)
+				return true
+		return false
+
+# ---------------------------------------------------------------------------
+
+export class CMainScope < CScope
+
+	constructor()
+		super 'main', []
+
+	# ..........................................................
+
+	newScope(name: string?, lArgs: string[]): CScope
+		return @newChildScope name, lArgs
+
+	# ..........................................................
+
+	endScope(scope: CScope): CScope?
+		return scope.parent

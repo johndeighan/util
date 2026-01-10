@@ -1,0 +1,133 @@
+# walker.lib.civet
+
+import {
+	undef, defined, notdefined, integer, hash, array,
+	isArray, isHash, isPrimitive, assert, croak, isEmpty,
+	assertIsString, assertIsArray,
+	} from 'datatypes'
+import {OL} from 'to-nice'
+import {DBG} from 'logger'
+
+# ---------------------------------------------------------------------------
+
+hasChildren := (x: unknown) =>
+	return isHash(x) || isArray(x)
+
+export type TVisitKind = 'enter' | 'exit' | 'ref'
+
+export class Walker<T extends object = hash>
+
+	# --- Keep track of nodes visited to avoid infinite loops
+	setVisited: WeakSet<hash | array> = new WeakSet<hash | array>()
+	lNodeStack: T[] = []
+
+	# ..........................................................
+
+	protected pushNode(item: T): void
+		@lNodeStack.push item
+		return
+
+	# ..........................................................
+
+	protected popNode(): T?
+		return @lNodeStack.pop()
+		return
+
+	# ..........................................................
+
+	get level(): integer
+		return @lNodeStack.length
+
+	# ..........................................................
+
+	parent(n: integer = 1): T
+		len := @lNodeStack.length
+		assert (n >= 0) && (n < len), "Bad index: #{n} of #{len}"
+		return @lNodeStack[len - n]
+
+	# ..........................................................
+
+	isNode(x: unknown): x is T
+		return true
+
+	# ..........................................................
+
+	filter(node: T): boolean
+		return true
+
+	# ..........................................................
+	# GENERATOR
+
+	*walk(x: unknown): Generator<T, void, void>
+		if hasChildren(x)
+			@setVisited = new WeakSet<hash | array>()
+			yield *@walkItem(x)
+		return
+
+	# ..........................................................
+	# GENERATOR
+
+	*walkItem(item: hash | array): Generator<T, void, void>
+		if @setVisited.has(item)
+			return
+		if @isNode(item)
+			# --- type narrowing ensures that item is a T
+			if @filter(item)
+				DBG "YIELD NODE: #{OL(item)}"
+				yield item
+			# --- item is parent of yielded items
+			@pushNode item
+		@setVisited.add item
+		if isArray(item)
+			let i1 = 0
+			for x of item
+				i := i1++
+				if isHash(x) || isArray(x)
+					yield *@walkItem(x)
+		else
+			for [key, x] of Object.entries(item)
+				if isHash(x) || isArray(x)
+					yield *@walkItem(x)
+		if @isNode(item)
+			@popNode()
+		return
+
+	# ..........................................................
+	# GENERATOR
+
+	*walkEx(x: unknown): Generator<[TVisitKind, T], void, void>
+		if hasChildren(x)
+			@setVisited = new WeakSet<hash | array>()
+			yield *@walkItemEx(x)
+		return
+
+	# ..........................................................
+	# GENERATOR
+
+	*walkItemEx(item: hash | array): Generator<[TVisitKind, T], void, void>
+		if @setVisited.has(item)
+			if @isNode(item)
+				yield ['ref', item]
+			return
+		if @isNode(item)
+			# --- type narrowing ensures that item is a T
+			if @filter(item)
+				DBG "YIELD NODE: #{OL(item)}"
+				yield ['enter', item]
+			# --- item is parent of yielded items
+			@pushNode item
+		@setVisited.add item
+		if isArray(item)
+			let i2 = 0
+			for x of item
+				i := i2++
+				if isHash(x) || isArray(x)
+					yield *@walkItemEx(x)
+		else
+			for [key, x] of Object.entries(item)
+				if isHash(x) || isArray(x)
+					yield *@walkItemEx(x)
+		if @isNode(item)
+			yield ['exit', item]
+			@popNode()
+		return

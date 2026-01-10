@@ -1,0 +1,328 @@
+"use strict";
+// indent.lib.test.civet
+
+import {DBG} from 'logger'
+import {
+	undef, defined, notdefined, assert, deepEqual,
+	} from 'datatypes'
+import {
+	spaces, tabs, throwsError, s,
+	} from 'llutils'
+import {
+	oneIndent, resetOneIndent, indentLevel, splitLine,
+	indented, undented, Blockify,
+	} from 'indent'
+import {
+	equal, truthy, falsy, like, succeeds, fails,
+	} from 'unit-test'
+
+// ---------------------------------------------------------------------------
+
+DBG("const oneIndent", "resetOneIndent()")
+
+equal(oneIndent, undef)
+equal(indentLevel("\t\tabc"), 2)  // --- sets oneIndent
+equal(oneIndent, tabs(1))
+resetOneIndent()
+equal(oneIndent, undef)
+
+equal(indentLevel("   abc"), 1)  // --- sets oneIndent
+equal(oneIndent, spaces(3))
+resetOneIndent()
+
+// ---------------------------------------------------------------------------
+
+// --- TEST using TABs ---
+
+// ---------------------------------------------------------------------------
+
+DBG("indentLevel()")
+
+succeeds(() => {
+	resetOneIndent()
+	assert(notdefined(oneIndent))
+
+	assert((indentLevel('abc') === 0))
+	assert((indentLevel('\tabc') === 1))
+	assert(defined(oneIndent))
+	assert((oneIndent === '\t'))
+	assert((indentLevel('\t\tabc') === 2))
+	throwsError(() => indentLevel('\t abc'))
+	throwsError(() => indentLevel(' \tabc'))
+	assert(indentLevel('abc') === 0)
+
+	assert(indentLevel('abc') === 0)
+	assert(indentLevel('\tabc') === 1)
+	assert(indentLevel('\t\tabc') === 2)
+})
+
+// ---------------------------------------------------------------------------
+
+DBG("type lineDesc", "splitLine()")
+
+succeeds(() => {
+	resetOneIndent()
+	assert(deepEqual(splitLine('abc'), [0, 'abc']))
+	assert(deepEqual(splitLine('\t\tabc'), [2, 'abc']))
+
+	assert(deepEqual(splitLine('\tabc'), [1, 'abc']))
+
+	// --- fails since we're now expecting TABs
+	throwsError(() =>  splitLine('      abc'))
+})
+
+// ---------------------------------------------------------------------------
+
+DBG("indented()")
+
+succeeds(() => {
+	resetOneIndent()
+	assert(indented('abc') === '\tabc')
+	assert(indented('abc', 2) === '\t\tabc')
+
+	assert(indentLevel('\tabc') === 1)
+	assert(indented('abc', 2) === (tabs(2) + 'abc'))
+	assert(indented('abc', 2) === `${tabs(2)}abc`)
+})
+
+// --- Test with blocks
+
+succeeds(() => {
+	resetOneIndent()
+	assert(indented(`first line
+\tsecond line
+\t\tthird line`) === `\tfirst line
+\t\tsecond line
+\t\t\tthird line`)
+
+	assert(indented(`first line
+\tsecond line
+\t\tthird line`, 2) === `\t\tfirst line
+\t\t\tsecond line
+\t\t\t\tthird line`)
+})
+
+succeeds(() => {
+	resetOneIndent()
+	assert(indented(`first line
+
+\tsecond line`) === `\tfirst line
+
+\t\tsecond line`)
+})
+
+// --- Test with arrays
+
+succeeds(() => {
+	resetOneIndent()
+	assert(deepEqual(indented([
+		'first line',
+		'\tsecond line',
+		'\t\tthird line'
+		]), [
+		'\tfirst line',
+		'\t\tsecond line',
+		'\t\t\tthird line'
+		]))
+
+	assert(deepEqual(indented([
+		'first line',
+		'\tsecond line',
+		'\t\tthird line'
+		], 2), [
+		'\t\tfirst line',
+		'\t\t\tsecond line',
+		'\t\t\t\tthird line'
+		]))
+})
+
+// ---------------------------------------------------------------------------
+
+DBG("undented()");
+
+(() => {
+	resetOneIndent()
+	equal(undented(`\tabc
+\t\tdef
+\t\t\tghi`), `abc
+\tdef
+\t\tghi`)
+}
+	)()
+
+// ---------------------------------------------------------------------------
+
+// TEST using 3 spaces
+
+// ---------------------------------------------------------------------------
+
+DBG("resetOneIndent()")
+
+succeeds(() => {
+	resetOneIndent()
+	assert(notdefined(oneIndent))
+	assert((indentLevel('\t\tabc') === 2))
+	assert((oneIndent === '\t'))
+})
+
+succeeds(() => {
+	resetOneIndent()
+	assert(notdefined(oneIndent))
+	assert((indentLevel('   abc') === 1))
+	assert((indentLevel('      abc') === 2))
+	assert((oneIndent === '   '))
+})
+
+// ---------------------------------------------------------------------------
+
+DBG("indentLevel()")
+
+succeeds(() => {
+	resetOneIndent()
+	assert(indentLevel('abc') === 0)
+	assert(indentLevel('   abc') === 1)
+	assert(indentLevel('      abc') === 2)
+	throwsError(() => indentLevel('\t abc'))
+	throwsError(() => indentLevel(' \tabc'))
+	assert((indentLevel('abc') === 0))
+
+	assert(indentLevel('abc') === 0)
+	assert(indentLevel('   abc') === 1)
+	assert(indentLevel('      abc') === 2)
+})
+
+// ---------------------------------------------------------------------------
+
+DBG("splitLine()")
+
+succeeds(() => {
+	resetOneIndent()
+	assert(notdefined(oneIndent))
+
+	assert(deepEqual(splitLine('abc'), [0, 'abc']))
+	assert(notdefined(oneIndent))
+	assert(deepEqual(splitLine('   abc'), [1, 'abc']))
+	assert(defined(oneIndent))
+	assert(deepEqual(splitLine('      abc'), [2, 'abc']))
+	assert((oneIndent === '   '))
+
+	assert(deepEqual(splitLine('   abc'), [1, 'abc']))
+
+	// ---fails since we're now expecting spaces
+	throwsError(() => splitLine('\t\tabc'))
+})
+
+// ---------------------------------------------------------------------------
+
+DBG("indented()")
+
+succeeds(() => {
+	resetOneIndent('   ')
+	assert((indented('abc', 2) === '      abc'))
+	assert((indented('abc') === '   abc'))
+
+	assert((indentLevel('   abc') === 1))
+	assert((indented('abc', 2) === spaces(6) + 'abc'))
+})
+
+// --- Test with blocks
+
+succeeds(() => {
+	resetOneIndent(spaces(3))
+	assert(indented(`first line
+${spaces(3)}second line
+${spaces(6)}third line`) === `${spaces(3)}first line
+${spaces(6)}second line
+${spaces(9)}third line`)
+
+	assert(indented(`first line
+${spaces(3)}second line
+${spaces(6)}third line`, 2) === `${spaces(6)}first line
+${spaces(9)}second line
+${spaces(12)}third line`)
+})
+
+// --- Test with arrays
+
+succeeds(() => {
+	resetOneIndent('   ')
+	assert(deepEqual(indented([
+		'first line',
+		'   second line',
+		'      third line'
+		]), [
+		'   first line',
+		'      second line',
+		'         third line'
+		]))
+
+	assert(deepEqual(indented([
+		'first line',
+		'   second line',
+		'      third line'
+		], 2), [
+		'      first line',
+		'         second line',
+		'            third line'
+		]))
+})
+
+// ---------------------------------------------------------------------------
+
+DBG("undented()")
+
+equal(undented(`${spaces(6)}abc
+${spaces(9)}def
+${spaces(12)}ghi`), `abc
+${spaces(3)}def
+${spaces(6)}ghi`)
+
+// ---------------------------------------------------------------------------
+
+DBG("Blockify()")
+
+equal(Blockify(['abc', 'def', 'ghi']), `abc def ghi`)
+
+equal(Blockify(['abc', 'def', 'ghi'], {width: 8}), `abc def
+ghi`)
+
+equal(Blockify(['abc', 'def', 'ghi'], {width: 5}), `abc
+def
+ghi`)
+
+equal(Blockify({names: ['abc','def','ghi']}, {width: 8}), s`names:
+	abc
+	def
+	ghi`)
+
+equal(Blockify({
+	EXPORTS: ['abc','def','ghi'],
+	IMPORTS: ['mno','xyz']
+	}, {width: 12}), s`EXPORTS:
+	abc def
+	ghi
+IMPORTS:
+	mno xyz`)
+
+equal(Blockify({
+	EXPORTS: ['abc','def','ghi'],
+	IMPORTS: []
+	}, {width: 12}), s`EXPORTS:
+	abc def
+	ghi
+IMPORTS: (none)`)
+
+equal(Blockify({
+	EXPORTS: ['abc','def'],
+	IMPORTS: {
+		datatypes: ['isString', 'isArray', 'hash'],
+		llutils:   ['o', 's', 'widthOf']
+		}
+	}, {width: 18}), s`EXPORTS: abc def
+IMPORTS:
+	datatypes:
+		isString
+		isArray
+		hash
+	llutils:
+		o s widthOf`)

@@ -1,0 +1,98 @@
+# log-formatter.lib.test.civet
+
+import {LogRecord} from "@std/log/logger"
+import {LogLevels} from "@std/log/levels"
+
+import {DBG} from 'logger'
+import {
+	getConsoleLog, clearConsoleLog,
+	getFormatter, indentLog, undentLog,
+	} from 'log-formatter'
+import {
+	equal, truthy, falsy, succeeds, fails, matches,
+	} from 'unit-test'
+
+# ---------------------------------------------------------------------------
+# --- Create 3 log records for use in testing
+
+rec1 := new LogRecord({
+	msg: "Hello",
+	args: [],
+	level: LogLevels.INFO,
+	loggerName: "example",
+	})
+
+rec2 := new LogRecord({
+	msg: "something went wrong",
+	args: [],
+	level: LogLevels.WARN,
+	loggerName: "example",
+	})
+
+rec3 := new LogRecord({
+	msg: "h not a hash",
+	args: [],
+	level: LogLevels.ERROR,
+	loggerName: "example",
+	})
+
+# ---------------------------------------------------------------------------
+# --- possible interpolation strings:
+#        $ts - milliseconds since process start
+#        $tt - milliseconds since last log
+#        $ll - log level as a single char
+#        $msg - the message
+
+(() =>
+	format := getFormatter('$msg', 'console')
+	equal format(rec1), "Hello"
+	equal format(rec2), "something went wrong"
+	equal format(rec3), "h not a hash"
+	equal getConsoleLog(), """
+		Hello
+		something went wrong
+		h not a hash
+		"""
+	)()
+
+(() =>
+	format := getFormatter('NOTICE: <$msg>', 'console')
+	equal format(rec1), "NOTICE: <Hello>"
+	equal format(rec2), "NOTICE: <something went wrong>"
+	equal format(rec3), "NOTICE: <h not a hash>"
+	equal getConsoleLog(), """
+		Hello
+		something went wrong
+		h not a hash
+		NOTICE: <Hello>
+		NOTICE: <something went wrong>
+		NOTICE: <h not a hash>
+		"""
+	)()
+
+(() =>
+	format := getFormatter('$ll $msg', 'console')
+	clearConsoleLog()
+	equal format(rec1), "I Hello"
+	equal format(rec2), "W something went wrong"
+	equal format(rec3), "E h not a hash"
+	equal getConsoleLog(), """
+		I Hello
+		W something went wrong
+		E h not a hash
+		"""
+	)()
+
+(() =>
+	format := getFormatter('[$tt] $ll $msg', 'console')
+	matches format(rec1), ///^
+		\[
+		\s*
+		\d+
+		\]
+		\s+
+		I
+		\s+
+		Hello
+		$///
+	)()

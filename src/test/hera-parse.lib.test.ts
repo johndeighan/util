@@ -1,0 +1,23 @@
+"use strict";
+// hera-parse.lib.test.civet
+
+import {esc} from 'unicode'
+import {
+	str2indents,
+	} from 'hera-parse'
+import {
+	equal, truthy, falsy, succeeds, fails,
+	} from 'unit-test'
+
+// ---------------------------------------------------------------------------
+
+equal(esc(str2indents(`file
+	abc
+	def`)), 'file↓»abc↓def«')
+
+equal(esc(str2indents(`file
+	abc
+		def
+/dir
+	file
+		xyz`)), 'file↓»abc↓»def↓««/dir↓»file↓»xyz««')

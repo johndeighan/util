@@ -1,0 +1,95 @@
+# hera-parse.lib.civet
+
+import {uni, esc} from 'unicode'
+import {
+	undef, defined, notdefined, hash, assert, croak, isEmpty,
+	TStringMapper,
+	} from 'datatypes'
+import {
+	allLinesInBlock, getOptions, sep,
+	} from 'llutils'
+import {resetOneIndent, splitLine} from 'indent'
+import {getErrStr} from 'exec'
+import {pm, parse: parseDirTree} from 'dir-tree'
+
+# ---------------------------------------------------------------------------
+# --- Replaces indentation with uni.shiftin and uni.shiftout
+#     oneIndent, if defined, must be '\t' or some number of space chars
+
+export str2indents := (str: string): string =>
+
+	assert not str.includes(uni.shiftin), "Bad input string"
+	assert not str.includes(uni.shiftout), "Bad input string"
+
+	resetOneIndent()
+	lParts: string[] := []
+	let level = 0
+	for line of allLinesInBlock(str)
+		if isEmpty(line)
+			lParts.push ''
+		else
+			[newLevel, str] := splitLine line
+			if (newLevel == level)
+				lParts.push str
+			else if (newLevel > level)
+				lParts.push uni.shiftin.repeat(newLevel - level) + str
+			else      # --- newLevel < level
+				lParts.push uni.shiftout.repeat(level - newLevel) + str
+			level = newLevel
+	return lParts.join('\n') + uni.shiftout.repeat(level)
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export doParse := <T = unknown>(
+		stub: string
+		text: string
+		hOptions: hash = {}
+		): T =>
+
+	type opt = {
+		lTransforms: TStringMapper[]
+		debug: boolean
+		abortOnError: boolean
+		}
+	{lTransforms, debug, abortOnError} := getOptions<opt> hOptions, {
+		lTransforms: [str2indents]
+		debug: false
+		abortOnError: true
+		}
+
+	debugger
+	for func of lTransforms
+		text = func(text)
+	if debug
+		console.log esc(text, 'oneline')
+		n := Math.floor(text.length / 10) + 1
+		console.log "|         ".repeat n
+	try
+		if (stub == 'dir-tree')
+			return parseDirTree(text) as Awaited<T>
+		else
+			{parse} := await import stub
+			assert (typeof parse == 'function'), "No such parser: #{stub}"
+			return parse(text) as Awaited<T>
+	catch err
+		console.log "PARSE ERROR in doParse()"
+		if (stub == 'dir-tree')
+			# --- Here we should display the string along with
+			#     whatever matches have already been found
+			console.log sep '-', 'matches'
+			console.log pm.matchesStr()
+			console.log sep '-'
+			console.log sep '-', 'debug'
+			console.log pm.debugStr(text)
+			console.log sep '-'
+		errStr := getErrStr err
+		console.error errStr
+		if abortOnError
+			Deno.exit 99
+		else
+			throw err
+
+# ---------------------------------------------------------------------------
+
+

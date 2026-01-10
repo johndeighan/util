@@ -1,0 +1,192 @@
+"use strict";
+// v8-stack.lib.test.civet
+
+type AutoPromise<T> = Promise<Awaited<T>>;
+import {undef, assert, croak} from 'datatypes'
+import {o} from 'llutils'
+import {DBG} from 'logger'
+import {relpath} from 'fsys'
+import {
+	execCmd, execCmdSync, procOneFile, doCompileCivet,
+	} from 'exec'
+import {
+	TStackFrame, getV8Stack, getMyCaller,
+	getMyOutsideCaller, getV8StackStr,
+	} from 'v8-stack'
+import {
+	equal, like, succeeds, objListLike, setDirTree,
+	} from 'unit-test'
+
+// ---------------------------------------------------------------------------
+// ASYNC
+
+const setup = async (): AutoPromise<void> => {
+
+	DBG("setDirTree()")
+
+	await setDirTree(`./src/test/v8-stack clear
+v8-module.civet compile
+	import {
+		getMyCaller, getMyOutsideCaller, TStackFrame,
+		} from 'v8-stack'
+
+	type TBothFrames = [TStackFrame?, TStackFrame?]
+
+	export getBoth := (): TBothFrames =>
+
+		result := secondFunc 'both'
+		if Array.isArray(result)
+			return result
+		else
+			throw new Error "Expected array, got TStackFrame"
+
+	export getDirect := (): TStackFrame? =>
+
+		result := secondFunc 'direct'
+		if Array.isArray(result)
+			throw new Error "Got unexpected array"
+		return result
+
+	export getOutside := (): TStackFrame? =>
+
+		result := secondFunc 'outside'
+		if Array.isArray(result)
+			throw new Error "Got unexpected array"
+		return result
+
+	secondFunc := (type: string): TBothFrames | TStackFrame? =>
+
+		return thirdFunc type
+
+	thirdFunc := (type: string): TBothFrames | TStackFrame? =>
+
+		switch type
+			when 'both'
+				return [getMyCaller(), getMyCaller()]
+			when 'direct'
+				return getMyCaller()
+			when 'outside'
+				return getMyOutsideCaller()
+			else
+				throw new Error "Unknown type: \#{type}"`)
+
+	return
+}
+
+await setup()
+
+// ---------------------------------------------------------------------------
+
+DBG("getV8Stack()");
+
+(function() {
+	let stack1: TStackFrame[] = []
+	let stack2: TStackFrame[] = []
+
+	const main = () => {
+		func1()
+		func2()
+	}
+
+	const func1 = function() {
+		stack1 = getV8Stack()
+		return
+	}
+
+	const func2 = function() {
+		stack2 = getV8Stack()
+		return
+	}
+
+	main()
+
+	objListLike(stack1, [
+		{
+			type: 'function',
+			name: 'func1',
+			source: 'src/test/v8-stack.lib.test.civet',
+			line: 136
+			},
+		{
+			type: 'function',
+			name: 'main',
+			source: 'src/test/v8-stack.lib.test.civet',
+			line: 132
+			},
+		{
+			type: 'function',
+			name: '<anon>',
+			source: 'src/test/v8-stack.lib.test.civet',
+			line: 143
+			},
+		{
+			type: 'script',
+			source: 'src/test/v8-stack.lib.test.civet',
+			line: 195
+			}
+		])
+
+	objListLike(stack2, [
+		{
+			type: 'function',
+			name: 'func2',
+			source: 'src/test/v8-stack.lib.test.civet',
+			line: 140
+			},
+		{
+			type: 'function',
+			name: 'main',
+			source: 'src/test/v8-stack.lib.test.civet',
+			line: 133
+			},
+		{
+			type: 'function',
+			name: '<anon>',
+			source: 'src/test/v8-stack.lib.test.civet',
+			line: 143
+			},
+		{
+			type: 'script',
+			source: 'src/test/v8-stack.lib.test.civet',
+			line: 195
+			}
+		])
+}
+	)()
+
+// ---------------------------------------------------------------------------
+
+DBG("getV8StackStr()");
+
+(function() {
+	let stack1Str: string = ''
+	let stack2Str: string = ''
+
+	const main = () => {
+		func1()
+		func2()
+	}
+
+	const func1 = function() {
+		stack1Str = getV8StackStr(getV8Stack())
+		return
+	}
+
+	const func2 = function() {
+		stack2Str = getV8StackStr(getV8Stack())
+		return
+	}
+
+	main()
+
+	equal(stack1Str, `[function func1    ] src/test/v8-stack.lib.test.civet:165:  2
+[function main     ] src/test/v8-stack.lib.test.civet:161:  2
+[function <anon>   ] src/test/v8-stack.lib.test.civet:172:  0
+[script            ] src/test/v8-stack.lib.test.civet:187:  0`)
+
+	equal(stack2Str, `[function func2    ] src/test/v8-stack.lib.test.civet:169:  2
+[function main     ] src/test/v8-stack.lib.test.civet:161:  9
+[function <anon>   ] src/test/v8-stack.lib.test.civet:172:  0
+[script            ] src/test/v8-stack.lib.test.civet:187:  0`)
+}
+	)()

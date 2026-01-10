@@ -1,0 +1,27 @@
+{
+	"sourceMap": true,
+	"parseOptions": {
+		"tab": 3,
+		"strict": true,
+		"implicitReturns": false,
+		"rewriteTsImports": false,
+
+		"coffeeClasses": false,
+		"coffeeComment": true,
+		"coffeeRange": true,
+		"coffeeEq": true,
+		"coffeeInterpolation": true,
+		"objectIs": true,
+
+		"autoConst": false,
+		"autoLet": false,
+		"autoVar": false,
+		"coffeeBooleans": false,
+		"coffeeDo": false,
+		"coffeeOf": false,
+		"coffeeDiv": false,
+		"coffeeIsnt": false,
+		"coffeeLineContinuation": false,
+		"coffeeForLoops": false
+		}
+	}

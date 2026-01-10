@@ -1,0 +1,355 @@
+# text-table.lib.civet
+
+import {sprintf} from 'jsr:@std/fmt/printf'
+import {
+	undef, defined, notdefined, assert, croak, nonEmpty,
+	isString, isNumber, isInteger, isArray, array, arrayof,
+	hash, hashof, integer, char, isArrayOfIntegers,
+	} from 'datatypes'
+import {
+	getOptions, words, rtrim, alignString, toBlock, TAlignment,
+	} from 'llutils'
+import {OL} from 'to-nice'
+import {LOGVALUE, DBG} from 'logger'
+
+# ---------------------------------------------------------------------------
+
+type TColDesc = {
+	width: integer
+	format: string
+	align: TAlignment
+	total: number? # running total
+	subtotal: number? # running subtotal, undef on subtotal()
+	}
+
+type titleRec = {
+	opcode: 'title'
+	title: string
+	align: TAlignment
+	}
+
+type labelsRec = {
+	opcode: 'labels'
+	lRow: string[]
+	}
+
+type dataRec = {
+	opcode: 'data'
+	lRow: string[]
+	}
+
+type sepRec = {
+	opcode: 'sep'
+	ch: char
+	}
+
+type fullsepRec = {
+	opcode: 'fullsep'
+	ch: char
+	}
+
+type totalsRec = {
+	opcode: 'totals'
+	lRow: string[]
+	}
+
+type subtotalsRec = {
+	opcode: 'subtotals'
+	lRow: string[]
+	}
+
+type rowDesc = titleRec |
+	labelsRec |
+	dataRec |
+	sepRec |
+	fullsepRec |
+	totalsRec |
+	subtotalsRec
+
+/**
+ * class used to construct a text table as a string
+ *
+ * SYNOPSIS:
+ * 	table := new TextTable('l r%.2f r%.2f')
+ * 	table.title   'My Expenses'
+ * 	table.fullsep '-'
+ * 	table.labels  ['', 'Jan', 'Feb']
+ * 	table.sep()
+ * 	table.data    ['coffee', 30, 40]
+ * 	table.data    ['dining', 130, 40]
+ * 	table.sep     '-'
+ * 	table.subtotals()
+ * 	table.data    ['one time', 10, 20]
+ * 	table.data    ['other', 1000, 40]
+ * 	table.fullsep '='
+ * 	table.totals()
+ *
+ * 	textTable := table.asString(o'hide=1')
+ */
+type opt = {
+	decPlaces: number
+	parseNumbers: boolean
+	}
+
+export class TextTable
+	hOptions: opt
+	numCols: integer
+	lLabels: string[] = []
+	lCols: TColDesc[] = []
+	lRows: rowDesc[] = []
+
+	constructor(formatStr: string, hOptions: hash = {})
+		# --- Valid options:
+		#        decPlaces - used for numbers with no % style format
+		#                    default: 2
+		#        parseNumbers - string data that looks like a number
+		#                       is treated as a number, default: false
+		@hOptions = getOptions<opt> hOptions, {
+			decPlaces: 2
+			parseNumbers: false
+			}
+		for word of words(formatStr)
+			let ref
+			if (ref = word.match(/^(l|c|r)(\%\S+)?$/))
+				lMatches := ref
+				[_, align, fmt] := lMatches
+				@lCols.push
+					width: 0
+					format: fmt
+					align: (align || 'left') as TAlignment
+					total: undef
+					subtotal: undef # incremented as data is added,
+			else
+				croak "Bad format string: #{OL(word)}"
+		@numCols = @lCols.length
+
+	# ..........................................................
+
+	title(title: string, align: TAlignment = 'center'): void
+		assert nonEmpty(title), "Bad title: '@{title}'"
+		@lRows.push {
+			opcode: 'title'
+			title
+			align
+		}
+		return
+
+	# ..........................................................
+
+	labels(lLabels: (string?)[]): void
+		assert (lLabels.length == @numCols), "lLabels = #{OL(lLabels)}"
+		lRow: string[] := lLabels.map (item, colNum) =>
+			return item || ''
+		@adjustColWidths lRow
+		@lRows.push {
+			opcode: 'labels'
+			lRow
+		}
+		@lLabels = lRow
+		return
+
+	# ..........................................................
+
+	accum(hCol: TColDesc, amt: number): void
+		if defined(hCol.total)
+			hCol.total += amt
+		else
+			hCol.total = amt
+		if defined(hCol.subtotal)
+			hCol.subtotal += amt
+		else
+			hCol.subtotal = amt
+		return
+
+	# ..........................................................
+
+	data(lData: (number | string | undefined)[]): void
+
+		assert (lData.length == @numCols), "lData = #{OL(lData)}"
+		lRow: string[] := lData.map (item, colNum): string =>
+			switch typeof item
+				case 'number':
+					h := @lCols[colNum]
+					@accum h, item
+					return @formatNum item, h.format
+				case 'string':
+					hCol := @lCols[colNum]
+					if @hOptions.parseNumbers && item.match(/^\d+(\.\d*)?([Ee]\d+)?$/)
+						num := parseFloat item
+						if Number.isNaN(num)
+							return item
+						else
+							@accum hCol, num
+							return @formatNum num, hCol.format
+					else
+						return item
+				default:
+					return ''
+		@adjustColWidths lRow
+		@lRows.push {
+			opcode: 'data'
+			lRow
+		}
+		return
+
+	# ..........................................................
+
+	sep(ch: char = '-'): void
+		@lRows.push {
+			opcode: 'sep'
+			ch
+		}
+		return
+
+	# ..........................................................
+
+	fullsep(ch: char = '-'): void
+		@lRows.push {
+			opcode: 'fullsep'
+			ch
+		}
+		return
+
+	# ..........................................................
+
+	totals(): void
+		lRow := @lCols.map (hCol, colNum): string =>
+			{total, format} := hCol
+			if defined(total)
+				return @formatNum total, format
+			else
+				return ''
+		@adjustColWidths lRow
+		@lRows.push {
+			opcode: 'totals'
+			lRow
+		}
+		return
+
+	# ..........................................................
+
+	subtotals(): void
+		lRow := @lCols.map (hCol, colNum): string =>
+			{subtotal, format} := hCol
+			if defined(hCol.subtotal)
+				hCol.subtotal = 0
+			if defined(subtotal)
+				return @formatNum subtotal, format
+			else
+				return ''
+		@adjustColWidths lRow
+		@lRows.push {
+			opcode: 'subtotals'
+			lRow
+		}
+		return
+
+	# ..........................................................
+
+	adjustColWidths(lRow: string[]): void
+		let i1 = 0
+		for str of lRow
+			colNum := i1++
+			hCol := @lCols[colNum]
+			if str.length > hCol.width
+				hCol.width = str.length
+		return
+
+	# ..........................................................
+
+	formatNum(num: number, fmt: string): string
+		if defined(fmt)
+			return sprintf fmt, num
+		else
+			return num.toFixed @hOptions.decPlaces
+
+	# ..........................................................
+
+	dumpInternals(): void
+		LOGVALUE 'numCols:', @numCols
+		LOGVALUE 'lCols:', @lCols
+		LOGVALUE 'lRows:', @lRows
+		return
+
+	# ..........................................................
+
+	getTotalWidth(lHidden: integer[] = [])
+		accFunc := (acc: integer, hCol: TColDesc, i: integer): number =>
+			if lHidden.includes(i)
+				return acc
+			else
+				return acc + 1 + hCol.width
+		return @lCols.reduce(accFunc, 0) - 1
+
+	# ..........................................................
+
+	getColsToHide(hide: (string | integer | integer[])): integer[]
+		if isArrayOfIntegers(hide)
+			return hide
+		switch typeof hide
+			case 'string':
+				do
+					results := []
+					for str of hide.split(',')
+						if str.match(/^\d+$/)
+							results.push parseInt str
+						else
+							results.push @lLabels.indexOf str.trim()
+					lInts := results # might be -1
+					return lInts
+			case 'number':
+				return [hide]
+			default:
+				return []
+
+	# ..........................................................
+	# --- option 'lHide' should be an array of integers
+
+	asString(hOptions = {}): string
+		# --- option to hide certain columns
+
+		type opt = {
+			lHide: number[]
+			}
+		{lHide} := getOptions<opt> hOptions, {
+			lHide: []
+			}
+
+		DBG 'lHide', lHide
+		lHidden := @getColsToHide lHide
+		DBG 'lHidden', lHidden
+
+		# --- create a filter function
+		ff := (
+			if (lHidden.length == 0)
+				(x: unknown) => return true
+			else
+				(x: unknown, i: integer) => return not lHidden.includes(i)
+			)
+		totalWidth := @getTotalWidth lHidden
+		DBG 'totalWidth', totalWidth
+		# --- Map each item in @lRows to a string
+		lLines := @lRows.map (h): string =>
+			switch h.opcode
+				case 'title':
+					return alignString h.title, totalWidth, h.align
+				case 'labels':
+					# --- labels are always center aligned
+					return h.lRow.map((str, colNum) =>
+						{width} := @lCols[colNum]
+						return alignString str, width, 'center'
+					).filter(ff).join ' '
+				case 'data':
+				case 'totals':
+				case 'subtotals':
+					return h.lRow.map((str, colNum) =>
+						{width, align} := @lCols[colNum]
+						return alignString str, width, align
+					).filter(ff).join ' '
+				case 'sep':
+					return @lCols.map((hCol) =>
+						return h.ch.repeat hCol.width
+					).filter(ff).join ' '
+				case 'fullsep':
+					return h.ch.repeat totalWidth
+		return toBlock lLines.map (line) => rtrim line

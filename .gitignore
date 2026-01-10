@@ -1,0 +1,16 @@
+logs/
+node_modules/
+build/
+public/
+dist/
+typings/
+src/temp/
+_typecheck_.ts
+
+# dotenv environment variables file
+.env
+.env.test
+
+test/**/temp*.*
+Deno.txt
+*.log

@@ -1,0 +1,76 @@
+# source-map.lib.test.civet
+
+import {defined} from 'datatypes'
+import {o} from 'llutils'
+import {mkpath} from 'fsys'
+import {
+	extractSourceMap, mapSourcePos,
+	decodeLine, getMappings, orgPos,
+	} from 'source-map'
+import {
+	equal, truthy, falsy, like, objListLike, matches,
+	succeeds, fails, includesAll, setDirTree,
+	} from 'unit-test'
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+setup := (): void =>
+
+	await setDirTree """
+		./src/test/source-map clear
+		test.temp.civet compile
+			import {undef} from 'datatypes'
+
+			lNames := ['John', 'Billy']
+			export sum := (x: number, y: number) =>
+
+				for name,i of lNames
+					console.log "\#{i}: \#{name}"
+				return x + y
+		"""
+	return
+
+await setup()
+
+equal mkpath(Deno.cwd()), "C:/Users/johnd/utils"
+
+# ---------------------------------------------------------------------------
+
+(() =>
+	hNewPos := mapSourcePos {
+		source: "src/test/source-map/test.temp.ts"
+		line: 9
+		col: 2
+		} as const
+
+	if defined(hNewPos)
+		equal hNewPos.source, "src/test/source-map/test.temp.civet"
+		equal hNewPos.line, 8
+	)
+
+# ---------------------------------------------------------------------------
+
+(() =>
+	str: string := ";;;ICAA;;;OAUG;IACH,mBAA0B,CAAS,EAAE,SAAgB;QACnD,uEAAuE"
+	lMappings := getMappings(str)
+	equal lMappings, [
+		# genLine genCol orgFile orgLine orgCol
+		[    3,      4,     1,      0,      0 ],
+		[    6,      7,     1,     10,      3 ],
+		[    7,      4,     1,     11,      0 ],
+		[    7,     23,     1,     11,     26 ],
+		[    7,     24,     1,     11,     35 ],
+		[    7,     26,     1,     11,     37 ],
+		[    7,     35,     1,     11,     53 ],
+		[    8,      8,     1,     12,      2 ],
+		[    8,     79,     1,     12,     73 ]
+		]
+
+	equal orgPos(lMappings, 1, 1),  [1,  0,  0]
+	equal orgPos(lMappings, 7, 24), [1, 11, 35]
+	equal orgPos(lMappings, 7, 25), [1, 11, 35]
+	equal orgPos(lMappings, 7, 26), [1, 11, 37]
+	equal orgPos(lMappings, 9,  1), [1, 12, 73]
+	)()
+

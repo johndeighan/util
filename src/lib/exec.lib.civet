@@ -1,0 +1,682 @@
+# exec.lib.civet
+
+type AutoPromise<T> = Promise<Awaited<T>>
+import fs from 'node:fs'
+import {existsSync} from 'jsr:@std/fs'
+import {statSync} from 'node:fs'
+import {stripAnsiCode} from 'jsr:@std/fmt/colors'
+import {
+	CompilerOptions, ScriptTarget, ModuleKind, CompilerHost,
+	createSourceFile, createProgram, getPreEmitDiagnostics,
+	flattenDiagnosticMessageText, createCompilerHost,
+	} from 'npm:typescript'
+import {sprintf} from 'jsr:@std/fmt/printf'
+import {compile: compileCivet} from 'npm:@danielx/civet'
+import hCivetConfig from "civetconfig" with { type: "json" };
+import {RawSourceMap} from 'npm:source-map-sync'
+
+import {
+	undef, defined, notdefined, assert, croak, hash,
+	isString, isArray, isArrayOfStrings, isEmpty, nonEmpty,
+	} from 'datatypes'
+import {
+	getOptions, pass, blockToArray, decode, encode, centered, sep,
+	} from 'llutils'
+import {write, writeln, resetLine } from 'console-utils'
+import {flag, debugging, inspecting} from 'cmd-args'
+import {OL, ML} from 'to-nice'
+import {
+	getLogLevel, pushLogLevel, popLogLevel,
+	DBG, LOG, WARN, ERR, LOGVALUE,
+	INDENT, UNDENT, DBGVALUE, DBGLABELED,
+	} from 'logger'
+import {
+	barf, pathStr, allFilesMatching, normalizePath, mkpath,
+	fileExt, withExt, slurpAsync, parsePath, addJsonValue,
+	} from 'fsys'
+import {extractSourceMap, haveSourceMapFor} from 'source-map'
+import {str2indents} from 'hera-parse'
+
+# ---------------------------------------------------------------------------
+
+export mkstr := (
+		item: (string | BufferSource)?
+		): string =>
+
+	if isString(item)
+		return stripAnsiCode item
+	else if isArray(item)
+		return stripAnsiCode item.join ''
+	else if defined(item)
+		return stripAnsiCode decode item
+	else
+		return ''
+
+# ---------------------------------------------------------------------------
+
+export joinNonEmpty := (...lStrings: string?[]): string =>
+
+	return lStrings.filter((s) => nonEmpty(s)).join('\n')
+
+# ---------------------------------------------------------------------------
+
+export getErrStr := (err: unknown): string =>
+
+	if (typeof err == 'string')
+		return err
+	else if (err instanceof String)
+		return err.toString()
+	else if (err instanceof Error)
+		return err.message
+	else
+		return "Serious Error"
+
+# ---------------------------------------------------------------------------
+
+export getCmdLine := (cmdName: string, lArgs: string[]): string =>
+
+	assert isString(cmdName), "cmdName not a string: #{OL(cmdName)}"
+	assert isArrayOfStrings(lArgs), "not an array of strings: #{OL(lArgs)}"
+	cmdLine := "#{cmdName} #{lArgs.join(' ')}"
+	DBG "cmdLine = #{OL(cmdLine)}"
+	return cmdLine
+
+# ---------------------------------------------------------------------------
+
+export type TStreamType = 'piped' | 'inherit'
+
+export type TExecResult =
+	path?: string
+	success: boolean
+	stdout?: string
+	stderr?: string
+	output?: string
+	infile?: string
+	outfile?: string
+	debug?: string
+
+export execCmdSync := (
+		cmdName: string,
+		lArgs: string[] = [],
+		hOptions: hash = {}
+		): TExecResult =>
+
+	type opt = {
+		capture: boolean
+		hReplace: TReplaceHash?
+		}
+
+	{capture, hReplace} := getOptions<opt> hOptions, {
+		capture: true
+		hReplace: undef
+		}
+
+	streamType: TStreamType := capture ? 'piped' : 'inherit'
+	DBGLABELED "EXEC SYNC", "#{OL(getCmdLine cmdName, lArgs)}"
+	DBG INDENT
+	child := new Deno.Command(cmdName,
+		args: replaceInArray(lArgs, hReplace)
+		env: DEFAULT_LOGGER: getLogLevel()
+		stdout: streamType
+		stderr: streamType
+	)
+	{success, stdout: rawStdOut, stderr: rawStdErr} := child.outputSync()
+	stdout := (capture && rawStdOut) ? decode(rawStdOut) : undef
+	stderr := (capture && rawStdErr) ? decode(rawStdErr) : undef
+	output := joinDefined stdout, stderr
+	DBG UNDENT
+	return {
+		success,
+		stdout,
+		stderr,
+		output,
+		debug: undef
+		}
+
+# ---------------------------------------------------------------------------
+
+export type TReplaceHash =
+	[key: string]: string
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+type TFileProcessor = (input: string) => string
+
+export execCmd := (
+		cmdName: string
+		lArgs: string[] = []
+		hOptions: hash = {}
+		): AutoPromise<TExecResult> =>
+
+	type opt = {
+		capture: boolean
+		infile: string?
+		inProc: TFileProcessor
+		outfile: string?
+		outProc: TFileProcessor
+		hReplace: TReplaceHash?
+		}
+
+	{
+			capture, infile, inProc, outfile, outProc, hReplace
+			} := getOptions<opt> hOptions, {
+		capture: true
+		infile: undef
+		inProc: (str) => return str
+		outfile: undef
+		outProc: (str) => return str
+		hReplace: undef
+		}
+
+	streamType: TStreamType := capture ? 'piped' : 'inherit'
+	if defined(infile) || defined(outfile)
+		assert (streamType == 'piped'),
+			"When specifying infile or outfile, capture must be true"
+	try
+		cmd := new Deno.Command cmdName, {
+			args: replaceInArray(lArgs, hReplace)
+			env: DEFAULT_LOGGER: if debugging then 'debug' else 'info'
+			stdin: streamType
+			stdout: streamType
+			stderr: streamType
+			}
+		child := cmd.spawn()
+		if defined(infile)
+			text := inProc Deno.readTextFileSync(infile)
+			# --- Write the data to the stdin of the child process
+			writer := child.stdin.getWriter()
+			await writer.write encode(text)
+			await writer.close()
+
+		h := await child.output()
+		{success} := h
+		stdout := defined(h.stdout) ? outProc(decode h.stdout) : undef
+		stderr := defined(h.stderr) ? outProc(decode h.stderr) : undef
+		output := joinDefined(stdout, stderr) || ''
+		if not success || not capture
+			return {success, stdout, stderr, output}
+		if defined(outfile)
+			Deno.writeTextFileSync outfile, output
+		return {
+			success
+			stdout
+			stderr
+			output
+			outfile
+			}
+	catch err
+		if debugging
+			console.error err
+		return {
+			success: false
+			stdout: undef
+			stderr: getErrStr(err)
+			output: getErrStr(err)
+			debug: undef
+			}
+
+# ---------------------------------------------------------------------------
+
+export replaceInArray := (
+		lStrings: string[],
+		hReplace: TReplaceHash?
+		): string[] =>
+
+	if defined(hReplace)
+		return ( =>
+			results := []
+			for str of lStrings
+				if hReplace.hasOwnProperty(str)
+					results.push hReplace[str]
+				else
+					results.push str
+			return results
+		)()
+	else
+		return lStrings
+
+# ---------------------------------------------------------------------------
+
+type TStringGen = string | Uint8Array<ArrayBuffer>
+type TStringSrc = undefined | TStringGen | TStringGen?[]
+
+export joinDefined := (...lParts: TStringSrc[]): string? =>
+
+	lStrings: string[] := []
+	for src of lParts
+		if (typeof src == 'string')
+			lStrings.push decode src
+		else if Array.isArray(src)
+			for str of src
+				if not defined(str)
+					continue
+				lStrings.push decode str
+	return if (lStrings.length == 0) then undef else lStrings.join('\n')
+
+# ---------------------------------------------------------------------------
+
+export class CTimer
+	t0 = Date.now()
+	timeTaken(): number
+		now := Date.now()
+		secs := (now - @t0) / 1000
+		@t0 = now
+		return secs
+timer := new CTimer()
+
+# ---------------------------------------------------------------------------
+
+export abstract class CFileHandler
+
+	abstract get op(): string
+
+	abstract handle(path: string, hOptions: hash): Promise<TExecResult>
+
+	handleFile(
+			path: string,
+			hOptions: hash
+			): AutoPromise<TExecResult>
+
+		type opt = {
+			showFile: boolean
+			}
+		{showFile} := getOptions<opt> hOptions, {
+			showFile: false
+			}
+
+		# --- mkpath() ensures we always pass a full, normalized path
+		hResult := await @handle mkpath(path), hOptions
+		if hResult.success
+			write (showFile ? "#{@op}: #{path}\n" : '.')
+		else
+			write (showFile ? "#{@op}: #{path} - FAILED\n" : '!')
+			if hResult.stderr
+				writeln()
+				writeln hResult.stderr
+		return hResult
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export type TProcSpec = [string, CFileHandler]
+
+export procFiles := (
+		procSpec: TProcSpec,
+		hOptions: hash = {}
+		): AutoPromise<TExecResult[]> =>
+
+	type opt = {
+		root: string
+		lIgnoreDirs: string[]?
+		abortOnError: boolean
+		}
+
+	# --- This function uses root, if set
+	#     lIgnoreDirs is simply passed on to allFilesMatching()
+	#        - if not defined, will default to ['temp','hide']
+	{root, lIgnoreDirs, abortOnError} := getOptions<opt> hOptions, {
+		root: '**/'
+		lIgnoreDirs: undef
+		abortOnError: false
+		}
+
+	[fileNamePat, handler] := procSpec
+
+	h := {lIgnoreDirs}
+
+	# --- We need the paths for later
+	lPaths := Array.from allFilesMatching("#{root}#{fileNamePat}")
+
+	lPromises := for path of lPaths
+		handler.handleFile path, hOptions
+
+	lResults := await Promise.allSettled lPromises
+
+	resetLine()
+	{op} := handler
+	write "(#{op})"
+	let nOk = 0
+	let nErr = 0
+	let nRej = 0
+	lFinalResults: TExecResult[] := []
+	let i1 = 0
+	for h,i of lResults
+		path := lPaths[i]
+		status := h.status
+		if (status == 'fulfilled')
+			{success, output} := h.value
+			h.value.path = path
+			lFinalResults.push h.value
+			if success
+				nOk += 1
+				if flag('v')
+					showOkResult op, path
+			else
+				nErr += 1
+				showErrResult op, path, h.value
+		else
+			nRej += 1
+			lFinalResults.push {success: false}
+			showRejResult op, path, h.reason
+
+	showFinalResult op, nOk, nErr, nRej, fileNamePat
+	if abortOnError && (nErr + nRej > 0)
+		Deno.exit 99
+	return lFinalResults
+
+# ---------------------------------------------------------------------------
+
+let headerPrinted = false
+
+showFinalResult := (
+		op: string,
+		nOk: number,
+		nErr: number,
+		nRej: number,
+		fileNamePat: string
+		): void =>
+
+	resetLine()
+	if flag('v')
+		return
+	if not headerPrinted
+		LOG [
+			sprintf('%6s', 'secs.')
+			sprintf('%-14s', 'op')
+			sprintf('%3s', 'OK')
+			sprintf('%3s', 'Bad')
+			sprintf('%3s', 'Rej')
+			'file(s)'
+		].join ' '
+		LOG '-'.repeat 46
+		headerPrinted = true
+	LOG [
+		sprintf('%6.2f', timer.timeTaken())
+		sprintf('%-14s', op)
+		sprintf('%3d', nOk)
+		sprintf('%3d', nErr)
+		sprintf('%3d', nRej)
+		fileNamePat
+	].join ' '
+	return
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export procOneFile := (
+		path: string,
+		handler: CFileHandler,
+		hOptions: hash = {}
+		): AutoPromise<TExecResult> =>
+
+	assert existsSync(path), "No such file: #{path}"
+	op := handler.op
+	try
+		hResult := await handler.handleFile path, hOptions
+		{success} := hResult
+		resetLine()
+		if success
+			showOkResult op, path
+		else
+			showErrResult op, path, hResult
+		hResult.path = path
+		return hResult
+	catch err
+		showRejResult op, path, err
+		return { success: false, path }
+
+# ---------------------------------------------------------------------------
+
+showOkResult := (op: string, path: string): void =>
+
+	resetLine()
+	LOG "#{op} #{pathStr(path)}"
+	return
+
+# ---------------------------------------------------------------------------
+
+showErrResult := (op: string, path: string, result: TExecResult): void =>
+
+	resetLine()
+	LOG centered "#{op}: #{pathStr(path)}", '-'
+	LOG "EXEC FAILED"
+	LOG result.stderr
+	LOG sep()
+	return
+
+# ---------------------------------------------------------------------------
+
+showRejResult := (op: string, path: string, reason: unknown): void =>
+
+	resetLine()
+	LOG centered "#{op}: #{pathStr(path)}", '-'
+	LOG "EXEC REJECTED: #{getErrStr(reason)}"
+	LOG sep()
+	return
+
+# ==================================================
+#       FileHandlers
+# ==================================================
+
+class CFileRemover extends CFileHandler
+
+	get op()
+		return 'doRemoveFile'
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): AutoPromise<TExecResult>
+
+		if existsSync(path)
+			await Deno.remove path
+		return success: true
+
+export doRemoveFile := new CFileRemover()
+
+# ---------------------------------------------------------------------------
+
+class CTsFileRemover extends CFileHandler
+
+	get op()
+		return 'doRemoveTsFile'
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): AutoPromise<TExecResult>
+
+		assert (fileExt(path) == '.ts'), "Not a TypeScript file: #{path}"
+		civetPath := withExt path, '.civet'
+		if existsSync(civetPath)
+			await Deno.remove path
+		return success: true
+
+export doRemoveTsFile := new CTsFileRemover()
+
+# ---------------------------------------------------------------------------
+# --- Due to a bug in either the v8 engine or Deno,
+#     we have to generate, then remove the inline source map,
+#     saving it to use in mapping source lines later
+
+class CCivetCompiler extends CFileHandler
+
+	get op()
+		return 'doCompileCivet'
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): AutoPromise<TExecResult>
+
+		destPath := withExt path, '.ts'
+		if (
+				   not hOptions.force
+				&& existsSync(destPath)
+				&& (statSync(destPath).mtimeMs > statSync(path).mtimeMs)
+				&& haveSourceMapFor(path)
+				)
+			return {success: true}
+		try
+			civetCode := await slurpAsync path
+			tsCode: string := await compileCivet civetCode, {
+				...hCivetConfig
+				inlineMap: true
+				filename: path
+				}
+			if not tsCode
+				errMsg := "COMPILE FAILED: #{pathStr(path)} - no code returned"
+				return
+					success: false
+					stderr: errMsg
+					output: errMsg
+			if tsCode.startsWith('COMPILE FAILED')
+				return
+					success: false
+					stderr: tsCode
+					output: tsCode
+
+			[code, hSrcMap] := extractSourceMap(tsCode)
+			addJsonValue 'sourcemap.jsonc', normalizePath(destPath), hSrcMap
+
+			await Deno.writeTextFile destPath, code
+			hResult := await execCmd 'deno', ['check', destPath]
+			{success, stderr, output} := hResult
+			if success
+				return success: true
+
+			# --- type check failed
+			await Deno.remove destPath
+			msg := 'TYPE CHECK FAILED'
+			useStdErr := if isEmpty(stderr) then msg else "#{stderr} - #{msg}"
+			return
+				success: false
+				stderr: useStdErr
+				output: useStdErr
+		catch err
+			if debugging
+				LOG err
+			errMsg := "COMPILE FAILED: #{pathStr(path)} - #{getErrStr(err)}"
+			return
+				success: false
+				stderr: errMsg
+				output: errMsg
+
+export doCompileCivet := new CCivetCompiler()
+
+# ---------------------------------------------------------------------------
+
+class CUnitTester extends CFileHandler
+
+	get op()
+		return 'doUnitTest'
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): AutoPromise<TExecResult>
+
+		assert (fileExt(path) == '.ts'), "Not a TypeScript file"
+		return await execCmd 'deno', [
+			'test'
+			'-A'
+			'--coverage-raw-data-only'
+			path
+			]
+
+export doUnitTest := new CUnitTester()
+
+# ---------------------------------------------------------------------------
+
+class CCmdInstaller extends CFileHandler
+
+	get op()
+		return 'doInstallCmd'
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): AutoPromise<TExecResult>
+
+		assert (fileExt(path) == '.ts'), "Not a TypeScript file: #{path}"
+		name := parsePath(path).stub.replaceAll '.', '_'
+		ret: Awaited<AutoPromise<TExecResult>> := await execCmd 'deno', [
+			'install'
+			'--global'
+			'--force'
+			'--config', 'deno.jsonc'
+			'-A'
+			'--name', name
+			path
+			]
+		return ret
+
+export doInstallCmd := new CCmdInstaller()
+
+# ---------------------------------------------------------------------------
+
+class CCmdUninstaller extends CFileHandler
+
+	get op()
+		return 'doUninstallCmd'
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): AutoPromise<TExecResult>
+
+		name := parsePath(path).stub.replaceAll '.', '_'
+		ret1: Awaited<AutoPromise<TExecResult>> := await execCmd 'deno', [
+			'uninstall'
+			'-gA'
+			name
+			path
+		]
+		return ret1
+
+export doUninstallCmd := new CCmdUninstaller()
+
+# ---------------------------------------------------------------------------
+
+class CFileRunner extends CFileHandler
+
+	get op()
+		return 'doRun'
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): AutoPromise<TExecResult>
+
+		assert (fileExt(path) == '.ts'), "Not a TypeScript file"
+		return await execCmd 'deno', [
+			'run'
+			'-A'
+			path
+		]
+
+export doRun := new CFileRunner()
+
+# ---------------------------------------------------------------------------
+
+class CFileDebugger extends CFileHandler
+
+	get op()
+		return 'doDebug'
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): AutoPromise<TExecResult>
+
+		assert (fileExt(path) == '.ts'), "Not a TypeScript file"
+		console.log "Chrome debugger is listening..."
+		return await execCmd 'deno', [
+			'run'
+			'-A'
+			'--inspect-brk'
+			path
+		]
+
+export doDebug := new CFileDebugger()
