@@ -12,9 +12,9 @@ import {esc, mesc} from 'unicode'
 import {
 	undef, defined, notdefined, isEmpty, nonEmpty,
 	array, arrayof, isArray, isHash, isString, hash, hashof,
-	isIterable, deepEqual, hashLike, integer, TObjCompareFunc,
-	TObjLikeFunc, TToStringFunc, TFilterFunc,
-	normalizeCode,
+	isIterable, deepEqual, hashLike, integer, THashCompareFunc,
+	THashLikeFunc, THashToStringFunc, TFilterFunc,
+	normalizeCode, isFunction, isClass, functionDef, classDef,
 	TVoidFunc, croak, assertIsDefined, isGenerator, isIterator,
 	} from 'datatypes'
 import {
@@ -22,7 +22,7 @@ import {
 	allLinesInBlock, truncStr,
 	} from 'llutils'
 import {splitLine, indented} from 'indent'
-import {OL, ML} from 'to-nice'
+import {OL, ML, DUMP} from 'to-nice'
 import {TextTable} from 'text-table'
 import {
 	pushLogLevel, popLogLevel,
@@ -35,13 +35,13 @@ import {
 	isDir, clearDir, pushWD, popWD,
 	} from 'fsys'
 import {Fetcher} from 'fetcher'
-import {getErrStr} from 'exec'
+import {getErrStr, typeCheckTsCode} from 'exec'
 import {doParse} from 'hera-parse'
 import {TPLLToken, allTokensInBlock, tokenTable, tkEOF} from 'pll'
-import {checkType} from 'typescript'
 import {civet2tsFile} from 'civet'
 import {getMyOutsideCaller} from 'v8-stack'
 import {sourceLib, getNeededImportStmts} from 'symbols'
+import {getTsCode, getImportCode} from 'typescript'
 
 const stringify = JSON.stringify
 
@@ -380,8 +380,8 @@ export const strListLike = (value: string[], expected: string[]): void => {
 export const objListLike = (
 		value: hash[],
 		expected: hash[],
-		strFunc: (TToStringFunc | undefined) = undef,
-		likeFunc: TObjLikeFunc = hashLike // used for comparison
+		strFunc: (THashToStringFunc | undefined) = undef,
+		likeFunc: THashLikeFunc = hashLike // used for comparison
 		): void => {
 
 	const name = getTestName()
@@ -395,7 +395,7 @@ export const objListLike = (
 	// --- create the arrays to actually be compared
 	let lVals: hash[] = value
 	if (defined(strFunc)) {
-		const compareFunc: TObjCompareFunc = (a: hash, b: hash) => {
+		const compareFunc: THashCompareFunc = (a: hash, b: hash) => {
 			const str1 = strFunc(a)
 			const str2 = strFunc(b)
 			return (()=>{if (str1 < str2) { return -1} else if (str1 > str2) { return 1} else return 0})()
@@ -407,7 +407,7 @@ export const objListLike = (
 	let lExp: hash[] = value
 	if (defined(strFunc)) {
 		DBG("strFunc defined")
-		const compareFunc: TObjCompareFunc = (a: hash, b: hash) => {
+		const compareFunc: THashCompareFunc = (a: hash, b: hash) => {
 			const str1 = strFunc(a)
 			const str2 = strFunc(b)
 			return (()=>{if (str1 < str2) { return -1} else if (str1 > str2) { return 1} else return 0})()
@@ -476,6 +476,36 @@ export const includesAll = (value: unknown, expected: unknown): void => {
 }
 
 // ---------------------------------------------------------------------------
+// throws on error
+
+export const checkType = (
+		typeStr: string,
+		value: unknown,
+		expectSuccess: boolean = true
+		): void => {
+
+	debugger
+	const valueStr = (
+		  isFunction(value) ? functionDef(value)
+		: isClass(value)    ? classDef(value)
+		:                     JSON.stringify(value)
+		)
+	const tsCode = getTsCode(typeStr, valueStr)
+	DUMP(tsCode, 'tsCode')
+
+	// --- check if we need to import the type
+	const importCode = getImportCode(typeStr)
+	DUMP(importCode, 'importCode')
+
+	const code = `\${importCode}
+\${tsCode}`
+	DUMP(code, 'code')
+
+	typeCheckTsCode(code)
+	return
+}
+
+// ---------------------------------------------------------------------------
 
 /**
  * In a unit test, tests if a value is of a given type.
@@ -513,14 +543,15 @@ export const isType = (
 	}
 	else {
 		DBG(INDENT)
-		const lDiagnostics = checkType(typeStr, value, true)
-		if (defined(lDiagnostics)) {
-			for (const msg of lDiagnostics) {
-				console.log(msg)
-			}
+		let errMsg: (string | undefined) = undef
+		try {
+			checkType(typeStr, value, true)
+		}
+		catch (err) {
+			errMsg = getErrStr(err)
 		}
 		DBG(UNDENT)
-		Deno.test(name, () => assert(isEmpty(lDiagnostics)))
+		Deno.test(name, () => assert(isEmpty(errMsg)))
 	}
 	return
 }
@@ -559,9 +590,15 @@ export const notType = (
 	}
 	else {
 		DBG(INDENT)
-		const lDiagnostics = checkType(typeStr, value, false)
+		let errMsg: (string | undefined) = undef
+		try {
+			checkType(typeStr, value, false)
+		}
+		catch (err) {
+			errMsg = getErrStr(err)
+		}
 		DBG(UNDENT)
-		Deno.test(name, () => assert(nonEmpty(lDiagnostics)))
+		Deno.test(name, () => assert(nonEmpty(errMsg)))
 	}
 	return
 }
@@ -863,13 +900,11 @@ export const allTrue = (
 	for (const name in val) {const value = val[name];
 		if (lNames.includes(name)) {
 			if (!pred(value)) {
-//				console.log "#{name} returns false"
 				return false
 			}
 		}
 		else {
 			if (pred(value)) {
-//				console.log "#{name} returns true"
 				return false
 			}
 		}
@@ -889,13 +924,11 @@ export const allFalse = (
 	for (const name in val) {const value = val[name];
 		if (lNames.includes(name)) {
 			if (pred(value)) {
-//				console.log "#{name} returns true"
 				return false
 			}
 		}
 		else {
 			if (!pred(value)) {
-//				console.log "#{name} returns false"
 				return false
 			}
 		}

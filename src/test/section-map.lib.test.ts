@@ -53,3 +53,4 @@ truthy(isSectionTree(hTree));
 	equal(smap.getBlock(), 'xyz\nabc')
 }
 	)()
+

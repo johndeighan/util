@@ -1,4 +1,4 @@
-# --- build-dot-symbols.cmd.civet
+# build-dot-symbols.cmd.civet
 
 import {stdChecks} from 'llutils'
 import {undef, assert, hash, isEmpty, nonEmpty} from 'datatypes'

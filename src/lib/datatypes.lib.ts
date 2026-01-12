@@ -89,17 +89,17 @@ export type hashof<T> = {
 	[key: string | symbol]: T
 }
 export type hash = hashof<unknown>
+
 export type arrayof<T> = T[]
 export type array = arrayof<unknown>
 
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 
-export type TVoidFunc = ()=> void
+export type TVoidFunc = () => void
 export type TFilterFunc = (item: unknown) => boolean
 export type TStringifier = (item: unknown) => string
 export type TStringMapper = (str: string) => string
-export type TStringGenerator = Generator<string, void, void>
 
 // ---------------------------------------------------------------------------
 
@@ -165,9 +165,9 @@ export const className = (x: unknown): (string | undefined) => {
 
 // ---------------------------------------------------------------------------
 
-export type TObjCompareFunc = (h1: hash, h2: hash) => number
-export type TObjLikeFunc = (h: hash, hPat: hash) => boolean
-export type TToStringFunc = (h: hash) => string
+export type THashCompareFunc = (h1: hash, h2: hash) => number
+export type THashLikeFunc = (h: hash, hPat: hash) => boolean
+export type THashToStringFunc = (h: hash) => string
 
 export const hashLike = (h: hash, hPat: hash): boolean => {
 

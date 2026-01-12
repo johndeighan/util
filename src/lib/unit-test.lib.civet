@@ -12,7 +12,7 @@ import {
 	array, arrayof, isArray, isHash, isString, hash, hashof,
 	isIterable, deepEqual, hashLike, integer, THashCompareFunc,
 	THashLikeFunc, THashToStringFunc, TFilterFunc,
-	normalizeCode,
+	normalizeCode, isFunction, isClass, functionDef, classDef,
 	TVoidFunc, croak, assertIsDefined, isGenerator, isIterator,
 	} from 'datatypes'
 import {
@@ -20,7 +20,7 @@ import {
 	allLinesInBlock, truncStr,
 	} from 'llutils'
 import {splitLine, indented} from 'indent'
-import {OL, ML} from 'to-nice'
+import {OL, ML, DUMP} from 'to-nice'
 import {TextTable} from 'text-table'
 import {
 	pushLogLevel, popLogLevel,
@@ -33,13 +33,13 @@ import {
 	isDir, clearDir, pushWD, popWD,
 	} from 'fsys'
 import {Fetcher} from 'fetcher'
-import {getErrStr} from 'exec'
+import {getErrStr, typeCheckTsCode} from 'exec'
 import {doParse} from 'hera-parse'
 import {TPLLToken, allTokensInBlock, tokenTable, tkEOF} from 'pll'
-import {checkType} from 'typescript'
 import {civet2tsFile} from 'civet'
 import {getMyOutsideCaller} from 'v8-stack'
 import {sourceLib, getNeededImportStmts} from 'symbols'
+import {getTsCode, getImportCode} from 'typescript'
 
 stringify := JSON.stringify
 
@@ -432,6 +432,37 @@ export includesAll := (value: unknown, expected: unknown): void =>
 	return
 
 # ---------------------------------------------------------------------------
+# throws on error
+
+export checkType := (
+		typeStr: string,
+		value: unknown,
+		expectSuccess: boolean = true
+		): void =>
+
+	debugger
+	valueStr := (
+		  isFunction(value) ? functionDef(value)
+		: isClass(value)    ? classDef(value)
+		:                     JSON.stringify(value)
+		)
+	tsCode := getTsCode typeStr, valueStr
+	DUMP tsCode, 'tsCode'
+
+	# --- check if we need to import the type
+	importCode := getImportCode typeStr
+	DUMP importCode, 'importCode'
+
+	code := """
+		${importCode}
+		${tsCode}
+		"""
+	DUMP code, 'code'
+
+	typeCheckTsCode code
+	return
+
+# ---------------------------------------------------------------------------
 
 /**
  * In a unit test, tests if a value is of a given type.
@@ -468,12 +499,13 @@ export isType := (
 		Deno.test name, () => assert isOfType value
 	else
 		DBG INDENT
-		lDiagnostics := checkType typeStr, value, true
-		if defined(lDiagnostics)
-			for msg of lDiagnostics
-				console.log msg
+		let errMsg: string? = undef
+		try
+			checkType typeStr, value, true
+		catch err
+			errMsg = getErrStr(err)
 		DBG UNDENT
-		Deno.test name, () => assert isEmpty lDiagnostics
+		Deno.test name, () => assert isEmpty(errMsg)
 	return
 
 # ---------------------------------------------------------------------------
@@ -509,9 +541,13 @@ export notType := (
 		Deno.test name, () => assert not isOfType(value)
 	else
 		DBG INDENT
-		lDiagnostics := checkType typeStr, value, false
+		let errMsg: string? = undef
+		try
+			checkType typeStr, value, false
+		catch err
+			errMsg = getErrStr(err)
 		DBG UNDENT
-		Deno.test name, () => assert nonEmpty lDiagnostics
+		Deno.test name, () => assert nonEmpty(errMsg)
 	return
 
 # ---------------------------------------------------------------------------
@@ -760,11 +796,9 @@ export allTrue := (
 	for name,value in val
 		if lNames.includes name
 			if not pred(value)
-#				console.log "#{name} returns false"
 				return false
 		else
 			if pred(value)
-#				console.log "#{name} returns true"
 				return false
 	return true
 
@@ -780,10 +814,8 @@ export allFalse := (
 	for name,value in val
 		if lNames.includes name
 			if pred(value)
-#				console.log "#{name} returns true"
 				return false
 		else
 			if not pred(value)
-#				console.log "#{name} returns false"
 				return false
 	return true

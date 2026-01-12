@@ -1,6 +1,5 @@
 # datatypes.lib.test.civet
 
-import {val} from 'sample-values'
 import {
 	deepEqual, undef, defined, notdefined,
 	croak, assert,
@@ -22,14 +21,34 @@ import {
 import {DBG} from 'logger'
 import {
 	equal, truthy, falsy, fails, succeeds, isType, notType,
+	val,
 	} from 'unit-test'
 
 # ---------------------------------------------------------------------------
 
-DBG "deepEqual()"
-
 truthy deepEqual 'a', 'a'
 truthy deepEqual ['a'], ['a']
+
+# ---------------------------------------------------------------------------
+
+fails () => croak "Bad"
+
+# ---------------------------------------------------------------------------
+
+nonsense := (): boolean =>
+	return false
+fails () => assert nonsense()
+
+# ---------------------------------------------------------------------------
+
+truthy defined(42)
+falsy  defined(undef)
+falsy  notdefined(42)
+truthy notdefined(undef)
+
+# ---------------------------------------------------------------------------
+
+isType 'number', 42
 
 # ---------------------------------------------------------------------------
 
@@ -37,6 +56,7 @@ truthy isGenerator(val.genFunc)
 falsy  isGenerator(val.regularFunc)
 falsy  isGenerator(val.lambdaFunc)
 
+# @ts-ignore
 truthy isIterator(val.genFunc())
 falsy  isIterator(val.genFunc)
 falsy  isIterator(val.regularFunc)

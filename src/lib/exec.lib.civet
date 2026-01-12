@@ -1,6 +1,8 @@
 # exec.lib.civet
 
 type AutoPromise<T> = Promise<Awaited<T>>
+
+import {transpile} from "jsr:@deno/emit"
 import fs from 'node:fs'
 import {existsSync} from 'jsr:@std/fs'
 import {statSync} from 'node:fs'
@@ -31,8 +33,8 @@ import {
 	INDENT, UNDENT, DBGVALUE, DBGLABELED,
 	} from 'logger'
 import {
-	barf, pathStr, allFilesMatching, normalizePath, mkpath,
-	fileExt, withExt, slurpAsync, parsePath, addJsonValue,
+	barf, pathStr, allFilesMatching, normalizePath, mkpath, barfTempFile,
+	fileExt, withExt, slurpAsync, parsePath, relpath, addJsonValue,
 	} from 'fsys'
 import {extractSourceMap, haveSourceMapFor} from 'source-map'
 import {str2indents} from 'hera-parse'
@@ -286,11 +288,13 @@ export abstract class CFileHandler
 			}
 
 		# --- mkpath() ensures we always pass a full, normalized path
-		hResult := await @handle mkpath(path), hOptions
+		fullPath := mkpath(path)
+		relPath := relpath(path)
+		hResult := await @handle fullPath, hOptions
 		if hResult.success
-			write (showFile ? "#{@op}: #{path}\n" : '.')
+			write (showFile ? "#{@op}: #{relPath} - OK\n" : '.')
 		else
-			write (showFile ? "#{@op}: #{path} - FAILED\n" : '!')
+			write "#{@op}: #{relPath} - FAILED\n"
 			if hResult.stderr
 				writeln()
 				writeln hResult.stderr
@@ -318,7 +322,7 @@ export procFiles := (
 	{root, lIgnoreDirs, abortOnError} := getOptions<opt> hOptions, {
 		root: '**/'
 		lIgnoreDirs: undef
-		abortOnError: false
+		abortOnError: true
 		}
 
 	[fileNamePat, handler] := procSpec
@@ -410,6 +414,12 @@ export procOneFile := (
 		hOptions: hash = {}
 		): AutoPromise<TExecResult> =>
 
+	type opt = {
+		abortOnError: boolean
+		}
+	{abortOnError} := getOptions<opt> hOptions, {
+		abortOnError: true
+		}
 	assert existsSync(path), "No such file: #{path}"
 	op := handler.op
 	try
@@ -420,6 +430,8 @@ export procOneFile := (
 			showOkResult op, path
 		else
 			showErrResult op, path, hResult
+			if abortOnError
+				Deno.exit 99
 		hResult.path = path
 		return hResult
 	catch err
@@ -496,6 +508,32 @@ class CTsFileRemover extends CFileHandler
 export doRemoveTsFile := new CTsFileRemover()
 
 # ---------------------------------------------------------------------------
+# ASYNC
+
+export typeCheckTsCode := (
+		tsCode: string
+		): void =>
+
+	path := barfTempFile tsCode, {ext: '.ts'}
+	hResult := await execCmd 'deno', ['check', path]
+	if not hResult.success && defined(hResult.stderr)
+		croak hResult.stderr
+	return
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export saveTsCode := (
+		destPath: string,
+		tsCode: string
+		): void =>
+
+	[code, hSrcMap] := extractSourceMap(tsCode)
+	addJsonValue 'sourcemap.jsonc', normalizePath(destPath), hSrcMap
+	await Deno.writeTextFile destPath, code
+	return
+
+# ---------------------------------------------------------------------------
 # --- Due to a bug in either the v8 engine or Deno,
 #     we have to generate, then remove the inline source map,
 #     saving it to use in mapping source lines later
@@ -510,6 +548,7 @@ class CCivetCompiler extends CFileHandler
 			hOptions: hash = {}
 			): AutoPromise<TExecResult>
 
+		assert (fileExt(path) == '.civet'), "Not a civet file: #{path}"
 		destPath := withExt path, '.ts'
 		if (
 				   not hOptions.force
@@ -527,33 +566,32 @@ class CCivetCompiler extends CFileHandler
 				}
 			if not tsCode
 				errMsg := "COMPILE FAILED: #{pathStr(path)} - no code returned"
-				return
+				return {
 					success: false
 					stderr: errMsg
 					output: errMsg
+					}
 			if tsCode.startsWith('COMPILE FAILED')
-				return
+				return {
 					success: false
 					stderr: tsCode
 					output: tsCode
+					}
 
-			[code, hSrcMap] := extractSourceMap(tsCode)
-			addJsonValue 'sourcemap.jsonc', normalizePath(destPath), hSrcMap
+			try
+				await typeCheckTsCode tsCode
+				return {success: true}
 
-			await Deno.writeTextFile destPath, code
-			hResult := await execCmd 'deno', ['check', destPath]
-			{success, stderr, output} := hResult
-			if success
-				return success: true
-
-			# --- type check failed
-			await Deno.remove destPath
-			msg := 'TYPE CHECK FAILED'
-			useStdErr := if isEmpty(stderr) then msg else "#{stderr} - #{msg}"
-			return
-				success: false
-				stderr: useStdErr
-				output: useStdErr
+			catch err
+				errMsg := getErrStr err
+				return {
+					success: false
+					stderr: errMsg
+					output: errMsg
+					}
+			else
+				await saveTsCode destPath, tsCode
+				return {success: true}
 		catch err
 			if debugging
 				LOG err

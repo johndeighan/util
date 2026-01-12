@@ -28,7 +28,7 @@ if (nonOption(0) === 'all') {
 	await procFiles(['*.lib.civet', doCompileCivet], {force})
 	await procFiles(['*.lib.test.civet', doCompileCivet], {force})
 	if (!noTest) {
-		await procFiles(['*.lib.test.ts',    doUnitTest])
+		await procFiles(['*.lib.test.ts', doUnitTest])
 	}
 }
 else {
@@ -36,22 +36,24 @@ else {
 		const fileName = `${stub}.lib.civet`
 		const path = findFile(fileName)
 		assert(defined(path), `No such file: ${fileName}`)
-		await procOneFile(path, doCompileCivet, {force})
+		const hResult = await procOneFile(path, doCompileCivet, {force})
 
-		// --- compile and check unit test file
-		const testFileName = `${stub}.lib.test.civet`
-		const testPath = findFile(testFileName)
-		if (defined(testPath)) {
-			await procOneFile(testPath, doCompileCivet, {force})
-			if (!noTest) {
-				const hResult = await procOneFile(withExt(testPath, '.ts'), doUnitTest)
-				if (('stdout' in hResult) && defined(hResult.stdout)) {
-					console.log(hResult.stdout.trim())
+		if (hResult.success) {
+			// --- compile and check unit test file
+			const testFileName = `${stub}.lib.test.civet`
+			const testPath = findFile(testFileName)
+			if (defined(testPath)) {
+				await procOneFile(testPath, doCompileCivet, {force})
+				if (!noTest) {
+					const hResult = await procOneFile(withExt(testPath, '.ts'), doUnitTest)
+					if (('stdout' in hResult) && defined(hResult.stdout)) {
+						console.log(hResult.stdout.trim())
+					}
 				}
 			}
-		}
-		else {
-			console.log(`No unit test for ${stub}.lib`)
+			else {
+				console.log(`No unit test for ${stub}.lib`)
+			}
 		}
 	}
 }

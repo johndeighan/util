@@ -3,7 +3,7 @@
 
 type AutoPromise<T> = Promise<Awaited<T>>;
 import {
-	undef, defined, hash, voidFunc, isString, deepEqual,
+	undef, defined, hash, isString, deepEqual,
 	} from 'datatypes'
 import {
 	o, spaces, sinceLoad, sinceLoadStr, sleep, pass,

@@ -122,7 +122,7 @@ const dump = () => {
 // isType 'boolean', false
 // isType '() => void', () => return
 // isType '() => void', dump
-// isType 'voidFunc', dump
+// isType 'TVoidFunc', dump
 // isType 'TFilterFunc', (x: unknown) => return true
 
 DBG("# notType()")
@@ -177,3 +177,4 @@ truthy(allTrue(['emptyStr', 'str'],
 truthy(allFalse(['genFunc', 'regularFunc', 'lambdaFunc'],
 	(x) => (typeof x !== 'function')
 	))
+

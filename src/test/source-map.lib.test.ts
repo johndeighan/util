@@ -77,3 +77,4 @@ equal(mkpath(Deno.cwd()), "C:/Users/johnd/utils");
 	equal(orgPos(lMappings, 9,  1), [1, 12, 73])
 }
 	)()
+

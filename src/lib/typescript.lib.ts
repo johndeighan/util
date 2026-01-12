@@ -13,7 +13,7 @@ import {
 	} from 'npm:typescript'
 
 import {
-	undef, defined, notdefined, integer, TStringGenerator,
+	undef, defined, notdefined, integer,
 	hash, hashof, isHash, TFilterFunc, isString, isEmpty, nonEmpty,
 	assert, croak, isFunction, functionDef, isClass, classDef,
 	} from 'datatypes'
@@ -144,43 +144,6 @@ export const typeCheckCode = (tsCode: string): ((string[]) | undefined) => {
 	else {
 		return ['Unknown error']
 	}
-}
-
-// ---------------------------------------------------------------------------
-
-export const checkType = (
-		typeStr: string,
-		value: unknown,
-		expectSuccess: boolean = true
-		): string[] => {
-
-	DBG("CALL checkType():", INDENT)
-	const valueStr = (
-		  isFunction(value) ? functionDef(value)
-		: isClass(value)    ? classDef(value)
-		:                     JSON.stringify(value)
-		)
-	const tsCode = getTsCode(typeStr, valueStr)
-	DBGVALUE('tsCode', tsCode)
-	// --- check if we need to import the type
-	const importCode = getImportCode(typeStr)
-	DBGVALUE('importCode', importCode)
-	const code = `\${importCode}
-\${tsCode}`
-	const lDiagnostics = typeCheckCode(code)
-	if (expectSuccess && nonEmpty(lDiagnostics)) {
-		LOG("typeCheckCode FAILED:")
-		LOG("CODE:")
-		LOG(code)
-		LOGVALUE('lDiagnostics', lDiagnostics)
-	}
-	else if (!expectSuccess && isEmpty(lDiagnostics)) {
-		LOG("typeCheckCode SUCCEEDED:")
-		LOG("CODE:")
-		LOG(code)
-	}
-	DBG(UNDENT)
-	return lDiagnostics || []
 }
 
 // ---------------------------------------------------------------------------

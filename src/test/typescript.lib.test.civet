@@ -11,7 +11,7 @@ import {DBG} from 'logger'
 import {slurp, withExt} from 'fsys'
 import {
 	typeCheckCode, splitFuncStr, getSymbolsFromType,
-	getImportCode, getTsCode, checkType,
+	getImportCode, getTsCode,
 	ts2ast, ast2ts, typeCheckFiles, astAsString, analyze,
 	} from 'typescript'
 import {civet2ts, a} from 'civet'
@@ -144,10 +144,6 @@ DBG "getTsCode(typeStr, valueStr)"
 equal getTsCode('integer', '42'), 'const x: integer = 42'
 equal getTsCode('TFilterFunc', '(x) => true'),
 	'const x: TFilterFunc = (x: unknown) => true'
-
-DBG "checkType(x, typeStr)"
-
-equal checkType('number', 42), []
 
 DBG "analyze(tsCode, hOptions)"
 

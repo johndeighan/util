@@ -1,11 +1,6 @@
 to do
 
-datatypes.lib.civet doesn't compiled because of function genIDs()
-
-write a Map() function capable of mapping, filtering
-and reducing.
-
-work with datatypes unit test to get mapping correct
+continue documenting datatypes lib
 
 in source-map's mapSourcePos, if there's directory info
 in the input parameter, but not in the mapped object

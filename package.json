@@ -37,5 +37,8 @@
 		"v8-stack": "./src/lib/v8-stack.lib.ts",
 		"unit-test": "./src/lib/unit-test.lib.ts",
 		"civetconfig": "C:/Users/johnd/civetconfig.json"
+	},
+	"dependencies": {
+		"@danielx/civet": "^0.11.1"
 	}
 }

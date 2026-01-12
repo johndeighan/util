@@ -3,6 +3,8 @@
 
 type AutoPromise1<T> = Promise<Awaited<T>>;
 type AutoPromise<T> = Promise<Awaited<T>>
+
+import {transpile} from "jsr:@deno/emit"
 import fs from 'node:fs'
 import {existsSync} from 'jsr:@std/fs'
 import {statSync} from 'node:fs'
@@ -33,8 +35,8 @@ import {
 	INDENT, UNDENT, DBGVALUE, DBGLABELED,
 	} from 'logger'
 import {
-	barf, pathStr, allFilesMatching, normalizePath, mkpath,
-	fileExt, withExt, slurpAsync, parsePath, addJsonValue,
+	barf, pathStr, allFilesMatching, normalizePath, mkpath, barfTempFile,
+	fileExt, withExt, slurpAsync, parsePath, relpath, addJsonValue,
 	} from 'fsys'
 import {extractSourceMap, haveSourceMapFor} from 'source-map'
 import {str2indents} from 'hera-parse'
@@ -327,12 +329,14 @@ export abstract class CFileHandler {
 			})
 
 		// --- mkpath() ensures we always pass a full, normalized path
-		const hResult = await this.handle(mkpath(path), hOptions)
+		const fullPath = mkpath(path)
+		const relPath = relpath(path)
+		const hResult = await this.handle(fullPath, hOptions)
 		if (hResult.success) {
-			write((showFile ? `${this.op}: ${path}\n` : '.'))
+			write((showFile ? `${this.op}: ${relPath} - OK\n` : '.'))
 		}
 		else {
-			write((showFile ? `${this.op}: ${path} - FAILED\n` : '!'))
+			write(`${this.op}: ${relPath} - FAILED\n`)
 			if (hResult.stderr) {
 				writeln()
 				writeln(hResult.stderr)
@@ -364,7 +368,7 @@ export const procFiles = async (
 	const {root, lIgnoreDirs, abortOnError} = getOptions<opt>(hOptions, {
 		root: '**/',
 		lIgnoreDirs: undef,
-		abortOnError: false
+		abortOnError: true
 		})
 
 	const [fileNamePat, handler] = procSpec
@@ -468,6 +472,12 @@ export const procOneFile = async (
 		hOptions: hash = {}
 		): AutoPromise1<AutoPromise<TExecResult>> => {
 
+	type opt = {
+		abortOnError: boolean
+		}
+	const {abortOnError} = getOptions<opt>(hOptions, {
+		abortOnError: true
+		})
 	assert(existsSync(path), `No such file: ${path}`)
 	const op = handler.op
 	try {
@@ -479,6 +489,9 @@ export const procOneFile = async (
 		}
 		else {
 			showErrResult(op, path, hResult)
+			if (abortOnError) {
+				Deno.exit(99)
+			}
 		}
 		hResult.path = path
 		return hResult
@@ -570,6 +583,35 @@ class CTsFileRemover extends CFileHandler {
 export const doRemoveTsFile = new CTsFileRemover()
 
 // ---------------------------------------------------------------------------
+// ASYNC
+
+export const typeCheckTsCode = async (
+		tsCode: string
+		): AutoPromise1<void> => {
+
+	const path = barfTempFile(tsCode, {ext: '.ts'})
+	const hResult = await execCmd('deno', ['check', path])
+	if (!hResult.success && defined(hResult.stderr)) {
+		croak(hResult.stderr)
+	}
+	return
+}
+
+// ---------------------------------------------------------------------------
+// ASYNC
+
+export const saveTsCode = async (
+		destPath: string,
+		tsCode: string
+		): AutoPromise1<void> => {
+
+	const [code, hSrcMap] = extractSourceMap(tsCode)
+	addJsonValue('sourcemap.jsonc', normalizePath(destPath), hSrcMap)
+	await Deno.writeTextFile(destPath, code)
+	return
+}
+
+// ---------------------------------------------------------------------------
 // --- Due to a bug in either the v8 engine or Deno,
 //     we have to generate, then remove the inline source map,
 //     saving it to use in mapping source lines later
@@ -585,6 +627,7 @@ class CCivetCompiler extends CFileHandler {
 			hOptions: hash = {}
 			): AutoPromise1<AutoPromise<TExecResult>> {
 
+		assert((fileExt(path) === '.civet'), `Not a civet file: ${path}`)
 		const destPath = withExt(path, '.ts')
 		if (
 				   !hOptions.force
@@ -606,36 +649,33 @@ class CCivetCompiler extends CFileHandler {
 				return {
 					success: false,
 					stderr: errMsg,
-					output: errMsg,
-				}
+					output: errMsg
+					}
 			}
 			if (tsCode.startsWith('COMPILE FAILED')) {
 				return {
 					success: false,
 					stderr: tsCode,
-					output: tsCode,
-				}
+					output: tsCode
+					}
 			}
 
-			const [code, hSrcMap] = extractSourceMap(tsCode)
-			addJsonValue('sourcemap.jsonc', normalizePath(destPath), hSrcMap)
-
-			await Deno.writeTextFile(destPath, code)
-			const hResult = await execCmd('deno', ['check', destPath])
-			const {success, stderr, output} = hResult
-			if (success) {
+			let ok = true;try {
+				await typeCheckTsCode(tsCode)
 				return {success: true}
 			}
 
-			// --- type check failed
-			await Deno.remove(destPath)
-			const msg = 'TYPE CHECK FAILED'
-			let ref;if (isEmpty(stderr)) { ref = msg} else ref = `${stderr} - ${msg}`;const useStdErr =ref
-			return {
-				success: false,
-				stderr: useStdErr,
-				output: useStdErr,
-			}
+			catch (err) {ok = false
+				const errMsg = getErrStr(err)
+				return {
+					success: false,
+					stderr: errMsg,
+					output: errMsg
+					}
+			} finally {if(ok) {
+				await saveTsCode(destPath, tsCode)
+				return {success: true}
+			}}
 		}
 		catch (err) {
 			if (debugging) {
