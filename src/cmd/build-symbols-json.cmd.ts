@@ -1,5 +1,5 @@
 "use strict";
-// build-dot-symbols.cmd.civet
+// build-symbols-json.cmd.civet
 
 import {stdChecks} from 'llutils'
 import {undef, assert, hash, isEmpty, nonEmpty} from 'datatypes'
@@ -9,7 +9,7 @@ import {LOG, DBG, WARN, LOGVALUE, DBGVALUE} from 'logger'
 import {barf, allFilesMatching, relpath} from 'fsys'
 import {analyze, CAnalysis} from 'typescript'
 
-stdChecks("build-dot-symbols")
+stdChecks("build-symbols-json")
 
 // ---------------------------------------------------------------------------
 // --- ASYNC GENERATOR

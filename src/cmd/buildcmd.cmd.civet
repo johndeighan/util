@@ -1,4 +1,4 @@
-# ---  buildcmd.cmd.civet
+# buildcmd.cmd.civet
 
 import {stdChecks} from 'llutils'
 import {assert, defined} from 'datatypes'
@@ -21,7 +21,7 @@ if (nonOption(0) == 'all')
 	await procFiles ['*.cmd.test.civet', doCompileCivet]
 	await procFiles ['*.cmd.test.ts',    doUnitTest]
 	if not noInstall
-		await procFiles ['*.cmd.ts',         doInstallCmd]
+		await procFiles ['*.cmd.ts',      doInstallCmd]
 else
 	for stub of allNonOptions()
 		fileName := "#{stub}.cmd.civet"

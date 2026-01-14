@@ -1,6 +1,6 @@
 # buildlib.cmd.civet
 
-import {stdChecks} from 'llutils'
+import {stdChecks, o} from 'llutils'
 import {assert, defined} from 'datatypes'
 import {nonOption, allNonOptions, flag} from 'cmd-args'
 import {withExt, findFile} from 'fsys'
@@ -39,8 +39,7 @@ else
 		if defined(testPath)
 			await procOneFile testPath, doCompileCivet, {force}
 			if not noTest
-				hResult := await procOneFile withExt(testPath, '.ts'), doUnitTest
-				if ('stdout' in hResult) && defined(hResult.stdout)
-					console.log hResult.stdout.trim()
+				tsPath := withExt(testPath, '.ts')
+				hResult := await procOneFile tsPath, doUnitTest, o'!capture'
 		else
 			console.log "No unit test for #{stub}.lib"

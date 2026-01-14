@@ -24,15 +24,16 @@ import {
 	isString, isArray, isArrayOfStrings, isEmpty, nonEmpty,
 	} from 'datatypes'
 import {
-	getOptions, pass, blockToArray, decode, encode, centered, sep,
+	getOptions, pass, blockToArray, decode, encode,
+	centered, sep, getErrStr,
 	} from 'llutils'
 import {write, writeln, resetLine } from 'console-utils'
 import {flag, debugging, inspecting} from 'cmd-args'
-import {OL, ML} from 'to-nice'
+import {OL, ML, DUMP} from 'to-nice'
 import {
-	getLogLevel, pushLogLevel, popLogLevel,
-	DBG, LOG, WARN, ERR, LOGVALUE,
-	INDENT, UNDENT, DBGVALUE, DBGLABELED,
+	curLogLevel, pushLogLevel, popLogLevel,
+	DBG, LOG, DBGVALUE, LOGVALUE,
+	INDENT, UNDENT,
 	} from 'logger'
 import {
 	barf, pathStr, allFilesMatching, normalizePath, mkpath, barfTempFile,
@@ -66,24 +67,6 @@ export const mkstr = (
 export const joinNonEmpty = (...lStrings: (string | undefined)[]): string => {
 
 	return lStrings.filter((s) => nonEmpty(s)).join('\n')
-}
-
-// ---------------------------------------------------------------------------
-
-export const getErrStr = (err: unknown): string => {
-
-	if (typeof err === 'string') {
-		return err
-	}
-	else if (err instanceof String) {
-		return err.toString()
-	}
-	else if (err instanceof Error) {
-		return err.message
-	}
-	else {
-		return "Serious Error"
-	}
 }
 
 // ---------------------------------------------------------------------------
@@ -122,18 +105,17 @@ export const execCmdSync = (
 		capture: boolean
 		hReplace: (TReplaceHash | undefined)
 		}
-
 	const {capture, hReplace} = getOptions<opt>(hOptions, {
 		capture: true,
 		hReplace: undef
 		})
 
 	const streamType: TStreamType = capture ? 'piped' : 'inherit'
-	DBGLABELED("EXEC SYNC", `${OL(getCmdLine(cmdName, lArgs))}`)
+	DBGVALUE("EXEC SYNC", `${OL(getCmdLine(cmdName, lArgs))}`)
 	DBG(INDENT)
 	const child = new Deno.Command(cmdName, {
 		args: replaceInArray(lArgs, hReplace),
-		env: {DEFAULT_LOGGER: getLogLevel()},
+		env: {DEFAULT_LOGGER: curLogLevel()},
 		stdout: streamType,
 		stderr: streamType
 	}
@@ -315,35 +297,6 @@ export abstract class CFileHandler {
 	abstract get op(): string
 
 	abstract handle(path: string, hOptions: hash): Promise<TExecResult>
-
-	async handleFile(
-			path: string,
-			hOptions: hash
-			): AutoPromise1<AutoPromise<TExecResult>> {
-
-		type opt = {
-			showFile: boolean
-			}
-		const {showFile} = getOptions<opt>(hOptions, {
-			showFile: false
-			})
-
-		// --- mkpath() ensures we always pass a full, normalized path
-		const fullPath = mkpath(path)
-		const relPath = relpath(path)
-		const hResult = await this.handle(fullPath, hOptions)
-		if (hResult.success) {
-			write((showFile ? `${this.op}: ${relPath} - OK\n` : '.'))
-		}
-		else {
-			write(`${this.op}: ${relPath} - FAILED\n`)
-			if (hResult.stderr) {
-				writeln()
-				writeln(hResult.stderr)
-			}
-		}
-		return hResult
-	}
 }
 
 // ---------------------------------------------------------------------------
@@ -379,30 +332,30 @@ export const procFiles = async (
 	const lPaths = Array.from(allFilesMatching(`${root}${fileNamePat}`))
 
 	const results1=[];for (const path of lPaths) {
-		results1.push(handler.handleFile(path, hOptions))
+		results1.push(handler.handle(path, hOptions))
 	};const lPromises =results1
 
-	const lResults = await Promise.allSettled(lPromises)
+	const lPromiseResults = await Promise.allSettled(lPromises)
 
 	resetLine()
 	const {op} = handler
 	write(`(${op})`)
-	let nOk = 0
-	let nErr = 0
-	let nRej = 0
+	let nOk = 0, nErr = 0, nRej = 0
+//	let nErr = 0
+//	let nRej = 0
 	const lFinalResults: TExecResult[] = []
-	let i1 = 0
-	let i2 = 0;for (const h of lResults) {const i = i2++;
+	let i1 = 0;for (const h of lPromiseResults) {const i = i1++;
 		const path = lPaths[i]
 		const status = h.status
 		if (status === 'fulfilled') {
-			const {success, output} = h.value
+			const hResult = h.value
+			const {success, output} = hResult
 			h.value.path = path
-			lFinalResults.push(h.value)
+			lFinalResults.push(hResult)
 			if (success) {
 				nOk += 1
 				if (flag('v')) {
-					showOkResult(op, path)
+					showOkResult(op, path, hResult)
 				}
 			}
 			else {
@@ -472,65 +425,100 @@ export const procOneFile = async (
 		hOptions: hash = {}
 		): AutoPromise1<AutoPromise<TExecResult>> => {
 
+	assert(existsSync(path), `No such file: ${path}`)
 	type opt = {
+		capture: boolean
+		dumpStdOut: boolean
 		abortOnError: boolean
 		}
-	const {abortOnError} = getOptions<opt>(hOptions, {
+	const {capture, dumpStdOut, abortOnError} = getOptions<opt>(hOptions, {
+		capture: true,
+		dumpStdOut: false,
 		abortOnError: true
 		})
-	assert(existsSync(path), `No such file: ${path}`)
+
+	// --- NOTE: if capture is false, we need to expect
+	//           that when the handler is called,
+	//           output will be produced
+
 	const op = handler.op
+	if (capture) {
+		write(`${op} ${relpath(path)}`)
+	}
+	else {
+		writeln(`${op} ${relpath(path)} (no capture)`)
+	}
 	try {
-		const hResult = await handler.handleFile(path, hOptions)
+		const hResult = await handler.handle(path, hOptions)
 		const {success} = hResult
-		resetLine()
-		if (success) {
-			showOkResult(op, path)
-		}
-		else {
-			showErrResult(op, path, hResult)
-			if (abortOnError) {
-				Deno.exit(99)
+
+		// --- If capture is false, output has already happened
+		if (capture) {
+			if (success) {
+				writeln(" OK")
+				if (dumpStdOut) {
+					showOkResult(op, path, hResult)
+				}
+			}
+			else {
+				writeln(" FAILED")
+				showErrResult(op, path, hResult)
+				if (abortOnError) {
+					Deno.exit(99)
+				}
 			}
 		}
 		hResult.path = path
 		return hResult
 	}
 	catch (err) {
-		showRejResult(op, path, err)
-		return { success: false, path }
+		if (capture) {
+			showRejResult(op, path, err)
+		}
+		if (abortOnError) {
+			Deno.exit(99)
+		}
+		return {success: false, path}
 	}
 }
 
 // ---------------------------------------------------------------------------
 
-const showOkResult = (op: string, path: string): void => {
+const showOkResult = (
+		op: string,
+		path: string,
+		hResult: TExecResult
+		): void => {
 
-	resetLine()
-	LOG(`${op} ${pathStr(path)}`)
+	if (nonEmpty(hResult.stdout)) {
+		DUMP(hResult.stdout, 'STDOUT')
+	}
 	return
 }
 
 // ---------------------------------------------------------------------------
 
-const showErrResult = (op: string, path: string, result: TExecResult): void => {
+const showErrResult = (
+		op: string,
+		path: string,
+		hResult: TExecResult
+		): void => {
 
-	resetLine()
-	LOG(centered(`${op}: ${pathStr(path)}`, '-'))
-	LOG("EXEC FAILED")
-	LOG(result.stderr)
-	LOG(sep())
+	if (nonEmpty(hResult.stderr)) {
+		DUMP(hResult.stderr, 'STDERR')
+	}
 	return
 }
 
 // ---------------------------------------------------------------------------
 
-const showRejResult = (op: string, path: string, reason: unknown): void => {
+const showRejResult = (
+		op: string,
+		path: string,
+		reason: unknown
+		): void => {
 
-	resetLine()
-	LOG(centered(`${op}: ${pathStr(path)}`, '-'))
-	LOG(`EXEC REJECTED: ${getErrStr(reason)}`)
-	LOG(sep())
+	DUMP(reason, 'ERROR')
 	return
 }
 
@@ -606,7 +594,9 @@ export const saveTsCode = async (
 		): AutoPromise1<void> => {
 
 	const [code, hSrcMap] = extractSourceMap(tsCode)
-	addJsonValue('sourcemap.jsonc', normalizePath(destPath), hSrcMap)
+	if (defined(hSrcMap)) {
+		addJsonValue('sourcemap.jsonc', normalizePath(destPath), hSrcMap)
+	}
 	await Deno.writeTextFile(destPath, code)
 	return
 }
@@ -645,7 +635,7 @@ class CCivetCompiler extends CFileHandler {
 				filename: path
 				})
 			if (!tsCode) {
-				const errMsg = `COMPILE FAILED: ${pathStr(path)} - no code returned`
+				const errMsg = `${pathStr(path)} - no code returned`
 				return {
 					success: false,
 					stderr: errMsg,
@@ -706,13 +696,20 @@ class CUnitTester extends CFileHandler {
 			hOptions: hash = {}
 			): AutoPromise1<AutoPromise<TExecResult>> {
 
-		assert((fileExt(path) === '.ts'), "Not a TypeScript file")
-		return await execCmd('deno', [
+		assert(path.endsWith('.test.ts'), "Not a unit test file")
+		type opt = {
+			capture: boolean
+			}
+		const {capture} = getOptions<opt>(hOptions, {
+			capture: true
+			})
+		const hResult = await execCmd('deno', [
 			'test',
 			'-A',
 			'--coverage-raw-data-only',
 			path
-			])
+			], {capture})
+		return hResult
 	}
 }
 
@@ -788,11 +785,18 @@ class CFileRunner extends CFileHandler {
 			): AutoPromise1<AutoPromise<TExecResult>> {
 
 		assert((fileExt(path) === '.ts'), "Not a TypeScript file")
+		type opt = {
+			capture: boolean
+			}
+		const {capture} = getOptions<opt>(hOptions, {
+			capture: true
+			})
+
 		return await execCmd('deno', [
 			'run',
 			'-A',
 			path
-		])
+		], {capture})
 	}
 }
 

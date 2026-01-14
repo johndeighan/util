@@ -119,7 +119,7 @@ equal getPathType("C:/temp/file.txt"), 'missing'
 
 DBG "fileExt()"
 
-equal fileExt('C:/Users/johnd/utils/deno.jsonc'), '.jsonc'
+equal fileExt('C:/Users/johnd/util/deno.jsonc'), '.jsonc'
 equal fileExt("C:/temp/file.txt"), ".txt"
 equal fileExt("c:\\temp/to/file.txt"), ".txt"
 equal fileExt("c:\\temp/to/file.flag.txt"), ".txt"
@@ -278,24 +278,24 @@ equal mkpath('c:\\', 'Users', 'johnd'), 'C:/Users/johnd'
 
 DBG "relpath()"
 
-equal relpath('C:/Users/johnd/utils/deno.jsonc'), 'deno.jsonc'
+equal relpath('C:/Users/johnd/util/deno.jsonc'), 'deno.jsonc'
 
 DBG "type TPathDesc", "pathSubDirs()"
 
 (() =>
-	fullPath := "C:/Users/johnd/utils/src/test/fsys/deno.jsonc"
+	fullPath := "C:/Users/johnd/util/src/test/fsys/deno.jsonc"
 	relPath  := "src/test/fsys/deno.jsonc"
 
 	# --- non-relative, try both full and relative paths
 	equal pathSubDirs(fullPath, o'!relative'), {
-		dir: 'C:/Users/johnd/utils/src/test/fsys'
+		dir: 'C:/Users/johnd/util/src/test/fsys'
 		root: "C:/"
-		lParts: ['Users', 'johnd', 'utils', 'src', 'test', 'fsys']
+		lParts: ['Users', 'johnd', 'util', 'src', 'test', 'fsys']
 		}
 	equal pathSubDirs(relPath, o'!relative'), {
-		dir: 'C:/Users/johnd/utils/src/test/fsys'
+		dir: 'C:/Users/johnd/util/src/test/fsys'
 		root: "C:/"
-		lParts: ['Users', 'johnd', 'utils', 'src', 'test', 'fsys']
+		lParts: ['Users', 'johnd', 'util', 'src', 'test', 'fsys']
 		}
 
 	# --- relative, try both full and relative paths
@@ -312,14 +312,14 @@ DBG "type TPathDesc", "pathSubDirs()"
 
 	# --- Default is not relative
 	equal pathSubDirs(fullPath), {
-		dir: 'C:/Users/johnd/utils/src/test/fsys'
+		dir: 'C:/Users/johnd/util/src/test/fsys'
 		root: "C:/"
-		lParts: ['Users', 'johnd', 'utils', 'src', 'test', 'fsys']
+		lParts: ['Users', 'johnd', 'util', 'src', 'test', 'fsys']
 		}
 	equal pathSubDirs(relPath), {
-		dir: 'C:/Users/johnd/utils/src/test/fsys'
+		dir: 'C:/Users/johnd/util/src/test/fsys'
 		root: "C:/"
-		lParts: ['Users', 'johnd', 'utils', 'src', 'test', 'fsys']
+		lParts: ['Users', 'johnd', 'util', 'src', 'test', 'fsys']
 		}
 	)()
 

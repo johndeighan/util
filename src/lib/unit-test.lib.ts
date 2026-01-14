@@ -8,6 +8,7 @@ import {
 	assertObjectMatch, assertStringIncludes, assertMatch,
 	assertArrayIncludes,
 	} from 'jsr:@std/assert'
+
 import {esc, mesc} from 'unicode'
 import {
 	undef, defined, notdefined, isEmpty, nonEmpty,
@@ -19,7 +20,7 @@ import {
 	} from 'datatypes'
 import {
 	pass, o, keys, getOptions, spaces, blockToArray,
-	allLinesInBlock, truncStr,
+	allLinesInBlock, truncStr, getErrStr,
 	} from 'llutils'
 import {splitLine, indented} from 'indent'
 import {OL, ML, DUMP} from 'to-nice'
@@ -35,13 +36,13 @@ import {
 	isDir, clearDir, pushWD, popWD,
 	} from 'fsys'
 import {Fetcher} from 'fetcher'
-import {getErrStr, typeCheckTsCode} from 'exec'
+import {typeCheckTsCode} from 'exec'
 import {doParse} from 'hera-parse'
 import {TPLLToken, allTokensInBlock, tokenTable, tkEOF} from 'pll'
 import {civet2tsFile} from 'civet'
-import {getMyOutsideCaller} from 'v8-stack'
 import {sourceLib, getNeededImportStmts} from 'symbols'
 import {getTsCode, getImportCode} from 'typescript'
+import {getMyOutsideCaller} from 'v8-stack'
 
 const stringify = JSON.stringify
 

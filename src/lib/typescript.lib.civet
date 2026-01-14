@@ -31,9 +31,9 @@ import {slurp, barf, barfTempFile, fileExt} from 'fsys'
 import {OL, toNice, TMapFunc} from 'to-nice'
 import {execCmdSync} from 'exec'
 import {extractSourceMap} from 'source-map'
-import {getNeededImportStmts} from 'symbols'
 import {Walker, TVisitKind} from 'walker'
 import {CMainScope, CScope} from 'scope'
+import {getNeededImportStmts} from 'symbols'
 
 decoder := new TextDecoder("utf-8")
 
@@ -45,16 +45,20 @@ export kindStr := (i: number): string =>
 
 # ---------------------------------------------------------------------------
 
-export ts2ast := (tsCode: string, hOptions: hash = {}): Node =>
+export ts2ast := (
+		tsCode: string,
+		hOptions: hash = {}
+		): Node =>
 
 	type opt = {
 		fileName: string
 		}
-	{fileName} := getOptions<opt> hOptions,
+	{fileName} := getOptions<opt> hOptions, {
 		fileName: 'temp.ts'
+		}
 
-	tsCode = extractSourceMap(tsCode)[0]
-	hAst := createSourceFile fileName, tsCode, ScriptTarget.Latest
+	[code, hSrcMap] := extractSourceMap(tsCode)
+	hAst := createSourceFile fileName, code, ScriptTarget.Latest
 	return hAst
 
 # ---------------------------------------------------------------------------
@@ -72,7 +76,7 @@ export typeCheckFiles := (
 		hOptions: CompilerOptions = hDefConfig
 		): string[] =>
 
-	if (typeof lFileNames == 'string')
+	if isString(lFileNames)
 		lFileNames = [lFileNames]
 	program := createProgram lFileNames, hOptions
 	emitResult := program.emit()
@@ -101,7 +105,10 @@ export tsMapFunc: TMapFunc := (key: string, value: unknown, hParent: hash): unkn
 
 # ---------------------------------------------------------------------------
 
-export astAsString := (hAst: Node, hOptions: hash = {}): string =>
+export astAsString := (
+		hAst: Node,
+		hOptions: hash = {}
+		): string =>
 
 	return toNice hAst,
 		ignoreEmptyValues: true
@@ -155,13 +162,11 @@ export getTsCode := (
 
 # ---------------------------------------------------------------------------
 
-type splitResult = [string[], string]
+type TSplitResult = [string[], string]
 
-export splitFuncStr := (valueStr: string): splitResult? =>
+export splitFuncStr := (valueStr: string): TSplitResult? =>
 
-	let ref
-	if (ref = valueStr.match(/^\(([^\)]*)\)\s*[\=\-]\>\s*(.*)$/))
-		lMatches := ref
+	if (lMatches := valueStr.match(/^\(([^\)]*)\)\s*[\=\-]\>\s*(.*)$/))
 		[_, strParms, strBody] := lMatches
 		if isEmpty(strParms)
 			return [[], strBody]
@@ -191,14 +196,10 @@ export getImportCode := (typeStr: string): string =>
 
 export getSymbolsFromType := (typeStr: string): string[] =>
 
-	let ref1
-	let ref2
-	if (ref1 = typeStr.match(/^([A-Za-z][A-Za-z0-9+]*)(?:\<([A-Za-z][A-Za-z0-9+]*)\>)?$/))
-		lMatches := ref1
+	if (lMatches := typeStr.match(/^([A-Za-z][A-Za-z0-9+]*)(?:\<([A-Za-z][A-Za-z0-9+]*)\>)?$/))
 		[_, type, subtype] := lMatches
-		return if nonEmpty(subtype) then [type, subtype] else [type]
-	else if (ref2 = typeStr.match(/^\(\)\s*\=\>\s*([A-Za-z][A-Za-z0-9+]*)$/))
-		lMatches := ref2
+		return nonEmpty(subtype) ? [type, subtype] : [type]
+	else if (lMatches := typeStr.match(/^\(\)\s*\=\>\s*([A-Za-z][A-Za-z0-9+]*)$/))
 		return [lMatches[1]]
 	else
 		return []
@@ -484,7 +485,10 @@ export getNode := (x: unknown, dspath: string | TPathItem[]): Node =>
 
 # ---------------------------------------------------------------------------
 
-export analyze := (tsCode: string, hOptions: hash = {}): CAnalysis =>
+export analyze := (
+		tsCode: string,
+		hOptions: hash = {}
+		): CAnalysis =>
 
 	type opt = {
 		fileName: string?

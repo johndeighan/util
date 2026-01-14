@@ -1,287 +1,114 @@
 # logger.lib.civet
 
-import {existsSync, ensureDirSync} from 'jsr:@std/fs'
-import {LogLevels} from 'jsr:@std/log/levels'
-import {
-	ConsoleHandler, FileHandler, setup, getLogger, LogRecord,
-	} from 'jsr:@std/log'
-import {blue, black} from 'jsr:@std/fmt/colors'
+import {cyan, blue, black} from 'jsr:@std/fmt/colors'
 
-import {decode} from 'llutils'
-import {getPrefix} from 'unicode'
-import {
-	undef, defined, notdefined, hash, isString, nonEmpty, croak, assert,
-	} from 'datatypes'
-import {
-	spaces, o, sinceLoadStr, pass, sep, encode,
-	} from 'llutils'
+import {write, writeln} from 'console-utils'
+import {isString} from 'datatypes'
 import {OL, ML} from 'to-nice'
-import {
-	TLogLevel, isLogLevel, getLogLevel, setLogLevel,
-	pushLogLevel, popLogLevel, resetLogLevel, isInactiveLevel,
-	} from 'log-levels'
-import {
-	getFormatter, indentLog, undentLog,
-	getConsoleLog, clearConsoleLog, logIndent
-	} from 'log-formatter'
 
-export {
-	getLogLevel, isLogLevel, setLogLevel, pushLogLevel, popLogLevel,
-	indentLog, undentLog, clearConsoleLog, getConsoleLog,
-	}
+let level = 0
+export INDENT := Symbol 'indent'
+export UNDENT := Symbol 'undent'
 
-export type TLogLevel
-ensureDirSync './logs'
+# --- useful for unit testing
+#     or saving final log to a log file
+export let lLogLines: string[] = []
 
 # ---------------------------------------------------------------------------
 
-mainModule: string := new URL(Deno.mainModule).pathname.slice 1
-logFileName := ( =>
-	lMatches := mainModule.match /[A-Za-z0-9_\-\.]+$/
-	if lMatches == null
-		return "logs/dummy.log"
-	label := lMatches[0].replaceAll '.', '_'
-	time := new Date().toISOString().replaceAll ':', '-'
-	return "logs/#{label} #{time}.log"
-)()
+logLine := (
+		str: string,
+		oneIndent: string = '\t'
+		): void =>
 
-# ---------------------------------------------------------------------------
-
-export getLog := (from: string): string =>
-	switch from
-		case 'console':
-			return getConsoleLog()
-		case 'file':
-			if existsSync(logFileName)
-				data := Deno.readFileSync logFileName
-				return decode data
-			else
-				return ''
-		default:
-			croak "getLog(): invalid from = #{from}"
-			return ''
-
-# ---------------------------------------------------------------------------
-
-export clearLog := (which: string): void =>
-	switch which
-		when 'console'
-			clearConsoleLog()
-		when 'file'
-			encoder := new TextEncoder()
-			str := encode ''
-			Deno.writeFileSync logFileName, str
-		when 'both'
-			clearConsoleLog()
-			str := encode ''
-			Deno.writeFileSync logFileName, str
-		default:
-			pass()
+	line := oneIndent.repeat(level) + str
+	lLogLines.push line
+	writeln line
 	return
 
 # ---------------------------------------------------------------------------
 
-hConfig: hash := {
-	handlers: {
-		console: new ConsoleHandler('DEBUG',
-			formatter: getFormatter('$msg', 'console')
-			)
-		file: new FileHandler('DEBUG',
-			filename: logFileName
-			mode: 'a'
-			formatter: getFormatter('$ll $msg', 'file')
-			)
-		console_prof: new ConsoleHandler('DEBUG',
-			formatter: getFormatter('[$ts] $msg', 'console')
-			)
-		file_prof: new FileHandler('DEBUG',
-			filename: logFileName
-			mode: 'a'
-			formatter: getFormatter('[$ts] $ll $msg', 'file')
-			)
-		}
+export getLog := (): string =>
 
-	# --- assign handlers to loggers
-	#     order from most verbose to least verbose
-	loggers: {
-		profile: {
-			level: "DEBUG"
-			num: 1
-			handlers: ["console_prof", "file_prof"]
-			}
-		debug: {
-			level: "DEBUG"
-			num: 2
-			handlers: ["console", "file"]
-			}
-		info: {
-			level: "INFO"
-			num: 3
-			handlers: ["console", "file"]
-			}
-		warn: {
-			level: "WARN"
-			num: 4
-			handlers: ["console", "file"]
-			}
-		error: {
-			level: "ERROR"
-			num: 5
-			handlers: ["console", "file"]
-			}
-		file: {
-			level: "DEBUG"
-			num: 6
-			handlers: ["file"]
-			}
-		silent: {
-			level: "ERROR"
-			num: 7
-			handlers: []
-			}
-		}
-	}
-
-setup hConfig
-hLoggers := hConfig.loggers
-hHandlers := hConfig.handlers
-export INDENT := Symbol 'indent'
-export UNDENT := Symbol 'undent'
+	return lLogLines.join('\n')
 
 # ---------------------------------------------------------------------------
 
-output := (level: TLogLevel, lItems: unknown[]): void =>
-	if isInactiveLevel(level)
-		return
-	let logger = getLogger getLogLevel()
-	if lItems.length == 0
-		switch level
-			when 'debug'
-				logger.debug '\n'
-			when 'info'
-				logger.info '\n'
-			when 'warn'
-				logger.warn '\n'
-			when 'error'
-				logger.error '\n'
-			default:
-				pass()
-		return
-	for item of lItems
-		switch item
-			when INDENT
-				indentLog()
-			when UNDENT
-				undentLog()
-			default:
-				str := if isString(item) then item else ML(item)
-				if nonEmpty(str)
-					switch level
-						when 'debug'
-							logger.debug str
-						when 'info'
-							logger.info black str
-						when 'warn'
-							logger.warn str
-						when 'error'
-							logger.error str
-						default:
-							pass()
+export type TLogLevel = 'silent' | 'info' | 'debug'
+
+let lLogLevels: TLogLevel[] = ['info']
+
+# ---------------------------------------------------------------------------
+
+export curLogLevel := (): TLogLevel =>
+
+	if (lLogLevels.length == 0)
+		return 'info'
+	else
+		return lLogLevels[lLogLevels.length - 1]
+
+# ---------------------------------------------------------------------------
+
+export setLogLevel := (level: TLogLevel): void =>
+
+	if (lLogLevels.length > 0)
+		lLogLevels[lLogLevels.length - 1] = level
+	return
+
+# ---------------------------------------------------------------------------
+
+export pushLogLevel := (level: TLogLevel): void =>
+
+	lLogLevels.push level
+	return
+
+# ---------------------------------------------------------------------------
+
+export popLogLevel := (): TLogLevel =>
+
+	if (lLogLevels.length == 0)
+		return 'info'
+	else
+		retval := lLogLevels[lLogLevels.length - 1]
+		lLogLevels.pop()
+		return retval
+
+# ---------------------------------------------------------------------------
+
+export LOG := (...lItems: unknown[]): void =>
+
+	if (curLogLevel() != 'silent')
+		for item of lItems
+			if (item == INDENT)
+				level += 1
+			else if (item == UNDENT)
+				if (level > 0)
+					level -= 1
+			else if isString(item)
+				writeln item
+			else
+				writeln OL(item)
 	return
 
 # ---------------------------------------------------------------------------
 
 export DBG := (...lItems: unknown[]): void =>
-	output 'debug', lItems
+
+	if (curLogLevel() == 'debug')
+		LOG ...lItems
 	return
-export LOG := (...lItems: unknown[]): void =>
-	output 'info', lItems
-	return
-export WARN := (...lItems: unknown[]): void =>
-	output 'warn', lItems
-	return
-export ERR := (...lItems: unknown[]): void =>
-	output 'error', lItems
-	return
+
+# ---------------------------------------------------------------------------
+
 export LOGVALUE := (label: string, value: unknown): void =>
-	if isInactiveLevel('info')
-		return
+
 	LOG "#{label} = #{ML(value)}"
 	return
-export LOGLABELED := (label: string, value: unknown): void =>
-	if isInactiveLevel('info')
-		return
-	LOG labeledBlock label, value
-	return
+
+# ---------------------------------------------------------------------------
+
 export DBGVALUE := (label: string, value: unknown): void =>
-	if isInactiveLevel('debug')
-		return
+
 	DBG blue(label) + " = #{ML(value)}"
 	return
-export DBGLABELED := (label: string, value: unknown): void =>
-	if isInactiveLevel('debug')
-		return
-	DBG labeledBlock label, value
-	return
 
-# ---------------------------------------------------------------------------
-
-export labeledBlock := (label: string, value: unknown): string =>
-	block := ML value
-	if block.includes('\n')
-		return [
-			sep('-', blue(label))
-			block
-			sep('-')
-		].join '\n'
-	else
-		return blue(label) + " = " + block
-
-# ---------------------------------------------------------------------------
-
-export removeLogFile := (): void =>
-	if existsSync(logFileName)
-		Deno.removeSync logFileName
-	return
-
-# ---------------------------------------------------------------------------
-
-export type TFormatter<T> = (desc: string, item: T?) => string
-
-export class TreeLogger<T>
-	# --- data fields
-	indentLevel: number = 0
-	logLevel: TLogLevel = 'debug'
-	formatter: TFormatter<T>
-
-	constructor(formatter1 = (desc: string, item: T?) => desc, logLevel: string = 'debug')
-		@formatter = formatter1
-		if isLogLevel(logLevel)
-			@logLevel = logLevel
-
-	start(desc: string, item: T? = undef): void
-		str := @formatter desc, item
-		pre := getPrefix @indentLevel, 'plain'
-		output @logLevel, [pre + str]
-		@indentLevel += 1
-		return
-
-	log(desc: string, item: T? = undef): void
-		str := @formatter desc, item
-		pre := getPrefix @indentLevel, 'plain'
-		output @logLevel, [pre + str]
-		return
-
-	succeed(desc: string, item: T? = undef): void
-		str := @formatter desc, item
-		pre := getPrefix @indentLevel, 'withArrow'
-		output @logLevel, [pre + str]
-		@indentLevel -= 1
-		return
-
-	fail(desc: string, item: T? = undef): void
-		str := @formatter desc, item
-		pre := getPrefix @indentLevel, 'withArrow'
-		output @logLevel, [pre + str]
-		@indentLevel -= 1
-		return

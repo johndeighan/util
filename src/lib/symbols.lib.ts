@@ -8,7 +8,7 @@ import {
 import {pass, o, getOptions, keys} from 'llutils'
 import {OL, ML} from 'to-nice'
 import {resetOneIndent} from 'indent'
-import {LOG, DBG, DBGVALUE, ERR} from 'logger'
+import {LOG, DBG, DBGVALUE} from 'logger'
 import {TPLLToken, TTokenGenerator, allTokensInBlock} from 'pll'
 import {isFile, slurp} from 'fsys'
 
@@ -65,7 +65,7 @@ export const loadSymbols = (
 			}
 		}
 		else {
-			ERR(`level = ${level}`)
+			LOG(`level = ${level}`)
 			croak(`level = ${level}`)
 		}
 		return

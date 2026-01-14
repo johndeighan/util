@@ -52,9 +52,12 @@ export const filePosStr = (h: TFilePos): string => {
 
 export const extractSourceMap = (
 		contents: string
-		): [string, RawSourceMap] => {
+		): [string, RawSourceMap?] => {
 
 	const lMatches = contents.match(/^(.*)\/\/\#\s+sourceMappingURL=data:application\/json;(?:charset=utf-8;)?base64,(.+)$/s)
+	if (notdefined(lMatches)) {
+		return [contents, undef]
+	}
 	assert(defined(lMatches), "Missing source map")
 	const code = lMatches[1].trim()
 	const hSrcMap = JSON.parse(atob(lMatches[2].trim())) as RawSourceMap

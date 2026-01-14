@@ -1,7 +1,7 @@
 "use strict";
 // indent.lib.civet
 
-import {esc} from "unicode"
+import {esc} from 'unicode'
 import {
 	undef, defined, notdefined, assert, croak, array,
 	isEmpty, isString, isArray, isArrayOfStrings,

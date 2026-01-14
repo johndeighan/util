@@ -5,6 +5,7 @@ type AutoPromise1<T> = Promise<Awaited<T>>;
 type AutoPromise<T> = Promise<Awaited<T>>
 import {statSync} from 'node:fs'
 import {existsSync} from 'jsr:@std/fs'
+
 import {uni, esc} from 'unicode'
 import {
 	undef, defined, notdefined, assertIsDefined,
@@ -12,14 +13,14 @@ import {
 	} from 'datatypes'
 import {
 	allLinesInBlock, arrayToBlock, getOptions,
-	f, sep, pass, untabify,
+	f, sep, pass, untabify, getErrStr,
 	} from 'llutils'
 import {resetOneIndent, splitLine, indented} from 'indent'
 import {debugging} from 'cmd-args'
 import {ML} from 'to-nice'
 import {fileExt, withExt, isValidStub, pathStr} from 'fsys'
 import {
-	execCmd, getErrStr, CFileHandler, TExecResult,
+	execCmd, CFileHandler, TExecResult,
 	procFiles, doCompileCivet, doUnitTest,
 	} from 'exec'
 

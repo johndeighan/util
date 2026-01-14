@@ -6,11 +6,10 @@ import {
 	TStringMapper,
 	} from 'datatypes'
 import {
-	allLinesInBlock, getOptions, sep,
+	allLinesInBlock, getOptions, sep, getErrStr,
 	} from 'llutils'
 import {resetOneIndent, splitLine} from 'indent'
-import {getErrStr} from 'exec'
-import {pm, parse: parseDirTree} from 'dir-tree'
+import {pm} from 'dir-tree'
 
 # ---------------------------------------------------------------------------
 # --- Replaces indentation with uni.shiftin and uni.shiftout
@@ -66,12 +65,9 @@ export doParse := <T = unknown>(
 		n := Math.floor(text.length / 10) + 1
 		console.log "|         ".repeat n
 	try
-		if (stub == 'dir-tree')
-			return parseDirTree(text) as Awaited<T>
-		else
-			{parse} := await import stub
-			assert (typeof parse == 'function'), "No such parser: #{stub}"
-			return parse(text) as Awaited<T>
+		{parse} := await import stub
+		assert (typeof parse == 'function'), "No such parser: #{stub}"
+		return parse(text) as Awaited<T>
 	catch err
 		console.log "PARSE ERROR in doParse()"
 		if (stub == 'dir-tree')

@@ -1,8 +1,10 @@
 "use strict";
 // to-nice.lib.civet
 
-import {cyan, blue} from 'jsr:@std/fmt/colors'
+import {cyan, blue, black} from 'jsr:@std/fmt/colors'
+
 import {uni, esc} from 'unicode'
+import {write, writeln} from 'console-utils'
 import {
 	assert, croak, undef, defined, notdefined,
 	hash, hashof, isString, isArray, isClass, isRegExp,
@@ -421,15 +423,15 @@ export const DUMP = (
 		char: '-',
 		endLabel: false
 		})
-	console.log(sep(char, label, width))
+	writeln(sep(char, label, width))
 	if (isString(x)) {
 		if (nonEmpty(x)) {
-			console.log(x)
+			writeln(x)
 		}
 	}
 	else {
-		console.log(toNice(x, hOptions))
+		writeln(toNice(x, hOptions))
 	}
-	console.log(sep(char, (endLabel ? `END ${label}` : undef), width))
+	writeln(sep(char, (endLabel ? `END ${label}` : undef), width))
 	return
 }

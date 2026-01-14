@@ -11,7 +11,6 @@ import {existsSync} from 'jsr:@std/fs'
 import {statSync} from 'node:fs'
 import {parse as parseYAML} from "jsr:@std/yaml";
 
-import {esc} from 'unicode'
 import {
 	undef, defined, notdefined, assert, char, deepEqual,
 	assertIsDefined, isHash, isArray, isNonEmptyString,
@@ -20,6 +19,9 @@ import {
 	functionDef, croak, assertIsString, assertIsNumber,
 	TStringMapper,
 	} from 'datatypes'
+import {f} from 'f-strings'
+
+export {f}
 
 const llutilsLoadTime: integer = Date.now()
 
@@ -169,63 +171,6 @@ export const t = (lStrings: TemplateStringsArray): string => {
 		return '\t'.repeat(level)
 	}
 	return lStrings[0].replaceAll(/^\x20+/mg, replacer)
-}
-
-// ---------------------------------------------------------------------------
-
-export const fsplit = (str: string): [string, number, boolean] => {
-
-	const lMatches = str.match(/^:(\!)?(\d+)?(.*)$/)
-	if (defined(lMatches)) {
-		const [_, escape, width, rest] = lMatches
-		return [
-			rest,
-			width ? parseInt(width) : 0,
-			nonEmpty(escape)
-			]
-	}
-	else {
-		return [str, 0, false]
-	}
-}
-
-// ---------------------------------------------------------------------------
-// --- Number of strings is always 1 greater than the number of values
-
-export const f = (
-		lStrings: TemplateStringsArray,
-		...lValues: unknown[]
-		): string => {
-
-	const lParts: string[] = [lStrings[0]]
-	let i1 = 0;for (const val of lValues) {const i = i1++;
-		const [nextStr, width, escape] = fsplit(lStrings[i+1])
-		lParts.push((
-			(()=>{switch(typeof val) {
-				case 'string': {
-					const valStr = escape ? esc(val) : val
-					return width ? sprintf(`%-${width}s`, valStr) : valStr
-				}
-				case 'number': {
-					if (width === 0) {
-						return val.toString()
-					}
-					else if (Number.isInteger(val)) {
-						return sprintf(`%${width}d`, val)
-					}
-					else {
-						return sprintf(`%${width}.2f`, val)
-					}
-				}
-				default: {
-					const valStr = JSON.stringify(val)
-					return width ? sprintf(`%-s${width}`, valStr) : valStr
-				}
-			}})()
-			))
-		lParts.push(nextStr)
-	}
-	return lParts.join('')
 }
 
 // ---------------------------------------------------------------------------
@@ -526,7 +471,7 @@ export const allMatches = function*(
 
 export const range = function*(n: number): Generator<number, void, void> {
 
-	for (let i2 = 0, asc = 0 <= n; asc ? i2 < n : i2 > n; asc ? ++i2 : --i2) {const i = i2;
+	for (let i1 = 0, asc = 0 <= n; asc ? i1 < n : i1 > n; asc ? ++i1 : --i1) {const i = i1;
 		yield i
 	}
 	return
@@ -568,22 +513,22 @@ export const interpolate = (
 
 const labelGen = function*(): Generator<string, void, void> {
 
-	for (let i3 = 65; i3 <= 90; ++i3) {const i = i3;
+	for (let i2 = 65; i2 <= 90; ++i2) {const i = i2;
 		const ch = String.fromCharCode(i)
 		yield ch
 	}
-	for (let i4 = 65; i4 <= 90; ++i4) {const i = i4;
+	for (let i3 = 65; i3 <= 90; ++i3) {const i = i3;
 		const ch = String.fromCharCode(i)
-		for (let i5 = 65; i5 <= 90; ++i5) {const j = i5;
+		for (let i4 = 65; i4 <= 90; ++i4) {const j = i4;
 			const ch2 = String.fromCharCode(j)
 			yield ch + ch2
 		}
 	}
-	for (let i6 = 65; i6 <= 90; ++i6) {const i = i6;
+	for (let i5 = 65; i5 <= 90; ++i5) {const i = i5;
 		const ch = String.fromCharCode(i)
-		for (let i7 = 65; i7 <= 90; ++i7) {const j = i7;
+		for (let i6 = 65; i6 <= 90; ++i6) {const j = i6;
 			const ch2 = String.fromCharCode(j)
-			for (let i8 = 65; i8 <= 90; ++i8) {const k = i8;
+			for (let i7 = 65; i7 <= 90; ++i7) {const k = i7;
 				const ch3 = String.fromCharCode(k)
 				yield ch + ch2 + ch3
 			}
@@ -598,7 +543,7 @@ const labelGen = function*(): Generator<string, void, void> {
 const labels = labelGen()
 export const randomLabel = (): string => {
 	const label = labels.next()
-	return (label.done? 'ERR!' : label.value)
+	return label.done ? 'ERR!' : label.value
 }
 
 // ---------------------------------------------------------------------------
@@ -861,3 +806,19 @@ export const fromTAML = (block: string): unknown => {
 
 	return parseYAML(untabify(block))
 }
+
+// ---------------------------------------------------------------------------
+
+export const getErrStr = (err: unknown): string => {
+
+	if (isString(err)) {
+		return err
+	}
+	else if (err instanceof Error) {
+		return err.message
+	}
+	else {
+		return "Serious Error"
+	}
+}
+

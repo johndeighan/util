@@ -45,7 +45,7 @@ export filePosStr := (h: TFilePos): string =>
 
 export extractSourceMap := (
 		contents: string
-		): [string, RawSourceMap] =>
+		): [string, RawSourceMap?] =>
 
 	lMatches := contents.match ///^
 			(.*)
@@ -55,6 +55,8 @@ export extractSourceMap := (
 			base64,
 			(.+)
 			$///s
+	if notdefined(lMatches)
+		return [contents, undef]
 	assert defined(lMatches), "Missing source map"
 	code := lMatches[1].trim()
 	hSrcMap := JSON.parse(atob(lMatches[2].trim())) as RawSourceMap

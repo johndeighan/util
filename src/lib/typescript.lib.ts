@@ -32,9 +32,9 @@ import {slurp, barf, barfTempFile, fileExt} from 'fsys'
 import {OL, toNice, TMapFunc} from 'to-nice'
 import {execCmdSync} from 'exec'
 import {extractSourceMap} from 'source-map'
-import {getNeededImportStmts} from 'symbols'
 import {Walker, TVisitKind} from 'walker'
 import {CMainScope, CScope} from 'scope'
+import {getNeededImportStmts} from 'symbols'
 
 const decoder = new TextDecoder("utf-8")
 
@@ -47,17 +47,20 @@ export const kindStr = (i: number): string => {
 
 // ---------------------------------------------------------------------------
 
-export const ts2ast = (tsCode: string, hOptions: hash = {}): Node => {
+export const ts2ast = (
+		tsCode: string,
+		hOptions: hash = {}
+		): Node => {
 
 	type opt = {
 		fileName: string
 		}
 	const {fileName} = getOptions<opt>(hOptions, {
-		fileName: 'temp.ts',
-	})
+		fileName: 'temp.ts'
+		})
 
-	tsCode = extractSourceMap(tsCode)[0]
-	const hAst = createSourceFile(fileName, tsCode, ScriptTarget.Latest)
+	const [code, hSrcMap] = extractSourceMap(tsCode)
+	const hAst = createSourceFile(fileName, code, ScriptTarget.Latest)
 	return hAst
 }
 
@@ -77,7 +80,7 @@ export const typeCheckFiles = (
 		hOptions: CompilerOptions = hDefConfig
 		): string[] => {
 
-	if (typeof lFileNames === 'string') {
+	if (isString(lFileNames)) {
 		lFileNames = [lFileNames]
 	}
 	const program = createProgram(lFileNames, hOptions)
@@ -113,7 +116,10 @@ export const tsMapFunc: TMapFunc = (key: string, value: unknown, hParent: hash):
 
 // ---------------------------------------------------------------------------
 
-export const astAsString = (hAst: Node, hOptions: hash = {}): string => {
+export const astAsString = (
+		hAst: Node,
+		hOptions: hash = {}
+		): string => {
 
 	return toNice(hAst, {
 		ignoreEmptyValues: true,
@@ -179,13 +185,11 @@ export const getTsCode = (
 
 // ---------------------------------------------------------------------------
 
-type splitResult = [string[], string]
+type TSplitResult = [string[], string]
 
-export const splitFuncStr = (valueStr: string): (splitResult | undefined) => {
+export const splitFuncStr = (valueStr: string): (TSplitResult | undefined) => {
 
-	let ref
-	if (ref = valueStr.match(/^\(([^\)]*)\)\s*[\=\-]\>\s*(.*)$/)) {
-		const lMatches = ref
+	let ref;if ((ref = valueStr.match(/^\(([^\)]*)\)\s*[\=\-]\>\s*(.*)$/))) {const lMatches = ref;
 		const [_, strParms, strBody] = lMatches
 		if (isEmpty(strParms)) {
 			return [[], strBody]
@@ -223,15 +227,11 @@ export const getImportCode = (typeStr: string): string => {
 
 export const getSymbolsFromType = (typeStr: string): string[] => {
 
-	let ref1
-	let ref2
-	if (ref1 = typeStr.match(/^([A-Za-z][A-Za-z0-9+]*)(?:\<([A-Za-z][A-Za-z0-9+]*)\>)?$/)) {
-		const lMatches = ref1
+	let ref1;let ref2;if ((ref1 = typeStr.match(/^([A-Za-z][A-Za-z0-9+]*)(?:\<([A-Za-z][A-Za-z0-9+]*)\>)?$/))) {const lMatches = ref1;
 		const [_, type, subtype] = lMatches
-		return (nonEmpty(subtype)? [type, subtype] : [type])
+		return nonEmpty(subtype) ? [type, subtype] : [type]
 	}
-	else if (ref2 = typeStr.match(/^\(\)\s*\=\>\s*([A-Za-z][A-Za-z0-9+]*)$/)) {
-		const lMatches = ref2
+	else if ((ref2 = typeStr.match(/^\(\)\s*\=\>\s*([A-Za-z][A-Za-z0-9+]*)$/))) {const lMatches = ref2;
 		return [lMatches[1]]
 	}
 	else {
@@ -566,7 +566,10 @@ export const getNode = (x: unknown, dspath: string | TPathItem[]): Node => {
 
 // ---------------------------------------------------------------------------
 
-export const analyze = (tsCode: string, hOptions: hash = {}): CAnalysis => {
+export const analyze = (
+		tsCode: string,
+		hOptions: hash = {}
+		): CAnalysis => {
 
 	type opt = {
 		fileName: (string | undefined)

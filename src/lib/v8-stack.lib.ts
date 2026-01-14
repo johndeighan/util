@@ -9,16 +9,13 @@ import {
 	isEmpty, nonEmpty, hash, isString,
 	isNonEmptyString, isInteger, assertIsDefined,
 	} from 'datatypes'
-import {f, sep, rpad, getOptions} from 'llutils'
+import {f, sep, rpad, getOptions, getErrStr} from 'llutils'
 import {OL, ML, DUMP} from 'to-nice'
-import {pushLogLevel, popLogLevel} from 'log-levels'
-import {
-	DBG, DBGLABELED, LOG, LOGLABELED, WARN, ERR,
-	} from 'logger'
+import {pushLogLevel, popLogLevel} from 'logger'
+import {DBG, LOG} from 'logger'
 import {
 	isFile, mkpath, fileExt, withExt, normalizePath, relpath,
 	} from 'fsys'
-import {getErrStr} from 'exec'
 import {
 	hSourceMaps, TFilePos, mapSourcePos, haveSourceMapFor,
 	} from 'source-map'
@@ -279,7 +276,7 @@ export const allStackFrames = function*(
 	}
 
 	catch (e) {
-		ERR(getErrStr(e))
+		LOG(getErrStr(e))
 		return
 	}
 }

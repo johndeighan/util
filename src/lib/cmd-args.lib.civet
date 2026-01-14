@@ -8,9 +8,8 @@ import {
 	} from 'datatypes'
 import {keys, getOptions, o, spaces} from 'llutils'
 import {clearScreen} from 'console-utils'
+import {setLogLevel, LOG, DBG} from 'logger'
 import {OL, DUMP} from 'to-nice'
-import {TLogLevel, setLogLevel} from 'log-levels'
-import {LOG, DBG} from 'logger'
 
 hFlags: hashof<boolean> := {}
 hValues: hashof<string> := {}
@@ -24,15 +23,6 @@ doHandleClear := true # --- maybe check an env var first?
 export flag := (ch: char): boolean =>
 
 	return (ch in hFlags) ? hFlags[ch] : false
-
-# ---------------------------------------------------------------------------
-
-export allFlags := (): Generator<string, void, void> ->
-
-	for key in hFlags
-		val := hFlags[key]
-		yield key
-	return
 
 # ---------------------------------------------------------------------------
 
@@ -62,27 +52,6 @@ export argValue := (name: string): string? =>
 
 # ---------------------------------------------------------------------------
 
-export allArgValues := (): Generator<string, void, void> ->
-
-	for key in hValues
-		val := hValues[key]
-		yield key
-	return
-
-# ---------------------------------------------------------------------------
-
-hKeyToLogLevel: hashof<TLogLevel> := {
-	P: 'profile'
-	D: 'debug'
-	I: 'info'
-	W: 'warn'
-	E: 'error'
-	S: 'silent'
-	N: 'none'
-	}
-
-# ---------------------------------------------------------------------------
-
 export setCmdArgs := (
 		lArgs: string[] = Deno.args
 		): void =>
@@ -104,9 +73,10 @@ export setCmdArgs := (
 			hValues[optStr] = valueStr
 		else
 			for ch of optStr.split('')
-				if (ch in hKeyToLogLevel) && doSetLogger
-					setLogLevel hKeyToLogLevel[ch]
+				if (ch == 'D')
+					setLogLevel('debug')
 				hFlags[ch] = true
+
 setCmdArgs()
 
 # ---------------------------------------------------------------------------
@@ -143,8 +113,8 @@ export helpStr := (hDesc: TCmdDesc): string =>
 export getCmdArgErrors := (hDesc: TCmdDesc): string? =>
 
 	lErrors: string[] := []
-	for flag of allFlags()
-		if !(flag in hDesc) && !(flag in hKeyToLogLevel)
+	for flag of keys(hFlags)
+		if !(flag in hDesc) && !(flag != 'D')
 			lErrors.push "Unknown flag: #{flag}"
 	for key in hValues
 		value := hValues[key]

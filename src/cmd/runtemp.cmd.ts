@@ -6,9 +6,10 @@ import {undef, defined, assert, croak} from 'datatypes'
 import {findFile, parsePath, withExt, isFile} from 'fsys'
 import {DUMP} from 'to-nice'
 import {
-	procOneFile, procFiles, doRun, doCompileCivet, getErrStr,
+	procOneFile, procFiles,
+	doRun, doCompileCivet, getErrStr,
 	} from 'exec'
-import {splitArray, sep, stdChecks} from 'llutils'
+import {splitArray, sep, stdChecks, o} from 'llutils'
 import {flag, argValue, allNonOptions} from 'cmd-args'
 import {LOG, DBG} from 'logger'
 
@@ -20,41 +21,29 @@ stdChecks(`runtemp [-d] [-name=<temp_stub> { <lib_stub> }
 // ---------------------------------------------------------------------------
 // --- Compile any libraries
 
-for (const libStub of allNonOptions()) {
-	const libPath = findFile(`${libStub}.lib.civet`)
-	if (defined(libPath)) {
-		await procOneFile(libPath, doCompileCivet)
-	}
-	else {
-		LOG(`No such file: ${libStub}.lib.civet`)
-	}
-}
-
-// --- Compile temp file
-const stub = argValue('name') || 'temp'
-const path = findFile(`${stub}.civet`, {root: './src/temp'})
-if (defined(path)) {
-	await procOneFile(path, doCompileCivet, {force: true})
-}
-else {
-	LOG(`No such file: ${stub}.civet}`)
-	Deno.exit(99)
-}
-
-// --- Run the temp file
-debugger
 try {
+	for (const libStub of allNonOptions()) {
+		const libPath = findFile(`${libStub}.lib.civet`)
+		if (defined(libPath)) {
+			await procOneFile(libPath, doCompileCivet)
+		}
+		else {
+			LOG(`No such file: ${libStub}.lib.civet`)
+		}
+	}
+
+	// --- Compile temp file
+	const stub = argValue('name') || 'temp'
+	const path = findFile(`${stub}.civet`, {root: './src/temp'})
+	assert(defined(path) && isFile(path), `No such file: ${path}`)
+	await procOneFile(path, doCompileCivet, {force: true})
+
+	// --- Run the temp file
 	const tsPath = withExt(path, '.ts')
 	assert(isFile(tsPath), `No such file: ${tsPath}`)
-	const h = await procOneFile(tsPath, doRun)
-	if (defined(h.output)) {
-		DUMP(h.output, 'OUTPUT', {endLabel: true})
-	}
-	else {
-		LOG("No output!")
-	}
+	await procOneFile(tsPath, doRun, o`!capture`)
 }
+
 catch (err) {
-	console.log("TEMP FILE ERRORS:")
-	console.log(getErrStr(err))
+	console.log(`ERROR: ${getErrStr(err)}`)
 }

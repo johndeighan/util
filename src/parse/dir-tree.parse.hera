@@ -37,24 +37,27 @@ let getPath = (name: string) => {
 
 ```
 
-
 FullDesc
 	Root (FileDesc / DirDesc)+ ->
+		pm.match('FullDesc', $loc);
 		return lOps;
 
 Root
 	/\.\.?\/[A-Za-z_$\/-]+/ _ "clear"? NL ->
 		lOps.length = 0;
-		pm = new CParseMatches();
+		pm.reset();
+		pm.match('Root', $loc)
 		if (defined($3)) {
 			lOps.push({
 				op: 'clearDir',
 				path: $1
-				})
+				});
+			}
 		lPathParts = [$1];
 
 FileDesc
 	FileName INDENT Block UNDENT ->
+		pm.match('FileDesc', $loc);
 		let [name, compile] = $1;
 		lOps.push({
 			op: 'barf',
@@ -70,15 +73,18 @@ FileDesc
 
 FileName
 	Name _ "compile"? NL ->
+		pm.match('FileName', $loc);
 		return [$1, defined($3)]
 
 DirDesc
 	DirName INDENT (DirDesc / FileDesc)+ UNDENT ->
+		pm.match('DirDesc', $loc);
 		lParts.pop()
 		return
 
 DirName
 	"/" Name _ "clear"? ->
+		pm.match('DirName', $loc);
 		lPathParts.push($2);
 		if (defined($4)) {
 			lOps.push({
@@ -89,10 +95,12 @@ DirName
 
 Part
 	(IndentedBlock / Line) ->
+		pm.match('Part', $loc);
 		return $1
 
 Block
 	Part (NL Part)* ->
+		pm.match('Block', $loc);
 		const lParts: string[] = [$1];
 		for (const [_, text] of $2) {
 			lParts.push(text);
@@ -101,15 +109,18 @@ Block
 
 Line
 	/[^\x0F\x0E\n]*/ ->
+		pm.match('Line', $loc);
 		return $0
 
 IndentedBlock
 	INDENT Block UNDENT ->
+		pm.match('IndentedBlock', $loc);
 		return indented($2)
 
 
 Name
 	/[A-Za-z_.-][A-Za-z0-9_.-]*/ ->
+		pm.match('Name', $loc);
 		return $0
 
 INDENT

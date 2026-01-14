@@ -34,12 +34,12 @@ import {
 	getOptions, removeEmptyKeys, pass, encode, spaces,
 	sinceLoadStr, sleep, arrayToBlock,
 	} from 'llutils'
-import {isMetaDataStart, convertMetaData} from './meta-data.lib.ts'
+import {isMetaDataStart, convertMetaData} from 'meta-data'
 import {debugging} from 'cmd-args'
 import {OL, ML} from 'to-nice'
 import {
-	pushLogLevel, popLogLevel, LOG, DBG, ERR,
-	INDENT, UNDENT, DBGVALUE, DBGLABELED,
+	pushLogLevel, popLogLevel, LOG, DBG,
+	INDENT, UNDENT, DBGVALUE,
 	} from 'logger'
 
 // --- Create a function capable of synchronously
@@ -826,9 +826,9 @@ export const relpath = (path: string): string => {
 
 // ---------------------------------------------------------------------------
 
-export const isFile = (path: string): boolean => {
+export const isFile = (path: (string | undefined)): boolean => {
 
-	return existsSync(path) && statSync(path).isFile()
+	return defined(path) && existsSync(path) && statSync(path).isFile()
 }
 
 // ---------------------------------------------------------------------------

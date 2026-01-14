@@ -1,0 +1,22 @@
+# f-strings.lib.test.civet
+
+import {f} from 'f-strings'
+import {equal} from 'unit-test'
+
+# ---------------------------------------------------------------------------
+
+equal f"abc", "abc"
+
+meaning := 42
+equal f"meaning is #{meaning}",    "meaning is 42"
+equal f"meaning is #{meaning}:3",  "meaning is  42"
+equal f"meaning is #{meaning}:3",  "meaning is  42"
+equal f"meaning is #{meaning}:!3", "meaning is  42"
+
+str := 'abc def'
+equal f"str is #{str}",    "str is abc def"
+equal f"str is #{str}:10", "str is abc def   "
+
+# ---------------------------------------------------------------------------
+
+

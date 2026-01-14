@@ -2,8 +2,11 @@
 // parse-utils.lib.civet
 
 import {sprintf} from 'jsr:@std/fmt/printf'
+
 import {uni, esc} from 'unicode'
-import {undef, defined, assert, croak, hash, hashof} from 'datatypes'
+import {
+	undef, defined, assert, croak, hash, hashof,
+	} from 'datatypes'
 import {range, centered, f} from 'llutils'
 import {OL} from 'to-nice'
 import {TextTable} from 'text-table'
@@ -45,9 +48,17 @@ export type TParseMatch = [name: string, pos: number, len: number]
 // ---------------------------------------------------------------------------
 
 export class CParseMatches {
+
 	lParseMatches: TParseMatch[] = []
 
-	// ----------------------------------------------------------
+	// ..........................................................
+
+	reset(): void {
+
+		this.lParseMatches.length = 0
+	}
+
+	// ..........................................................
 
 	match(name: string, loc: TStrLoc | [number, number]): void {
 
@@ -61,7 +72,7 @@ export class CParseMatches {
 		return
 	}
 
-	// ----------------------------------------------------------
+	// ..........................................................
 
 	matchesStr(): string {
 
@@ -73,7 +84,7 @@ export class CParseMatches {
 		return lLines.join('\n')
 	}
 
-	// ----------------------------------------------------------
+	// ..........................................................
 
 	matchesTable(): string {
 
@@ -86,7 +97,7 @@ export class CParseMatches {
 		return table.asString()
 	}
 
-	// ----------------------------------------------------------
+	// ..........................................................
 
 	debugStr(
 			str: string,
@@ -123,4 +134,3 @@ export class CParseMatches {
 		return esc(str) + '\n' + lLines.join('\n')
 	}
 }
-

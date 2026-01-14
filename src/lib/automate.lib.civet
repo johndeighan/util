@@ -3,6 +3,7 @@
 type AutoPromise<T> = Promise<Awaited<T>>
 
 import {compile: compileSvelte} from 'npm:svelte/compiler'
+
 import {
 	undef, defined, notdefined, assert, croak,
 	TAssertFunc, isEmpty, nonEmpty, isInteger,
@@ -12,7 +13,7 @@ import {
 import {words, allMatches, o, keys, getOptions} from 'llutils'
 import {OL} from 'to-nice'
 import {
-	LOG, LOGVALUE, DBG, DBGVALUE, WARN, INDENT, UNDENT,
+	LOG, LOGVALUE, DBG, DBGVALUE, INDENT, UNDENT,
 	pushLogLevel, popLogLevel
 	} from 'logger'
 import {TextTable} from 'text-table'
@@ -244,7 +245,7 @@ export getCompilerConfig := (
 					if defined(stub)
 						for {success} of runUnitTestsFor(stub)
 							if not success
-								WARN "Unit test #{path} failed"
+								LOG "Unit test #{path} failed"
 					return
 				'cmd': (path: string): void =>
 					LOG "- installing command #{path}"
@@ -370,7 +371,7 @@ export runUnitTestsFor := (
 				{status, lOutPaths} := compileFile path
 				assert (status != 'failed'), "Compile of #{path} failed"
 				if notdefined(lOutPaths)
-					WARN "File #{OL(path)} not compiled to #{OL(lOutPaths)}"
+					LOG "File #{OL(path)} not compiled to #{OL(lOutPaths)}"
 		# --- Run the unit tests, yield results
 		# @ts-ignore
 		for outPath of lOutPaths

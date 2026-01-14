@@ -1,7 +1,7 @@
 "use strict";
 // buildlib.cmd.civet
 
-import {stdChecks} from 'llutils'
+import {stdChecks, o} from 'llutils'
 import {assert, defined} from 'datatypes'
 import {nonOption, allNonOptions, flag} from 'cmd-args'
 import {withExt, findFile} from 'fsys'
@@ -36,24 +36,20 @@ else {
 		const fileName = `${stub}.lib.civet`
 		const path = findFile(fileName)
 		assert(defined(path), `No such file: ${fileName}`)
-		const hResult = await procOneFile(path, doCompileCivet, {force})
+		await procOneFile(path, doCompileCivet, {force})
 
-		if (hResult.success) {
-			// --- compile and check unit test file
-			const testFileName = `${stub}.lib.test.civet`
-			const testPath = findFile(testFileName)
-			if (defined(testPath)) {
-				await procOneFile(testPath, doCompileCivet, {force})
-				if (!noTest) {
-					const hResult = await procOneFile(withExt(testPath, '.ts'), doUnitTest)
-					if (('stdout' in hResult) && defined(hResult.stdout)) {
-						console.log(hResult.stdout.trim())
-					}
-				}
+		// --- compile and check unit test file
+		const testFileName = `${stub}.lib.test.civet`
+		const testPath = findFile(testFileName)
+		if (defined(testPath)) {
+			await procOneFile(testPath, doCompileCivet, {force})
+			if (!noTest) {
+				const tsPath = withExt(testPath, '.ts')
+				const hResult = await procOneFile(tsPath, doUnitTest, o`!capture`)
 			}
-			else {
-				console.log(`No unit test for ${stub}.lib`)
-			}
+		}
+		else {
+			console.log(`No unit test for ${stub}.lib`)
 		}
 	}
 }

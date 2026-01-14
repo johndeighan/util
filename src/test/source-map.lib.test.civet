@@ -33,7 +33,7 @@ setup := (): void =>
 
 await setup()
 
-equal mkpath(Deno.cwd()), "C:/Users/johnd/utils"
+equal mkpath(Deno.cwd()), "C:/Users/johnd/util"
 
 # ---------------------------------------------------------------------------
 

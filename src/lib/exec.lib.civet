@@ -22,15 +22,16 @@ import {
 	isString, isArray, isArrayOfStrings, isEmpty, nonEmpty,
 	} from 'datatypes'
 import {
-	getOptions, pass, blockToArray, decode, encode, centered, sep,
+	getOptions, pass, blockToArray, decode, encode,
+	centered, sep, getErrStr,
 	} from 'llutils'
 import {write, writeln, resetLine } from 'console-utils'
 import {flag, debugging, inspecting} from 'cmd-args'
-import {OL, ML} from 'to-nice'
+import {OL, ML, DUMP} from 'to-nice'
 import {
-	getLogLevel, pushLogLevel, popLogLevel,
-	DBG, LOG, WARN, ERR, LOGVALUE,
-	INDENT, UNDENT, DBGVALUE, DBGLABELED,
+	curLogLevel, pushLogLevel, popLogLevel,
+	DBG, LOG, DBGVALUE, LOGVALUE,
+	INDENT, UNDENT,
 	} from 'logger'
 import {
 	barf, pathStr, allFilesMatching, normalizePath, mkpath, barfTempFile,
@@ -59,19 +60,6 @@ export mkstr := (
 export joinNonEmpty := (...lStrings: string?[]): string =>
 
 	return lStrings.filter((s) => nonEmpty(s)).join('\n')
-
-# ---------------------------------------------------------------------------
-
-export getErrStr := (err: unknown): string =>
-
-	if (typeof err == 'string')
-		return err
-	else if (err instanceof String)
-		return err.toString()
-	else if (err instanceof Error)
-		return err.message
-	else
-		return "Serious Error"
 
 # ---------------------------------------------------------------------------
 
@@ -107,18 +95,17 @@ export execCmdSync := (
 		capture: boolean
 		hReplace: TReplaceHash?
 		}
-
 	{capture, hReplace} := getOptions<opt> hOptions, {
 		capture: true
 		hReplace: undef
 		}
 
 	streamType: TStreamType := capture ? 'piped' : 'inherit'
-	DBGLABELED "EXEC SYNC", "#{OL(getCmdLine cmdName, lArgs)}"
+	DBGVALUE "EXEC SYNC", "#{OL(getCmdLine cmdName, lArgs)}"
 	DBG INDENT
 	child := new Deno.Command(cmdName,
 		args: replaceInArray(lArgs, hReplace)
-		env: DEFAULT_LOGGER: getLogLevel()
+		env: DEFAULT_LOGGER: curLogLevel()
 		stdout: streamType
 		stderr: streamType
 	)
@@ -275,31 +262,6 @@ export abstract class CFileHandler
 
 	abstract handle(path: string, hOptions: hash): Promise<TExecResult>
 
-	handleFile(
-			path: string,
-			hOptions: hash
-			): AutoPromise<TExecResult>
-
-		type opt = {
-			showFile: boolean
-			}
-		{showFile} := getOptions<opt> hOptions, {
-			showFile: false
-			}
-
-		# --- mkpath() ensures we always pass a full, normalized path
-		fullPath := mkpath(path)
-		relPath := relpath(path)
-		hResult := await @handle fullPath, hOptions
-		if hResult.success
-			write (showFile ? "#{@op}: #{relPath} - OK\n" : '.')
-		else
-			write "#{@op}: #{relPath} - FAILED\n"
-			if hResult.stderr
-				writeln()
-				writeln hResult.stderr
-		return hResult
-
 # ---------------------------------------------------------------------------
 # ASYNC
 
@@ -333,29 +295,29 @@ export procFiles := (
 	lPaths := Array.from allFilesMatching("#{root}#{fileNamePat}")
 
 	lPromises := for path of lPaths
-		handler.handleFile path, hOptions
+		handler.handle path, hOptions
 
-	lResults := await Promise.allSettled lPromises
+	lPromiseResults := await Promise.allSettled lPromises
 
 	resetLine()
 	{op} := handler
 	write "(#{op})"
-	let nOk = 0
-	let nErr = 0
-	let nRej = 0
+	let nOk = 0, nErr = 0, nRej = 0
+#	let nErr = 0
+#	let nRej = 0
 	lFinalResults: TExecResult[] := []
-	let i1 = 0
-	for h,i of lResults
+	for h,i of lPromiseResults
 		path := lPaths[i]
 		status := h.status
 		if (status == 'fulfilled')
-			{success, output} := h.value
+			hResult := h.value
+			{success, output} := hResult
 			h.value.path = path
-			lFinalResults.push h.value
+			lFinalResults.push hResult
 			if success
 				nOk += 1
 				if flag('v')
-					showOkResult op, path
+					showOkResult op, path, hResult
 			else
 				nErr += 1
 				showErrResult op, path, h.value
@@ -414,57 +376,84 @@ export procOneFile := (
 		hOptions: hash = {}
 		): AutoPromise<TExecResult> =>
 
+	assert existsSync(path), "No such file: #{path}"
 	type opt = {
+		capture: boolean
+		dumpStdOut: boolean
 		abortOnError: boolean
 		}
-	{abortOnError} := getOptions<opt> hOptions, {
+	{capture, dumpStdOut, abortOnError} := getOptions<opt> hOptions, {
+		capture: true
+		dumpStdOut: false
 		abortOnError: true
 		}
-	assert existsSync(path), "No such file: #{path}"
+
+	# --- NOTE: if capture is false, we need to expect
+	#           that when the handler is called,
+	#           output will be produced
+
 	op := handler.op
+	if capture
+		write "#{op} #{relpath(path)}"
+	else
+		writeln "#{op} #{relpath(path)} (no capture)"
 	try
-		hResult := await handler.handleFile path, hOptions
+		hResult := await handler.handle path, hOptions
 		{success} := hResult
-		resetLine()
-		if success
-			showOkResult op, path
-		else
-			showErrResult op, path, hResult
-			if abortOnError
-				Deno.exit 99
+
+		# --- If capture is false, output has already happened
+		if capture
+			if success
+				writeln " OK"
+				if dumpStdOut
+					showOkResult op, path, hResult
+			else
+				writeln " FAILED"
+				showErrResult op, path, hResult
+				if abortOnError
+					Deno.exit 99
 		hResult.path = path
 		return hResult
 	catch err
-		showRejResult op, path, err
-		return { success: false, path }
+		if capture
+			showRejResult op, path, err
+		if abortOnError
+			Deno.exit 99
+		return {success: false, path}
 
 # ---------------------------------------------------------------------------
 
-showOkResult := (op: string, path: string): void =>
+showOkResult := (
+		op: string
+		path: string
+		hResult: TExecResult
+		): void =>
 
-	resetLine()
-	LOG "#{op} #{pathStr(path)}"
+	if nonEmpty(hResult.stdout)
+		DUMP hResult.stdout, 'STDOUT'
 	return
 
 # ---------------------------------------------------------------------------
 
-showErrResult := (op: string, path: string, result: TExecResult): void =>
+showErrResult := (
+		op: string
+		path: string
+		hResult: TExecResult
+		): void =>
 
-	resetLine()
-	LOG centered "#{op}: #{pathStr(path)}", '-'
-	LOG "EXEC FAILED"
-	LOG result.stderr
-	LOG sep()
+	if nonEmpty(hResult.stderr)
+		DUMP hResult.stderr, 'STDERR'
 	return
 
 # ---------------------------------------------------------------------------
 
-showRejResult := (op: string, path: string, reason: unknown): void =>
+showRejResult := (
+		op: string
+		path: string
+		reason: unknown
+		): void =>
 
-	resetLine()
-	LOG centered "#{op}: #{pathStr(path)}", '-'
-	LOG "EXEC REJECTED: #{getErrStr(reason)}"
-	LOG sep()
+	DUMP reason, 'ERROR'
 	return
 
 # ==================================================
@@ -529,7 +518,8 @@ export saveTsCode := (
 		): void =>
 
 	[code, hSrcMap] := extractSourceMap(tsCode)
-	addJsonValue 'sourcemap.jsonc', normalizePath(destPath), hSrcMap
+	if defined(hSrcMap)
+		addJsonValue 'sourcemap.jsonc', normalizePath(destPath), hSrcMap
 	await Deno.writeTextFile destPath, code
 	return
 
@@ -565,7 +555,7 @@ class CCivetCompiler extends CFileHandler
 				filename: path
 				}
 			if not tsCode
-				errMsg := "COMPILE FAILED: #{pathStr(path)} - no code returned"
+				errMsg := "#{pathStr(path)} - no code returned"
 				return {
 					success: false
 					stderr: errMsg
@@ -615,13 +605,20 @@ class CUnitTester extends CFileHandler
 			hOptions: hash = {}
 			): AutoPromise<TExecResult>
 
-		assert (fileExt(path) == '.ts'), "Not a TypeScript file"
-		return await execCmd 'deno', [
+		assert path.endsWith('.test.ts'), "Not a unit test file"
+		type opt = {
+			capture: boolean
+			}
+		{capture} := getOptions<opt> hOptions, {
+			capture: true
+			}
+		hResult := await execCmd 'deno', [
 			'test'
 			'-A'
 			'--coverage-raw-data-only'
 			path
-			]
+			], {capture}
+		return hResult
 
 export doUnitTest := new CUnitTester()
 
@@ -688,11 +685,18 @@ class CFileRunner extends CFileHandler
 			): AutoPromise<TExecResult>
 
 		assert (fileExt(path) == '.ts'), "Not a TypeScript file"
+		type opt = {
+			capture: boolean
+			}
+		{capture} := getOptions<opt> hOptions, {
+			capture: true
+			}
+
 		return await execCmd 'deno', [
 			'run'
 			'-A'
 			path
-		]
+		], {capture}
 
 export doRun := new CFileRunner()
 

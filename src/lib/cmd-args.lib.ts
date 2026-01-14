@@ -9,9 +9,8 @@ import {
 	} from 'datatypes'
 import {keys, getOptions, o, spaces} from 'llutils'
 import {clearScreen} from 'console-utils'
+import {setLogLevel, LOG, DBG} from 'logger'
 import {OL, DUMP} from 'to-nice'
-import {TLogLevel, setLogLevel} from 'log-levels'
-import {LOG, DBG} from 'logger'
 
 const hFlags: hashof<boolean> = {}
 const hValues: hashof<string> = {}
@@ -25,17 +24,6 @@ const doHandleClear = true // --- maybe check an env var first?
 export const flag = (ch: char): boolean => {
 
 	return (ch in hFlags) ? hFlags[ch] : false
-}
-
-// ---------------------------------------------------------------------------
-
-export const allFlags = function*(): Generator<string, void, void> {
-
-	for (const key in hFlags) {
-		const val = hFlags[key]
-		yield key
-	}
-	return
 }
 
 // ---------------------------------------------------------------------------
@@ -71,29 +59,6 @@ export const argValue = (name: string): (string | undefined) => {
 
 // ---------------------------------------------------------------------------
 
-export const allArgValues = function*(): Generator<string, void, void> {
-
-	for (const key in hValues) {
-		const val = hValues[key]
-		yield key
-	}
-	return
-}
-
-// ---------------------------------------------------------------------------
-
-const hKeyToLogLevel: hashof<TLogLevel> = {
-	P: 'profile',
-	D: 'debug',
-	I: 'info',
-	W: 'warn',
-	E: 'error',
-	S: 'silent',
-	N: 'none'
-	}
-
-// ---------------------------------------------------------------------------
-
 export const setCmdArgs = (
 		lArgs: string[] = Deno.args
 		): void => {
@@ -119,14 +84,15 @@ export const setCmdArgs = (
 		}
 		else {
 			for (const ch of optStr.split('')) {
-				if ((ch in hKeyToLogLevel) && doSetLogger) {
-					setLogLevel(hKeyToLogLevel[ch])
+				if (ch === 'D') {
+					setLogLevel('debug')
 				}
 				hFlags[ch] = true
 			}
 		}
 	}
 }
+
 setCmdArgs()
 
 // ---------------------------------------------------------------------------
@@ -169,8 +135,8 @@ export const helpStr = (hDesc: TCmdDesc): string => {
 export const getCmdArgErrors = (hDesc: TCmdDesc): (string | undefined) => {
 
 	const lErrors: string[] = []
-	for (const flag of allFlags()) {
-		if (!(flag in hDesc) && !(flag in hKeyToLogLevel)) {
+	for (const flag of keys(hFlags)) {
+		if (!(flag in hDesc) && !(flag !== 'D')) {
 			lErrors.push(`Unknown flag: ${flag}`)
 		}
 	}

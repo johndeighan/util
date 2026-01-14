@@ -10,8 +10,6 @@ import {TextTable} from 'text-table'
 import {slurp} from 'fsys'
 
 // ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
 // --- Common token types:
 //        'line', 'empty', 'indent', 'undent'
 export type TPLLToken = {

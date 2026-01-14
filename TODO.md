@@ -1,5 +1,13 @@
 to do
 
+continue expanding build_all_libs
+
+document lib console-utils
+
+use console-utils everywhere in place of logger
+
+return logger, log-formatter, log-levels
+
 continue documenting datatypes lib
 
 in source-map's mapSourcePos, if there's directory info

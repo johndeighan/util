@@ -5,6 +5,7 @@ type AutoPromise1<T> = Promise<Awaited<T>>;
 type AutoPromise<T> = Promise<Awaited<T>>
 
 import {compile as compileSvelte} from 'npm:svelte/compiler'
+
 import {
 	undef, defined, notdefined, assert, croak,
 	TAssertFunc, isEmpty, nonEmpty, isInteger,
@@ -14,7 +15,7 @@ import {
 import {words, allMatches, o, keys, getOptions} from 'llutils'
 import {OL} from 'to-nice'
 import {
-	LOG, LOGVALUE, DBG, DBGVALUE, WARN, INDENT, UNDENT,
+	LOG, LOGVALUE, DBG, DBGVALUE, INDENT, UNDENT,
 	pushLogLevel, popLogLevel
 	} from 'logger'
 import {TextTable} from 'text-table'
@@ -290,7 +291,7 @@ export const getCompilerConfig = (
 					if (defined(stub)) {
 						for (const {success} of runUnitTestsFor(stub)) {
 							if (!success) {
-								WARN(`Unit test ${path} failed`)
+								LOG(`Unit test ${path} failed`)
 							}
 						}
 					}
@@ -445,7 +446,7 @@ export const runUnitTestsFor = function*(
 				const {status, lOutPaths} = compileFile(path)
 				assert((status !== 'failed'), `Compile of ${path} failed`)
 				if (notdefined(lOutPaths)) {
-					WARN(`File ${OL(path)} not compiled to ${OL(lOutPaths)}`)
+					LOG(`File ${OL(path)} not compiled to ${OL(lOutPaths)}`)
 				}
 			}
 		}

@@ -1,12 +1,12 @@
 "use strict";
-// --- debugtemp.cmd.civet
+// utest.cmd.civet
 
 import {writeln} from 'console-utils'
 import {undef, defined, assert, croak} from 'datatypes'
 import {findFile, parsePath, withExt, isFile} from 'fsys'
 import {DUMP} from 'to-nice'
 import {
-	procOneFile, procFiles, doDebug, doCompileCivet, getErrStr,
+	procOneFile, procFiles, doRun, doCompileCivet, getErrStr,
 	} from 'exec'
 import {splitArray, sep, stdChecks} from 'llutils'
 import {flag, argValue, allNonOptions} from 'cmd-args'
@@ -46,7 +46,7 @@ debugger
 try {
 	const tsPath = withExt(path, '.ts')
 	assert(isFile(tsPath), `No such file: ${tsPath}`)
-	const h = await procOneFile(tsPath, doDebug)
+	const h = await procOneFile(tsPath, doRun)
 	if (defined(h.output)) {
 		DUMP(h.output, 'OUTPUT')
 	}

@@ -2,6 +2,7 @@
 // text-table.lib.civet
 
 import {sprintf} from 'jsr:@std/fmt/printf'
+
 import {
 	undef, defined, notdefined, assert, croak, nonEmpty,
 	isString, isNumber, isInteger, isArray, array, arrayof,

@@ -3,6 +3,7 @@
 
 import {defined, isFunction} from 'datatypes'
 import {
+	logStr, setLogLevel, LOG, DBG,
 	write, writeln, clearScreen, resetLine,
 	} from 'console-utils'
 import {
@@ -11,4 +12,17 @@ import {
 
 // ---------------------------------------------------------------------------
 
-succeeds(() => writeln('something'))
+setLogLevel('info')
+write('abc')
+LOG('xyz')
+writeln('end')
+DBG("should not appear")
+
+setLogLevel('debug')
+LOG('abc')
+DBG('xyz')
+
+equal(logStr, `abcxyz
+end
+abc
+xyz\n`)

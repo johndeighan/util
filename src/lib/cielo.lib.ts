@@ -2,14 +2,14 @@
 // cielo.lib.civet
 
 import {pathToFileURL} from 'node:url'
+
 import {
 	undef, defined, notdefined, assert, croak, hash, isHash,
 	} from 'datatypes'
 import {pass, keys, require} from 'llutils'
 import {OL, ML} from 'to-nice'
 import {
-	DBG, LOG, WARN, ERR, DBGVALUE, DBGLABELED,
-	pushLogLevel, popLogLevel,
+	DBG, LOG, DBGVALUE, pushLogLevel, popLogLevel,
 	} from 'logger'
 import {
 	isFile, fileExt, withExt, slurp, barf, barfTempFile, parsePath,
@@ -62,7 +62,7 @@ export const configFromFile = (path: string): hash => {
 
 	const {purpose, ext} = parsePath(path)
 	assert((purpose === 'config'), `Not a config file: ${OL(path)}`)
-	DBGLABELED("GET CONFIG", `path = ${OL(path)}`)
+	DBGVALUE("path", path)
 	const srcPath = (ext === '.civet') ? civet2tsFile(path) : path
 	assert((fileExt(srcPath) === '.ts'), `config not a .ts or .civet file: ${OL(path)}`)
 	DBGVALUE('srcPath', srcPath)

@@ -1,6 +1,7 @@
 # civet.lib.civet
 
-import {Node, SourceFile} from npm:typescript
+import {Node, SourceFile} from 'npm:typescript'
+
 import {
 	undef, defined, notdefined, hash, assert, isString, isHash,
 	} from 'datatypes'
