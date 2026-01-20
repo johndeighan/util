@@ -8,9 +8,10 @@ import {
 	withExt, findFile, parsePath, allFilesMatching,
 	} from 'fsys'
 import {
-	doCompileCivet, doCompileHera, doUnitTest, doInstallCmd,
+	doCompileCivet, doUnitTest, doInstallCmd,
 	procFiles, procOneFile,
 	} from 'exec'
+import {doCompileHera} from 'hera-compile'
 
 stdChecks("buildpar (all | <stub>+)")
 
@@ -40,4 +41,3 @@ else {
 		}
 	}
 }
-

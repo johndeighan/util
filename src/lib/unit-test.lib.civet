@@ -34,7 +34,7 @@ import {
 	isDir, clearDir, pushWD, popWD,
 	} from 'fsys'
 import {Fetcher} from 'fetcher'
-import {typeCheckTsCode} from 'exec'
+import {typeCheckTsCode} from 'typescript'
 import {doParse} from 'hera-parse'
 import {TPLLToken, allTokensInBlock, tokenTable, tkEOF} from 'pll'
 import {civet2tsFile} from 'civet'
@@ -62,7 +62,6 @@ getTestName := (): string =>
 
 procValue := (x: unknown): unknown =>
 
-	debugger
 	return (
 		  Array.isArray(x) ? x
 		: isGenerator(x)   ? Array.from(x())
@@ -441,7 +440,6 @@ export checkType := (
 		expectSuccess: boolean = true
 		): void =>
 
-	debugger
 	valueStr := (
 		  isFunction(value) ? functionDef(value)
 		: isClass(value)    ? classDef(value)
@@ -504,6 +502,7 @@ export isType := (
 		try
 			checkType typeStr, value, true
 		catch err
+			console.log "TYPE ERROR: #{getErrStr(err)}"
 			errMsg = getErrStr(err)
 		DBG UNDENT
 		Deno.test name, () => assert isEmpty(errMsg)
@@ -650,7 +649,6 @@ export getFileOps := (
 		for line,i of await allLinesInBlock(desc)
 			[level, str] := splitLine line
 			if (i == 0)
-				debugger
 				assert (level == 0), "Bad line 1"
 				lParts := str.split(/\s+/)
 				let root: string

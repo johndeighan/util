@@ -1,18 +1,16 @@
 "use strict";
 // to-nice.lib.civet
 
-import {cyan, blue, black} from 'jsr:@std/fmt/colors'
-
 import {uni, esc} from 'unicode'
 import {write, writeln} from 'console-utils'
 import {
 	assert, croak, undef, defined, notdefined,
-	hash, hashof, isString, isArray, isClass, isRegExp,
+	hash, hashof, isString, isArray, isClass, isRegExp, isObject,
 	isPrimitive, isEmpty, nonEmpty, assertIsHash, integer,
 	symbolName, className, functionName, regexpDef,
 	} from 'datatypes'
 import {
-	getOptions, o, toBlock, spaces, mapEachLine, sep,
+	getOptions, f, o, toBlock, spaces, mapEachLine, sep,
 	} from 'llutils'
 
 // ---------------------------------------------------------------------------
@@ -128,12 +126,30 @@ export const buildPath = (lPath: TPathIndex[]): string => {
 
 // ---------------------------------------------------------------------------
 
-export type TMapFunc = (key: string, value: unknown, hParent: hash) => unknown
+export const displayStr = (
+		key: string,
+		val: unknown,
+		par: hash,
+		displayFunc: (TMapFunc | undefined),
+		descFunc: (TMapFunc | undefined)
+		): string => {
 
-export const emptyMapFunc = (key: string, value: unknown, hParent: hash): unknown => {
-
-	return undef
+	const str = (
+		  defined(displayFunc)
+		? displayFunc(key, val, par)
+		: toNice(val, {compact: true})
+		)
+	const desc = defined(descFunc) ? descFunc(key, val, par) : ''
+	return desc ? f`${str} ${desc}:{cyan}` : str
 }
+
+// ---------------------------------------------------------------------------
+
+export type TMapFunc = (
+		key: string,
+		value: unknown,
+		hParent: hash
+		) => string
 
 export const toNice = (
 		x: unknown,
@@ -151,25 +167,33 @@ export const toNice = (
 		ignoreEmptyValues: boolean
 		sortKeys: boolean
 		sortFunc: (TCompareFunc | undefined)
-		mapFunc: TMapFunc
+		displayFunc: (TMapFunc | undefined)
+		descFunc: (TMapFunc | undefined)
 		lInclude: ((string[]) | undefined)
 		lExclude: ((string[]) | undefined)
 		lIndents: string[]
 	}
 	const {
-		compact, recoverable, ignoreEmptyValues, sortKeys, sortFunc,
-		mapFunc, lInclude, lExclude, lIndents
-		} = getOptions<opt>(hOptions, {
+			compact, recoverable, ignoreEmptyValues,
+			sortKeys, sortFunc,
+			displayFunc, descFunc, lInclude, lExclude, lIndents
+			} = getOptions<opt>(hOptions, {
 		compact: false,
 		recoverable: false,
 		ignoreEmptyValues: false,
 		sortKeys: false,
 		sortFunc: undef,
-		mapFunc: emptyMapFunc,
+		displayFunc: undef,
+		descFunc: undef,
 		lInclude: undef,
 		lExclude: undef,
 		lIndents: ['   ', '❘  ']
 		})
+
+	if (recoverable) {
+		assert(notdefined(displayFunc), "can't use displayFunc if recoverable")
+		assert(notdefined(descFunc), "can't use descFunc if recoverable")
+	}
 
 	// --- You can provide sortKeys or a sortFunc, but not both
 	assert(!(sortKeys && defined(sortFunc)), "Bad options")
@@ -219,6 +243,7 @@ export const toNice = (
 			if (x === null) {
 				return mark('null')
 			}
+
 			// --- Check if object was previously visited
 			const prevpath = mapVisited.get(x)
 			if (prevpath) {
@@ -321,24 +346,32 @@ export const toNice = (
 			for (const key of (defined(func) ? lKeys.sort(func) : lKeys).filter(useKey)) {
 				const val = x[key]
 				if (!ignoreEmptyValues || nonEmpty(val)) {
-					let ref;if (recoverable) { ref = undef} else ref = mapFunc(key, val, x);const mapped =ref
-					const newval = mapped || val
-					const block = isString(mapped) ? mapped : toNice(newval, hOptions, mapVisited, [...lPath, key])
-					if (
-							   compact
-							|| (defined(newval) && isPrimitive(newval))
-							|| block.startsWith(uni.startchar)
-							|| isEmpty(newval)
-							) {
-						lLines.push(`${key}: ${block}`)
+					if (val === null) {
+						lLines.push(`${key}: ${mark('null')}`)
+					}
+					else if (isPrimitive(val)) {
+						const str = displayStr(key, val, x, displayFunc, descFunc)
+						lLines.push(`${key}: ${str}`)
 					}
 					else {
-						lLines.push(`${key}:`)
-						const oneIndent = rotpos<string>(lIndents, lPath.length)
-						lLines.push(indented(block, oneIndent))
+						const prevpath = isObject(val) ? mapVisited.get(val) : undef
+						if (defined(prevpath)) {
+							const str = mark(`ref ${prevpath}`)
+							lLines.push(`${key}: ${str}`)
+						}
+						else if (isEmpty(val)) {
+							lLines.push(isArray(val) ? `${key}: []` : `${key}: {}`)
+						}
+						else {
+							lLines.push(`${key}:`)
+							const oneIndent = rotpos<string>(lIndents, lPath.length)
+							const block = toNice(val, hOptions, mapVisited, [...lPath, key])
+							lLines.push(indented(block, oneIndent))
+						}
 					}
 				}
 			}
+
 			if (compact) {
 				return '{' + lLines.join(' ') + '}'
 			}
@@ -351,18 +384,22 @@ export const toNice = (
 
 // ---------------------------------------------------------------------------
 
-export const OL = (x: unknown, hOptions = {}): string => {
+export const OL = (
+		x: unknown,
+		hOptions = {}
+		): string => {
 
 	type opt = {
 		label: (string | undefined)
 		pos: (number | undefined)
 		debug: boolean
-	}
+		}
 	const {label, pos, debug} = getOptions<opt>(hOptions, {
 		label: undef,
 		pos: undef,
-		debug: false,
-	})
+		debug: false
+		})
+
 	const text = (
 		(defined(label)?
 			(`${label} = ${toNice(x, {compact: true})}`)

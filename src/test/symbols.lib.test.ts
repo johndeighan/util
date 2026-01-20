@@ -17,14 +17,14 @@ import {
 DBG("loadSymbols()");
 
 (() => {
-	const myMap = loadSymbols(`datatypes.lib.ts
+	const myMap = loadSymbols(`datatypes
 	undef defined
-indent.lib.ts
+indent
 	splitLine`)
 
-	equal(sourceLib('undef', myMap), 'datatypes.lib.ts')
-	equal(sourceLib('defined', myMap), 'datatypes.lib.ts')
-	equal(sourceLib('splitLine', myMap), 'indent.lib.ts')
+	equal(sourceLib('undef', myMap), 'datatypes')
+	equal(sourceLib('defined', myMap), 'datatypes')
+	equal(sourceLib('splitLine', myMap), 'indent')
 	equal(sourceLib('dummy', myMap), undef)
 }
 	)()
@@ -37,6 +37,8 @@ DBG("sourceLib()");
 	equal(sourceLib('y', myMap), 'dummy.ts')
 }
 	)()
+
+// --- Use the actual .symbols file
 
 equal(sourceLib('defined'), 'datatypes')
 equal(sourceLib('isArray'), 'datatypes')

@@ -15,10 +15,10 @@ import {isFile, slurp} from 'fsys'
 /**
  * @module symbols - locate common symbols
  *    parses a file (default: src/.symbols) that looks like:
- *       src/lib/indent.lib.ts
+ *       indent
  *          oneIndent resetOneIndent indentLevel
  *          lineDesc splitLine indented
- *       src/lib/fs.lib.ts
+ *       fsys
  *          isFile isDir
  *          fileExt withExt
  *
@@ -41,27 +41,25 @@ const symbolMap = new Map<string, string>()
 export const loadSymbols = (
 		block: string,
 		aMap = new Map<string, string>(),
-		hOptions: hash = {}
 		): Map<string, string> => {
 
 	DBG("in loadSymbols()")
 	// --- Check if libraries actually exist
 
-	type opt = {
-		checkFiles: boolean
-		}
-	const {checkFiles} = getOptions<opt>(hOptions, {
-		checkFiles: false
-		})
-
 	let level = 0    // --- symGen must know the current level
 	const symGen: TTokenGenerator = function*(line: string) {
 		if (level === 0) {
-			yield {kind: 'lib', str: line}
+			yield {
+				kind: 'lib',
+				str: line
+				}
 		}
 		else if (level === 1) {
 			for (const str of line.split(/\s+/)) {
-				yield { kind: 'symbol', str }
+				yield {
+					kind: 'symbol',
+					str
+					}
 			}
 		}
 		else {
@@ -70,6 +68,7 @@ export const loadSymbols = (
 		}
 		return
 	}
+
 	let curLib: (string | undefined) = undef
 	for (const {kind, str} of allTokensInBlock(block, symGen)) {
 		DBG(`TOKEN: ${kind}`)
@@ -84,13 +83,9 @@ export const loadSymbols = (
 				DBG(`Set curLib to ${OL(str)}`)
 				curLib = str;break;
 			}
-			case 'symbol':
-			case 'guard': {
+			case 'symbol': {
 				if (defined(str)) {
 					if (level === 0) {
-						if (checkFiles) {
-							assert(isFile(str), `No such file: ${str}`)
-						}
 						curLib = str
 					}
 					else if (defined(curLib)) {
@@ -108,6 +103,9 @@ export const loadSymbols = (
 			case 'eof': {
 				DBG('EOF');break;
 			}
+			case 'empty': {
+				pass();break;
+			}
 			default:
 				croak(`Unknown kind: ${kind}`)
 		}
@@ -118,25 +116,35 @@ export const loadSymbols = (
 
 // ---------------------------------------------------------------------------
 
+export const loadSymbolsFromFile = (path: string): void => {
+
+	const block = slurp(path)
+	loadSymbols(slurp(path), symbolMap)
+	return
+}
+
+// ---------------------------------------------------------------------------
+
 export const sourceLib = (
 		symbol: string,
-		m: Map<string, string> = symbolMap // use global symbolMap by default
+		m: Map<string, string> = symbolMap
 		): (string | undefined) => {
 
 	if ((m === symbolMap) && (symbolMap.size === 0)) {
 		const contents = slurp(symbolsPath)
-		loadSymbols(contents, symbolMap, o`checkFiles`)
+		loadSymbols(contents, symbolMap)
 	}
 	return m.get(symbol)
 }
 
 // ---------------------------------------------------------------------------
 
-export const libsAndSymbols = (lSymbols: string[]): hashof<string[]> => {
+export const libsAndSymbols = (
+		lSymbols: string[]
+		): hashof<string[]> => {
 
 	if ((symbolMap.size === 0) && isFile(symbolsPath)) {
-		const contents = slurp(symbolsPath)
-		loadSymbols(contents, symbolMap, o`checkFiles`)
+		loadSymbolsFromFile(symbolsPath)
 	}
 	const hLibs: hashof<string[]> = {}
 	for (const sym of lSymbols) {
@@ -155,7 +163,9 @@ export const libsAndSymbols = (lSymbols: string[]): hashof<string[]> => {
 
 // ---------------------------------------------------------------------------
 
-export const getNeededImportStmts = (lSymbols: string[]): string[] => {
+export const getNeededImportStmts = (
+		lSymbols: string[]
+		): string[] => {
 
 	DBG(`CALL getNeededImportStmts(${OL(lSymbols)})`)
 	const hLibs = libsAndSymbols(lSymbols)

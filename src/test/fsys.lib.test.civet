@@ -10,8 +10,7 @@ import {LOG, DBG} from 'logger'
 import {TPLLToken} from 'pll'
 import {
 	isFile, isDir, getPathType, fileExt, withExt,
-	lStatFields, getStats, isStub, parsePath,
-	allFilesMatching, allLinesIn,
+	isStub, parsePath, allFilesMatching, allLinesIn,
 	normalizePath, pathToURL, mkpath, relpath, pathSubDirs, myself,
 	rmFile, rmDir, isExt, newerDestFileExists,
 	clearDir, mkDir, mkDirsForFile, slurp, barf,
@@ -130,15 +129,6 @@ equal withExt('deno.jsonc', '.txt'), 'deno.txt'
 equal withExt("C:/temp/file.txt", ".js"), "C:/temp/file.js"
 equal withExt("c:\\temp/to/file.txt", ".js"), "c:\\temp/to/file.js"
 equal withExt("c:\\temp/to/file.flag.txt", ".js"), "c:\\temp/to/file.flag.js"
-
-DBG "const lStatFields"
-
-includesAll lStatFields, ['size', 'mtime']
-
-DBG "getStats(path)"
-
-truthy ('mtime' in getStats('deno.jsonc'))
-equal getStats('src/test/fsys/file1.txt').size, 17
 
 DBG "isStub()"
 

@@ -94,7 +94,6 @@ export const fromNice = (str: string): unknown => {
 	const fetcher = new Fetcher<TPLLToken>(allNiceTokens(str), tkEOF)
 
 	const parseObj = (): unknown => {
-		debugger
 		const {kind, str} = fetcher.peek()
 		if (kind === 'list-item' || kind === 'list-head') {
 			return parseList()

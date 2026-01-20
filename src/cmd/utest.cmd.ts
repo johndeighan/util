@@ -6,9 +6,9 @@ import {undef, defined, assert, croak} from 'datatypes'
 import {findFile, parsePath, withExt, isFile} from 'fsys'
 import {DUMP} from 'to-nice'
 import {
-	procOneFile, procFiles, doRun, doCompileCivet, getErrStr,
+	procOneFile, procFiles, doRun, doCompileCivet,
 	} from 'exec'
-import {splitArray, sep, stdChecks} from 'llutils'
+import {splitArray, sep, stdChecks, getErrStr} from 'llutils'
 import {flag, argValue, allNonOptions} from 'cmd-args'
 import {LOG, DBG} from 'logger'
 
@@ -42,7 +42,6 @@ else {
 }
 
 // --- Run the temp file
-debugger
 try {
 	const tsPath = withExt(path, '.ts')
 	assert(isFile(tsPath), `No such file: ${tsPath}`)

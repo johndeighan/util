@@ -6,7 +6,7 @@ import {pass} from 'llutils'
 import {OL} from 'to-nice'
 import {flag, numNonOptions, allNonOptions} from 'cmd-args'
 import {watchFiles, allFilesMatching} from 'fsys'
-import {DBG, LOG, WARN, ERR} from 'logger'
+import {DBG, LOG} from 'logger'
 import {compileFile, TCompileResult} from 'automate'
 
 let numCompiled = 0
@@ -25,7 +25,7 @@ const logResult = (hResult: TCompileResult): void => {
 			pass();break;
 		}
 		default:
-			ERR(`NOT COMPILED: ${OL(path)}`)
+			LOG(`NOT COMPILED: ${OL(path)}`)
 	}
 	return
 }

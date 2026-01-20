@@ -81,7 +81,6 @@ export fromNice := (str: string): unknown =>
 	fetcher := new Fetcher<TPLLToken>(allNiceTokens(str), tkEOF)
 
 	parseObj := (): unknown =>
-		debugger
 		{kind, str} := fetcher.peek()
 		if kind == 'list-item' || kind == 'list-head'
 			return parseList()

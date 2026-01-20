@@ -1,13 +1,11 @@
 "use strict";
 // temp.test.civet
 
-import {undef, assert, croak, deepEqual} from 'datatypes'
-import {equal, truthy} from 'unti-test'
+import {toNiceString} from 'to-nice'
+import {equal} from 'unit-test'
 
 // ---------------------------------------------------------------------------
 
-const lItems = ['a', 'b']
-
-equal(lItems, ['a', 'b'])
-
-truthy(deepEqual(lItems, ['a', 'b']))
+equal(toNiceString('abc'), 'abc')
+equal(toNiceString('\tabc\n'), '→abc↓')
+equal(toNiceString('123'), "“123")

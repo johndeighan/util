@@ -36,7 +36,7 @@ import {
 	isDir, clearDir, pushWD, popWD,
 	} from 'fsys'
 import {Fetcher} from 'fetcher'
-import {typeCheckTsCode} from 'exec'
+import {typeCheckTsCode} from 'typescript'
 import {doParse} from 'hera-parse'
 import {TPLLToken, allTokensInBlock, tokenTable, tkEOF} from 'pll'
 import {civet2tsFile} from 'civet'
@@ -67,7 +67,6 @@ const getTestName = (): string => {
 
 const procValue = (x: unknown): unknown => {
 
-	debugger
 	return (
 		  Array.isArray(x) ? x
 		: isGenerator(x)   ? Array.from(x())
@@ -485,7 +484,6 @@ export const checkType = (
 		expectSuccess: boolean = true
 		): void => {
 
-	debugger
 	const valueStr = (
 		  isFunction(value) ? functionDef(value)
 		: isClass(value)    ? classDef(value)
@@ -549,6 +547,7 @@ export const isType = (
 			checkType(typeStr, value, true)
 		}
 		catch (err) {
+			console.log(`TYPE ERROR: ${getErrStr(err)}`)
 			errMsg = getErrStr(err)
 		}
 		DBG(UNDENT)
@@ -718,7 +717,6 @@ export const getFileOps = async function(
 		let i4 = 0;for (const line of await allLinesInBlock(desc)) {const i = i4++;
 			const [level, str] = splitLine(line)
 			if (i === 0) {
-				debugger
 				assert((level === 0), "Bad line 1")
 				const lParts = str.split(/\s+/)
 				let root: string

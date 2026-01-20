@@ -7,9 +7,9 @@ import {findFile, parsePath, withExt, isFile} from 'fsys'
 import {DUMP} from 'to-nice'
 import {
 	procOneFile, procFiles,
-	doRun, doCompileCivet, getErrStr,
+	doRun, doCompileCivet,
 	} from 'exec'
-import {splitArray, sep, stdChecks, o} from 'llutils'
+import {splitArray, sep, stdChecks, o, getErrStr} from 'llutils'
 import {flag, argValue, allNonOptions} from 'cmd-args'
 import {LOG, DBG} from 'logger'
 

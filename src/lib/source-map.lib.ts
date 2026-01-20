@@ -19,7 +19,7 @@ import {
 	} from 'fsys'
 
 // --- Get info about all known source maps
-export const hSourceMaps = fromJsonFile('./sourcemap.jsonc')
+export const hSourceMaps = fromJsonFile('./sourcemap.json')
 
 // ---------------------------------------------------------------------------
 
@@ -203,14 +203,13 @@ export const mapSourcePos = (
 
 	const {source, line, col} = h
 
-	debugger
 	assert(source, "EMPTY source in mapSourcePos")
 	assert((source !== 'unknown'), "unknown source in mapSourcePos")
 	assert(existsSync(source), `No such file: ${source}`)
 
 	const path = mkpath(source)
 	if (debug) {
-		console.log(`Search for key ${path} in sourcemap.jsonc`)
+		console.log(`Search for key ${path} in sourcemap.json`)
 	}
 
 	let hSrcMap = hSourceMaps[path] as RawSourceMap

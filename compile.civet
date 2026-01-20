@@ -1,0 +1,130 @@
+# compile.civet
+
+import {assert} from "jsr:@std/assert"
+import {compile} from 'npm:@danielx/civet'
+import {existsSync} from 'jsr:@std/fs'
+import {statSync} from 'node:fs'
+import {resolve, relative} from 'jsr:@std/path'
+import {RawSourceMap, SourceMapConsumer} from 'npm:source-map'
+
+import hCivetConfig from "civetconfig" with { type: "json" }
+import data from "sourcemap" with { type: "json" }
+
+type TMaps = {
+	[key: string]: RawSourceMap
+	}
+hSourceMaps: TMaps := data as TMaps
+
+encoder := new TextEncoder()
+let nCompiled = 0
+
+# ---------------------------------------------------------------------------
+
+normalizePath := (path: string): string =>
+
+	return path.replace(/^c:/, 'C:').replaceAll('\\', '/')
+
+# ---------------------------------------------------------------------------
+
+addSourceMap := (path: string, hSrcMap: RawSourceMap): void =>
+
+	hSourceMaps[path] = hSrcMap
+	return
+
+# ---------------------------------------------------------------------------
+
+extractSourceMap := (
+		contents: string
+		): [string, RawSourceMap?] =>
+
+	lMatches := contents.match ///^
+			(.*)
+			\/ \/ \# \s+
+			sourceMappingURL=data:application\/json;
+			(?:charset=utf-8;)?
+			base64,
+			(.+)
+			$///s
+	if (lMatches == null)
+		return [contents, undefined]
+	code := lMatches[1].trim()
+	hSrcMap := JSON.parse(atob(lMatches[2].trim())) as RawSourceMap
+	{file} := hSrcMap
+	hSrcMap.file = normalizePath(file.replace('.tsx', '.ts'))
+	hSrcMap.sources = for path of hSrcMap.sources
+		normalizePath(path)
+	return [code, hSrcMap]
+
+# ---------------------------------------------------------------------------
+# ASYNC - just returns true or false, stdout & stderr 'inherit'
+
+export execCmd := (
+		cmdName: string
+		lArgs: string[] = []
+		): boolean =>
+
+	cmd := new Deno.Command cmdName, {args: lArgs}
+	child := cmd.spawn()
+	{success} := await child.status
+	return success
+
+# ---------------------------------------------------------------------------
+
+for arg of Deno.args
+	path := normalizePath(resolve('.', arg))
+	console.log relative('.', path)
+	try
+		assert existsSync(path), "   No such file: #{path}"
+		assert path.endsWith('.civet'), "   Not a civet file: #{path}"
+		destPath := path.replace('.civet', '.ts')
+		console.log "   destPath = #{relative('.', destPath)}"
+
+		if (existsSync(destPath)
+				&& (statSync(destPath).mtimeMs >= statSync(path).mtimeMs)
+				&& (destPath in hSourceMaps)
+				)
+			console.log "   already compiled"
+			continue
+		else
+			if not existsSync(destPath)
+				console.log "   destPath #{destPath} does not exist"
+			if (statSync(destPath).mtimeMs < statSync(path).mtimeMs)
+				console.log "    destPath is older than path"
+			if not (path in hSourceMaps)
+				console.log "    there is no source map for path"
+
+		civetCode := await Deno.readTextFile path
+		tsCode: string := await compile civetCode, {
+			...hCivetConfig
+			inlineMap: true
+			filename: path
+			}
+		if not tsCode || tsCode.startsWith('COMPILE FAILED')
+			console.log "CIVET COMPILE FAILED: #{path}"
+			continue
+
+		console.log "   compile succeeded"
+		[code, hSrcMap] := extractSourceMap tsCode
+		assert (hStrMap != undefined), "No source map found in file
+		await Deno.writeFile destPath, encoder.encode(code)
+		console.log "   TS file written"
+
+		success := await execCmd 'deno', ['check', destPath]
+		if success
+			console.log "   type check OK"
+			console.log "   adding source map for #{destPath}"
+			addSourceMap destPath, hSrcMap
+		else
+			console.log "   type check failed"
+			continue
+
+
+	catch err
+		console.log "ERROR: #{err} for #{arg}"
+		continue
+
+# --- Save source maps
+console.log "saving source maps"
+# console.dir hSourceMaps, {depth: null}
+await Deno.writeTextFile './sourcemap.json', JSON.stringify(hSourceMaps, null, 3)
+console.log "DONE"

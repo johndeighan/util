@@ -3,7 +3,6 @@
 
 type AutoPromise1<T> = Promise<Awaited<T>>;
 type AutoPromise<T> = Promise<Awaited<T>>
-import {stripAnsiCode} from 'jsr:@std/fmt/colors'
 import {createRequire} from 'node:module'
 import {sprintf} from 'jsr:@std/fmt/printf'
 import {relative} from 'jsr:@std/path'
@@ -680,7 +679,13 @@ export const allLinesInBlock = function*(
 // --- valid options:
 //        char - char to use on left and right
 //        buffer - num spaces around label when char <> ' '
-export const centered = (label: string, char: string = ' ', width: number = defWidth, numBuffer: number = 2): string => {
+export const centered = (
+		label: string,
+		char: string = ' ',
+		width: number = defWidth,
+		numBuffer: number = 2
+		): string => {
+
 	assert((char.length === 1), `Bad char: '${char}'`)
 	const totSpaces = width - label.length
 	if (totSpaces <= 0) {

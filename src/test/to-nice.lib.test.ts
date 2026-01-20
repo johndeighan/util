@@ -15,8 +15,6 @@ import {
 
 // ---------------------------------------------------------------------------
 
-DBG("toNiceString()")
-
 equal(toNiceString('abc'), 'abc')
 equal(toNiceString('\tabc\n'), '→abc↓')
 equal(toNiceString('123'), "“123")

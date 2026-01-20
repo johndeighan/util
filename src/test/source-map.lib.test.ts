@@ -34,7 +34,7 @@ test.temp.civet compile
 
 await setup()
 
-equal(mkpath(Deno.cwd()), "C:/Users/johnd/utils");
+equal(mkpath(Deno.cwd()), "C:/Users/johnd/util");
 
 // ---------------------------------------------------------------------------
 
@@ -77,4 +77,3 @@ equal(mkpath(Deno.cwd()), "C:/Users/johnd/utils");
 	equal(orgPos(lMappings, 9,  1), [1, 12, 73])
 }
 	)()
-

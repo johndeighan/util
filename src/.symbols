@@ -1,3 +1,6 @@
 datatypes
-	isString
-
+	undef defined notdefined
+	array hash arrayof hashof integer
+	isString isArray
+indent
+	splitLine

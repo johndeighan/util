@@ -44,6 +44,8 @@
     "v8-stack":      "file:///C:/Users/johnd/util/src/lib/v8-stack.lib.ts",
     "unit-test":     "file:///C:/Users/johnd/util/src/lib/unit-test.lib.ts",
     "var-free":      "file:///C:/Users/johnd/util/src/lib/var-free.lib.ts",
-    "civetconfig":   "file:///C:/Users/johnd/civetconfig.json"
+
+    "civetconfig":   "file:///C:/Users/johnd/civetconfig.json",
+    "sourcemap":     "file:///C:/Users/johnd/util/sourcemap.json"
   }
 }

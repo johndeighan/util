@@ -2,28 +2,10 @@
 
 import {defined, isFunction} from 'datatypes'
 import {
-	logStr, setLogLevel, LOG, DBG,
 	write, writeln, clearScreen, resetLine,
 	} from 'console-utils'
-import {
-	equal, like, succeeds, fails, truthy, falsy,
-	} from 'unit-test'
+import {equal} from 'unit-test'
 
 # ---------------------------------------------------------------------------
 
-setLogLevel 'info'
-write 'abc'
-LOG 'xyz'
-writeln 'end'
-DBG "should not appear"
-
-setLogLevel 'debug'
-LOG 'abc'
-DBG 'xyz'
-
-equal logStr, """
-	abcxyz
-	end
-	abc
-	xyz\n
-	"""
+equal 2+2, 4

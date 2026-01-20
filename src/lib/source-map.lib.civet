@@ -18,7 +18,7 @@ import {
 	} from 'fsys'
 
 # --- Get info about all known source maps
-export hSourceMaps := fromJsonFile './sourcemap.jsonc'
+export hSourceMaps := fromJsonFile './sourcemap.json'
 
 # ---------------------------------------------------------------------------
 
@@ -182,14 +182,13 @@ export mapSourcePos := (
 
 	{source, line, col} := h
 
-	debugger
 	assert source, "EMPTY source in mapSourcePos"
 	assert (source != 'unknown'), "unknown source in mapSourcePos"
 	assert existsSync(source), "No such file: #{source}"
 
 	path := mkpath(source)
 	if debug
-		console.log "Search for key #{path} in sourcemap.jsonc"
+		console.log "Search for key #{path} in sourcemap.json"
 
 	let hSrcMap = hSourceMaps[path] as RawSourceMap
 	assert defined(hSrcMap), "Not found in source map: #{path}"

@@ -11,10 +11,6 @@ import {appendFileSync, openSync, closeSync} from 'node:fs'
 import {EventEmitter} from 'node:events'
 import NReadLines from 'npm:n-readlines'
 
-// --- Deno's statSync and lstatSync are still unstable,
-//     so use this
-
-import {statSync} from 'node:fs'
 import {expandGlobSync} from 'jsr:@std/fs/expand-glob'
 import {TextLineStream} from 'jsr:@std/streams'
 
@@ -47,6 +43,7 @@ import {
 
 const Deno = globalThis.Deno
 export type FsEvent = Deno.FsEvent
+export var statSync = Deno.statSync
 
 const lDirs: string[] = []
 
@@ -93,30 +90,10 @@ export const getPathType = (path: string): TPathType => {
 	}
 	const h = statSync(path)
 	return (
-		  h.isFile()         ? 'file'
-		: h.isDirectory()    ? 'dir'
-		: h.isSymbolicLink() ? 'symlink'
-		:                      'unknown'
+		  h.isFile         ? 'file'
+		: h.isDirectory    ? 'dir'
+		:                    'unknown'
 		)
-}
-
-// ---------------------------------------------------------------------------
-
-export const lStatFields: string[] = [
-	'dev', 'ino', 'mode', 'nlink', 'uid', 'gid',
-	'rdev', 'size', 'blksize', 'blocks',
-	'atimeMs', 'mtimeMs', 'ctimeMs',
-	'birthtimeMs', 'atime', 'mtime', 'ctime',
-	'birthtime',
-	]
-
-// ---------------------------------------------------------------------------
-// return statistics for a file or directory
-
-export const getStats = (path: string): Deno.FileInfo => {
-
-	const fileInfo = Deno.statSync(path)
-	return fileInfo
 }
 
 // ---------------------------------------------------------------------------
@@ -266,16 +243,25 @@ export const newerDestFileExists = (
 		destPath: string    // --- can be a file extension
 		): boolean => {
 
+	// --- source file must exist
+	assert(isFile(srcPath), `No such file: ${OL(srcPath)}`)
+
+	// --- allow passing a file extension for 2nd argument
 	if (isExt(destPath)) {
 		destPath = withExt(srcPath, destPath)
 	}
-	assert(isFile(srcPath), `No such file: ${OL(srcPath)}`)
-	if (!existsSync(destPath)) {
+
+	try {
+		assert(existsSync(destPath))
+		const destms = statSync(destPath).mtime
+		assert(defined(destms))
+		const srcms  = statSync(srcPath).mtime
+		assert(defined(srcms))
+		return (destms > srcms)
+	}
+	catch (err) {
 		return false
 	}
-	const srcModTime = statSync(srcPath).mtimeMs
-	const destModTime = statSync(destPath).mtimeMs
-	return (destModTime > srcModTime)
 }
 
 // ---------------------------------------------------------------------------
@@ -457,7 +443,7 @@ export const patchFirstLine = (path: string, str: string, newstr: string): void 
 
 // ---------------------------------------------------------------------------
 // --- EXAMPLE USAGE:
-//			importMap := await fromJsonFile('import_map.jsonc')
+//			hData := await fromJsonFile('data.jsonc')
 //			console.dir importMap
 
 export const fromJsonFile = (path: string): hash => {
@@ -643,12 +629,13 @@ export const allFilesMatching = function*(
 		includeDirs: boolean
 		}
 
-	const {root, hMoreGlobOptions, lIgnoreDirs, includeDirs} = getOptions<opt>(hOptions, {
-		root: './src',
-		hMoreGlobOptions: {},
-		lIgnoreDirs: ['temp', 'hide'],
-		includeDirs: false
-		})
+	const {root, hMoreGlobOptions, lIgnoreDirs, includeDirs
+		} = getOptions<opt>(hOptions, {
+			root: './src',
+			hMoreGlobOptions: {},
+			lIgnoreDirs: ['temp', 'hide'],
+			includeDirs: false
+			})
 
 	const hGlobOptions: hash = {
 		root,
@@ -656,8 +643,11 @@ export const allFilesMatching = function*(
 		followSymLinks: false,
 		canonicalize: false,
 		...hMoreGlobOptions
-	}
-	const lMorePatterns = ((defined(lIgnoreDirs)? lIgnoreDirs.map((x) => '! **/' + x + '/**') : []))
+		}
+
+	const lMorePatterns = (
+		defined(lIgnoreDirs) ? lIgnoreDirs.map((x) => '! **/' + x + '/**') : []
+		)
 	const [lPosPats, lNegPats] = splitPatterns(lPatterns, lMorePatterns)
 	if (lNegPats.length > 0) {
 		hGlobOptions.exclude = lNegPats
@@ -702,7 +692,6 @@ export const findFile = (
 		lIgnoreDirs: []
 		})
 
-	debugger
 	const lPaths = Array.from(allFilesMatching(`**/${fileName}`, {
 		root,
 		lIgnoreDirs
@@ -762,7 +751,7 @@ export const allDirsMatching = function*(
 	const setSkip = new Set<string>()
 	for (const pat of lPosPats) {
 		for (const {path} of expandGlobSync(pat, hGlobOptions)) {
-			if (!setSkip.has(path) && Deno.statSync(path).isDirectory) {
+			if (!setSkip.has(path) && statSync(path).isDirectory) {
 				if (debugging) {
 					LOG(`DIR: ${path}`)
 				}
@@ -828,14 +817,42 @@ export const relpath = (path: string): string => {
 
 export const isFile = (path: (string | undefined)): boolean => {
 
-	return defined(path) && existsSync(path) && statSync(path).isFile()
+	if (notdefined(path)) {
+		return false
+	}
+	try {
+		const stats = statSync(path)
+		return stats.isFile
+	}
+	catch (err) {
+		if (err instanceof Deno.errors.NotFound) {
+			return false
+		}
+		else {
+			throw err
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------
 
-export const isDir = (path: string): boolean => {
+export const isDir = (path: (string | undefined)): boolean => {
 
-	return existsSync(path) && statSync(path).isDirectory()
+	if (notdefined(path)) {
+		return false
+	}
+	try {
+		const stats = statSync(path)
+		return stats.isDirectory
+	}
+	catch (err) {
+		if (err instanceof Deno.errors.NotFound) {
+			return false
+		}
+		else {
+			throw err
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------

@@ -21,4 +21,3 @@ equal(esc(str2indents(`file
 /dir
 	file
 		xyz`)), 'file↓»abc↓»def↓««/dir↓»file↓»xyz««')
-

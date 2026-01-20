@@ -105,7 +105,6 @@ export class CParseMatches {
 			): string {
 
 		const n = this.lParseMatches.length
-		debugger
 		const lLineNum: number[] = new Array<number>(n).fill(0)
 		const lLines: string[] = []
 		let nRemaining = n

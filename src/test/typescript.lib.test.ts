@@ -12,7 +12,7 @@ import {pass, o, s, t} from 'llutils'
 import {DBG} from 'logger'
 import {slurp, withExt} from 'fsys'
 import {
-	typeCheckCode, splitFuncStr, getSymbolsFromType,
+	typeCheckTsCode, splitFuncStr, getSymbolsFromType,
 	getImportCode, getTsCode,
 	ts2ast, ast2ts, typeCheckFiles, astAsString, analyze,
 	} from 'typescript'
@@ -40,10 +40,10 @@ await setup()
 
 // ---------------------------------------------------------------------------
 
-DBG("typeCheckCode(tsCode)")
+DBG("typeCheckTsCode(tsCode)")
 
-truthy(isEmpty(typeCheckCode("let s: string = 'abc';")))
-truthy(nonEmpty(typeCheckCode("let s: string = 42;")))
+truthy(isEmpty(typeCheckTsCode("let s: string = 'abc';")))
+truthy(nonEmpty(typeCheckTsCode("let s: string = 42;")))
 
 DBG("ts2ast(tsCode)", "astAsString(ast)")
 

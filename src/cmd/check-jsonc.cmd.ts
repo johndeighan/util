@@ -1,8 +1,10 @@
-"use strict"
-// check-jsonc.cmd.civet
 "use strict";
-import { parse as parseJSONC } from "jsr:@std/jsonc"
+// --- check-jsonc.cmd.civet
+
+import {parse as parseJSONC} from 'jsr:@std/jsonc'
+
 // ---------------------------------------------------------------------------
+
 try {
 	const contents = Deno.readTextFileSync(Deno.args[0])
 	const data = parseJSONC(contents)

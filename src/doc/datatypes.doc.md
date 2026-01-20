@@ -25,6 +25,17 @@ object
 
 Note that `typeof null` will return 'object'
 
+These are considered primitives:
+	undefined
+	boolean
+	number
+	bigint
+	string
+	symbol
+In addition, the value null, though an 'object', is considered primitive
+
+All other values are considered non-primitive
+
 We define further restricted types that are essentially
 subsets of these types:
 

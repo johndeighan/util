@@ -2,9 +2,23 @@
 // f-strings.lib.civet
 
 import {sprintf} from 'jsr:@std/fmt/printf'
+import {
+	cyan, blue, black, red, green, magenta, stripAnsiCode,
+	} from 'jsr:@std/fmt/colors'
 
 import {esc} from 'unicode'
+import {mapper} from 'var-free'
 import {defined, nonEmpty, isInteger} from 'datatypes'
+
+// --- hash of all supported colors
+const hColor = {
+	cyan,
+	blue,
+	black,
+	red,
+	green,
+	magenta
+	} as const
 
 // ---------------------------------------------------------------------------
 // --- Number of strings is always 1 greater than the number of values
@@ -14,52 +28,96 @@ export const f = (
 		...lValues: unknown[]
 		): string => {
 
-	const lParts: string[] = [lStrings[0]]
-	let i1 = 0;for (const val of lValues) {const i = i1++;
-		const [nextStr, width, escape] = fsplit(lStrings[i+1])
-		lParts.push((
-			(()=>{switch(typeof val) {
-				case 'string': {
-					const valStr = escape ? esc(val) : val
-					return width ? sprintf(`%-${width}s`, valStr) : valStr
-				}
-				case 'number': {
-					if (width === 0) {
-						return val.toString()
-					}
-					else if (isInteger(val)) {
-						return sprintf(`%${width}d`, val)
-					}
-					else {
-						return sprintf(`%${width}.2f`, val)
-					}
-				}
-				default: {
-					const valStr = JSON.stringify(val)
-					return width ? sprintf(`%-s${width}`, valStr) : valStr
-				}
-			}})()
-			))
-		lParts.push(nextStr)
-	}
-	return lParts.join('')
+	const [firstStr, mainWidth, mainEsc, mainColor] = fsplit(lStrings[0])
+	const lParts = Array.from(mapper(lValues, function*(val, i) {
+		const [str, width, doEsc, color] = fsplit(lStrings[i+1])
+		let ref;switch(typeof val) {
+			case 'string': {
+				ref = formatStr(val, width, doEsc, color, '-');break;
+			}
+			case 'number': {
+				ref = formatStr(val.toString(), width, doEsc, color, '');break;
+			}
+			default: {
+				ref = formatStr(JSON.stringify(val), width, doEsc, color, '-')
+			}
+		};const result =ref
+		yield result + str
+	})
+		)
+	const mainStr = [firstStr, ...lParts].join('')
+	return formatStr(mainStr, mainWidth, mainEsc, mainColor, '-')
 }
 
 // ---------------------------------------------------------------------------
-// --- returns [str, width, escape?]
 
-export const fsplit = (str: string): [string, number, boolean] => {
+export const formatStr = (
+		str: string,
+		width: number,
+		doEsc: boolean,
+		color: string,
+		justify: '-' | ''
+		): string => {
 
-	const lMatches = str.match(/^:(\!)?(\d+)?(.*)$/)
-	if (defined(lMatches)) {
-		const [_, escape, width, rest] = lMatches
-		return [
-			rest,
-			width ? parseInt(width) : 0,
-			nonEmpty(escape)
-			]
+	const valStr = doEsc ? esc(str) : str
+	const outstr = width ? sprintf(`%${justify}${width}s`, valStr) : valStr
+	return colorize(outstr, color)
+}
+
+// ---------------------------------------------------------------------------
+
+export const colorize = (str: string, color: string) => {
+
+	if (color in hColor) {
+		switch(color) {
+			case 'cyan': { return cyan(str)
+			}
+			case 'blue': { return blue(str)
+			}
+			case 'black': { return black(str)
+			}
+			case 'red': { return red(str)
+			}
+			case 'green': { return green(str)
+			}
+			case 'magenta': { return magenta(str)
+			}
+			default: { return str }
+		}
 	}
 	else {
-		return [str, 0, false]
+		return str
+	}
+}
+
+// ---------------------------------------------------------------------------
+
+export const decolorize = (str: string) => {
+
+	return stripAnsiCode(str)
+}
+
+// ---------------------------------------------------------------------------
+// --- returns [str, width, doEsc?, color]
+
+export const fsplit = (str: string): [string, number, boolean, string] => {
+
+	const lMatches = str.match(/^:(\d+)?(\!)?(?:{([a-z]+)})?(.*)$/)
+	if (defined(lMatches)) {
+		const [_, width, doEsc, color, rest] = lMatches
+		if (width || doEsc || (color && (color in hColor))) {
+			return [
+				rest,
+				width ? parseInt(width) : 0,
+				nonEmpty(doEsc),
+				defined(color) && (color in hColor) ? color : ''
+				]
+		}
+		else {
+			return [str, 0, false, '']
+		}
+	}
+	else {
+		return [str, 0, false, '']
 	}
 }

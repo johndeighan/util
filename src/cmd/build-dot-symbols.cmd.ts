@@ -5,7 +5,7 @@ import {stdChecks} from 'llutils'
 import {undef, assert, hash, isEmpty, nonEmpty} from 'datatypes'
 import {getOptions, CStringSetMap, keys} from 'llutils'
 import {OL} from 'to-nice'
-import {LOG, DBG, WARN, LOGVALUE, DBGVALUE} from 'logger'
+import {LOG, DBG, LOGVALUE, DBGVALUE} from 'logger'
 import {barf, allFilesMatching, relpath} from 'fsys'
 import {analyze, CAnalysis} from 'typescript'
 
@@ -80,4 +80,3 @@ const lLines = await Array.fromAsync(getDotSymbols())
 const contents = lLines.join('\n')
 DBGVALUE('contents', contents)
 barf('src/.symbols', contents)
-

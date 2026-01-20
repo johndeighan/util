@@ -1,135 +1,29 @@
 "use strict";
 // logger.lib.test.civet
 
-import {stripAnsiCode} from "@std/fmt/colors"
-
+import {defined, isFunction} from 'datatypes'
 import {
-	undef, defined, notdefined,
-	} from 'datatypes'
-import {
-	clearConsoleLog, getConsoleLog,
-	} from 'log-formatter'
-import {
-	TLogLevel, getLogLevel, isLogLevel,
-	setLogLevel, pushLogLevel, popLogLevel,
-	TFormatter, TreeLogger,
-	getLog, clearLog, removeLogFile, INDENT, UNDENT,
-	DBG, LOG, WARN, ERR, DBGVALUE, LOGVALUE,
+	lLogLines, getLog, TLogLevel, LOG, DBG,
+	curLogLevel, setLogLevel, pushLogLevel, popLogLevel,
 	} from 'logger'
 import {
-	equal, truthy, falsy, succeeds, fails, matches,
+	equal, like, succeeds, fails, truthy, falsy,
 	} from 'unit-test'
 
 // ---------------------------------------------------------------------------
 
-DBG("getLog()")
+setLogLevel('info')
+LOG('abc')
+LOG('xyz')
+LOG('end')
+DBG("should not appear")
 
-equal(getLog('console'), "");
+setLogLevel('debug')
+LOG('abc')
+DBG('xyz')
 
-(() => {
-	DBG("debug this")
-	LOG("log this")
-	WARN("warn this")
-	ERR("error this")
-	equal(stripAnsiCode(getConsoleLog()), `log this
-warn this
-error this`)
-}
-	)()
-
-DBG("clearLog()")
-
-DBG("const INDENT", "const UNDENT")
-
-DBG("DBG()", "LOG()", "WARN()", "ERR()")
-
-DBG("DBGVALUE()", "LOGVALUE()")
-
-DBG("removeLogFile()")
-
-succeeds(() => removeLogFile())
-
-DBG("type TreeLogger");
-
-(() => {
-	clearConsoleLog()
-	pushLogLevel('debug')
-	const logr = new TreeLogger<number>()
-	logr.log(    'starting')
-	logr.start(  'enter A')
-	logr.log(    'inside A')
-	logr.succeed('OK')
-	logr.log(    'continuing')
-	logr.start(  'enter B')
-	logr.log(    'inside B')
-	logr.fail(   'FAIL')
-	logr.log(    'Done')
-	popLogLevel()
-	equal(getConsoleLog(), `starting
-enter A
-│   inside A
-└─> OK
-continuing
-enter B
-│   inside B
-└─> FAIL
-Done`)
-}
-	)();
-
-(() => {
-	clearConsoleLog()
-	pushLogLevel('debug')
-	const logr = new TreeLogger<number>()
-	logr.log(    'starting')
-	logr.start(  'enter A')
-	logr.log(    'inside A')
-	logr.start(  'enter B')
-	logr.log(    'inside B')
-	logr.fail(   'FAIL')
-	logr.succeed('OK')
-	logr.log(    'Done')
-	popLogLevel()
-	equal(getConsoleLog(), `starting
-enter A
-│   inside A
-│   enter B
-│   │   inside B
-│   └─> FAIL
-└─> OK
-Done`)
-}
-	)();
-
-(() => {
-	const formatter = (desc: string, n: (number | undefined)) => {
-		if (defined(n)) {
-			return `${desc} [Number ${n}]`
-		}
-		else {
-			return desc
-		}
-	}
-
-	clearConsoleLog()
-	pushLogLevel('debug')
-	const logr = new TreeLogger<number>(formatter)
-	logr.log(    'starting', 42)
-	logr.start(  'enter A')
-	logr.log(    'inside A', 13)
-	logr.start(  'enter B')
-	logr.log(    'inside B', 26)
-	logr.fail(   'FAIL')
-	logr.succeed('OK')
-	logr.log(    'Done')
-	popLogLevel()
-	equal(getConsoleLog(), `starting [Number 42]
-enter A
-│   inside A [Number 13]
-│   enter B
-│   │   inside B [Number 26]
-│   └─> FAIL
-└─> OK
-Done`)
-}
-	)()
+equal(getLog(), `abc
+xyz
+end
+abc
+xyz`)

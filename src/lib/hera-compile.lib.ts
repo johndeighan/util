@@ -263,11 +263,11 @@ export const compileHera = (
 					startBlock()
 				}
 				else if (isRuleName(str)) {
-					assert((level === 0), f`Invalid rule name: ${line}!`)
+					assert((level === 0), f`Invalid rule name: ${line}:!`)
 					startRule(str)
 				}
 				else {
-					croak(f`Invalid rule Name: ${line}!`)
+					croak(f`Invalid rule Name: ${line}:!`)
 				};break;
 			}
 
@@ -292,7 +292,7 @@ export const compileHera = (
 				}
 				else {
 					// --- expect a match string
-					assert((level === 1), f`Invalid match string: ${line}!`)
+					assert((level === 1), f`Invalid match string: ${line}:!`)
 					startHandler(str)
 				};break;
 			}

@@ -1,7 +1,9 @@
 # pll.lib.civet
 
 import {esc} from 'unicode'
-import {undef, defined, notdefined, hash, isEmpty, nonEmpty} from 'datatypes'
+import {
+	undef, defined, notdefined, hash, isEmpty, nonEmpty,
+	} from 'datatypes'
 import {getOptions, allLinesInBlock} from 'llutils'
 import {DBG, DBGVALUE} from 'logger'
 import {oneIndent, indentLevel, splitLine} from 'indent'
@@ -11,11 +13,13 @@ import {slurp} from 'fsys'
 # ---------------------------------------------------------------------------
 # --- Common token types:
 #        'line', 'empty', 'indent', 'undent'
+
 export type TPLLToken =
 	kind: string
 	str?: string
 	name?: string
 	value?: unknown
+
 export tkIndent := kind: 'indent'
 export tkUndent := kind: 'undent'
 export tkEOF := kind: 'eof'

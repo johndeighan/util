@@ -14,10 +14,10 @@ import {isFile, slurp} from 'fsys'
 /**
  * @module symbols - locate common symbols
  *    parses a file (default: src/.symbols) that looks like:
- *       src/lib/indent.lib.ts
+ *       indent
  *          oneIndent resetOneIndent indentLevel
  *          lineDesc splitLine indented
- *       src/lib/fs.lib.ts
+ *       fsys
  *          isFile isDir
  *          fileExt withExt
  *
@@ -40,30 +40,29 @@ symbolMap := new Map<string, string>()
 export loadSymbols := (
 		block: string,
 		aMap = new Map<string, string>(),
-		hOptions: hash = {}
 		): Map<string, string> =>
 
 	DBG "in loadSymbols()"
 	# --- Check if libraries actually exist
 
-	type opt = {
-		checkFiles: boolean
-		}
-	{checkFiles} := getOptions<opt> hOptions, {
-		checkFiles: false
-		}
-
 	let level = 0    # --- symGen must know the current level
 	symGen: TTokenGenerator := (line: string) ->
 		if level == 0
-			yield kind: 'lib', str: line
+			yield {
+				kind: 'lib',
+				str: line
+				}
 		else if level == 1
 			for str of line.split(/\s+/)
-				yield { kind: 'symbol', str }
+				yield {
+					kind: 'symbol',
+					str
+					}
 		else
 			LOG "level = #{level}"
 			croak "level = #{level}"
 		return
+
 	let curLib: string? = undef
 	for {kind, str} of allTokensInBlock(block, symGen)
 		DBG "TOKEN: #{kind}"
@@ -75,12 +74,9 @@ export loadSymbols := (
 			when 'lib'
 				DBG "Set curLib to #{OL(str)}"
 				curLib = str
-			case 'symbol':
-			when 'guard'
+			when 'symbol'
 				if defined(str)
 					if level == 0
-						if checkFiles
-							assert isFile(str), "No such file: #{str}"
 						curLib = str
 					else if defined(curLib)
 						DBG "ADD #{str} from #{curLib}"
@@ -91,6 +87,8 @@ export loadSymbols := (
 					croak "undefined str!"
 			when 'eof'
 				DBG 'EOF'
+			when 'empty'
+				pass()
 			default:
 				croak "Unknown kind: #{kind}"
 	resetOneIndent()
@@ -98,23 +96,32 @@ export loadSymbols := (
 
 # ---------------------------------------------------------------------------
 
+export loadSymbolsFromFile := (path: string): void =>
+
+	block := slurp path
+	loadSymbols slurp(path), symbolMap
+	return
+
+# ---------------------------------------------------------------------------
+
 export sourceLib := (
 		symbol: string,
-		m: Map<string, string> = symbolMap # use global symbolMap by default
+		m: Map<string, string> = symbolMap
 		): string? =>
 
 	if (m == symbolMap) && (symbolMap.size == 0)
 		contents := slurp symbolsPath
-		loadSymbols contents, symbolMap, o"checkFiles"
+		loadSymbols contents, symbolMap
 	return m.get symbol
 
 # ---------------------------------------------------------------------------
 
-export libsAndSymbols := (lSymbols: string[]): hashof<string[]> =>
+export libsAndSymbols := (
+		lSymbols: string[]
+		): hashof<string[]> =>
 
 	if (symbolMap.size == 0) && isFile(symbolsPath)
-		contents := slurp symbolsPath
-		loadSymbols contents, symbolMap, o"checkFiles"
+		loadSymbolsFromFile symbolsPath
 	hLibs: hashof<string[]> := {}
 	for sym of lSymbols
 		srcLib := sourceLib sym
@@ -127,7 +134,9 @@ export libsAndSymbols := (lSymbols: string[]): hashof<string[]> =>
 
 # ---------------------------------------------------------------------------
 
-export getNeededImportStmts := (lSymbols: string[]): string[] =>
+export getNeededImportStmts := (
+		lSymbols: string[]
+		): string[] =>
 
 	DBG "CALL getNeededImportStmts(#{OL(lSymbols)})"
 	hLibs := libsAndSymbols lSymbols

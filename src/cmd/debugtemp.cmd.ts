@@ -1,14 +1,14 @@
 "use strict";
-// --- debugtemp.cmd.civet
+// debugtemp.cmd.civet
 
 import {writeln} from 'console-utils'
 import {undef, defined, assert, croak} from 'datatypes'
 import {findFile, parsePath, withExt, isFile} from 'fsys'
 import {DUMP} from 'to-nice'
 import {
-	procOneFile, procFiles, doDebug, doCompileCivet, getErrStr,
+	procOneFile, procFiles, doDebug, doCompileCivet,
 	} from 'exec'
-import {splitArray, sep, stdChecks} from 'llutils'
+import {splitArray, sep, stdChecks, getErrStr} from 'llutils'
 import {flag, argValue, allNonOptions} from 'cmd-args'
 import {LOG, DBG} from 'logger'
 

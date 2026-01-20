@@ -66,7 +66,6 @@ export const doParse = async <T = unknown,>(
 		abortOnError: true
 		})
 
-	debugger
 	for (const func of lTransforms) {
 		text = func(text)
 	}

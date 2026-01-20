@@ -4,10 +4,11 @@ import {stdChecks} from 'llutils'
 import {
 	undef, defined, notdefined, assert, assertIsDefined, croak,
 	} from 'datatypes'
-import {pushLogLevel, popLogLevel} from 'log-levels'
-import {LOG, DBG} from 'logger'
+import {
+	pushLogLevel, popLogLevel, LOG, DBG, DBGVALUE,
+	} from 'logger'
 import {flag, nonOption, checkCmdArgs} from 'cmd-args'
-import {toNice, DUMP, DBGVALUE} from 'to-nice'
+import {toNice, DUMP} from 'to-nice'
 import {findFile, slurp, fileExt} from 'fsys'
 import {ts2ast, astAsString, analyze} from 'typescript'
 import {civet2ast, civet2ts} from 'civet'

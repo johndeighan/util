@@ -1,7 +1,6 @@
 "use strict";
 // typescript.lib.civet
 
-import {cyan, blue} from 'jsr:@std/fmt/colors'
 import {existsSync} from 'jsr:@std/fs'
 import {statSync} from 'node:fs'
 import {
@@ -13,13 +12,13 @@ import {
 	} from 'npm:typescript'
 
 import {
-	undef, defined, notdefined, integer,
-	hash, hashof, isHash, TFilterFunc, isString, isEmpty, nonEmpty,
+	undef, defined, notdefined, integer, hash, hashof,
+	isHash, TFilterFunc, isString, isEmpty, nonEmpty, isNumber,
 	assert, croak, isFunction, functionDef, isClass, classDef,
 	} from 'datatypes'
 import {
 	truncStr, getOptions, spaces, o, words, hasKey,
-	CStringSetMap, keys, blockify, sep,
+	CStringSetMap, keys, blockify, sep, f,
 	} from 'llutils'
 import {
 	extract, TPathItem, getString, getNumber, getArray,
@@ -74,44 +73,15 @@ export const ast2ts = (node: Node): string => {
 }
 
 // ---------------------------------------------------------------------------
+// --- passed to toNice() to add a description to some nodes
 
-export const typeCheckFiles = (
-		lFileNames: string | string[],
-		hOptions: CompilerOptions = hDefConfig
-		): string[] => {
+export const descFunc: TMapFunc = (
+		key: string,
+		value: unknown,
+		hParent: hash
+		): string => {
 
-	if (isString(lFileNames)) {
-		lFileNames = [lFileNames]
-	}
-	const program = createProgram(lFileNames, hOptions)
-	const emitResult = program.emit()
-	const lMsgs: string[] = []
-	getPreEmitDiagnostics(program).forEach((diag): void => {
-		const {file, start, messageText} = diag
-		const msg = flattenDiagnosticMessageText(messageText, "\n")
-		if (file) {
-			const {fileName} = file
-			const {line, character} = getLineAndCharacterOfPosition(file, start!)
-			lMsgs.push(`${fileName}:(${line + 1}:${character + 1}): ${msg}`)
-		}
-		else {
-			lMsgs.push(msg)
-		}
-	})
-	return lMsgs
-}
-
-export const typeCheckFile = typeCheckFiles // --- synonym
-
-// ---------------------------------------------------------------------------
-
-export const tsMapFunc: TMapFunc = (key: string, value: unknown, hParent: hash): unknown => {
-
-	if ((key === 'kind') && (typeof value === 'number')) {
-		const desc = cyan(' (' + kindStr(value) + ')')
-		return value.toString() + desc
-	}
-	return undef
+	return (key === 'kind') && isNumber(value) ? f`(${kindStr(value)})` : ''
 }
 
 // ---------------------------------------------------------------------------
@@ -123,17 +93,21 @@ export const astAsString = (
 
 	return toNice(hAst, {
 		ignoreEmptyValues: true,
-		mapFunc: tsMapFunc,
+		descFunc,
 		lInclude: hOptions.lInclude,
-		lExclude: words('pos end id flags modifierFlagsCache', 'transformFlags hasExtendedUnicodeEscape', 'numericLiteralFlags setExternalModuleIndicator', 'languageVersion languageVariant jsDocParsingMode', 'hasNoDefaultLib'),
-	})
+		lExclude: words(`pos end id flags modifierFlagsCache
+transformFlags hasExtendedUnicodeEscape
+numericLiteralFlags setExternalModuleIndicator
+languageVersion languageVariant jsDocParsingMode
+hasNoDefaultLib`)
+		})
 }
 
 // ---------------------------------------------------------------------------
 // --- We must place the TypeScript file at the project root
 //     so that paths gotten from .symbols resolve correctly
 
-export const typeCheckCode = (tsCode: string): ((string[]) | undefined) => {
+export const typeCheckTsCode = (tsCode: string): ((string[]) | undefined) => {
 
 	const path = "./_typecheck_.ts"
 	barf(path, tsCode)
@@ -347,6 +321,7 @@ export class AstWalker extends Walker<Node> {
 	// ..........................................................
 
 	dbg(op: 'push' | 'pop', node: Node): void {
+
 		const prefix = '   '
 		const kind = node.kind
 		console.log(`${prefix}${op.toUpperCase()}: ${kind} [${this.stackDesc()}]`)
@@ -356,6 +331,7 @@ export class AstWalker extends Walker<Node> {
 	// ..........................................................
 
 	stackDesc(): string {
+
 		const results = []
 		for (const node of this.lNodeStack) {
 			results.push(node.kind.toString())
@@ -367,6 +343,7 @@ export class AstWalker extends Walker<Node> {
 	// ..........................................................
 
 	override pushNode(node: Node): void {
+
 		super.pushNode(node)
 		if (this.hOptions.trace) {
 			this.dbg('push', node)
@@ -377,6 +354,7 @@ export class AstWalker extends Walker<Node> {
 	// ..........................................................
 
 	override popNode(): (Node | undefined) {
+
 		const node = super.popNode()
 		if (this.hOptions.trace) {
 			if (defined(node)) {
@@ -392,13 +370,15 @@ export class AstWalker extends Walker<Node> {
 	// ..........................................................
 
 	override isNode(x: object): x is Node {
+
 		return Object.hasOwn(x, 'kind')
 	}
 
 	// ..........................................................
 
 	override filter(node: Node): boolean {
-		return (defined(this.filterFunc)? this.filterFunc(node) : true)
+
+		return defined(this.filterFunc) ? this.filterFunc(node) : true
 	}
 }
 
@@ -414,12 +394,14 @@ export class CAnalysis {
 	// ..........................................................
 
 	constructor() {
+
 		this.curScope = this.mainScope
 	}
 
 	// ..........................................................
 
 	define(name: string): void {
+
 		this.curScope.define(name)
 		return
 	}
@@ -427,6 +409,7 @@ export class CAnalysis {
 	// ..........................................................
 
 	use(name: string): void {
+
 		if (!hasKey(globalThis, name)) {
 			this.curScope.use(name)
 		}
@@ -436,6 +419,7 @@ export class CAnalysis {
 	// ..........................................................
 
 	addImport(lib: string, name: string): void {
+
 		this.mImports.add(lib, name)
 		this.define(name)
 		return
@@ -444,6 +428,7 @@ export class CAnalysis {
 	// ..........................................................
 
 	addExport(name: string, type: string): void {
+
 		this.mExports.set(name, type)
 		return
 	}
@@ -451,6 +436,7 @@ export class CAnalysis {
 	// ..........................................................
 
 	getImports(): TBlockDesc {
+
 		const hImports: hashof<string[]> = {}
 		for (const [lib, sNames] of this.mImports.entries()) {
 			hImports[lib] = Array.from(sNames.values())
@@ -461,12 +447,14 @@ export class CAnalysis {
 	// ..........................................................
 
 	getExports(): string[] {
+
 		return Array.from(this.mExports.keys())
 	}
 
 	// ..........................................................
 
 	newScope(name: (string | undefined), lArgs: string[]): void {
+
 		this.curScope = this.mainScope.newScope(name, lArgs)
 		return
 	}
@@ -474,6 +462,7 @@ export class CAnalysis {
 	// ..........................................................
 
 	endScope(): void {
+
 		const scope = this.mainScope.endScope(this.curScope)
 		if (defined(scope)) {
 			this.curScope = scope
@@ -487,6 +476,7 @@ export class CAnalysis {
 	// ..........................................................
 
 	getMissing(): string[] {
+
 		const walker = new Walker<CScope>()
 		walker.isNode = (x: unknown) => {
 			return (x instanceof CScope)
@@ -506,6 +496,7 @@ export class CAnalysis {
 	// ..........................................................
 
 	getExtra(): string[] {
+
 		const walker = new Walker<CScope>()
 		walker.isNode = (x: unknown) => {
 			return (x instanceof CScope)
@@ -525,6 +516,7 @@ export class CAnalysis {
 	// ..........................................................
 
 	asString(width: integer = 64): string {
+
 		const h: TBlockDesc = {
 			IMPORTS: this.getImports(),
 			EXPORTS: this.getExports(),
@@ -550,7 +542,9 @@ export class CAnalysis {
 
 // ---------------------------------------------------------------------------
 
-export const assertIsNode: (x: unknown) => asserts x is Node = (x: unknown): asserts x is Node => {
+export const assertIsNode: (
+		x: unknown
+		) => asserts x is Node = (x: unknown): asserts x is Node => {
 
 	assert(hasKey(x, 'kind'), `Not a Node: ${typeof x}`)
 }
@@ -593,7 +587,11 @@ export const analyze = (
 
 	// ..........................................................
 
-	const checkNode = (node: unknown, dspath: (string | undefined) = undef): void => {
+	const checkNode = (
+			node: unknown,
+			dspath: (string | undefined) = undef
+			): void => {
+
 		assertIsNode(node)
 		if (defined(dspath)) {
 			node = getNode(node, dspath)
@@ -613,17 +611,21 @@ export const analyze = (
 		if (trace) {
 			LOG(`NODE KIND: ${kind} (${kindStr(kind)})`)
 		}
+
 		if (vkind === 'exit') {
 			switch(kind) {
-				case 220:
-				case 263: {
+
+				case 220:case 263: {   // ArrowFunction, FunctionDeclaration
 					analysis.endScope();break;
 				}
 			}
 		}
+
 		else if (vkind === 'enter') {
+
 			switch(kind) {
-				case 220: {
+
+				case 220: {    // ArrowFunction
 					{
 						const results1 = []
 						for (const parm of getArray(node, '.parameters')) {
@@ -633,13 +635,15 @@ export const analyze = (
 						analysis.newScope(undef, lParms)
 					};break;
 				}
-				case 261: {
+
+				case 261: {    // VariableDeclaration
 					try {
 						const varName = getString(node, '.name.escapedText')
 						analysis.define(varName)
 					} catch(e) {};break;
 				}
-				case 263: {
+
+				case 263: {    // FunctionDeclaration
 					{
 						const funcName = getString(node, '.name.escapedText')
 						const results2 = []
@@ -651,17 +655,20 @@ export const analyze = (
 						analysis.newScope(funcName, lParms)
 					};break;
 				}
-				case 227: {
+
+				case 227: {    // BinaryExpression
 					checkNode(node, '.left')
 					checkNode(node, '.right');break;
 				}
-				case 214: {
+
+				case 214: {    // CallExpression
 					checkNode(node, '.expression')
 					for (const arg of getArray(node, '.arguments')) {
 						checkNode(arg)
 					};break;
 				}
-				case 273: {
+
+				case 273: {    // ImportDeclaration
 					const lib = getString(node, '.moduleSpecifier.text')
 					for (const h of getArray(node, '.importClause.namedBindings.elements')) {
 						const name = getString(h, '.name.escapedText')
@@ -671,30 +678,36 @@ export const analyze = (
 						analysis.addImport(lib, name)
 					};break;
 				}
-				case 280: {
+
+				case 280: {    // NamedExports
 					for (const elem of getArray(node, '.elements')) {
 						const name = getString(elem, '.name.escapedText')
 						analysis.addExport(name, 're-export')
 					};break;
 				}
-				case 95: {
+
+				case 95: {     // ExportKeyword
 					const parent = walker.parent()
 					switch(getNumber(parent, '.kind')) {
-						case 244: {
+
+						case 244: {    // FirstStatement
 							for (const decl of getArray(parent, '.declarationList.declarations')) {
 								switch(getNumber(decl, '.kind')) {
-									case 261: {
+
+									case 261: {    // VariableDeclaration
 										const name = getString(decl, '.name.escapedText')
 										// --- Check initializer to find the type
 										const initKind = getNumber(decl, '.initializer.kind')
 										switch(initKind) {
-											case 220: {
+
+											case 220: {    // ArrowFunction
 												analysis.addExport(name, 'function');break;
 											}
-											case 261:
-											case 9: {
+
+											case 9:case 261: { // FirstLiteralToken, VariableDeclaration
 												analysis.addExport(name, 'const');break;
 											}
+
 											default:
 												analysis.addExport(name, 'unknown')
 										};break;
@@ -702,18 +715,22 @@ export const analyze = (
 								}
 							};break;
 						}
-						case 263: {
+
+						case 263: {   // FunctionDeclaration
 							const name = getString(parent, '.name.escapedText')
 							analysis.addExport(name, 'function');break;
 						}
-						case 264: {
+
+						case 264: {   // ClassDeclaration
 							const name = getString(parent, '.name.escapedText')
 							analysis.addExport(name, 'class');break;
 						}
-						case 266: {
+
+						case 266: {   // TypeAliasDeclaration
 							const name = getString(parent, '.name.escapedText')
 							analysis.addExport(name, 'type');break;
 						}
+
 						default:
 							croak(`Unexpected subtype of 95: ${parent.kind}`)
 					};break;
@@ -727,3 +744,33 @@ export const analyze = (
 	}
 	return analysis
 }
+
+// ---------------------------------------------------------------------------
+
+export const typeCheckFiles = (
+		lFileNames: string | string[],
+		hOptions: CompilerOptions = hDefConfig
+		): string[] => {
+
+	if (isString(lFileNames)) {
+		lFileNames = [lFileNames]
+	}
+	const program = createProgram(lFileNames, hOptions)
+	const emitResult = program.emit()
+	const lMsgs: string[] = []
+	getPreEmitDiagnostics(program).forEach((diag): void => {
+		const {file, start, messageText} = diag
+		const msg = flattenDiagnosticMessageText(messageText, "\n")
+		if (file) {
+			const {fileName} = file
+			const {line, character} = getLineAndCharacterOfPosition(file, start!)
+			lMsgs.push(`${fileName}:(${line + 1}:${character + 1}): ${msg}`)
+		}
+		else {
+			lMsgs.push(msg)
+		}
+	})
+	return lMsgs
+}
+
+export const typeCheckFile = typeCheckFiles // --- synonym

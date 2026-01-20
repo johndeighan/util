@@ -5,8 +5,9 @@ import {stdChecks} from 'llutils'
 import {
 	undef, defined, notdefined, assert, assertIsDefined, croak,
 	} from 'datatypes'
-import {pushLogLevel, popLogLevel} from 'log-levels'
-import {LOG, DBG, DBGVALUE} from 'logger'
+import {
+	pushLogLevel, popLogLevel, LOG, DBG, DBGVALUE,
+	} from 'logger'
 import {flag, nonOption, checkCmdArgs} from 'cmd-args'
 import {toNice, DUMP} from 'to-nice'
 import {findFile, slurp, fileExt} from 'fsys'

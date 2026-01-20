@@ -24,6 +24,7 @@ export getDsPath := (lPath: TPathItem[]): string =>
 
 export extract := (x: unknown, dspath: string | TPathItem[]): unknown =>
 
+	assert defined(x), "extract(): x not defined"
 	pathstr := if isArray(dspath) then getDsPath(dspath) else dspath
 	if nonEmpty(pathstr)
 		expr := "x = x#{pathstr}"
@@ -36,12 +37,12 @@ export extract := (x: unknown, dspath: string | TPathItem[]): unknown =>
 				:                          'Unknown error'
 				)
 			try
-				console.log sep '=', "EVAL ERROR in #{expr}"
+				console.log sep '=', "EXTRACT ERROR in #{expr}"
 				console.log msg
 				console.log sep '='
 				console.log toNice x, o"ignoreEmptyValues"
 				console.log sep '='
-			console.log "EVAL ERROR in '#{expr}'"
+			console.log "EXTRACT ERROR in '#{expr}'"
 			console.log sep '='
 			Deno.exit 99
 	return x
@@ -82,6 +83,7 @@ export getArray := (
 		len: integer? = undef
 		): unknown[] =>
 
+	assert defined(x), "getArray(): x not defined"
 	val := extract x, dspath
 	assertIsArray val
 	if len

@@ -93,7 +93,6 @@ export class CParseMatches
 			): string
 
 		n := @lParseMatches.length
-		debugger
 		lLineNum: number[] := new Array<number>(n).fill 0
 		lLines: string[] := []
 		let nRemaining = n

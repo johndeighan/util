@@ -1,22 +1,33 @@
 # f-strings.lib.test.civet
 
-import {f} from 'f-strings'
+import {f, colorize, decolorize} from 'f-strings'
 import {equal} from 'unit-test'
 
 # ---------------------------------------------------------------------------
 
 equal f"abc", "abc"
 
-meaning := 42
-equal f"meaning is #{meaning}",    "meaning is 42"
-equal f"meaning is #{meaning}:3",  "meaning is  42"
-equal f"meaning is #{meaning}:3",  "meaning is  42"
-equal f"meaning is #{meaning}:!3", "meaning is  42"
+(() =>
+	meaning := 42
+	equal f"meaning is #{meaning}",      "meaning is 42"
+	equal f"meaning is #{meaning}:3",    "meaning is  42"
+	equal f"meaning is #{meaning}:3",    "meaning is  42"
+	equal f"meaning is #{meaning}:3!",   "meaning is  42"
+	equal f"meaning is #{meaning}:",     "meaning is 42:"
+	equal f"meaning is #{meaning}: ok?", "meaning is 42: ok?"
+	)()
 
-str := 'abc def'
-equal f"str is #{str}",    "str is abc def"
-equal f"str is #{str}:10", "str is abc def   "
+(() =>
+	str := 'abc def'
+	equal f"str is #{str}",    "str is abc def"
+	equal f"str is #{str}:!",  "str is abc˳def"
+	equal f"str is #{str}:10", "str is abc def   "
+	)()
 
 # ---------------------------------------------------------------------------
 
-
+(() =>
+	meaning := 42
+	str := f":{blue}meaning is #{meaning}:3{red}"
+	equal decolorize(str), "meaning is  42"
+	)()

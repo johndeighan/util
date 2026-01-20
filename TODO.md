@@ -1,6 +1,15 @@
 to do
 
-continue expanding build_all_libs
+compileall.civet fails because
+	type checking requires that all libs compile successfully
+	including being written to disk
+
+doInstallCmd needs to uninstall previous version AND remove the .json file
+mapsrc command needs to display a nice error message if the source map
+	isn't in the mapping file
+mapsrc should have a -v option to display detailed contents of the source map
+
+get command build-dot-symbols working
 
 document lib console-utils
 

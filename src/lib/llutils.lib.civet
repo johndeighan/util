@@ -1,7 +1,6 @@
 # llutils.lib.civet
 
 type AutoPromise<T> = Promise<Awaited<T>>
-import {stripAnsiCode} from 'jsr:@std/fmt/colors'
 import {createRequire} from 'node:module'
 import {sprintf} from 'jsr:@std/fmt/printf'
 import {relative} from 'jsr:@std/path'
@@ -563,14 +562,20 @@ export allLinesInBlock := (
 # --- valid options:
 #        char - char to use on left and right
 #        buffer - num spaces around label when char <> ' '
-export centered := (label: string, char: string = ' ', width: number = defWidth, numBuffer: number = 2): string =>
+export centered := (
+		label: string
+		char: string = ' '
+		width: number = defWidth
+		numBuffer: number = 2
+		): string =>
+
 	assert (char.length == 1), "Bad char: '#{char}'"
 	totSpaces := width - label.length
-	if totSpaces <= 0
+	if (totSpaces <= 0)
 		return label
 	numLeft := Math.floor totSpaces / 2
 	numRight := totSpaces - numLeft
-	if char == ' '
+	if (char == ' ')
 		return ' '.repeat(numLeft) + label + ' '.repeat(numRight)
 	else
 		buf := ' '.repeat numBuffer

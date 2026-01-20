@@ -26,6 +26,7 @@ export class Walker<T extends object = hash> {
 	// ..........................................................
 
 	protected pushNode(item: T): void {
+
 		this.lNodeStack.push(item)
 		return
 	}
@@ -33,19 +34,21 @@ export class Walker<T extends object = hash> {
 	// ..........................................................
 
 	protected popNode(): (T | undefined) {
+
 		return this.lNodeStack.pop()
-		return
 	}
 
 	// ..........................................................
 
 	get level(): integer {
+
 		return this.lNodeStack.length
 	}
 
 	// ..........................................................
 
 	parent(n: integer = 1): T {
+
 		const len = this.lNodeStack.length
 		assert((n >= 0) && (n < len), `Bad index: ${n} of ${len}`)
 		return this.lNodeStack[len - n]
@@ -54,12 +57,14 @@ export class Walker<T extends object = hash> {
 	// ..........................................................
 
 	isNode(x: unknown): x is T {
+
 		return true
 	}
 
 	// ..........................................................
 
 	filter(node: T): boolean {
+
 		return true
 	}
 
@@ -67,6 +72,7 @@ export class Walker<T extends object = hash> {
 	// GENERATOR
 
 	*walk(x: unknown): Generator<T, void, void> {
+
 		if (hasChildren(x)) {
 			this.setVisited = new WeakSet<hash | array>()
 			yield *this.walkItem(x)
@@ -78,6 +84,7 @@ export class Walker<T extends object = hash> {
 	// GENERATOR
 
 	*walkItem(item: hash | array): Generator<T, void, void> {
+
 		if (this.setVisited.has(item)) {
 			return
 		}
@@ -117,6 +124,7 @@ export class Walker<T extends object = hash> {
 	// GENERATOR
 
 	*walkEx(x: unknown): Generator<[TVisitKind, T], void, void> {
+
 		if (hasChildren(x)) {
 			this.setVisited = new WeakSet<hash | array>()
 			yield *this.walkItemEx(x)
@@ -128,6 +136,7 @@ export class Walker<T extends object = hash> {
 	// GENERATOR
 
 	*walkItemEx(item: hash | array): Generator<[TVisitKind, T], void, void> {
+
 		if (this.setVisited.has(item)) {
 			if (this.isNode(item)) {
 				yield ['ref', item]

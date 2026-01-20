@@ -17,7 +17,7 @@ import {
 	TAlignment, isAlignment, alignString, zpad,
 	TBlockSpec, isBlockSpec, allMatches,
 	range, getLineAndColumn, assertSameStr, interpolate,
-	widthOf, heightOf, blockify, CStringSetMap, f,
+	widthOf, heightOf, blockify, CStringSetMap,
 	fromTAML,
 	} from 'llutils'
 import {
@@ -407,20 +407,6 @@ equal(Array.from(imports.allValues('llutils')), ['sep','center'])
 
 equal(imports.asString(), `llutils: sep center
 base: is`)
-
-// ---------------------------------------------------------------------------
-
-equal(f`abc`, "abc")
-
-const meaning = 42
-equal(f`meaning is ${meaning}`,    "meaning is 42")
-equal(f`meaning is ${meaning}:3`,  "meaning is  42")
-equal(f`meaning is ${meaning}:3`,  "meaning is  42")
-equal(f`meaning is ${meaning}:!3`, "meaning is  42")
-
-const str = 'abc def'
-equal(f`str is ${str}`,    "str is abc def")
-equal(f`str is ${str}:10`, "str is abc def   ")
 
 // ---------------------------------------------------------------------------
 

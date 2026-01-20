@@ -24,23 +24,26 @@ export class Walker<T extends object = hash>
 	# ..........................................................
 
 	protected pushNode(item: T): void
+
 		@lNodeStack.push item
 		return
 
 	# ..........................................................
 
 	protected popNode(): T?
+
 		return @lNodeStack.pop()
-		return
 
 	# ..........................................................
 
 	get level(): integer
+
 		return @lNodeStack.length
 
 	# ..........................................................
 
 	parent(n: integer = 1): T
+
 		len := @lNodeStack.length
 		assert (n >= 0) && (n < len), "Bad index: #{n} of #{len}"
 		return @lNodeStack[len - n]
@@ -48,17 +51,20 @@ export class Walker<T extends object = hash>
 	# ..........................................................
 
 	isNode(x: unknown): x is T
+
 		return true
 
 	# ..........................................................
 
 	filter(node: T): boolean
+
 		return true
 
 	# ..........................................................
 	# GENERATOR
 
-	*walk(x: unknown): Generator<T, void, void>
+	walk(x: unknown): Generator<T, void, void>
+
 		if hasChildren(x)
 			@setVisited = new WeakSet<hash | array>()
 			yield *@walkItem(x)
@@ -67,7 +73,8 @@ export class Walker<T extends object = hash>
 	# ..........................................................
 	# GENERATOR
 
-	*walkItem(item: hash | array): Generator<T, void, void>
+	walkItem(item: hash | array): Generator<T, void, void>
+
 		if @setVisited.has(item)
 			return
 		if @isNode(item)
@@ -95,7 +102,8 @@ export class Walker<T extends object = hash>
 	# ..........................................................
 	# GENERATOR
 
-	*walkEx(x: unknown): Generator<[TVisitKind, T], void, void>
+	walkEx(x: unknown): Generator<[TVisitKind, T], void, void>
+
 		if hasChildren(x)
 			@setVisited = new WeakSet<hash | array>()
 			yield *@walkItemEx(x)
@@ -104,7 +112,8 @@ export class Walker<T extends object = hash>
 	# ..........................................................
 	# GENERATOR
 
-	*walkItemEx(item: hash | array): Generator<[TVisitKind, T], void, void>
+	walkItemEx(item: hash | array): Generator<[TVisitKind, T], void, void>
+
 		if @setVisited.has(item)
 			if @isNode(item)
 				yield ['ref', item]

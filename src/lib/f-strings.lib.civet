@@ -1,9 +1,23 @@
 # f-strings.lib.civet
 
 import {sprintf} from 'jsr:@std/fmt/printf'
+import {
+	cyan, blue, black, red, green, magenta, stripAnsiCode,
+	} from 'jsr:@std/fmt/colors'
 
 import {esc} from 'unicode'
+import {mapper} from 'var-free'
 import {defined, nonEmpty, isInteger} from 'datatypes'
+
+# --- hash of all supported colors
+hColor := {
+	cyan
+	blue
+	black
+	red
+	green
+	magenta
+	} as const
 
 # ---------------------------------------------------------------------------
 # --- Number of strings is always 1 greater than the number of values
@@ -13,40 +27,81 @@ export f := (
 		...lValues: unknown[]
 		): string =>
 
-	lParts: string[] := [lStrings[0]]
-	for val,i of lValues
-		[nextStr, width, escape] := fsplit lStrings[i+1]
-		lParts.push (
-			switch typeof val
-				when 'string'
-					valStr := escape ? esc(val) : val
-					width ? sprintf("%-#{width}s", valStr) : valStr
-				when 'number'
-					if (width == 0)
-						val.toString()
-					else if isInteger(val)
-						sprintf("%#{width}d", val)
-					else
-						sprintf("%#{width}.2f", val)
-				else
-					valStr := JSON.stringify(val)
-					width ? sprintf("%-s#{width}", valStr) : valStr
-			)
-		lParts.push nextStr
-	return lParts.join('')
+	[firstStr, mainWidth, mainEsc, mainColor] := fsplit lStrings[0]
+	lParts := Array.from(mapper lValues, (val, i) ->
+		[str, width, doEsc, color] := fsplit lStrings[i+1]
+		result := switch typeof val
+			when 'string'
+				formatStr val, width, doEsc, color, '-'
+			when 'number'
+				formatStr val.toString(), width, doEsc, color, ''
+			else
+				formatStr JSON.stringify(val), width, doEsc, color, '-'
+		yield result + str
+		)
+	mainStr := [firstStr, ...lParts].join('')
+	return formatStr mainStr, mainWidth, mainEsc, mainColor, '-'
 
 # ---------------------------------------------------------------------------
-# --- returns [str, width, escape?]
 
-export fsplit := (str: string): [string, number, boolean] =>
+export formatStr := (
+		str: string,
+		width: number,
+		doEsc: boolean,
+		color: string
+		justify: '-' | ''
+		): string =>
 
-	lMatches := str.match(/^:(\!)?(\d+)?(.*)$/)
-	if defined(lMatches)
-		[_, escape, width, rest] := lMatches
-		return [
-			rest
-			width ? parseInt(width) : 0
-			nonEmpty(escape)
-			]
+	valStr := doEsc ? esc(str) : str
+	outstr := width ? sprintf("%#{justify}#{width}s", valStr) : valStr
+	return colorize(outstr, color)
+
+# ---------------------------------------------------------------------------
+
+export colorize := (str: string, color: string) =>
+
+	if (color in hColor)
+		switch color
+			when 'cyan' then return cyan(str)
+			when 'blue' then return blue(str)
+			when 'black' then return black(str)
+			when 'red' then return red(str)
+			when 'green' then return green(str)
+			when 'magenta' then return magenta(str)
+			else return str
 	else
-		return [str, 0, false]
+		return str
+
+# ---------------------------------------------------------------------------
+
+export decolorize := (str: string) =>
+
+	return stripAnsiCode(str)
+
+# ---------------------------------------------------------------------------
+# --- returns [str, width, doEsc?, color]
+
+export fsplit := (str: string): [string, number, boolean, string] =>
+
+	lMatches := str.match ///^
+			:
+			(\d+)?      # width
+			(\!)?       # escape text?
+			(?:
+				{ ([a-z]+) }   # color
+				)?
+			(.*)        # actual text
+			$///
+	if defined(lMatches)
+		[_, width, doEsc, color, rest] := lMatches
+		if width || doEsc || (color && (color in hColor))
+			return [
+				rest
+				width ? parseInt(width) : 0
+				nonEmpty(doEsc)
+				defined(color) && (color in hColor) ? color : ''
+				]
+		else
+			return [str, 0, false, '']
+	else
+		return [str, 0, false, '']

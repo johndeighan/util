@@ -1,10 +1,9 @@
 "use strict";
 // logger.lib.civet
 
-import {cyan, blue, black} from 'jsr:@std/fmt/colors'
-
 import {write, writeln} from 'console-utils'
 import {isString} from 'datatypes'
+import {f} from 'llutils'
 import {OL, ML} from 'to-nice'
 
 let level = 0
@@ -124,7 +123,7 @@ export const DBG = (...lItems: unknown[]): void => {
 
 export const LOGVALUE = (label: string, value: unknown): void => {
 
-	LOG(`${label} = ${ML(value)}`)
+	LOG(f`${label}:{blue} = ${ML(value)}`)
 	return
 }
 
@@ -132,7 +131,7 @@ export const LOGVALUE = (label: string, value: unknown): void => {
 
 export const DBGVALUE = (label: string, value: unknown): void => {
 
-	DBG(blue(label) + ` = ${ML(value)}`)
+	DBG(f`${label}:{blue} = ${ML(value)}`)
 	return
 }
 

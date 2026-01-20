@@ -1,0 +1,262 @@
+# compileall.civet
+
+import {assert} from "jsr:@std/assert"
+import {red, cyan} from 'jsr:@std/fmt/colors'
+import {sprintf} from 'jsr:@std/fmt/printf'
+import {compile} from 'npm:@danielx/civet'
+import {existsSync} from 'jsr:@std/fs'
+import {statSync} from 'node:fs'
+import {resolve, relative} from 'jsr:@std/path'
+import {expandGlob} from 'jsr:@std/fs/expand-glob'
+import {RawSourceMap, SourceMapConsumer} from 'npm:source-map'
+
+import hCivetConfig from "civetconfig" with { type: "json" }
+
+# --- This is where source maps are stored, keyed by
+#     the normalized file path
+sourceMapPath := './sourcemap.json'
+
+encoder := new TextEncoder()
+LOG := console.log
+
+# ---------------------------------------------------------------------------
+
+isDir := (path: string): boolean =>
+
+	try
+		stats = statSync path
+		return stats.isDirectory
+	catch err
+		if (err instanceof Deno.errors.NotFound)
+			return false
+		else
+			throw err
+
+# ---------------------------------------------------------------------------
+
+isFile := (path: string): boolean =>
+
+	try
+		stats = statSync path
+		return stats.isFile
+	catch err
+		if (err instanceof Deno.errors.NotFound)
+			return false
+		else
+			throw err
+
+# ---------------------------------------------------------------------------
+# --- sanity check
+
+assert isFile './compileall.civet'
+assert isDir 'src'
+assert isFile 'civetconfig.json'
+assert isFile '.gitignore'
+
+# ---------------------------------------------------------------------------
+
+type TMaps = {
+	[key: string]: RawSourceMap
+	}
+
+getSourceMaps := (path: string): TMaps =>
+
+	try
+		{default: data} := await import(path, {with: {type: 'json'}})
+			# --- Or 'assert: { type: "json" }' depending on Deno version
+		return data as TMaps
+	catch err
+		return {}
+
+# ---------------------------------------------------------------------------
+
+centered := (
+		label: string,
+		width: number = 64
+		char: string = '-'
+		): string =>
+
+	totSpaces := width - label.length
+	numLeft := Math.floor totSpaces / 2
+	numRight := totSpaces - numLeft
+	buf := '  '
+	left := '='.repeat numLeft - 2
+	right := '='.repeat numRight - 2
+	return left + buf + cyan(label) + buf + right
+
+# ---------------------------------------------------------------------------
+
+normalizePath := (path: string): string =>
+
+	return path.replace(/^c:/, 'C:').replaceAll('\\', '/')
+
+# ---------------------------------------------------------------------------
+
+addSourceMap := (path: string, hSrcMap: RawSourceMap): void =>
+
+	hSourceMaps[path] = hSrcMap
+	return
+
+# ---------------------------------------------------------------------------
+
+extractSourceMap := (
+		contents: string
+		): [string, RawSourceMap?] =>
+
+	lMatches := contents.match ///^
+			(.*)
+			\/ \/ \# \s+
+			sourceMappingURL=data:application\/json;
+			(?:charset=utf-8;)?
+			base64,
+			(.+)
+			$///s
+	if (lMatches == null)
+		return [contents, undefined]
+	code := lMatches[1].trim()
+	hSrcMap := JSON.parse(atob(lMatches[2].trim())) as RawSourceMap
+	{file} := hSrcMap
+	hSrcMap.file = normalizePath(file.replace('.tsx', '.ts'))
+	hSrcMap.sources = for path of hSrcMap.sources
+		normalizePath(path)
+	return [code, hSrcMap]
+
+# ---------------------------------------------------------------------------
+# ASYNC - just returns true or false, stdout & stderr 'inherit'
+
+export execCmd := (
+		cmdName: string
+		lArgs: string[] = []
+		): boolean =>
+
+	cmd := new Deno.Command cmdName, {args: lArgs}
+	child := cmd.spawn()
+	{success} := await child.status
+	return success
+
+# ---------------------------------------------------------------------------
+
+hGlobOptions := {
+	exclude: [
+		'src/temp/*'
+		'src/save/*'
+		'src/test/**/*'
+		]
+	}
+
+allFiles := (): AsyncGenerator<string, void, void> ->
+	path := Deno.args[0]
+	if path
+		assert existsSync path
+		yield path
+	else
+		for await {path} of expandGlob("src/**/*.civet", hGlobOptions)
+			yield path
+	return
+
+# ---------------------------------------------------------------------------
+
+t0 := Date.now()
+hSourceMaps: TMaps := await getSourceMaps(sourceMapPath)
+
+# --- Add to this list as files are successfully compiled
+type TRecord = [string, string]   # [<TS filename>, <TS code>]
+let lToTypeCheck: TRecord[] = []
+
+let numFiles = 0, numCompiled = 0, numFailed = 0
+for await path of allFiles()
+	numFiles += 1
+	civetPath := normalizePath(resolve('.', path))
+	relPath := relative('.', civetPath)
+	destPath := civetPath.replace('.civet', '.ts')
+	relDestPath := relative('.', destPath)
+	try
+		assert existsSync(civetPath), "   No such file: #{relPath}"
+		assert civetPath.endsWith('.civet'), "   Not a civet file: #{relPath}"
+
+		if (existsSync(destPath)
+				&& (statSync(destPath).mtimeMs >= statSync(civetPath).mtimeMs)
+				&& (destPath in hSourceMaps)
+				)
+			continue
+
+		LOG centered(relPath)
+		LOG "   destPath = #{relDestPath}"
+
+		# --- log info about why file had to be compiled
+		if not existsSync(destPath)
+			LOG "   destPath #{relDestPath} does not exist"
+		if (statSync(destPath).mtimeMs < statSync(civetPath).mtimeMs)
+			LOG "    #{relDestPath} is older than #{relPath}"
+		if not (civetPath in hSourceMaps)
+			LOG "    there is no source map for #{relDestPath}"
+
+		civetCode := await Deno.readTextFile civetPath
+		tsCode: string := await compile civetCode, {
+			...hCivetConfig
+			inlineMap: true
+			filename: civetPath
+			}
+		assert tsCode && not tsCode.startsWith('COMPILE FAILED'),
+			"CIVET COMPILE FAILED: #{relPath}"
+		LOG "   compile succeeded"
+		numCompiled += 1
+		lToTypeCheck.push [destPath, tsCode]
+
+	catch err
+		LOG "#{red('ERROR')} in #{relDestPath}:\n#{err}"
+		numFailed += 1
+		continue
+
+# --- If any files failed to compile, there's no point
+#     to type checking because it will probably fail
+
+if (numFailed > 0)
+	LOG red("#{numFailed} files failed to compile")
+	Deno.exit -1
+
+# --- type check files that were compiled
+#     tsCode will include the inline source map
+
+numFailed = 0
+for [destPath, tsCode] of lToTypeCheck
+	relDestPath := relative '.', destPath
+	try
+
+		[code, hSrcMap] := extractSourceMap tsCode
+		assert (hSrcMap != undefined), "No source map found in file"
+		encoded := encoder.encode(code)
+
+		# --- Unfortunately, we have to write the code to a file
+		#     in order to type check it :-(
+
+		tempPath := 'src/temp/_tempcode_.ts'
+		await Deno.writeFile tempPath, encoded
+		success := await execCmd 'deno', ['check', tempPath]
+#		if not success
+#			console.log "#{red('ERROR ERROR ERROR')}"
+		assert success, "type check failed for #{relDestPath}"
+
+		await Deno.writeFile destPath, encoded
+		LOG "   TS file written"
+		LOG "   type check OK"
+		LOG "   adding source map for #{relDestPath}"
+		addSourceMap destPath, hSrcMap
+
+	catch err
+		LOG "#{red('ERROR')} in #{relDestPath}:\n#{err}"
+		numFailed += 1
+		continue
+
+if (numFailed > 0)
+	LOG red("#{numFailed} files failed to compile")
+else
+	if (numCompiled > 0)
+		# --- Save source maps
+		LOG "saving #{numCompiled} source maps"
+		await Deno.writeTextFile(
+			sourceMapPath
+			JSON.stringify(hSourceMaps, null, 3)
+			)
+	secs := (Date.now() - t0) / 1000
+	LOG "DONE in #{sprintf('%.2d', secs)} secs."

@@ -571,37 +571,6 @@ class CTsFileRemover extends CFileHandler {
 export const doRemoveTsFile = new CTsFileRemover()
 
 // ---------------------------------------------------------------------------
-// ASYNC
-
-export const typeCheckTsCode = async (
-		tsCode: string
-		): AutoPromise1<void> => {
-
-	const path = barfTempFile(tsCode, {ext: '.ts'})
-	const hResult = await execCmd('deno', ['check', path])
-	if (!hResult.success && defined(hResult.stderr)) {
-		croak(hResult.stderr)
-	}
-	return
-}
-
-// ---------------------------------------------------------------------------
-// ASYNC
-
-export const saveTsCode = async (
-		destPath: string,
-		tsCode: string
-		): AutoPromise1<void> => {
-
-	const [code, hSrcMap] = extractSourceMap(tsCode)
-	if (defined(hSrcMap)) {
-		addJsonValue('sourcemap.jsonc', normalizePath(destPath), hSrcMap)
-	}
-	await Deno.writeTextFile(destPath, code)
-	return
-}
-
-// ---------------------------------------------------------------------------
 // --- Due to a bug in either the v8 engine or Deno,
 //     we have to generate, then remove the inline source map,
 //     saving it to use in mapping source lines later
@@ -619,6 +588,8 @@ class CCivetCompiler extends CFileHandler {
 
 		assert((fileExt(path) === '.civet'), `Not a civet file: ${path}`)
 		const destPath = withExt(path, '.ts')
+
+		// --- Check if a newer compiled version already exists
 		if (
 				   !hOptions.force
 				&& existsSync(destPath)
@@ -627,6 +598,7 @@ class CCivetCompiler extends CFileHandler {
 				) {
 			return {success: true}
 		}
+
 		try {
 			const civetCode = await slurpAsync(path)
 			const tsCode: string = await compileCivet(civetCode, {
@@ -634,42 +606,27 @@ class CCivetCompiler extends CFileHandler {
 				inlineMap: true,
 				filename: path
 				})
-			if (!tsCode) {
-				const errMsg = `${pathStr(path)} - no code returned`
+			if (!tsCode || tsCode.startsWith('COMPILE FAILED')) {
+				const errMsg = `CIVET COMPILE FAILED: ${pathStr(path)}`
 				return {
 					success: false,
 					stderr: errMsg,
 					output: errMsg
 					}
 			}
-			if (tsCode.startsWith('COMPILE FAILED')) {
-				return {
-					success: false,
-					stderr: tsCode,
-					output: tsCode
-					}
+			const tempPath = barfTempFile(tsCode, {ext: '.ts'})
+			const hResult = await execCmd('deno', ['check', tempPath])
+			assert(hResult.success, "Type check failed")
+			const [code, hSrcMap] = extractSourceMap(tsCode)
+			if (defined(hSrcMap)) {
+				addJsonValue('sourcemap.jsonc', normalizePath(destPath), hSrcMap)
 			}
-
-			let ok = true;try {
-				await typeCheckTsCode(tsCode)
-				return {success: true}
-			}
-
-			catch (err) {ok = false
-				const errMsg = getErrStr(err)
-				return {
-					success: false,
-					stderr: errMsg,
-					output: errMsg
-					}
-			} finally {if(ok) {
-				await saveTsCode(destPath, tsCode)
-				return {success: true}
-			}}
+			await Deno.writeTextFile(destPath, code)
+			return {success: true}
 		}
 		catch (err) {
 			if (debugging) {
-				LOG(err)
+				LOG(getErrStr(err))
 			}
 			const errMsg = `COMPILE FAILED: ${pathStr(path)} - ${getErrStr(err)}`
 			return {

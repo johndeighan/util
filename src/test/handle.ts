@@ -48,4 +48,3 @@ const logPath = async (path: string):AutoPromise<(string | undefined)> => {
 
 const hResults = await handleFiles("**/*.test.civet", logPath)
 console.dir(hResults)
-

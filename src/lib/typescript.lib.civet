@@ -1,6 +1,5 @@
 # typescript.lib.civet
 
-import {cyan, blue} from 'jsr:@std/fmt/colors'
 import {existsSync} from 'jsr:@std/fs'
 import {statSync} from 'node:fs'
 import {
@@ -12,13 +11,13 @@ import {
 	} from 'npm:typescript'
 
 import {
-	undef, defined, notdefined, integer,
-	hash, hashof, isHash, TFilterFunc, isString, isEmpty, nonEmpty,
+	undef, defined, notdefined, integer, hash, hashof,
+	isHash, TFilterFunc, isString, isEmpty, nonEmpty, isNumber,
 	assert, croak, isFunction, functionDef, isClass, classDef,
 	} from 'datatypes'
 import {
 	truncStr, getOptions, spaces, o, words, hasKey,
-	CStringSetMap, keys, blockify, sep,
+	CStringSetMap, keys, blockify, sep, f,
 	} from 'llutils'
 import {
 	extract, TPathItem, getString, getNumber, getArray,
@@ -35,7 +34,7 @@ import {Walker, TVisitKind} from 'walker'
 import {CMainScope, CScope} from 'scope'
 import {getNeededImportStmts} from 'symbols'
 
-decoder := new TextDecoder("utf-8")
+decoder := new TextDecoder "utf-8"
 
 # ---------------------------------------------------------------------------
 
@@ -67,41 +66,18 @@ export ast2ts := (node: Node): string =>
 
 	assert (node.kind == 308), "Not a SourceFile node"
 	printer := createPrinter newLine: NewLineKind.LineFeed
-	return printer.printNode EmitHint.Unspecified, node, node as SourceFile
+	return printer.printNode(EmitHint.Unspecified, node, node as SourceFile)
 
 # ---------------------------------------------------------------------------
+# --- passed to toNice() to add a description to some nodes
 
-export typeCheckFiles := (
-		lFileNames: string | string[],
-		hOptions: CompilerOptions = hDefConfig
-		): string[] =>
+export descFunc: TMapFunc := (
+		key: string
+		value: unknown
+		hParent: hash
+		): string =>
 
-	if isString(lFileNames)
-		lFileNames = [lFileNames]
-	program := createProgram lFileNames, hOptions
-	emitResult := program.emit()
-	lMsgs: string[] := []
-	getPreEmitDiagnostics(program).forEach (diag): void =>
-		{file, start, messageText} := diag
-		msg := flattenDiagnosticMessageText messageText, "\n"
-		if file
-			{fileName} := file
-			{line, character} := getLineAndCharacterOfPosition file, start!
-			lMsgs.push "#{fileName}:(#{line + 1}:#{character + 1}): #{msg}"
-		else
-			lMsgs.push msg
-	return lMsgs
-
-export typeCheckFile := typeCheckFiles # --- synonym
-
-# ---------------------------------------------------------------------------
-
-export tsMapFunc: TMapFunc := (key: string, value: unknown, hParent: hash): unknown =>
-
-	if (key == 'kind') && (typeof value == 'number')
-		desc := cyan ' (' + kindStr(value) + ')'
-		return value.toString() + desc
-	return undef
+	return (key == 'kind') && isNumber(value) ? f"(#{kindStr(value)})" : ''
 
 # ---------------------------------------------------------------------------
 
@@ -110,17 +86,24 @@ export astAsString := (
 		hOptions: hash = {}
 		): string =>
 
-	return toNice hAst,
+	return toNice hAst, {
 		ignoreEmptyValues: true
-		mapFunc: tsMapFunc
+		descFunc
 		lInclude: hOptions.lInclude
-		lExclude: words('pos end id flags modifierFlagsCache', 'transformFlags hasExtendedUnicodeEscape', 'numericLiteralFlags setExternalModuleIndicator', 'languageVersion languageVariant jsDocParsingMode', 'hasNoDefaultLib')
+		lExclude: words("""
+			pos end id flags modifierFlagsCache
+			transformFlags hasExtendedUnicodeEscape
+			numericLiteralFlags setExternalModuleIndicator
+			languageVersion languageVariant jsDocParsingMode
+			hasNoDefaultLib
+			""")
+		}
 
 # ---------------------------------------------------------------------------
 # --- We must place the TypeScript file at the project root
 #     so that paths gotten from .symbols resolve correctly
 
-export typeCheckCode := (tsCode: string): string[]? =>
+export typeCheckTsCode := (tsCode: string): string[]? =>
 
 	path := "./_typecheck_.ts"
 	barf path, tsCode
@@ -293,7 +276,7 @@ hDefConfig: CompilerOptions := {
 
 type TAstFilterFunc = (node: Node) => boolean
 
-export class AstWalker < Walker<Node>
+export class AstWalker extends Walker<Node>
 
 	filterFunc: TAstFilterFunc?
 	hOptions: hash
@@ -309,6 +292,7 @@ export class AstWalker < Walker<Node>
 	# ..........................................................
 
 	dbg(op: 'push' | 'pop', node: Node): void
+
 		prefix := '   '
 		kind := node.kind
 		console.log "#{prefix}#{op.toUpperCase()}: #{kind} [#{@stackDesc()}]"
@@ -317,6 +301,7 @@ export class AstWalker < Walker<Node>
 	# ..........................................................
 
 	stackDesc(): string
+
 		results := []
 		for node of @lNodeStack
 			results.push node.kind.toString()
@@ -326,6 +311,7 @@ export class AstWalker < Walker<Node>
 	# ..........................................................
 
 	override pushNode(node: Node): void
+
 		super.pushNode node
 		if @hOptions.trace
 			@dbg 'push', node
@@ -334,6 +320,7 @@ export class AstWalker < Walker<Node>
 	# ..........................................................
 
 	override popNode(): Node?
+
 		node := super.popNode()
 		if @hOptions.trace
 			if defined(node)
@@ -345,12 +332,14 @@ export class AstWalker < Walker<Node>
 	# ..........................................................
 
 	override isNode(x: object): x is Node
+
 		return Object.hasOwn x, 'kind'
 
 	# ..........................................................
 
 	override filter(node: Node): boolean
-		return if defined(@filterFunc) then @filterFunc(node) else true
+
+		return defined(@filterFunc) ? @filterFunc(node) : true
 
 # ---------------------------------------------------------------------------
 
@@ -364,17 +353,20 @@ export class CAnalysis
 	# ..........................................................
 
 	constructor()
+
 		@curScope = @mainScope
 
 	# ..........................................................
 
 	define(name: string): void
+
 		@curScope.define name
 		return
 
 	# ..........................................................
 
 	use(name: string): void
+
 		if not hasKey(globalThis, name)
 			@curScope.use name
 		return
@@ -382,6 +374,7 @@ export class CAnalysis
 	# ..........................................................
 
 	addImport(lib: string, name: string): void
+
 		@mImports.add lib, name
 		@define name
 		return
@@ -389,12 +382,14 @@ export class CAnalysis
 	# ..........................................................
 
 	addExport(name: string, type: string): void
+
 		@mExports.set name, type
 		return
 
 	# ..........................................................
 
 	getImports(): TBlockDesc
+
 		hImports: hashof<string[]> := {}
 		for [lib, sNames] of @mImports.entries()
 			hImports[lib] = Array.from(sNames.values())
@@ -403,17 +398,20 @@ export class CAnalysis
 	# ..........................................................
 
 	getExports(): string[]
+
 		return Array.from @mExports.keys()
 
 	# ..........................................................
 
 	newScope(name: string?, lArgs: string[]): void
+
 		@curScope = @mainScope.newScope(name, lArgs)
 		return
 
 	# ..........................................................
 
 	endScope(): void
+
 		scope := @mainScope.endScope @curScope
 		if defined(scope)
 			@curScope = scope
@@ -424,6 +422,7 @@ export class CAnalysis
 	# ..........................................................
 
 	getMissing(): string[]
+
 		walker := new Walker<CScope>()
 		walker.isNode = (x: unknown) =>
 			return (x instanceof CScope)
@@ -438,6 +437,7 @@ export class CAnalysis
 	# ..........................................................
 
 	getExtra(): string[]
+
 		walker := new Walker<CScope>()
 		walker.isNode = (x: unknown) =>
 			return (x instanceof CScope)
@@ -452,6 +452,7 @@ export class CAnalysis
 	# ..........................................................
 
 	asString(width: integer = 64): string
+
 		h: TBlockDesc := {
 			IMPORTS: @getImports()
 			EXPORTS: @getExports()
@@ -471,7 +472,9 @@ export class CAnalysis
 
 # ---------------------------------------------------------------------------
 
-export assertIsNode: (x: unknown) => asserts x is Node := (x: unknown): asserts x is Node =>
+export assertIsNode: (
+		x: unknown
+		) => asserts x is Node := (x: unknown): asserts x is Node =>
 
 	assert hasKey(x, 'kind'), "Not a Node: #{typeof x}"
 
@@ -511,7 +514,11 @@ export analyze := (
 
 	# ..........................................................
 
-	checkNode := (node: unknown, dspath: string? = undef): void =>
+	checkNode := (
+			node: unknown,
+			dspath: string? = undef
+			): void =>
+
 		assertIsNode node
 		if defined(dspath)
 			node = getNode(node, dspath)
@@ -527,25 +534,31 @@ export analyze := (
 		{kind} := node
 		if trace
 			LOG "NODE KIND: #{kind} (#{kindStr(kind)})"
-		if vkind == 'exit'
+
+		if (vkind == 'exit')
 			switch kind
-				case 220:
-				when 263
+
+				when 220, 263   # ArrowFunction, FunctionDeclaration
 					analysis.endScope()
-		else if vkind == 'enter'
+
+		else if (vkind == 'enter')
+
 			switch kind
-				when 220
+
+				when 220    # ArrowFunction
 					do
 						results1 := []
 						for parm of getArray(node, '.parameters')
 							results1.push getString parm, '.name.escapedText'
 						lParms := results1
 						analysis.newScope undef, lParms
-				when 261
+
+				when 261    # VariableDeclaration
 					try
 						varName := getString node, '.name.escapedText'
 						analysis.define varName
-				when 263
+
+				when 263    # FunctionDeclaration
 					do
 						funcName := getString node, '.name.escapedText'
 						results2 := []
@@ -554,54 +567,92 @@ export analyze := (
 						lParms := results2
 						analysis.define funcName
 						analysis.newScope funcName, lParms
-				when 227
+
+				when 227    # BinaryExpression
 					checkNode node, '.left'
 					checkNode node, '.right'
-				when 214
+
+				when 214    # CallExpression
 					checkNode node, '.expression'
 					for arg of getArray(node, '.arguments')
 						checkNode arg
-				when 273
+
+				when 273    # ImportDeclaration
 					lib := getString node, '.moduleSpecifier.text'
 					for h of getArray(node, '.importClause.namedBindings.elements')
 						name := getString h, '.name.escapedText'
 						if trace
 							console.log "NAME: '#{name}' in '#{lib}'"
 						analysis.addImport lib, name
-				when 280
+
+				when 280    # NamedExports
 					for elem of getArray(node, '.elements')
 						name := getString elem, '.name.escapedText'
 						analysis.addExport name, 're-export'
-				when 95
+
+				when 95     # ExportKeyword
 					parent := walker.parent()
 					switch getNumber(parent, '.kind')
-						when 244
+
+						when 244    # FirstStatement
 							for decl of getArray(parent, '.declarationList.declarations')
 								switch getNumber(decl, '.kind')
-									when 261
+
+									when 261    # VariableDeclaration
 										name := getString decl, '.name.escapedText'
 										# --- Check initializer to find the type
 										initKind := getNumber decl, '.initializer.kind'
 										switch initKind
-											when 220
+
+											when 220    # ArrowFunction
 												analysis.addExport name, 'function'
-											case 261:
-											when 9
+
+											when 9, 261 # FirstLiteralToken, VariableDeclaration
 												analysis.addExport name, 'const'
+
 											default:
 												analysis.addExport name, 'unknown'
-						when 263
+
+						when 263   # FunctionDeclaration
 							name := getString parent, '.name.escapedText'
 							analysis.addExport name, 'function'
-						when 264
+
+						when 264   # ClassDeclaration
 							name := getString parent, '.name.escapedText'
 							analysis.addExport name, 'class'
-						when 266
+
+						when 266   # TypeAliasDeclaration
 							name := getString parent, '.name.escapedText'
 							analysis.addExport name, 'type'
+
 						default:
 							croak "Unexpected subtype of 95: #{parent.kind}"
 				default:
 					if trace
 						LOG "   ...ignored"
 	return analysis
+
+# ---------------------------------------------------------------------------
+
+export typeCheckFiles := (
+		lFileNames: string | string[],
+		hOptions: CompilerOptions = hDefConfig
+		): string[] =>
+
+	if isString(lFileNames)
+		lFileNames = [lFileNames]
+	program := createProgram lFileNames, hOptions
+	emitResult := program.emit()
+	lMsgs: string[] := []
+	getPreEmitDiagnostics(program).forEach (diag): void =>
+		{file, start, messageText} := diag
+		msg := flattenDiagnosticMessageText messageText, "\n"
+		if file
+			{fileName} := file
+			{line, character} := getLineAndCharacterOfPosition file, start!
+			lMsgs.push "#{fileName}:(#{line + 1}:#{character + 1}): #{msg}"
+		else
+			lMsgs.push msg
+	return lMsgs
+
+export typeCheckFile := typeCheckFiles # --- synonym

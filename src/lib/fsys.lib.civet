@@ -9,10 +9,6 @@ import {appendFileSync, openSync, closeSync} from 'node:fs'
 import {EventEmitter} from 'node:events'
 import NReadLines from 'npm:n-readlines'
 
-# --- Deno's statSync and lstatSync are still unstable,
-#     so use this
-
-import {statSync} from 'node:fs'
 import {expandGlobSync} from 'jsr:@std/fs/expand-glob'
 import {TextLineStream} from 'jsr:@std/streams'
 
@@ -45,6 +41,7 @@ import {
 
 Deno := globalThis.Deno
 export type FsEvent = Deno.FsEvent
+export statSync = Deno.statSync
 
 lDirs: string[] := []
 
@@ -86,29 +83,10 @@ export getPathType := (path: string): TPathType =>
 		return 'missing'
 	h := statSync path
 	return (
-		  h.isFile()         ? 'file'
-		: h.isDirectory()    ? 'dir'
-		: h.isSymbolicLink() ? 'symlink'
-		:                      'unknown'
+		  h.isFile         ? 'file'
+		: h.isDirectory    ? 'dir'
+		:                    'unknown'
 		)
-
-# ---------------------------------------------------------------------------
-
-export lStatFields: string[] := [
-	'dev', 'ino', 'mode', 'nlink', 'uid', 'gid',
-	'rdev', 'size', 'blksize', 'blocks',
-	'atimeMs', 'mtimeMs', 'ctimeMs',
-	'birthtimeMs', 'atime', 'mtime', 'ctime',
-	'birthtime',
-	]
-
-# ---------------------------------------------------------------------------
-# return statistics for a file or directory
-
-export getStats := (path: string): Deno.FileInfo =>
-
-	fileInfo := Deno.statSync path
-	return fileInfo
 
 # ---------------------------------------------------------------------------
 
@@ -243,14 +221,22 @@ export newerDestFileExists := (
 		destPath: string    # --- can be a file extension
 		): boolean =>
 
+	# --- source file must exist
+	assert isFile(srcPath), "No such file: #{OL(srcPath)}"
+
+	# --- allow passing a file extension for 2nd argument
 	if isExt(destPath)
 		destPath = withExt(srcPath, destPath)
-	assert isFile(srcPath), "No such file: #{OL(srcPath)}"
-	if not existsSync(destPath)
+
+	try
+		assert existsSync(destPath)
+		destms := statSync(destPath).mtime
+		assert defined(destms)
+		srcms  := statSync(srcPath).mtime
+		assert defined(srcms)
+		return (destms > srcms)
+	catch err
 		return false
-	srcModTime := statSync(srcPath).mtimeMs
-	destModTime := statSync(destPath).mtimeMs
-	return (destModTime > srcModTime)
 
 # ---------------------------------------------------------------------------
 
@@ -407,7 +393,7 @@ export patchFirstLine := (path: string, str: string, newstr: string): void =>
 
 # ---------------------------------------------------------------------------
 # --- EXAMPLE USAGE:
-#			importMap := await fromJsonFile('import_map.jsonc')
+#			hData := await fromJsonFile('data.jsonc')
 #			console.dir importMap
 
 export fromJsonFile := (path: string): hash =>
@@ -560,12 +546,13 @@ export allFilesMatching := (
 		includeDirs: boolean
 		}
 
-	{root, hMoreGlobOptions, lIgnoreDirs, includeDirs} := getOptions<opt> hOptions, {
-		root: './src'
-		hMoreGlobOptions: {}
-		lIgnoreDirs: ['temp', 'hide']
-		includeDirs: false
-		}
+	{root, hMoreGlobOptions, lIgnoreDirs, includeDirs
+		} := getOptions<opt> hOptions, {
+			root: './src'
+			hMoreGlobOptions: {}
+			lIgnoreDirs: ['temp', 'hide']
+			includeDirs: false
+			}
 
 	hGlobOptions: hash := {
 		root
@@ -573,8 +560,11 @@ export allFilesMatching := (
 		followSymLinks: false
 		canonicalize: false
 		...hMoreGlobOptions
-	}
-	lMorePatterns := (if defined(lIgnoreDirs) then lIgnoreDirs.map((x) => '! **/' + x + '/**') else [])
+		}
+
+	lMorePatterns := (
+		defined(lIgnoreDirs) ? lIgnoreDirs.map((x) => '! **/' + x + '/**') : []
+		)
 	[lPosPats, lNegPats] := splitPatterns lPatterns, lMorePatterns
 	if lNegPats.length > 0
 		hGlobOptions.exclude = lNegPats
@@ -610,7 +600,6 @@ export findFile := (
 		lIgnoreDirs: []
 		}
 
-	debugger
 	lPaths := Array.from allFilesMatching "**/#{fileName}", {
 		root
 		lIgnoreDirs
@@ -663,7 +652,7 @@ export allDirsMatching := (
 	setSkip := new Set<string>()
 	for pat of lPosPats
 		for {path} of expandGlobSync(pat, hGlobOptions)
-			if not setSkip.has(path) && Deno.statSync(path).isDirectory
+			if not setSkip.has(path) && statSync(path).isDirectory
 				if debugging
 					LOG "DIR: #{path}"
 				yield path
@@ -717,13 +706,31 @@ export relpath := (path: string): string =>
 
 export isFile := (path: string?): boolean =>
 
-	return defined(path) && existsSync(path) && statSync(path).isFile()
+	if notdefined(path)
+		return false
+	try
+		stats := statSync path
+		return stats.isFile
+	catch err
+		if (err instanceof Deno.errors.NotFound)
+			return false
+		else
+			throw err
 
 # ---------------------------------------------------------------------------
 
-export isDir := (path: string): boolean =>
+export isDir := (path: string?): boolean =>
 
-	return existsSync(path) && statSync(path).isDirectory()
+	if notdefined(path)
+		return false
+	try
+		stats := statSync path
+		return stats.isDirectory
+	catch err
+		if (err instanceof Deno.errors.NotFound)
+			return false
+		else
+			throw err
 
 # ---------------------------------------------------------------------------
 

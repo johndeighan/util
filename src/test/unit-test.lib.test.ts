@@ -177,4 +177,3 @@ truthy(allTrue(['emptyStr', 'str'],
 truthy(allFalse(['genFunc', 'regularFunc', 'lambdaFunc'],
 	(x) => (typeof x !== 'function')
 	))
-

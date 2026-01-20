@@ -27,6 +27,7 @@ export const getDsPath = (lPath: TPathItem[]): string => {
 
 export const extract = (x: unknown, dspath: string | TPathItem[]): unknown => {
 
+	assert(defined(x), "extract(): x not defined")
 	let ref;if (isArray(dspath)) { ref = getDsPath(dspath)} else ref = dspath;const pathstr =ref
 	if (nonEmpty(pathstr)) {
 		const expr = `x = x${pathstr}`
@@ -40,13 +41,13 @@ export const extract = (x: unknown, dspath: string | TPathItem[]): unknown => {
 				:                          'Unknown error'
 				)
 			try {
-				console.log(sep('=', `EVAL ERROR in ${expr}`))
+				console.log(sep('=', `EXTRACT ERROR in ${expr}`))
 				console.log(msg)
 				console.log(sep('='))
 				console.log(toNice(x, o`ignoreEmptyValues`))
 				console.log(sep('='))
 			} catch(e) {}
-			console.log(`EVAL ERROR in '${expr}'`)
+			console.log(`EXTRACT ERROR in '${expr}'`)
 			console.log(sep('='))
 			Deno.exit(99)
 		}
@@ -94,6 +95,7 @@ export const getArray = (
 		len: (integer | undefined) = undef
 		): unknown[] => {
 
+	assert(defined(x), "getArray(): x not defined")
 	const val = extract(x, dspath)
 	assertIsArray(val)
 	if (len) {

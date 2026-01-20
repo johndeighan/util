@@ -1,7 +1,9 @@
-"use strict"
-// check-jsonc.cmd.civet
-{ parse: parseJSONC } from jsr:@std/jsonc
-// ---------------------------------------------------------------------------
+# --- check-jsonc.cmd.civet
+
+{parse: parseJSONC} from 'jsr:@std/jsonc'
+
+# ---------------------------------------------------------------------------
+
 try
 	contents := Deno.readTextFileSync Deno.args[0]
 	data := parseJSONC contents
