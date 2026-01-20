@@ -7,7 +7,6 @@ import {red, cyan} from 'jsr:@std/fmt/colors'
 import {sprintf} from 'jsr:@std/fmt/printf'
 import {compile} from 'npm:@danielx/civet'
 import {existsSync} from 'jsr:@std/fs'
-import {statSync} from 'node:fs'
 import {resolve, relative} from 'jsr:@std/path'
 import {expandGlob} from 'jsr:@std/fs/expand-glob'
 import {RawSourceMap, SourceMapConsumer} from 'npm:source-map'
@@ -19,15 +18,48 @@ import hCivetConfig from "civetconfig" with { type: "json" }
 const sourceMapPath = './sourcemap.json'
 
 const encoder = new TextEncoder()
-const LOG = console.log
+const statSync = Deno.statSync
+
+// ---------------------------------------------------------------------------
+
+const LOG = (msg: string, level: number = 0): void => {
+
+	console.log('   '.repeat(level) + msg)
+	return
+}
+
+// ---------------------------------------------------------------------------
+
+const croak = (msg: string): never => {
+
+	throw new Error(msg)
+}
 
 // ---------------------------------------------------------------------------
 
 const isDir = (path: string): boolean => {
 
 	try {
-		stats = statSync(path)
+		const stats = statSync(path)
 		return stats.isDirectory
+	}
+	catch (err) {
+		if (err instanceof Deno.errors.NotFound) {
+			return false
+		}
+		else {
+			throw err
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+
+const isFile = (path: string): boolean => {
+
+	try {
+		const stats = statSync(path)
+		return stats.isFile
 	}
 	catch (err) {
 		if (err instanceof Deno.errors.NotFound) {
@@ -42,16 +74,19 @@ const isDir = (path: string): boolean => {
 // ---------------------------------------------------------------------------
 // --- sanity check
 
-assert(existsSync('./compileall.civet'))
-assert(existsSync('src'))
-assert(existsSync('civetconfig.json'))
-assert(existsSync('.gitignore'))
+assert(isFile('./compileall.civet'))
+assert(isDir('src'))
+assert(isFile('civetconfig.json'))
+assert(isFile('.gitignore'))
 
 // ---------------------------------------------------------------------------
 
 type TMaps = {
-	[key: string]: RawSourceMap
+	[path: string]: RawSourceMap
 	}
+
+// ---------------------------------------------------------------------------
+// --- ASYNC
 
 const getSourceMaps = async (path: string): AutoPromise<TMaps> => {
 
@@ -91,9 +126,12 @@ const normalizePath = (path: string): string => {
 
 // ---------------------------------------------------------------------------
 
-const addSourceMap = (path: string, hSrcMap: RawSourceMap): void => {
+const addSourceMap = (
+		path: string,
+		hSrcMap: RawSourceMap
+		): void => {
 
-	hSourceMaps[path] = hSrcMap
+	hSourceMaps[normalizePath(path)] = hSrcMap
 	return
 }
 
@@ -141,7 +179,7 @@ const hGlobOptions = {
 		]
 	}
 
-const allFiles = async function*(): AsyncGenerator<string, void, void> {
+const allCivetFiles = async function*(): AsyncGenerator<string, void, void> {
 	const path = Deno.args[0]
 	if (path) {
 		assert(existsSync(path))
@@ -165,35 +203,47 @@ type TRecord = [string, string]   // [<TS filename>, <TS code>]
 let lToTypeCheck: TRecord[] = []
 
 let numFiles = 0, numCompiled = 0, numFailed = 0
-for await (const path of allFiles()) {
+
+// --- Compile all civet files to TypeScript
+
+for await (const path of allCivetFiles()) {
 	numFiles += 1
+
 	const civetPath = normalizePath(resolve('.', path))
+	const srcStats = statSync(civetPath)
+	const srcModTime = srcStats.mtime || 9999
 	const relPath = relative('.', civetPath)
+
 	const destPath = civetPath.replace('.civet', '.ts')
 	const relDestPath = relative('.', destPath)
+
 	try {
-		assert(existsSync(civetPath), `   No such file: ${relPath}`)
-		assert(civetPath.endsWith('.civet'), `   Not a civet file: ${relPath}`)
+		if (existsSync(destPath)) {
+			const destStats = statSync(destPath)
+			const destModTime = destStats.mtime || 0
+			if ((destStats !== null)
+					&& (destStats.mtime !== null)
+					&& (srcStats.mtime !== null)
+					&& (destModTime >= srcModTime)
+					&& (destPath in hSourceMaps)
+					) {
+				continue
+			}    // --- already compiled
+			LOG(centered(`COMPILE: ${relPath}`))
+			LOG(`destPath = ${relDestPath}`, 1)
 
-		if (existsSync(destPath)
-				&& (statSync(destPath).mtimeMs >= statSync(civetPath).mtimeMs)
-				&& (destPath in hSourceMaps)
-				) {
-			continue
+			// --- log info about why file had to be compiled
+			if (destModTime < srcModTime) {
+				LOG(`${relDestPath} is older than ${relPath}`, 2)
+			}
+			if (!(civetPath in hSourceMaps)) {
+				LOG(`there is no source map for ${relDestPath}`, 2)
+			}
 		}
-
-		LOG(centered(relPath))
-		LOG(`   destPath = ${relDestPath}`)
-
-		// --- log info about why file had to be compiled
-		if (!existsSync(destPath)) {
-			LOG(`   destPath ${relDestPath} does not exist`)
-		}
-		if (statSync(destPath).mtimeMs < statSync(civetPath).mtimeMs) {
-			LOG(`    ${relDestPath} is older than ${relPath}`)
-		}
-		if (!(civetPath in hSourceMaps)) {
-			LOG(`    there is no source map for ${relDestPath}`)
+		else {
+			LOG(centered(`COMPILE: ${relPath}`))
+			LOG(`destPath = ${relDestPath}`, 1)
+			LOG(`destPath ${relDestPath} does not exist`, 1)
 		}
 
 		const civetCode = await Deno.readTextFile(civetPath)
@@ -204,7 +254,7 @@ for await (const path of allFiles()) {
 			})
 		assert(tsCode && !tsCode.startsWith('COMPILE FAILED'),
 			`CIVET COMPILE FAILED: ${relPath}`)
-		LOG("   compile succeeded")
+		LOG("compile succeeded", 1)
 		numCompiled += 1
 		lToTypeCheck.push([destPath, tsCode])
 	}
@@ -230,10 +280,10 @@ if (numFailed > 0) {
 numFailed = 0
 for (const [destPath, tsCode] of lToTypeCheck) {
 	const relDestPath = relative('.', destPath)
+	LOG(centered(`TYPE CHECK: ${relDestPath}`))
 	try {
-
 		const [code, hSrcMap] = extractSourceMap(tsCode)
-		assert((hSrcMap !== undefined), "No source map found in file")
+		assert((hSrcMap !== undefined), `No source map found in ${destPath}`)
 		const encoded = encoder.encode(code)
 
 		// --- Unfortunately, we have to write the code to a file
@@ -242,14 +292,12 @@ for (const [destPath, tsCode] of lToTypeCheck) {
 		const tempPath = 'src/temp/_tempcode_.ts'
 		await Deno.writeFile(tempPath, encoded)
 		const success = await execCmd('deno', ['check', tempPath])
-//		if not success
-//			console.log "#{red('ERROR ERROR ERROR')}"
 		assert(success, `type check failed for ${relDestPath}`)
 
 		await Deno.writeFile(destPath, encoded)
-		LOG("   TS file written")
-		LOG("   type check OK")
-		LOG(`   adding source map for ${relDestPath}`)
+		LOG("TS file written", 1)
+		LOG("type check OK", 1)
+		LOG(`adding source map for ${relDestPath}`, 1)
 		addSourceMap(destPath, hSrcMap)
 	}
 

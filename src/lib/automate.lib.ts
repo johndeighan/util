@@ -524,4 +524,3 @@ export const uninstallCmd = async (
 	}
 	return
 }
-

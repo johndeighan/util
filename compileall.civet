@@ -5,7 +5,6 @@ import {red, cyan} from 'jsr:@std/fmt/colors'
 import {sprintf} from 'jsr:@std/fmt/printf'
 import {compile} from 'npm:@danielx/civet'
 import {existsSync} from 'jsr:@std/fs'
-import {statSync} from 'node:fs'
 import {resolve, relative} from 'jsr:@std/path'
 import {expandGlob} from 'jsr:@std/fs/expand-glob'
 import {RawSourceMap, SourceMapConsumer} from 'npm:source-map'
@@ -17,14 +16,38 @@ import hCivetConfig from "civetconfig" with { type: "json" }
 sourceMapPath := './sourcemap.json'
 
 encoder := new TextEncoder()
-LOG := console.log
+statSync := Deno.statSync
+
+# ---------------------------------------------------------------------------
+
+LOG := (msg: string, level: number = 0): void =>
+
+	console.log '   '.repeat(level) + msg
+	return
+
+# ---------------------------------------------------------------------------
+
+croak := (msg: string): never =>
+
+	throw new Error(msg)
+
+# ---------------------------------------------------------------------------
+
+getErrStr := (err: unknown): string =>
+
+	if isString(err)
+		return err
+	else if (err instanceof Error)
+		return err.message
+	else
+		return "Serious Error"
 
 # ---------------------------------------------------------------------------
 
 isDir := (path: string): boolean =>
 
 	try
-		stats = statSync path
+		stats := statSync path
 		return stats.isDirectory
 	catch err
 		if (err instanceof Deno.errors.NotFound)
@@ -37,7 +60,7 @@ isDir := (path: string): boolean =>
 isFile := (path: string): boolean =>
 
 	try
-		stats = statSync path
+		stats := statSync path
 		return stats.isFile
 	catch err
 		if (err instanceof Deno.errors.NotFound)
@@ -56,8 +79,11 @@ assert isFile '.gitignore'
 # ---------------------------------------------------------------------------
 
 type TMaps = {
-	[key: string]: RawSourceMap
+	[path: string]: RawSourceMap
 	}
+
+# ---------------------------------------------------------------------------
+# --- ASYNC
 
 getSourceMaps := (path: string): TMaps =>
 
@@ -92,9 +118,12 @@ normalizePath := (path: string): string =>
 
 # ---------------------------------------------------------------------------
 
-addSourceMap := (path: string, hSrcMap: RawSourceMap): void =>
+addSourceMap := (
+		path: string,
+		hSrcMap: RawSourceMap
+		): void =>
 
-	hSourceMaps[path] = hSrcMap
+	hSourceMaps[normalizePath(path)] = hSrcMap
 	return
 
 # ---------------------------------------------------------------------------
@@ -144,7 +173,7 @@ hGlobOptions := {
 		]
 	}
 
-allFiles := (): AsyncGenerator<string, void, void> ->
+allCivetFiles := (): AsyncGenerator<string, void, void> ->
 	path := Deno.args[0]
 	if path
 		assert existsSync path
@@ -156,40 +185,56 @@ allFiles := (): AsyncGenerator<string, void, void> ->
 
 # ---------------------------------------------------------------------------
 
-t0 := Date.now()
-hSourceMaps: TMaps := await getSourceMaps(sourceMapPath)
+type TCompileResult = {
+	status: 'ok'
+	destPath: string
+	code: string
+	hSrcMap: RawSourceMap
+	} | {
+		status: 'alreadyCompiled'
+	} | {
+		status: 'failed'
+		errMsg: string
+	}
 
-# --- Add to this list as files are successfully compiled
-type TRecord = [string, string]   # [<TS filename>, <TS code>]
-let lToTypeCheck: TRecord[] = []
 
-let numFiles = 0, numCompiled = 0, numFailed = 0
-for await path of allFiles()
-	numFiles += 1
+# ---------------------------------------------------------------------------
+# --- ASYNC
+
+compileCivetFile := (path: string): TCompileResult =>
+
 	civetPath := normalizePath(resolve('.', path))
+	srcStats := statSync civetPath
+	srcModTime := srcStats.mtime || 9999
 	relPath := relative('.', civetPath)
+
 	destPath := civetPath.replace('.civet', '.ts')
 	relDestPath := relative('.', destPath)
+
 	try
-		assert existsSync(civetPath), "   No such file: #{relPath}"
-		assert civetPath.endsWith('.civet'), "   Not a civet file: #{relPath}"
+		if existsSync(destPath)
+			destStats := statSync destPath
+			destModTime := destStats.mtime || 0
+			if ((destStats != null)
+					&& (destStats.mtime != null)
+					&& (srcStats.mtime != null)
+					&& (destModTime >= srcModTime)
+					&& (destPath in hSourceMaps)
+					)
+				return {status: 'alreadyCompiled'}
 
-		if (existsSync(destPath)
-				&& (statSync(destPath).mtimeMs >= statSync(civetPath).mtimeMs)
-				&& (destPath in hSourceMaps)
-				)
-			continue
+			LOG centered("COMPILE: #{relPath}")
+			LOG "destPath = #{relDestPath}", 1
 
-		LOG centered(relPath)
-		LOG "   destPath = #{relDestPath}"
-
-		# --- log info about why file had to be compiled
-		if not existsSync(destPath)
-			LOG "   destPath #{relDestPath} does not exist"
-		if (statSync(destPath).mtimeMs < statSync(civetPath).mtimeMs)
-			LOG "    #{relDestPath} is older than #{relPath}"
-		if not (civetPath in hSourceMaps)
-			LOG "    there is no source map for #{relDestPath}"
+			# --- log info about why file had to be compiled
+			if (destModTime < srcModTime)
+				LOG "#{relDestPath} is older than #{relPath}", 2
+			if not (civetPath in hSourceMaps)
+				LOG "there is no source map for #{relDestPath}", 2
+		else
+			LOG centered("COMPILE: #{relPath}")
+			LOG "destPath = #{relDestPath}", 1
+			LOG "destPath #{relDestPath} does not exist", 2
 
 		civetCode := await Deno.readTextFile civetPath
 		tsCode: string := await compile civetCode, {
@@ -199,14 +244,62 @@ for await path of allFiles()
 			}
 		assert tsCode && not tsCode.startsWith('COMPILE FAILED'),
 			"CIVET COMPILE FAILED: #{relPath}"
-		LOG "   compile succeeded"
-		numCompiled += 1
-		lToTypeCheck.push [destPath, tsCode]
+		LOG "compile succeeded", 1
+		[code, hSrcMap] := extractSourceMap tsCode
+		if defined(hSrcMap)
+			return {
+				status: 'ok'
+				destPath
+				code
+				hSrcMap
+				}
+		else
+			return {
+				status: 'failed',
+				errMsg: 'compile failed'
+				}
 
 	catch err
 		LOG "#{red('ERROR')} in #{relDestPath}:\n#{err}"
 		numFailed += 1
-		continue
+		return {
+			status: 'failed',
+			errMsg: getErrStr(err)
+			}
+
+# ---------------------------------------------------------------------------
+
+typeCheckTsFile := (
+		path: string,
+		code: string,
+		hSrcMap: RawSourceMap
+		): boolean =>
+
+
+
+# ---------------------------------------------------------------------------
+
+t0 := Date.now()
+hSourceMaps: TMaps := await getSourceMaps(sourceMapPath)
+
+# --- Add to this list as files are successfully compiled
+let lToTypeCheck: TCompileResult[] = []
+
+let numFiles = 0, numCompiled = 0, numFailed = 0
+
+# --- Compile all civet files to TypeScript
+
+for await path of allCivetFiles()
+	numFiles += 1
+	hResult := await compileCivetFile(path)
+	switch hResult.status
+		when 'alreadyCompiled'
+			# --- do nothing
+		when 'failed'
+			numFailed += 1
+			LOG "#{red('ERROR')} in #{path}:\n#{hResult.errMsg}"
+		when 'ok'
+			lToTypeCheck.push hResult
 
 # --- If any files failed to compile, there's no point
 #     to type checking because it will probably fail
@@ -221,10 +314,10 @@ if (numFailed > 0)
 numFailed = 0
 for [destPath, tsCode] of lToTypeCheck
 	relDestPath := relative '.', destPath
+	LOG centered("TYPE CHECK: #{relDestPath}")
 	try
-
 		[code, hSrcMap] := extractSourceMap tsCode
-		assert (hSrcMap != undefined), "No source map found in file"
+		assert (hSrcMap != undefined), "No source map found in #{destPath}"
 		encoded := encoder.encode(code)
 
 		# --- Unfortunately, we have to write the code to a file
@@ -233,14 +326,12 @@ for [destPath, tsCode] of lToTypeCheck
 		tempPath := 'src/temp/_tempcode_.ts'
 		await Deno.writeFile tempPath, encoded
 		success := await execCmd 'deno', ['check', tempPath]
-#		if not success
-#			console.log "#{red('ERROR ERROR ERROR')}"
 		assert success, "type check failed for #{relDestPath}"
 
 		await Deno.writeFile destPath, encoded
-		LOG "   TS file written"
-		LOG "   type check OK"
-		LOG "   adding source map for #{relDestPath}"
+		LOG "TS file written", 1
+		LOG "type check OK", 1
+		LOG "adding source map for #{relDestPath}", 1
 		addSourceMap destPath, hSrcMap
 
 	catch err
