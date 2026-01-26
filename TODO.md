@@ -1,5 +1,9 @@
 to do
 
+continue trying to get compileall.civet to compile
+
+continue adding libs to deno.json (currently at fsys)
+
 in compileall.civet
 	- write and use function typeCheckTsFile()
 

@@ -17,7 +17,8 @@ export class CScope
 
 	# ..........................................................
 
-	*allDefined(): Generator<string, void, void>
+	allDefined(): Generator<string, void, void>
+
 		for name of @sDefined.values()
 			yield name
 		return
@@ -25,11 +26,13 @@ export class CScope
 	# ..........................................................
 
 	getDefined(): string[]
+
 		return Array.from @sDefined.keys()
 
 	# ..........................................................
 
-	*allUsed(): Generator<string, void, void>
+	allUsed(): Generator<string, void, void>
+
 		for name of @sUsed.values()
 			yield name
 		return
@@ -37,11 +40,13 @@ export class CScope
 	# ..........................................................
 
 	getUsed(): string[]
+
 		return Array.from @sUsed.keys()
 
 	# ..........................................................
 
 	asString(): string
+
 		return """
 			----------
 			NAME: #{@name || '.undef'}
@@ -66,6 +71,7 @@ export class CScope
 	# ..........................................................
 
 	newChildScope(name: string?, lArgs: string[])
+
 		scope := new CScope(name, lArgs, @)
 		@lChildren.push scope
 		return scope
@@ -73,12 +79,14 @@ export class CScope
 	# ..........................................................
 
 	define(name: string): void
+
 		@sDefined.add name
 		return
 
 	# ..........................................................
 
 	use(name: string): void
+
 		@sUsed.add name
 		return
 
@@ -86,6 +94,7 @@ export class CScope
 	# --- is name defined in current function or any ancestor
 
 	isDefined(name: string): boolean
+
 		if @sDefined.has(name)
 			return true
 		if defined(@parent)
@@ -96,6 +105,7 @@ export class CScope
 	# --- is name used in the current scope or in child scopes
 
 	isUsed(name: string): boolean
+
 		if @sUsed.has(name)
 			return true
 		for childScope of @lChildren
@@ -113,9 +123,11 @@ export class CMainScope < CScope
 	# ..........................................................
 
 	newScope(name: string?, lArgs: string[]): CScope
+
 		return @newChildScope name, lArgs
 
 	# ..........................................................
 
 	endScope(scope: CScope): CScope?
+
 		return scope.parent

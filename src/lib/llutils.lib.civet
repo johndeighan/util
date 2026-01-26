@@ -1,12 +1,12 @@
 # llutils.lib.civet
 
 type AutoPromise<T> = Promise<Awaited<T>>
-import {createRequire} from 'node:module'
-import {sprintf} from 'jsr:@std/fmt/printf'
-import {relative} from 'jsr:@std/path'
-import {existsSync} from 'jsr:@std/fs'
-import {statSync} from 'node:fs'
-import {parse: parseYAML} from "jsr:@std/yaml";
+import {createRequire} from 'module'
+import {sprintf} from '@std/fmt/printf'
+import {relative} from '@std/path'
+import {existsSync} from '@std/fs'
+import {statSync} from 'fs'
+import {parse: parseYAML} from "@std/yaml";
 
 import {
 	undef, defined, notdefined, assert, char, deepEqual,
@@ -211,8 +211,8 @@ export hit := (pct: number = 50): boolean =>
 	return (100 * Math.random() < pct)
 
 # ---------------------------------------------------------------------------
-
 # --- ASYNC !
+
 export sleep := async (sec: number): AutoPromise<void> =>
 	await new Promise((r) => setTimeout r, 1000 * sec)
 	return
@@ -261,11 +261,11 @@ export blockToArray := (block: string): string[] =>
 
 # ---------------------------------------------------------------------------
 
-export mapEachLine := (block: string, mapper: TStringMapper) =>
+export mapEachLine := (block: string, strMapper: TStringMapper) =>
 
 	results := []
 	for line of allLinesInBlock(block)
-		results.push mapper line
+		results.push strMapper(line)
 	lLines := results
 	return lLines.join '\n'
 

@@ -20,7 +20,7 @@ import {
 	} from 'datatypes'
 import {
 	pass, o, keys, getOptions, spaces, blockToArray,
-	allLinesInBlock, truncStr, getErrStr,
+	allLinesInBlock, truncStr, getErrStr, sleep,
 	} from 'llutils'
 import {splitLine, indented} from 'indent'
 import {OL, ML, DUMP} from 'to-nice'
@@ -933,4 +933,18 @@ export const allFalse = (
 		}
 	}
 	return true
+}
+
+// ---------------------------------------------------------------------------
+
+export const getFakeData = async function*<T>(
+		lItems: T[],
+		sleepFor: number = 1
+		): AsyncGenerator<T> {
+
+	for (const item of lItems) {
+		await sleep(1)
+		yield item
+	}
+	return
 }

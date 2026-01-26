@@ -1,13 +1,13 @@
 "use strict";
 // f-strings.lib.civet
 
-import {sprintf} from 'jsr:@std/fmt/printf'
+import {sprintf} from '@std/fmt/printf'
 import {
 	cyan, blue, black, red, green, magenta, stripAnsiCode,
 	} from 'jsr:@std/fmt/colors'
 
 import {esc} from 'unicode'
-import {mapper} from 'var-free'
+import {syncMapper} from 'var-free'
 import {defined, nonEmpty, isInteger} from 'datatypes'
 
 // --- hash of all supported colors
@@ -29,7 +29,7 @@ export const f = (
 		): string => {
 
 	const [firstStr, mainWidth, mainEsc, mainColor] = fsplit(lStrings[0])
-	const lParts = Array.from(mapper(lValues, function*(val, i) {
+	const lParts = Array.from(syncMapper(lValues, function*(val, i) {
 		const [str, width, doEsc, color] = fsplit(lStrings[i+1])
 		let ref;switch(typeof val) {
 			case 'string': {

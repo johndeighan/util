@@ -1,7 +1,7 @@
 "use strict";
 // text-table.lib.civet
 
-import {sprintf} from 'jsr:@std/fmt/printf'
+import {sprintf} from '@std/fmt/printf'
 
 import {
 	undef, defined, notdefined, assert, croak, nonEmpty,

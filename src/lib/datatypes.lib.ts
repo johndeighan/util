@@ -1,8 +1,8 @@
 "use strict";
 // datatypes.lib.civet
 
-import {minify} from 'npm:uglify-js'
-import deepEqual from 'npm:fast-deep-equal'
+import {minify} from 'uglify-js'
+import deepEqual from 'fast-deep-equal'
 
 export {deepEqual}
 
@@ -567,10 +567,24 @@ export const isClassInstance = (
 
 // ---------------------------------------------------------------------------
 
-export const isIterable = (x: unknown): boolean => {
+export const isIterable = (x: unknown): x is Iterable<any> => {
 
 	if ((typeof x === 'object') && (x !== null)) {
-		return Symbol.iterator in x
+		return (Symbol.iterator in x)
 	}
-	return false
+	else {
+		return false
+	}
+}
+
+// ---------------------------------------------------------------------------
+
+export const isAsyncIterable = (x: unknown): x is AsyncIterable<any> => {
+
+	if ((typeof x === 'object') && (x !== null)) {
+		return (Symbol.asyncIterator in x)
+	}
+	else {
+		return false
+	}
 }

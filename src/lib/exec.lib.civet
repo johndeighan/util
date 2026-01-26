@@ -303,8 +303,6 @@ export procFiles := (
 	{op} := handler
 	write "(#{op})"
 	let nOk = 0, nErr = 0, nRej = 0
-#	let nErr = 0
-#	let nRej = 0
 	lFinalResults: TExecResult[] := []
 	for h,i of lPromiseResults
 		path := lPaths[i]

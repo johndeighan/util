@@ -19,6 +19,7 @@ export class CScope {
 	// ..........................................................
 
 	*allDefined(): Generator<string, void, void> {
+
 		for (const name of this.sDefined.values()) {
 			yield name
 		}
@@ -28,12 +29,14 @@ export class CScope {
 	// ..........................................................
 
 	getDefined(): string[] {
+
 		return Array.from(this.sDefined.keys())
 	}
 
 	// ..........................................................
 
 	*allUsed(): Generator<string, void, void> {
+
 		for (const name of this.sUsed.values()) {
 			yield name
 		}
@@ -43,12 +46,14 @@ export class CScope {
 	// ..........................................................
 
 	getUsed(): string[] {
+
 		return Array.from(this.sUsed.keys())
 	}
 
 	// ..........................................................
 
 	asString(): string {
+
 		return `----------
 NAME: ${this.name || '.undef'}
 DEFINED: ${this.getDefined().join(' ')}
@@ -78,6 +83,7 @@ CHILDREN: ${this.lChildren.length}`
 	// ..........................................................
 
 	newChildScope(name: (string | undefined), lArgs: string[]) {
+
 		const scope = new CScope(name, lArgs, this)
 		this.lChildren.push(scope)
 		return scope
@@ -86,6 +92,7 @@ CHILDREN: ${this.lChildren.length}`
 	// ..........................................................
 
 	define(name: string): void {
+
 		this.sDefined.add(name)
 		return
 	}
@@ -93,6 +100,7 @@ CHILDREN: ${this.lChildren.length}`
 	// ..........................................................
 
 	use(name: string): void {
+
 		this.sUsed.add(name)
 		return
 	}
@@ -101,6 +109,7 @@ CHILDREN: ${this.lChildren.length}`
 	// --- is name defined in current function or any ancestor
 
 	isDefined(name: string): boolean {
+
 		if (this.sDefined.has(name)) {
 			return true
 		}
@@ -114,6 +123,7 @@ CHILDREN: ${this.lChildren.length}`
 	// --- is name used in the current scope or in child scopes
 
 	isUsed(name: string): boolean {
+
 		if (this.sUsed.has(name)) {
 			return true
 		}
@@ -137,12 +147,14 @@ export class CMainScope extends CScope {
 	// ..........................................................
 
 	newScope(name: (string | undefined), lArgs: string[]): CScope {
+
 		return this.newChildScope(name, lArgs)
 	}
 
 	// ..........................................................
 
 	endScope(scope: CScope): (CScope | undefined) {
+
 		return scope.parent
 	}
 }

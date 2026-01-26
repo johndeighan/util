@@ -1,12 +1,12 @@
 # f-strings.lib.civet
 
-import {sprintf} from 'jsr:@std/fmt/printf'
+import {sprintf} from '@std/fmt/printf'
 import {
 	cyan, blue, black, red, green, magenta, stripAnsiCode,
 	} from 'jsr:@std/fmt/colors'
 
 import {esc} from 'unicode'
-import {mapper} from 'var-free'
+import {syncMapper} from 'var-free'
 import {defined, nonEmpty, isInteger} from 'datatypes'
 
 # --- hash of all supported colors
@@ -28,7 +28,7 @@ export f := (
 		): string =>
 
 	[firstStr, mainWidth, mainEsc, mainColor] := fsplit lStrings[0]
-	lParts := Array.from(mapper lValues, (val, i) ->
+	lParts := Array.from(syncMapper lValues, (val, i) ->
 		[str, width, doEsc, color] := fsplit lStrings[i+1]
 		result := switch typeof val
 			when 'string'

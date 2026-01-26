@@ -3,16 +3,16 @@
 
 type AutoPromise1<T> = Promise<Awaited<T>>;
 type AutoPromise<T> = Promise<Awaited<T>>
-import {parse as parseFilePath} from 'node:path'
-import {parse as parseJSONC, JsonValue} from 'jsr:@std/jsonc'
-import {debounce} from 'jsr:@std/async/debounce'
-import {existsSync, emptyDirSync, ensureDirSync} from 'jsr:@std/fs'
-import {appendFileSync, openSync, closeSync} from 'node:fs'
-import {EventEmitter} from 'node:events'
-import NReadLines from 'npm:n-readlines'
+import {parse as parseFilePath} from 'path'
+import {parse as parseJSONC, JsonValue} from '@std/jsonc'
+import {debounce} from '@std/async/debounce'
+import {existsSync, emptyDirSync, ensureDirSync} from '@std/fs'
+import {appendFileSync, openSync, closeSync} from 'fs'
+import {EventEmitter} from 'events'
+import NReadLines from 'n-readlines'
 
-import {expandGlobSync} from 'jsr:@std/fs/expand-glob'
-import {TextLineStream} from 'jsr:@std/streams'
+import {expandGlobSync} from '@std/fs/expand-glob'
+import {TextLineStream} from '@std/streams'
 
 // --- Use Deno's path library
 
@@ -998,3 +998,5 @@ export var openTextFile = (
 			}
 	}
 }
+
+
