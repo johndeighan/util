@@ -1,23 +1,23 @@
 # var-free.lib.test.civet
 
+import {undef} from 'datatypes'
 import {
-	mapper, syncMapper, reducer, syncReducer,
-	ITERATOR, ASYNC_ITERATOR,
+	syncMapper, syncReducer, mapper, reducer,
+	TMaybeString, TIterator, TAsyncIterator,
 	} from 'var-free'
-import {getFakeData, equal} from 'unit-test'
+import {getAsync, equal} from 'unit-test'
 
 # ---------------------------------------------------------------------------
 # --- test syncMapper()
 
 (() =>
-	lNums := [1, 2, 3, 4]
-
 	# --- pure mapping
 
-	lItems := syncMapper lNums, (n) ->
+	iterItems := syncMapper [1..4], (n) ->
 		yield "number is #{n}"
+		return
 
-	equal Array.from(lItems), [
+	equal Array.from(iterItems), [
 		"number is 1"
 		"number is 2"
 		"number is 3"
@@ -27,17 +27,12 @@ import {getFakeData, equal} from 'unit-test'
 
 (() =>
 	# --- pure mapping, early abort
-	lItems := [1, 2, 3, 4]
+	iterItems := syncMapper [1..4], (n) ->
+		yield "number is #{n}"
+		if (n == 2)
+			return 'stop'
 
-	func := (i: number) ->
-		yield "number is #{i}"
-		if (i == 2)
-			return
-	abort_func := (i: number) ->
-		return (i == 3)
-	lNewItems := Array.from syncMapper lItems, func, abort_func
-
-	equal lNewItems, [
+	equal Array.from(iterItems), [
 		"number is 1"
 		"number is 2"
 		]
@@ -46,15 +41,15 @@ import {getFakeData, equal} from 'unit-test'
 (() =>
 	# --- pure mapping, using a generator
 
-	gen := (): ITERATOR<number> ->
+	gen := (): TIterator<number, TMaybeString> ->
 		for i of [1..4]
 			yield i
 		return
 
-	lNewItems := Array.from syncMapper gen(), (n) ->
+	iterItems := syncMapper gen(), (n) ->
 		yield "number is #{n}"
 
-	equal lNewItems,
+	equal Array.from(iterItems),
 		[
 			"number is 1"
 			"number is 2"
@@ -66,41 +61,38 @@ import {getFakeData, equal} from 'unit-test'
 (() =>
 	# --- pure filtering
 
-	lItems := [1, 2, 3, 4]
-	lNewItems := Array.from syncMapper lItems, (i: number) ->
-		if (i % 2 == 0)
-			yield i
+	iterItems := syncMapper [1..4], (n) ->
+		if (n % 2 == 0)
+			yield n
 
-	equal lNewItems, [2, 4]
+	equal Array.from(iterItems), [2, 4]
 	)()
 
 (() =>
 	# --- pure filtering, early abort
 
-	func := (n: number) ->
+	iterItems := syncMapper [1..6], (n) ->
 		if (n % 2 == 0)
 			yield n
-	abortFunc := (i: number) ->
-		return (i == 3)
-	lItems := Array.from syncMapper [1,2,3,4,5,6], func, abortFunc
+		return (n==3) ? 'stop' : undef
 
-	equal lItems, [2]
+	equal Array.from(iterItems), [2]
 	)()
 
 (() =>
 	# --- combined filtering and mapping
 
-	lItems := Array.from syncMapper [1,2,3,4], (i: number) ->
-		if (i % 2 == 0)
-			yield "2i = #{2*i}"
-			yield "number is #{10 * i}"
+	iterItems := syncMapper [1..4], (n) ->
+		if (n % 2 == 0)
+			yield "2n = #{2*n}"
+			yield "number is #{10 * n}"
 		return
 
-	equal lItems,
+	equal Array.from(iterItems),
 		[
-			"2i = 4"
+			"2n = 4"
 			"number is 20"
-			"2i = 8"
+			"2n = 8"
 			"number is 40"
 			]
 	)()
@@ -111,23 +103,28 @@ import {getFakeData, equal} from 'unit-test'
 (() =>
 	# --- reducing (getting the sum, use JavaScript's reduce)
 
-	sum := [1,2,3,4].reduce (acc, n) => acc + n, 0
+	sum := [1..4].reduce (acc, n) => acc + n, 0
 	equal sum, 10
 	)()
 
 (() =>
 	# --- reducing (getting the sum)
 
-	sum := syncReducer [1,2,3,4], 0, (acc, n) => acc + n
+	sum := syncReducer [1..4], 0, (acc, n) ->
+		yield acc + n
+		return
 	equal sum, 10
 	)()
 
 (() =>
 	# --- reducing (getting the sum, early abort)
 
-	sum := syncReducer [1,2,3,4], 0,
-			(acc,n) => acc+n,
-			(n) -> return (n==3)
+	sum := syncReducer [1..4], 0, (acc, n) ->
+		yield acc + n
+		if (n==2)
+			return 'stop'
+		else
+			return
 	equal sum, 3
 	)()
 
@@ -135,11 +132,11 @@ import {getFakeData, equal} from 'unit-test'
 	# --- reducing (getting the sum AND sum of squares)
 
 	type TAcc = [number, number]
-	func := (accum: TAcc, n: number): TAcc =>
-		[sum, sumsq] := accum
-		return [sum + n, sumsq + n*n]
 
-	[sum, sumsq] := syncReducer [1,2,3,4], [0, 0], func
+	[sum, sumsq] := syncReducer [1..4], [0, 0], (acc, n) ->
+		[sum, sumsq] := acc
+		yield [sum + n, sumsq + n*n]
+		return
 	equal sum, 10
 	equal sumsq, 30
 	)()
@@ -149,14 +146,12 @@ import {getFakeData, equal} from 'unit-test'
 	#     (getting the sum AND sum of squares of only even nums)
 
 	type TAcc = [number, number]
-	func := (accum: TAcc, n: number): TAcc =>
-		if (n % 2 == 0)
-			[sum, sumsq] := accum
-			return [sum + n, sumsq + n*n]
-		else
-			return accum
 
-	[sum, sumsq] := syncReducer [1,2,3,4], [0, 0], func
+	[sum, sumsq] := syncReducer [1..4], [0, 0], (acc, n)  ->
+		[sum, sumsq] := acc
+		yield (n % 2 == 0) ? [sum + n, sumsq + n*n] : acc
+		return
+
 	equal sum, 6
 	equal sumsq, 20
 	)()
@@ -164,14 +159,12 @@ import {getFakeData, equal} from 'unit-test'
 # ---------------------------------------------------------------------------
 # --- test mapper()
 
-(() =>
+await (() =>
 	# --- pure mapping
 
-	# --- an async iterator of integers
-	iterData := getFakeData [1,2,3,4]
-
-	# --- an async iterator of strings
-	iterStrings := mapper iterData, (n) -> yield "number is #{n}"
+	iterStrings := mapper getAsync([1..4]), (n) ->
+		yield "number is #{n}"
+		return
 
 	equal await Array.fromAsync(iterStrings), [
 		"number is 1"
@@ -181,5 +174,157 @@ import {getFakeData, equal} from 'unit-test'
 		]
 	)()
 
-# ---------------------------------------------------------------------------
+await (() =>
+	# --- pure mapping
 
+	iterStrings := mapper getAsync([1..4]), (n) ->
+		yield "number is #{n}"
+		return (n==2) ? 'stop' : undef
+
+	equal await Array.fromAsync(iterStrings), [
+		"number is 1"
+		"number is 2"
+		]
+	)()
+
+await (() =>
+	# --- pure filtering
+
+	iterItems := mapper getAsync([1..4]), (n) ->
+		if (n % 2 == 0)
+			yield n
+		return
+
+	equal await Array.fromAsync(iterItems), [2, 4]
+	)()
+
+await (() =>
+	# --- pure filtering, early abort
+
+	abortFunc := (n: number) ->
+		return (n == 3)
+
+	iterNum := mapper getAsync([1..4]), (n) ->
+		if (n % 2 == 0)
+			yield n
+		return (n==2) ? 'stop' : undef
+
+	equal await Array.fromAsync(iterNum), [2]
+	)()
+
+await (() =>
+	# --- combined filtering and mapping
+
+	iterStr := mapper getAsync([1..4]), (n) ->
+		if (n % 2 == 0)
+			yield "2n = #{2*n}"
+			yield "number is #{10 * n}"
+		return (n==2) ? 'stop' : undef
+
+	equal await Array.fromAsync(iterStr),
+		[
+			"2n = 4"
+			"number is 20"
+			]
+	)()
+
+# ---------------------------------------------------------------------------
+# --- test reducer()
+
+await (() =>
+	# --- reducing (getting the sum)
+
+	sum := await reducer getAsync([1..4]), 0, (acc, n) ->
+		yield acc + n
+		return
+
+	equal sum, 10
+	)()
+
+await (() =>
+	# --- reducing (getting the sum)
+
+	sum := await reducer [1..4], 0, (acc, n) ->
+		yield acc + n
+		return
+
+	equal sum, 10
+	)()
+
+await (() =>
+	# --- reducing (getting the sum, early abort)
+
+	sum := await reducer getAsync([1..4]), 0, (acc, n) ->
+		yield acc + n
+		return (n==2) ? 'stop' : undef
+
+	equal sum, 3
+	)()
+
+await (() =>
+	# --- reducing (getting the sum, early abort)
+
+	sum := await reducer [1..4], 0, (acc, n) ->
+		yield acc + n
+		return (n==2) ? 'stop' : undef
+
+	equal sum, 3
+	)()
+
+await (() =>
+	# --- reducing (getting the sum AND sum of squares)
+
+	type TAcc = [number, number]
+
+	[sum, sumsq] := await reducer getAsync([1..4]), [0, 0], (acc, n) ->
+		[sum, sumsq] := acc
+		yield [sum + n, sumsq + n*n]
+		return
+
+	equal sum, 10
+	equal sumsq, 30
+	)()
+
+await (() =>
+	# --- reducing (getting the sum AND sum of squares)
+
+	type TAcc = [number, number]
+
+	[sum, sumsq] := await reducer [1..4], [0, 0], (acc, n) ->
+		[sum, sumsq] := acc
+		yield [sum + n, sumsq + n*n]
+		return
+
+	equal sum, 10
+	equal sumsq, 30
+	)()
+
+await (() =>
+	# --- reducing
+	#     (getting the sum AND sum of squares of only even nums)
+
+	type TAcc = [number, number]
+
+	[sum, sumsq] := await reducer getAsync([1..4]), [0, 0], (acc, n) ->
+		[sum, sumsq] := acc
+		yield (n % 2 == 0) ? [sum + n, sumsq + n*n] : acc
+		return
+
+	equal sum, 6
+	equal sumsq, 20
+	)()
+
+await (() =>
+	# --- reducing
+	#     (getting the sum AND sum of squares of only even nums)
+
+	type TAcc = [number, number]
+
+	[sum, sumsq] := await reducer [1..4], [0, 0], (acc, n) ->
+		[sum, sumsq] := acc
+		yield (n % 2 == 0) ? [sum + n, sumsq + n*n] : acc
+		return
+
+	equal sum, 6
+	equal sumsq, 20
+	)()

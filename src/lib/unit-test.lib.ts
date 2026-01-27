@@ -937,7 +937,7 @@ export const allFalse = (
 
 // ---------------------------------------------------------------------------
 
-export const getFakeData = async function*<T>(
+export const getAsync = async function*<T>(
 		lItems: T[],
 		sleepFor: number = 1
 		): AsyncGenerator<T> {

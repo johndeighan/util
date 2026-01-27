@@ -2,14 +2,17 @@
 // compileall.lib.civet
 
 type AutoPromise<T> = Promise<Awaited<T>>;
-import {red, cyan} from 'jsr:@std/fmt/colors'
-import {resolve, relative} from 'jsr:@std/path'
-import {expandGlob} from 'jsr:@std/fs/expand-glob'
+import {red, cyan} from '@std/fmt/colors'
+import {resolve, relative} from '@std/path'
+import {expandGlob} from '@std/fs/expand-glob'
 import {RawSourceMap, SourceMapConsumer} from 'npm:source-map'
+import {compile as compileCivet} from 'npm:@danielx/civet'
 
 import {
-	ITERATOR, ASYNC_ITERATOR, mapper, reducer,
+	Iter, AsyncIter, mapper, reducer,
 	} from 'var-free'
+
+import hCivetConfig from "civetconfig" with {type: "json"}
 
 const sourceMapPath = './sourcemap.json'
 
@@ -72,6 +75,14 @@ export const encode = (str: string) => {
 export const LOG = (msg: string, level: number = 0): void => {
 
 	console.log('   '.repeat(level) + msg)
+	return
+}
+
+// ---------------------------------------------------------------------------
+
+export const ERR = (msg: string, level: number = 0): void => {
+
+	console.log('   '.repeat(level) + red(msg))
 	return
 }
 
@@ -204,7 +215,7 @@ const hGlobOptions = {
 		]
 	}
 
-export const allCivetFiles = async function*(): ASYNC_ITERATOR<string> {
+export const allCivetFiles = async function*(): AsyncIter<string> {
 	const path = Deno.args[0]
 	if (path) {
 		assert(isFile(path))
@@ -292,3 +303,90 @@ export const saveSourceMaps = async (): AutoPromise<void> => {
 
 // ---------------------------------------------------------------------------
 
+export type TOkResult = {
+		destPath: string
+		code: string
+		hSrcMap: RawSourceMap
+		}
+
+// ---------------------------------------------------------------------------
+// --- ASYNC GENERATOR
+
+export const compileCivetFile = async function*(
+		path: string
+		): AsyncIter<TOkResult> {
+
+	const civetPath = toFullPath(path)
+	const relPath = relative('.', civetPath)
+	const destPath = civetPath.replace('.civet', '.ts')
+	const relDestPath = relative('.', destPath)
+
+	if (alreadyCompiled(path)) {
+		DBG(centered(`COMPILE: ${relPath}`))
+		DBG(`already compiled to ${relDestPath}`, 1)
+		return
+	}
+
+	try {
+		LOG(centered(`COMPILE: ${relPath}`))
+		LOG(`destPath = ${relDestPath}`, 1)
+
+		const civetCode = await Deno.readTextFile(civetPath)
+		const tsCode: string = await compileCivet(civetCode, {
+			...hCivetConfig,
+			inlineMap: true,
+			filename: civetPath
+			})
+		assert(tsCode && !tsCode.startsWith('COMPILE FAILED'),
+			`CIVET COMPILE FAILED: ${relPath}`)
+		LOG("compile succeeded", 1)
+		const [code, hSrcMap] = extractSourceMap(tsCode)
+		assert((hSrcMap !== undef), "Missing source map")
+		yield {
+			destPath,
+			code,
+			hSrcMap
+			}
+	}
+
+	catch (err) {
+		ERR(`ERROR in ${relDestPath}:\n${err}`)
+	}
+	return
+}
+
+// ---------------------------------------------------------------------------
+// --- ASYNC
+
+export const typeCheckTsFile = async (
+		hResult: TOkResult
+		): AutoPromise<boolean> => {
+
+	const {destPath, code, hSrcMap} = hResult
+	const relDestPath = relative('.', destPath)
+	LOG(centered(`TYPE CHECK: ${relDestPath}`))
+	try {
+		// --- Unfortunately, we have to write the code to a file
+		//     in order to type check it :-(
+
+		const tempPath = 'src/temp/_tempcode_.ts'
+		const encoded = encoder.encode(code)
+		await Deno.writeFile(tempPath, encoded)
+		const success = await typeCheck(tempPath)
+		assert(success, `type check failed for ${relDestPath}`)
+
+		await Deno.writeFile(destPath, encoded)
+		LOG("TS file written", 1)
+		LOG("type check OK", 1)
+		LOG(`adding source map for ${relDestPath}`, 1)
+		addSourceMap(destPath, hSrcMap)
+		return true
+	}
+
+	catch (err) {
+		ERR(`ERROR in ${relDestPath}:\n${getErrStr(err)}`)
+		return false
+	}
+}
+
+// ---------------------------------------------------------------------------

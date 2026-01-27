@@ -341,8 +341,6 @@ export const procFiles = async (
 	const {op} = handler
 	write(`(${op})`)
 	let nOk = 0, nErr = 0, nRej = 0
-//	let nErr = 0
-//	let nRej = 0
 	const lFinalResults: TExecResult[] = []
 	let i1 = 0;for (const h of lPromiseResults) {const i = i1++;
 		const path = lPaths[i]

@@ -7,7 +7,7 @@ import {
 	} from 'jsr:@std/fmt/colors'
 
 import {esc} from 'unicode'
-import {syncMapper} from 'var-free'
+import {TMaybeString, TIterator, syncMapper} from 'var-free'
 import {defined, nonEmpty, isInteger} from 'datatypes'
 
 // --- hash of all supported colors
@@ -29,7 +29,7 @@ export const f = (
 		): string => {
 
 	const [firstStr, mainWidth, mainEsc, mainColor] = fsplit(lStrings[0])
-	const lParts = Array.from(syncMapper(lValues, function*(val, i) {
+	const lParts = Array.from(syncMapper<unknown,string>(lValues, function*(val: unknown, i: number): TIterator<string, TMaybeString> {
 		const [str, width, doEsc, color] = fsplit(lStrings[i+1])
 		let ref;switch(typeof val) {
 			case 'string': {
@@ -43,6 +43,7 @@ export const f = (
 			}
 		};const result =ref
 		yield result + str
+		return
 	})
 		)
 	const mainStr = [firstStr, ...lParts].join('')

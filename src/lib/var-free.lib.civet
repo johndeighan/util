@@ -1,86 +1,101 @@
 # var-free.lib.civet
 
-export type TAbortFunc<TIn>          = (item: TIn, i: number) => boolean
-export type TGenFunc<TIn, TOut>      = (item: TIn, i: number) => Generator<TOut>
-export type TAsyncGenFunc<TIn, TOut> = (item: TIn, i: number) => AsyncGenerator<TOut>
+export type TMaybeString = string | undefined | void
+export type TIterator<T, U> = Generator<T, U>
+export type TAsyncIterator<T, U> = AsyncGenerator<T, U>
 
-export type ITERATOR<T> = Generator<T>
-export type ASYNC_ITERATOR<T> = AsyncGenerator<T>
+export type TMapper<TIn, TOut>      = (item: TIn, i: number) => TIterator<TOut, TMaybeString>
+export type TAsyncMapper<TIn, TOut> = (item: TIn, i: number) => TAsyncIterator<TOut, TMaybeString>
 
 # ---------------------------------------------------------------------------
 
 export function syncMapper<TIn, TOut>(
-		lItems:    Iterable<TIn>
-		func:      TGenFunc<TIn, TOut>
-		abortFunc: TAbortFunc<TIn> = (x, i) => return false
-		): Generator<TOut>
+		lItems:  Iterable<TIn>
+		mapFunc: (item: TIn, i: number) => TIterator<TOut, TMaybeString>
+		): Generator<TOut, TMaybeString>
 
 	for item,i of lItems
-		if abortFunc item, i
-			return
-		yield* func(item, i)
+		iter := mapFunc item, i
+		loop
+			{done, value} := iter.next()
+			if done
+				if (value == 'stop')
+					return
+				else
+					break
+			else
+				yield value
 	return
 
 # ---------------------------------------------------------------------------
 
 export syncReducer := <TIn, TAccum>(
 		lItems: Iterable<TIn>
-		accum: TAccum
-		reduceFunc: (accum: TAccum, x: TIn) => TAccum
-		abortFunc: TAbortFunc<TIn> = (x: TIn) => return false
+		acc: TAccum
+		reduceFunc: (acc: TAccum, x: TIn, i: number) => TIterator<TAccum, TMaybeString>
 		): TAccum ->
 
 	for item,i of lItems
-		if abortFunc item, i
-			break
-		accum = reduceFunc accum, item
-	return accum
+		iter := reduceFunc acc, item, i
+		loop
+			{done, value} := iter.next()
+			if done
+				if (value == 'stop')
+					return acc
+				else
+					break
+			else
+				acc = value
+	return acc
 
 # ---------------------------------------------------------------------------
 
 export function mapper<TIn, TOut>(
 		lItems:     Iterable<TIn>
-		func:       (item: TIn, i: number) => Generator<TOut>
-		abortFunc?: TAbortFunc<TIn>
-		): AsyncGenerator<TOut>
+		mapFunc:    (item: TIn, i: number) => TIterator<TOut, TMaybeString>
+		): AsyncGenerator<TOut, TMaybeString>
 
 export function mapper<TIn, TOut>(
 		lItems:     AsyncIterable<TIn>
-		func:       (item: TIn, i: number) => (Generator<TOut> | AsyncGenerator<TOut>)
-		abortFunc?: TAbortFunc<TIn>
-		): AsyncGenerator<TOut>
+		mapFunc:    (item: TIn, i: number) => (TIterator<TOut, TMaybeString> | TAsyncIterator<TOut, TMaybeString>)
+		): AsyncGenerator<TOut, TMaybeString>
 
 export function* mapper<TIn, TOut>(
 		lItems:    Iterable<TIn>      | AsyncIterable<TIn>
-		func:      (item: TIn, i: number) => (Generator<TOut> | AsyncGenerator<TOut>)
-		abortFunc: TAbortFunc<TIn> = (x, i) => return false
-		): AsyncGenerator<TOut>
+		mapFunc:   (item: TIn, i: number) => (TIterator<TOut, TMaybeString> | TAsyncIterator<TOut, TMaybeString>)
+		): AsyncGenerator<TOut, TMaybeString>
 
-	if (Symbol.iterator in lItems)
-		for item,i of lItems
-			if abortFunc item, i
-				return
-			yield* func(item, i)
-	else if (Symbol.asyncIterator in lItems)
-		for await item,i of lItems
-			if abortFunc item, i
-				return
-			yield* await func(item, i)
-	else
-		throw new Error("Bad parameters")
+	# --- NOTE: You can await something even if it's not async
+	for await item,i of lItems
+		iter := mapFunc item, i
+		loop
+			{done, value} := await iter.next()
+			if done
+				if (value == 'stop')
+					return
+				else
+					break
+			else
+				yield value
 	return
 
 # ---------------------------------------------------------------------------
 
 export reducer := <TIn, TAccum>(
-		lItems: AsyncIterableIterator<TIn>
-		accum: TAccum
-		reduce_func: (accum: TAccum, item: TIn) => Promise<TAccum>
-		abort_func: TAbortFunc<TIn> = (item: TIn) => return false
+		lItems: Iterable<TIn> | AsyncIterable<TIn>
+		acc: TAccum
+		reduceFunc: (acc: TAccum, item: TIn, i: number) => TIterator<TAccum, TMaybeString>
 		): TAccum ->
 
 	for await item,i of lItems
-		if abort_func item, i
-			break
-		accum = await reduce_func accum, item
-	return await accum
+		iter := reduceFunc acc, item, i
+		loop
+			{done, value} := iter.next()
+			if done
+				if (value == 'stop')
+					return await acc
+				else
+					break
+			else
+				acc = value
+	return await acc

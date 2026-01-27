@@ -10,7 +10,7 @@ import {
 	like, strListLike, objListLike,
 	matches, includes, includesAll,
 	TFileOp, setDirTree, fileOpsTable,
-	val, allTrue, allFalse,
+	val, allTrue, allFalse, getAsync,
 	} from 'unit-test'
 
 // ---------------------------------------------------------------------------
@@ -177,3 +177,5 @@ truthy(allTrue(['emptyStr', 'str'],
 truthy(allFalse(['genFunc', 'regularFunc', 'lambdaFunc'],
 	(x) => (typeof x !== 'function')
 	))
+
+equal(await Array.fromAsync(getAsync([1, 2, 3, 4, 5])), [1, 2, 3, 4, 5])

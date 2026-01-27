@@ -1,6 +1,7 @@
 to do
 
-continue trying to get compileall.civet to compile
+In var-free.lib.test.civet
+	- use true return value of mapFunc to terminate early
 
 continue adding libs to deno.json (currently at fsys)
 

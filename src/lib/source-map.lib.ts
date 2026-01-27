@@ -18,6 +18,8 @@ import {
 	fromJsonFile, parsePath, mkpath, normalizePath, relpath,
 	} from 'fsys'
 
+export type {RawSourceMap, SourceMapConsumer}
+
 // --- Get info about all known source maps
 export const hSourceMaps = fromJsonFile('./sourcemap.json')
 

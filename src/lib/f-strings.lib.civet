@@ -6,7 +6,7 @@ import {
 	} from 'jsr:@std/fmt/colors'
 
 import {esc} from 'unicode'
-import {syncMapper} from 'var-free'
+import {TMaybeString, TIterator, syncMapper} from 'var-free'
 import {defined, nonEmpty, isInteger} from 'datatypes'
 
 # --- hash of all supported colors
@@ -28,7 +28,7 @@ export f := (
 		): string =>
 
 	[firstStr, mainWidth, mainEsc, mainColor] := fsplit lStrings[0]
-	lParts := Array.from(syncMapper lValues, (val, i) ->
+	lParts := Array.from(syncMapper<unknown,string> lValues, (val: unknown, i: number): TIterator<string, TMaybeString> ->
 		[str, width, doEsc, color] := fsplit lStrings[i+1]
 		result := switch typeof val
 			when 'string'
@@ -38,6 +38,7 @@ export f := (
 			else
 				formatStr JSON.stringify(val), width, doEsc, color, '-'
 		yield result + str
+		return
 		)
 	mainStr := [firstStr, ...lParts].join('')
 	return formatStr mainStr, mainWidth, mainEsc, mainColor, '-'

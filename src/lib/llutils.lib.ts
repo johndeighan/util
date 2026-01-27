@@ -256,8 +256,8 @@ export const hit = (pct: number = 50): boolean => {
 }
 
 // ---------------------------------------------------------------------------
-
 // --- ASYNC !
+
 export const sleep = async (sec: number): AutoPromise1<AutoPromise<void>> => {
 	await new Promise((r) => setTimeout(r, 1000 * sec))
 	return

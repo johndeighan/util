@@ -1,25 +1,25 @@
 "use strict";
 // var-free.lib.test.civet
 
+import {undef} from 'datatypes'
 import {
-	mapper, syncMapper, reducer, syncReducer,
-	ITERATOR, ASYNC_ITERATOR,
+	syncMapper, syncReducer, mapper, reducer,
+	TMaybeString, TIterator, TAsyncIterator,
 	} from 'var-free'
-import {getFakeData, equal} from 'unit-test';
+import {getAsync, equal} from 'unit-test';
 
 // ---------------------------------------------------------------------------
 // --- test syncMapper()
 
 (() => {
-	const lNums = [1, 2, 3, 4]
-
 	// --- pure mapping
 
-	const lItems = syncMapper(lNums, function*(n) {
+	const iterItems = syncMapper([1, 2, 3, 4], function*(n) {
 		yield `number is ${n}`
+		return
 	})
 
-	equal(Array.from(lItems), [
+	equal(Array.from(iterItems), [
 		"number is 1",
 		"number is 2",
 		"number is 3",
@@ -30,20 +30,14 @@ import {getFakeData, equal} from 'unit-test';
 
 (() => {
 	// --- pure mapping, early abort
-	const lItems = [1, 2, 3, 4]
-
-	const func = function*(i: number) {
-		yield `number is ${i}`
-		if (i === 2) {
-			return
+	const iterItems = syncMapper([1, 2, 3, 4], function*(n) {
+		yield `number is ${n}`
+		if (n === 2) {
+			return 'stop'
 		}
-	}
-	const abort_func = function(i: number) {
-		return (i === 3)
-	}
-	const lNewItems = Array.from(syncMapper(lItems, func, abort_func))
+	})
 
-	equal(lNewItems, [
+	equal(Array.from(iterItems), [
 		"number is 1",
 		"number is 2"
 		])
@@ -53,18 +47,18 @@ import {getFakeData, equal} from 'unit-test';
 (() => {
 	// --- pure mapping, using a generator
 
-	const gen = function*(): ITERATOR<number> {
+	const gen = function*(): TIterator<number, TMaybeString> {
 		for (let i1 = 1; i1 <= 4; ++i1) {const i = i1;
 			yield i
 		}
 		return
 	}
 
-	const lNewItems = Array.from(syncMapper(gen(), function*(n) {
+	const iterItems = syncMapper(gen(), function*(n) {
 		yield `number is ${n}`
-	}))
+	})
 
-	equal(lNewItems,
+	equal(Array.from(iterItems),
 		[
 			"number is 1",
 			"number is 2",
@@ -77,50 +71,46 @@ import {getFakeData, equal} from 'unit-test';
 (() => {
 	// --- pure filtering
 
-	const lItems = [1, 2, 3, 4]
-	const lNewItems = Array.from(syncMapper(lItems, function*(i: number) {
-		if (i % 2 === 0) {
-			yield i
+	const iterItems = syncMapper([1, 2, 3, 4], function*(n) {
+		if (n % 2 === 0) {
+			yield n
 		}
-	}))
+	})
 
-	equal(lNewItems, [2, 4])
+	equal(Array.from(iterItems), [2, 4])
 }
 	)();
 
 (() => {
 	// --- pure filtering, early abort
 
-	const func = function*(n: number) {
+	const iterItems = syncMapper([1, 2, 3, 4, 5, 6], function*(n) {
 		if (n % 2 === 0) {
 			yield n
 		}
-	}
-	const abortFunc = function(i: number) {
-		return (i === 3)
-	}
-	const lItems = Array.from(syncMapper([1,2,3,4,5,6], func, abortFunc))
+		return (n===3) ? 'stop' : undef
+	})
 
-	equal(lItems, [2])
+	equal(Array.from(iterItems), [2])
 }
 	)();
 
 (() => {
 	// --- combined filtering and mapping
 
-	const lItems = Array.from(syncMapper([1,2,3,4], function*(i: number) {
-		if (i % 2 === 0) {
-			yield `2i = ${2*i}`
-			yield `number is ${10 * i}`
+	const iterItems = syncMapper([1, 2, 3, 4], function*(n) {
+		if (n % 2 === 0) {
+			yield `2n = ${2*n}`
+			yield `number is ${10 * n}`
 		}
 		return
-	}))
+	})
 
-	equal(lItems,
+	equal(Array.from(iterItems),
 		[
-			"2i = 4",
+			"2n = 4",
 			"number is 20",
-			"2i = 8",
+			"2n = 8",
 			"number is 40"
 			])
 }
@@ -132,7 +122,7 @@ import {getFakeData, equal} from 'unit-test';
 (() => {
 	// --- reducing (getting the sum, use JavaScript's reduce)
 
-	const sum = [1,2,3,4].reduce((acc, n) => acc + n, 0)
+	const sum = [1, 2, 3, 4].reduce((acc, n) => acc + n, 0)
 	equal(sum, 10)
 }
 	)();
@@ -140,7 +130,10 @@ import {getFakeData, equal} from 'unit-test';
 (() => {
 	// --- reducing (getting the sum)
 
-	const sum = syncReducer([1,2,3,4], 0, (acc, n) => acc + n)
+	const sum = syncReducer([1, 2, 3, 4], 0, function*(acc, n) {
+		yield acc + n
+		return
+	})
 	equal(sum, 10)
 }
 	)();
@@ -148,9 +141,15 @@ import {getFakeData, equal} from 'unit-test';
 (() => {
 	// --- reducing (getting the sum, early abort)
 
-	const sum = syncReducer([1,2,3,4], 0,
-			(acc,n) => acc+n,
-			function(n) { return (n===3) })
+	const sum = syncReducer([1, 2, 3, 4], 0, function*(acc, n) {
+		yield acc + n
+		if (n===2) {
+			return 'stop'
+		}
+		else {
+			return
+		}
+	})
 	equal(sum, 3)
 }
 	)();
@@ -159,12 +158,12 @@ import {getFakeData, equal} from 'unit-test';
 	// --- reducing (getting the sum AND sum of squares)
 
 	type TAcc = [number, number]
-	const func = (accum: TAcc, n: number): TAcc => {
-		const [sum, sumsq] = accum
-		return [sum + n, sumsq + n*n]
-	}
 
-	const [sum, sumsq] = syncReducer([1,2,3,4], [0, 0], func)
+	const [sum, sumsq] = syncReducer([1, 2, 3, 4], [0, 0], function*(acc, n) {
+		const [sum, sumsq] = acc
+		yield [sum + n, sumsq + n*n]
+		return
+	})
 	equal(sum, 10)
 	equal(sumsq, 30)
 }
@@ -175,33 +174,28 @@ import {getFakeData, equal} from 'unit-test';
 	//     (getting the sum AND sum of squares of only even nums)
 
 	type TAcc = [number, number]
-	const func = (accum: TAcc, n: number): TAcc => {
-		if (n % 2 === 0) {
-			const [sum, sumsq] = accum
-			return [sum + n, sumsq + n*n]
-		}
-		else {
-			return accum
-		}
-	}
 
-	const [sum, sumsq] = syncReducer([1,2,3,4], [0, 0], func)
+	const [sum, sumsq] = syncReducer([1, 2, 3, 4], [0, 0], function*(acc, n) {
+		const [sum, sumsq] = acc
+		yield (n % 2 === 0) ? [sum + n, sumsq + n*n] : acc
+		return
+	})
+
 	equal(sum, 6)
 	equal(sumsq, 20)
 }
-	)();
+	)()
 
 // ---------------------------------------------------------------------------
 // --- test mapper()
 
-(async () => {
+await (async () => {
 	// --- pure mapping
 
-	// --- an async iterator of integers
-	const iterData = getFakeData([1,2,3,4])
-
-	// --- an async iterator of strings
-	const iterStrings = mapper(iterData, function*(n) { yield `number is ${n}` })
+	const iterStrings = mapper(getAsync([1, 2, 3, 4]), function*(n) {
+		yield `number is ${n}`
+		return
+	})
 
 	equal(await Array.fromAsync(iterStrings), [
 		"number is 1",
@@ -212,5 +206,185 @@ import {getFakeData, equal} from 'unit-test';
 }
 	)()
 
-// ---------------------------------------------------------------------------
+await (async () => {
+	// --- pure mapping
 
+	const iterStrings = mapper(getAsync([1, 2, 3, 4]), function*(n) {
+		yield `number is ${n}`
+		return (n===2) ? 'stop' : undef
+	})
+
+	equal(await Array.fromAsync(iterStrings), [
+		"number is 1",
+		"number is 2"
+		])
+}
+	)()
+
+await (async () => {
+	// --- pure filtering
+
+	const iterItems = mapper(getAsync([1, 2, 3, 4]), function*(n) {
+		if (n % 2 === 0) {
+			yield n
+		}
+		return
+	})
+
+	equal(await Array.fromAsync(iterItems), [2, 4])
+}
+	)()
+
+await (async () => {
+	// --- pure filtering, early abort
+
+	const abortFunc = function(n: number) {
+		return (n === 3)
+	}
+
+	const iterNum = mapper(getAsync([1, 2, 3, 4]), function*(n) {
+		if (n % 2 === 0) {
+			yield n
+		}
+		return (n===2) ? 'stop' : undef
+	})
+
+	equal(await Array.fromAsync(iterNum), [2])
+}
+	)()
+
+await (async () => {
+	// --- combined filtering and mapping
+
+	const iterStr = mapper(getAsync([1, 2, 3, 4]), function*(n) {
+		if (n % 2 === 0) {
+			yield `2n = ${2*n}`
+			yield `number is ${10 * n}`
+		}
+		return (n===2) ? 'stop' : undef
+	})
+
+	equal(await Array.fromAsync(iterStr),
+		[
+			"2n = 4",
+			"number is 20"
+			])
+}
+	)()
+
+// ---------------------------------------------------------------------------
+// --- test reducer()
+
+await (async () => {
+	// --- reducing (getting the sum)
+
+	const sum = await reducer(getAsync([1, 2, 3, 4]), 0, function*(acc, n) {
+		yield acc + n
+		return
+	})
+
+	equal(sum, 10)
+}
+	)()
+
+await (async () => {
+	// --- reducing (getting the sum)
+
+	const sum = await reducer([1, 2, 3, 4], 0, function*(acc, n) {
+		yield acc + n
+		return
+	})
+
+	equal(sum, 10)
+}
+	)()
+
+await (async () => {
+	// --- reducing (getting the sum, early abort)
+
+	const sum = await reducer(getAsync([1, 2, 3, 4]), 0, function*(acc, n) {
+		yield acc + n
+		return (n===2) ? 'stop' : undef
+	})
+
+	equal(sum, 3)
+}
+	)()
+
+await (async () => {
+	// --- reducing (getting the sum, early abort)
+
+	const sum = await reducer([1, 2, 3, 4], 0, function*(acc, n) {
+		yield acc + n
+		return (n===2) ? 'stop' : undef
+	})
+
+	equal(sum, 3)
+}
+	)()
+
+await (async () => {
+	// --- reducing (getting the sum AND sum of squares)
+
+	type TAcc = [number, number]
+
+	const [sum, sumsq] = await reducer(getAsync([1, 2, 3, 4]), [0, 0], function*(acc, n) {
+		const [sum, sumsq] = acc
+		yield [sum + n, sumsq + n*n]
+		return
+	})
+
+	equal(sum, 10)
+	equal(sumsq, 30)
+}
+	)()
+
+await (async () => {
+	// --- reducing (getting the sum AND sum of squares)
+
+	type TAcc = [number, number]
+
+	const [sum, sumsq] = await reducer([1, 2, 3, 4], [0, 0], function*(acc, n) {
+		const [sum, sumsq] = acc
+		yield [sum + n, sumsq + n*n]
+		return
+	})
+
+	equal(sum, 10)
+	equal(sumsq, 30)
+}
+	)()
+
+await (async () => {
+	// --- reducing
+	//     (getting the sum AND sum of squares of only even nums)
+
+	type TAcc = [number, number]
+
+	const [sum, sumsq] = await reducer(getAsync([1, 2, 3, 4]), [0, 0], function*(acc, n) {
+		const [sum, sumsq] = acc
+		yield (n % 2 === 0) ? [sum + n, sumsq + n*n] : acc
+		return
+	})
+
+	equal(sum, 6)
+	equal(sumsq, 20)
+}
+	)()
+
+await (async () => {
+	// --- reducing
+	//     (getting the sum AND sum of squares of only even nums)
+
+	type TAcc = [number, number]
+
+	const [sum, sumsq] = await reducer([1, 2, 3, 4], [0, 0], function*(acc, n) {
+		const [sum, sumsq] = acc
+		yield (n % 2 === 0) ? [sum + n, sumsq + n*n] : acc
+		return
+	})
+
+	equal(sum, 6)
+	equal(sumsq, 20)
+}
+	)()

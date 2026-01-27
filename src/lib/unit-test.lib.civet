@@ -821,7 +821,7 @@ export allFalse := (
 
 # ---------------------------------------------------------------------------
 
-export getFakeData := <T>(
+export getAsync := <T>(
 		lItems: T[],
 		sleepFor: number = 1
 		): AsyncGenerator<T> ->

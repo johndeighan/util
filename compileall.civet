@@ -1,19 +1,20 @@
 # compileall.civet
 
 import {assert} from "jsr:@std/assert"
-import {red} from 'jsr:@std/fmt/colors'
 import {sprintf} from 'jsr:@std/fmt/printf'
 import {compile} from 'npm:@danielx/civet'
 import {resolve, relative} from 'jsr:@std/path'
 import {RawSourceMap, SourceMapConsumer} from 'npm:source-map'
 
 import {
-	undef, verbose, LOG, DBG, croak, getErrStr, isDir, isFile, centered,
+	undef, verbose, LOG, ERR, DBG, croak, getErrStr, isDir, isFile, centered,
 	normalizePath, toFullPath, allCivetFiles, typeCheck, alreadyCompiled,
 	haveSourceMapFor, extractSourceMap, addSourceMap, saveSourceMaps,
+	TOkResult,         # --- {destPath, code, hSrcMap}
+	compileCivetFile,  #     (path: string) -> ASYNC_ITERATOR<TOkResult>
+	typeCheckTsFile,   #     (h: TOkResult) -> boolean
 	} from './compileall.lib.ts'
 
-import {isIterable, isAsyncIterable, toArray} from 'datatypes'
 import {ITERATOR, ASYNC_ITERATOR, mapper, reducer} from 'var-free'
 
 import hCivetConfig from "civetconfig" with {type: "json"}
@@ -39,87 +40,6 @@ export type TAbortFunc<TIn> = (item: TIn, i: number) => boolean
 
 # ---------------------------------------------------------------------------
 
-type TOkResult = {
-		destPath: string
-		code: string
-		hSrcMap: RawSourceMap
-		}
-
-# ---------------------------------------------------------------------------
-# --- ASYNC GENERATOR
-
-compileCivetFile := (
-		path: string
-		): ASYNC_ITERATOR<TOkResult> ->
-
-	civetPath := toFullPath path
-	relPath := relative('.', civetPath)
-	destPath := civetPath.replace('.civet', '.ts')
-	relDestPath := relative('.', destPath)
-
-	if alreadyCompiled(path)
-		DBG centered("COMPILE: #{relPath}")
-		DBG "already compiled to #{relDestPath}", 1
-		return
-
-	try
-		LOG centered("COMPILE: #{relPath}")
-		LOG "destPath = #{relDestPath}", 1
-
-		civetCode := await Deno.readTextFile civetPath
-		tsCode: string := await compile civetCode, {
-			...hCivetConfig
-			inlineMap: true
-			filename: civetPath
-			}
-		assert tsCode && not tsCode.startsWith('COMPILE FAILED'),
-			"CIVET COMPILE FAILED: #{relPath}"
-		LOG "compile succeeded", 1
-		[code, hSrcMap] := extractSourceMap tsCode
-		assert (hSrcMap != undef), "Missing source map"
-		yield {
-			destPath
-			code
-			hSrcMap
-			}
-
-	catch err
-		LOG "#{red('ERROR')} in #{relDestPath}:\n#{err}"
-	return
-
-# ---------------------------------------------------------------------------
-# --- ASYNC
-
-typeCheckTsFile := (
-		hResult: TOkResult
-		): boolean =>
-
-	{destPath, code, hSrcMap} := hResult
-	relDestPath := relative '.', destPath
-	LOG centered("TYPE CHECK: #{relDestPath}")
-	try
-		# --- Unfortunately, we have to write the code to a file
-		#     in order to type check it :-(
-
-		tempPath := 'src/temp/_tempcode_.ts'
-		encoded := encoder.encode(code)
-		await Deno.writeFile tempPath, encoded
-		success := await typeCheck tempPath
-		assert success, "type check failed for #{relDestPath}"
-
-		await Deno.writeFile destPath, encoded
-		LOG "TS file written", 1
-		LOG "type check OK", 1
-		LOG "adding source map for #{relDestPath}", 1
-		addSourceMap destPath, hSrcMap
-		return true
-
-	catch err
-		LOG "#{red('ERROR')} in #{relDestPath}:\n#{getErrStr(err)}"
-		return false
-
-# ---------------------------------------------------------------------------
-
 t0 := Date.now()
 
 # --- We must keep track of how many civet files there are
@@ -135,14 +55,15 @@ abortFunc := (path: string) =>
 # --- compileCivetFile is type (string => ASYNC_ITERATOR<TOkResult>)
 # --- abortFunc is type (string => boolean)
 
-iter := mapper<string, TOkResult>(allCivetFiles(), compileCivetFile, abortFunc)
-lToTypeCheck := await toArray(iter)
+iter := await mapper allCivetFiles(), compileCivetFile, abortFunc
+lToTypeCheck: TOkResult[] := await Array.fromAsync(iter)
 numCompiled := lToTypeCheck.length
 
 # --- If any files failed to compile, there is no point
 #     to type checking because it will probably fail
-if (lToTypeCheck.length != numFiles)
-	LOG red("Some civet files failed to compile")
+if (numCompiled != numFiles)
+	numFailed := numFiles - numCompiled
+	ERR "#{numFailed}/#{numFiles} civet files failed to compile"
 	Deno.exit -1
 
 # --- type check files that were compiled
@@ -151,16 +72,15 @@ if (lToTypeCheck.length != numFiles)
 # --- This produces an array of booleans
 
 # --- we need something with a next() method
-#     lToTypeCheck is an array
-# checker: IterableIterator<TOkResult> := lToTypeCheck[Symbol.iterator]()
-iter2 := mapper lToTypeCheck, typeCheckTsFile, () => false
-lTypeCheckResult := Array.fromAsync iter2
+#     lToTypeCheck is an array of TOkResult
+iter2 := mapper lToTypeCheck, typeCheckTsFile
+lTypeCheckResult := await Array.fromAsync iter2
 
-nFailed := reducer lTypeCheckResult, 0, (accum, item) =>
-	return item ? accum : accum+1
+nFailed := await reducer lTypeCheckResult, 0, (accum, item) =>
+	return accum+1
 
 if (nFailed > 0)
-	LOG red("#{nFailed} files failed to compile")
+	ERR "#{nFailed} files failed to compile"
 	Deno.exit -1
 
 if (numCompiled > 0)
