@@ -8,9 +8,8 @@ import {expandGlob} from '@std/fs/expand-glob'
 import {RawSourceMap, SourceMapConsumer} from 'npm:source-map'
 import {compile as compileCivet} from 'npm:@danielx/civet'
 
-import {
-	Iter, AsyncIter, mapper, reducer,
-	} from 'var-free'
+import {TIterator, TAsyncIterator} from 'datatypes'
+import {mapper, reducer} from 'var-free'
 
 import hCivetConfig from "civetconfig" with {type: "json"}
 
@@ -215,7 +214,7 @@ const hGlobOptions = {
 		]
 	}
 
-export const allCivetFiles = async function*(): AsyncIter<string> {
+export const allCivetFiles = async function*(): TAsyncIterator<string> {
 	const path = Deno.args[0]
 	if (path) {
 		assert(isFile(path))
@@ -314,7 +313,7 @@ export type TOkResult = {
 
 export const compileCivetFile = async function*(
 		path: string
-		): AsyncIter<TOkResult> {
+		): TAsyncIterator<TOkResult, void> {
 
 	const civetPath = toFullPath(path)
 	const relPath = relative('.', civetPath)

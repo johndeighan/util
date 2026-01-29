@@ -6,6 +6,9 @@ import deepEqual from 'fast-deep-equal'
 
 export {deepEqual}
 
+export type TIterator<T, U=void, V=void> = Generator<T, U, V>
+export type TAsyncIterator<T, U=void, V=void> = AsyncGenerator<T, U, V>
+
 // ---------------------------------------------------------------------------
 
 export const croak = (msg: string): never => {
@@ -26,7 +29,7 @@ export const assert: TAssertFunc = (
 		): asserts cond => {
 
 	if (!cond) {
-		throw new Error(msg)
+		croak(msg)
 	}
 	return
 }
@@ -97,6 +100,8 @@ export type array = arrayof<unknown>
 // ---------------------------------------------------------------------------
 
 export type TVoidFunc = () => void
+export type TVoidIterator<T=unknown> = () => TIterator<T>
+export type TUnaryFunc<TIn, TOut> = (item: TIn) => TOut
 export type TFilterFunc = (item: unknown) => boolean
 export type TStringifier = (item: unknown) => string
 export type TStringMapper = (str: string) => string
@@ -463,20 +468,6 @@ const asStringIs = (x: unknown, str: string): boolean => {
 
 // ---------------------------------------------------------------------------
 
-export const isGenerator = (x: unknown): x is GeneratorFunction => {
-
-	return isFunction(x) && asStringIs(x, "[object GeneratorFunction]")
-}
-
-// ---------------------------------------------------------------------------
-
-export const isIterator = (x: unknown): x is Generator => {
-
-	return isObject(x) && asStringIs(x, "[object Generator]")
-}
-
-// ---------------------------------------------------------------------------
-
 export const isArrayOfIntegers = (x: unknown): x is TIntArray => {
 
 	if (!Array.isArray(x)) {
@@ -567,24 +558,49 @@ export const isClassInstance = (
 
 // ---------------------------------------------------------------------------
 
-export const isIterable = (x: unknown): x is Iterable<any> => {
+export const isGenerator = (x: unknown): x is GeneratorFunction => {
 
-	if ((typeof x === 'object') && (x !== null)) {
-		return (Symbol.iterator in x)
-	}
-	else {
-		return false
-	}
+	return isFunction(x) && asStringIs(x, "[object GeneratorFunction]")
 }
 
 // ---------------------------------------------------------------------------
 
-export const isAsyncIterable = (x: unknown): x is AsyncIterable<any> => {
+export const isAsyncGenerator = (x: unknown): x is GeneratorFunction => {
 
-	if ((typeof x === 'object') && (x !== null)) {
-		return (Symbol.asyncIterator in x)
-	}
-	else {
+	return isFunction(x) && asStringIs(x, "[object AsyncGeneratorFunction]")
+}
+
+// ---------------------------------------------------------------------------
+
+export const isIterator = <T,>(x: unknown): x is IterableIterator<T> => {
+
+	if (
+			   notdefined(x)
+			|| (typeof x !== 'object')
+			|| (!('next' in x))
+			|| (typeof x.next !== 'function')
+			|| (!(Symbol.iterator in x))
+			) {
 		return false
 	}
+	const iter = x[Symbol.iterator]
+	return (typeof iter === 'function') && (iter.call(x) === x)
 }
+
+// ---------------------------------------------------------------------------
+
+export const isAsyncIterator = <T,>(x: unknown): x is AsyncIterableIterator<T> => {
+
+	if (
+			   notdefined(x)
+			|| (typeof x !== 'object')
+			|| (!('next' in x))
+			|| (typeof x.next !== 'function')
+			|| (!(Symbol.asyncIterator in x))
+			) {
+		return false
+	}
+	const iter = x[Symbol.asyncIterator]
+	return (typeof iter === 'function') && (iter.call(x) === x)
+}
+

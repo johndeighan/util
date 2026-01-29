@@ -11,10 +11,11 @@ import {esc, mesc} from 'unicode'
 import {
 	undef, defined, notdefined, isEmpty, nonEmpty,
 	array, arrayof, isArray, isHash, isString, hash, hashof,
-	isIterable, deepEqual, hashLike, integer, THashCompareFunc,
+	deepEqual, hashLike, integer, THashCompareFunc,
 	THashLikeFunc, THashToStringFunc, TFilterFunc,
 	normalizeCode, isFunction, isClass, functionDef, classDef,
-	TVoidFunc, croak, assertIsDefined, isGenerator, isIterator,
+	TVoidFunc, TVoidIterator,
+	croak, assertIsDefined, isGenerator, isIterator,
 	} from 'datatypes'
 import {
 	pass, o, keys, getOptions, spaces, blockToArray,
@@ -453,8 +454,8 @@ export checkType := (
 	DUMP importCode, 'importCode'
 
 	code := """
-		${importCode}
-		${tsCode}
+		#{importCode}
+		#{tsCode}
 		"""
 	DUMP code, 'code'
 
@@ -773,6 +774,11 @@ export val: hashof<unknown> := {
 	b: true
 	genFunc: () ->
 		yield 42
+		return
+	asyncGenFunc: () ->
+		await sleep(1)
+		yield 42
+		return
 	regularFunc: () ->
 		return 42
 	lambdaFunc: () =>

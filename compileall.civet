@@ -7,15 +7,19 @@ import {resolve, relative} from 'jsr:@std/path'
 import {RawSourceMap, SourceMapConsumer} from 'npm:source-map'
 
 import {
+	TIterator, TAsyncIterator, isIterator, isAsyncIterator,
+	} from 'datatypes'
+import {
 	undef, verbose, LOG, ERR, DBG, croak, getErrStr, isDir, isFile, centered,
-	normalizePath, toFullPath, allCivetFiles, typeCheck, alreadyCompiled,
+	normalizePath, toFullPath, typeCheck, alreadyCompiled,
 	haveSourceMapFor, extractSourceMap, addSourceMap, saveSourceMaps,
-	TOkResult,         # --- {destPath, code, hSrcMap}
-	compileCivetFile,  #     (path: string) -> ASYNC_ITERATOR<TOkResult>
+	allCivetFiles,     # --- (): TAsyncIterator<string>
+	TOkResult,         #     {destPath, code, hSrcMap}
+	compileCivetFile,  #     (path: string) -> TAsyncIterator<TOkResult, void>
 	typeCheckTsFile,   #     (h: TOkResult) -> boolean
 	} from './compileall.lib.ts'
 
-import {ITERATOR, ASYNC_ITERATOR, mapper, reducer} from 'var-free'
+import {mapper, reducer} from 'var-free'
 
 import hCivetConfig from "civetconfig" with {type: "json"}
 
@@ -36,28 +40,28 @@ assert isFile '.gitignore'
 
 # ---------------------------------------------------------------------------
 
-export type TAbortFunc<TIn> = (item: TIn, i: number) => boolean
-
-# ---------------------------------------------------------------------------
-
 t0 := Date.now()
 
 # --- We must keep track of how many civet files there are
 let numFiles = 0
-abortFunc := (path: string) =>
-	# --- never abort, but keep track of total number of files
-	numFiles += 1
-	return false
 
 # --- TIn is string
 # --- TOut is TOkResult
-# --- allCivetFiles() returns an ASYNC_ITERATOR<string>
-# --- compileCivetFile is type (string => ASYNC_ITERATOR<TOkResult>)
+# --- allCivetFiles() returns a TAsyncIterator<string>
+# --- compileCivetFile is type (string => TAsyncIterator<TOkResult>)
 # --- abortFunc is type (string => boolean)
 
-iter := await mapper allCivetFiles(), compileCivetFile, abortFunc
+# --- allCivetFiles    is () => TAsyncIterator<string>
+#     compileCivetFile is (path: string) -> TAsyncIterator<TOkResult>
+debugger
+iter := await mapper allCivetFiles(), compileCivetFile
+assert isAsyncIterator<TOkResult>(iter), "Not an async iterator: #{iter}"
+
 lToTypeCheck: TOkResult[] := await Array.fromAsync(iter)
 numCompiled := lToTypeCheck.length
+if (numCompiled == 0)
+	LOG "All files already compiled"
+	Deno.exit 0
 
 # --- If any files failed to compile, there is no point
 #     to type checking because it will probably fail
@@ -72,7 +76,8 @@ if (numCompiled != numFiles)
 # --- This produces an array of booleans
 
 # --- we need something with a next() method
-#     lToTypeCheck is an array of TOkResult
+#     lToTypeCheck is TOkResult[]
+#     typeCheckTsFile is (TOkResult) => boolean
 iter2 := mapper lToTypeCheck, typeCheckTsFile
 lTypeCheckResult := await Array.fromAsync iter2
 

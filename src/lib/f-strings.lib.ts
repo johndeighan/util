@@ -7,8 +7,8 @@ import {
 	} from 'jsr:@std/fmt/colors'
 
 import {esc} from 'unicode'
-import {TMaybeString, TIterator, syncMapper} from 'var-free'
-import {defined, nonEmpty, isInteger} from 'datatypes'
+import {TMaybeString, syncMapper} from 'var-free'
+import {TIterator, defined, nonEmpty, isInteger} from 'datatypes'
 
 // --- hash of all supported colors
 const hColor = {

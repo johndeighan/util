@@ -6,9 +6,8 @@ import {expandGlob} from '@std/fs/expand-glob'
 import {RawSourceMap, SourceMapConsumer} from 'npm:source-map'
 import {compile as compileCivet} from 'npm:@danielx/civet'
 
-import {
-	Iter, AsyncIter, mapper, reducer,
-	} from 'var-free'
+import {TIterator, TAsyncIterator} from 'datatypes'
+import {mapper, reducer} from 'var-free'
 
 import hCivetConfig from "civetconfig" with {type: "json"}
 
@@ -182,7 +181,7 @@ hGlobOptions := {
 		]
 	}
 
-export allCivetFiles := (): AsyncIter<string> ->
+export allCivetFiles := (): TAsyncIterator<string> ->
 	path := Deno.args[0]
 	if path
 		assert isFile path
@@ -276,7 +275,7 @@ export type TOkResult = {
 
 export compileCivetFile := (
 		path: string
-		): AsyncIter<TOkResult> ->
+		): TAsyncIterator<TOkResult, void> ->
 
 	civetPath := toFullPath path
 	relPath := relative('.', civetPath)

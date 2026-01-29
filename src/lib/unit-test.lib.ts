@@ -13,10 +13,11 @@ import {esc, mesc} from 'unicode'
 import {
 	undef, defined, notdefined, isEmpty, nonEmpty,
 	array, arrayof, isArray, isHash, isString, hash, hashof,
-	isIterable, deepEqual, hashLike, integer, THashCompareFunc,
+	deepEqual, hashLike, integer, THashCompareFunc,
 	THashLikeFunc, THashToStringFunc, TFilterFunc,
 	normalizeCode, isFunction, isClass, functionDef, classDef,
-	TVoidFunc, croak, assertIsDefined, isGenerator, isIterator,
+	TVoidFunc, TVoidIterator,
+	croak, assertIsDefined, isGenerator, isIterator,
 	} from 'datatypes'
 import {
 	pass, o, keys, getOptions, spaces, blockToArray,
@@ -496,8 +497,8 @@ export const checkType = (
 	const importCode = getImportCode(typeStr)
 	DUMP(importCode, 'importCode')
 
-	const code = `\${importCode}
-\${tsCode}`
+	const code = `${importCode}
+${tsCode}`
 	DUMP(code, 'code')
 
 	typeCheckTsCode(code)
@@ -874,6 +875,12 @@ export const val: hashof<unknown> = {
 	b: true,
 	genFunc: function*() {
 		yield 42
+		return
+	},
+	asyncGenFunc: async function*() {
+		await sleep(1)
+		yield 42
+		return
 	},
 	regularFunc: function() {
 		return 42

@@ -13,10 +13,11 @@ import {
 	isArrayOfStrings, isArrayOfIntegers,
 	isFunction, isRegExp,
 	isEmpty, nonEmpty,
-	isClass, className, isPromise, isClassInstance, isIterable,
+	isClass, className, isPromise, isClassInstance,
 	isSymbol, symbolName, functionName, functionDef,
 	classDef, regexpDef, hashLike,
-	isObject, isGenerator, isIterator,
+	isObject, isGenerator, isAsyncGenerator,
+	isIterator, isAsyncIterator,
 	} from 'datatypes'
 import {DBG} from 'logger'
 import {
@@ -53,11 +54,15 @@ isType 'number', 42
 # ---------------------------------------------------------------------------
 
 truthy isGenerator(val.genFunc)
+truthy isAsyncGenerator(val.asyncGenFunc)
 falsy  isGenerator(val.regularFunc)
 falsy  isGenerator(val.lambdaFunc)
 
-# @ts-ignore
-truthy isIterator(val.genFunc())
+if isGenerator(val.genFunc)
+	truthy isIterator(val.genFunc())
+if isAsyncGenerator(val.asyncGenFunc)
+	truthy isAsyncIterator(val.asyncGenFunc())
+
 falsy  isIterator(val.genFunc)
 falsy  isIterator(val.regularFunc)
 falsy  isIterator(val.lambdaFunc)
