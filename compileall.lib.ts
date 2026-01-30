@@ -8,14 +8,176 @@ import {expandGlob} from '@std/fs/expand-glob'
 import {RawSourceMap, SourceMapConsumer} from 'npm:source-map'
 import {compile as compileCivet} from 'npm:@danielx/civet'
 
-import {TIterator, TAsyncIterator} from 'datatypes'
-import {mapper, reducer} from 'var-free'
-
 import hCivetConfig from "civetconfig" with {type: "json"}
 
 const sourceMapPath = './sourcemap.json'
 
 export const undef = undefined
+
+type TDefined = NonNullable<unknown>
+export const defined = (x: unknown): x is TDefined => {
+	return (x !== undef) && (x !== null)
+}
+
+type TNotDefined = null | undefined
+export const notdefined = (x: unknown): x is TNotDefined => {
+	return !defined(x)
+}
+
+// ---------------------------------------------------------------------------
+
+export const DUMP = (x: unknown): void => {
+
+	console.dir(x, {depth: null})
+	return
+}
+
+// ---------------------------------------------------------------------------
+
+export const isIterator = <T,>(x: unknown): x is IterableIterator<T> => {
+
+	if (
+			   (x === undef)
+			|| (x === null)
+			|| (typeof x !== 'object')
+			|| (!('next' in x))
+			|| (typeof x.next !== 'function')
+			|| (!(Symbol.iterator in x))
+			) {
+		return false
+	}
+	const iter = x[Symbol.iterator]
+	return (typeof iter === 'function') && (iter.call(x) === x)
+}
+
+// ---------------------------------------------------------------------------
+
+export const isAsyncIterator = <T,>(x: unknown): x is AsyncIterableIterator<T> => {
+
+	if (
+			   (x === undef)
+			|| (x === null)
+			|| (typeof x !== 'object')
+			|| (!('next' in x))
+			|| (typeof x.next !== 'function')
+			|| (!(Symbol.asyncIterator in x))
+			) {
+		return false
+	}
+	const iter = x[Symbol.asyncIterator]
+	return (typeof iter === 'function') && (iter.call(x) === x)
+}
+
+// ---------------------------------------------------------------------------
+
+export const isPromise = <T,>(x: unknown): x is Promise<T> => {
+
+	return (
+		   (typeof x === 'object')
+		&& (x !== null)
+		&& ('then' in x)
+		&& (typeof x.then === 'function')
+		)
+}
+
+// ---------------------------------------------------------------------------
+
+export type TMaybeCmd = 'stop' | undefined | void
+
+// ---------------------------------------------------------------------------
+
+export async function* mapper<TIn, TOut>(
+		lItems:  Generator<TIn> |
+					AsyncGenerator<TIn> |
+					TIn[],
+		mapFunc: (x: TIn, i: number) =>
+			(TOut | undefined) |
+			Promise<(TOut | undefined)> |
+			Generator<TOut, TMaybeCmd> |
+			AsyncGenerator<TOut, TMaybeCmd>
+		): AsyncGenerator<TOut> {
+
+	// --- NOTE: You can await something even if it's not async
+	let i1 = 0;for await (const item of lItems) {const i = i1++;
+		const iter = mapFunc(item, i)
+		if (isIterator(iter) || isAsyncIterator(iter)) {
+			while(true) {
+				const {done, value} = await iter.next()
+				if (done) {
+					if (value === 'stop') {  // value returned from mapFunc()
+						return
+					}
+					else {
+						break
+					}
+				}
+				else if (value !== undefined) {
+					yield value
+				}
+			}
+		}
+		else if (iter !== undefined) {
+			if (isPromise(iter)) {
+				// --- iter is a TOut
+				const result = await iter
+				if (result !== undefined) {
+					yield result
+				}
+			}
+			else {
+				yield iter
+			}
+		}
+	}
+	return
+}
+
+// ---------------------------------------------------------------------------
+
+export const reducer = async function<TIn, TAccum>(
+		lItems: Generator<TIn> |
+				AsyncGenerator<TIn> |
+				TIn[],
+		acc: TAccum,
+		redFunc: (acc: TAccum, x: TIn, i: number) =>
+			(TAccum | undefined) |
+			Promise<(TAccum | undefined)> |
+			Generator<TAccum, TMaybeCmd> |
+			AsyncGenerator<TAccum, TMaybeCmd>
+		): AutoPromise<TAccum> {
+
+	let i2 = 0;for await (const item of lItems) {const i = i2++;
+		const iter = redFunc(acc, item, i)
+		if (isIterator(iter) || isAsyncIterator(iter)) {
+			while(true) {
+				const {done, value} = await iter.next()
+				if (done) {
+					if (value === 'stop') {
+						return await acc
+					}
+					else {
+						break
+					}
+				}
+				else if (value !== undefined) {
+					acc = value
+				}
+			}
+		}
+		else if (iter !== undefined) {
+			if (isPromise(iter)) {
+				const result = await iter
+				if (result !== undefined) {
+					acc = result
+				}
+			}
+			else {
+				acc = iter
+			}
+		}
+	}
+	return await acc
+}
 
 // ---------------------------------------------------------------------------
 
@@ -214,7 +376,11 @@ const hGlobOptions = {
 		]
 	}
 
-export const allCivetFiles = async function*(): TAsyncIterator<string> {
+// ---------------------------------------------------------------------------
+// ASYNC
+
+export const allCivetFiles = async function*(): AsyncGenerator<string> {
+
 	const path = Deno.args[0]
 	if (path) {
 		assert(isFile(path))
@@ -302,10 +468,30 @@ export const saveSourceMaps = async (): AutoPromise<void> => {
 
 // ---------------------------------------------------------------------------
 
+// export type TStatus = 'ok' | 'error' | 'alreadyCompiled'
+// export type TResult = {
+// 		status: TStatus
+// 		destPath: string
+// 		code: string
+// 		hSrcMap: RawSourceMap
+// 		}
+
 export type TOkResult = {
+	status: 'ok'
+	destPath: string
+	code: string
+	hSrcMap: RawSourceMap
+	}
+
+export type TResult = TOkResult |
+	{
+		status: 'error'
 		destPath: string
-		code: string
-		hSrcMap: RawSourceMap
+		errMsg: string
+		} |
+	{
+		status: 'alreadyCompiled'
+		destPath: string
 		}
 
 // ---------------------------------------------------------------------------
@@ -313,7 +499,7 @@ export type TOkResult = {
 
 export const compileCivetFile = async function*(
 		path: string
-		): TAsyncIterator<TOkResult, void> {
+		): AsyncGenerator<TResult, void, void> {
 
 	const civetPath = toFullPath(path)
 	const relPath = relative('.', civetPath)
@@ -323,6 +509,10 @@ export const compileCivetFile = async function*(
 	if (alreadyCompiled(path)) {
 		DBG(centered(`COMPILE: ${relPath}`))
 		DBG(`already compiled to ${relDestPath}`, 1)
+		yield {
+			status: 'alreadyCompiled',
+			destPath
+			}
 		return
 	}
 
@@ -338,10 +528,13 @@ export const compileCivetFile = async function*(
 			})
 		assert(tsCode && !tsCode.startsWith('COMPILE FAILED'),
 			`CIVET COMPILE FAILED: ${relPath}`)
-		LOG("compile succeeded", 1)
 		const [code, hSrcMap] = extractSourceMap(tsCode)
 		assert((hSrcMap !== undef), "Missing source map")
+		await Deno.writeTextFile(destPath, code)
+		addSourceMap(destPath, hSrcMap)
+		LOG(`compile OK, wrote ${relDestPath}, source map added`, 1)
 		yield {
+			status: 'ok',
 			destPath,
 			code,
 			hSrcMap
@@ -350,6 +543,11 @@ export const compileCivetFile = async function*(
 
 	catch (err) {
 		ERR(`ERROR in ${relDestPath}:\n${err}`)
+		yield {
+			status: 'error',
+			destPath,
+			errMsg: getErrStr(err)
+			}
 	}
 	return
 }
@@ -357,27 +555,16 @@ export const compileCivetFile = async function*(
 // ---------------------------------------------------------------------------
 // --- ASYNC
 
-export const typeCheckTsFile = async (
-		hResult: TOkResult
-		): AutoPromise<boolean> => {
+export const typeCheckTsFile = async (h: TOkResult, i: number):AutoPromise<(boolean | undefined)> => {
 
-	const {destPath, code, hSrcMap} = hResult
+	const {destPath, code, hSrcMap} = h
 	const relDestPath = relative('.', destPath)
 	LOG(centered(`TYPE CHECK: ${relDestPath}`))
 	try {
-		// --- Unfortunately, we have to write the code to a file
-		//     in order to type check it :-(
-
-		const tempPath = 'src/temp/_tempcode_.ts'
-		const encoded = encoder.encode(code)
-		await Deno.writeFile(tempPath, encoded)
-		const success = await typeCheck(tempPath)
+		const success = await typeCheck(destPath)
 		assert(success, `type check failed for ${relDestPath}`)
 
-		await Deno.writeFile(destPath, encoded)
-		LOG("TS file written", 1)
 		LOG("type check OK", 1)
-		LOG(`adding source map for ${relDestPath}`, 1)
 		addSourceMap(destPath, hSrcMap)
 		return true
 	}

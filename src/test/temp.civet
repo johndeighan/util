@@ -4,7 +4,7 @@ import {
 	mapper, syncMapper, reducer, syncReducer,
 	Iter, AsyncIter,
 	} from 'var-free'
-import {getAsync, equal} from 'unit-test'
+import {generateAsync, equal} from 'unit-test'
 
 # ---------------------------------------------------------------------------
 # --- test syncMapper()
@@ -168,7 +168,7 @@ import {getAsync, equal} from 'unit-test'
 	# --- pure mapping
 
 	# --- an async iterator of integers
-	iterData := getAsync [1..4]
+	iterData := generateAsync [1..4]
 
 	# --- a mapping function
 	mapFunc := (n: number) ->
@@ -190,7 +190,7 @@ import {getAsync, equal} from 'unit-test'
 	# --- pure mapping, early abort
 
 	# --- an async iterator of integers
-	iterData := getAsync [1..4]
+	iterData := generateAsync [1..4]
 
 	mapFunc := (n: number) ->
 		yield "number is #{n}"
@@ -210,7 +210,7 @@ import {getAsync, equal} from 'unit-test'
 	# --- pure filtering
 
 	# --- an async iterator of integers
-	iterData := getAsync [1..4]
+	iterData := generateAsync [1..4]
 	lItems := mapper iterData, (n: number) ->
 		if (n % 2 == 0)
 			yield n
@@ -223,7 +223,7 @@ import {getAsync, equal} from 'unit-test'
 	# --- pure filtering, early abort
 
 	# --- an async iterator of integers
-	iterData := getAsync [1..4]
+	iterData := generateAsync [1..4]
 
 	abortFunc := (n: number) ->
 		return (n == 3)
@@ -240,7 +240,7 @@ import {getAsync, equal} from 'unit-test'
 	# --- combined filtering and mapping
 
 	# --- an async iterator of integers
-	iterData := getAsync [1..4]
+	iterData := generateAsync [1..4]
 
 	abortFunc := (n: number) ->
 		return (n == 3)
@@ -269,7 +269,7 @@ import {getAsync, equal} from 'unit-test'
 	reduceFunc := (acc: number, n: number): number ->
 		return acc + n
 
-	sum := await reducer getAsync([1..4]), 0, reduceFunc
+	sum := await reducer generateAsync([1..4]), 0, reduceFunc
 	equal sum, 10
 	)()
 

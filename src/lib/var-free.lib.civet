@@ -1,40 +1,105 @@
 # var-free.lib.civet
 
 import {
-	defined, isIterator, isObject,
-	TIterator, TAsyncIterator,
+	isIterator, isAsyncIterator, isPromise,
 	} from 'datatypes'
 
-export type TMaybeString = 'stop' | undefined | void
-export type TAnyIterator<T,U,V> = TIterator<T,U,V> | TAsyncIterator<T,U,V>
+export type TMaybeCmd = 'stop' | undefined | void
 
-export type TFuncMapper<TIn, TOut>     = (item: TIn, i: number) => TOut?
-export type TMapper<TIn, TOut>         = (item: TIn, i: number) => TIterator<TOut, TMaybeString>
-export type TAsyncMapper<TIn, TOut>    = (item: TIn, i: number) => TAsyncIterator<TOut, TMaybeString>
+# ---------------------------------------------------------------------------
 
-export type TFuncReducer<TAccum, TIn>  = (acc: TAccum, x: TIn, i: number) => TAccum?
-export type TReducer<TAccum, TIn>      = (acc: TAccum, x: TIn, i: number) => TIterator<TAccum, TMaybeString>
-export type TAsyncReducer<TAccum, TIn> = (acc: TAccum, x: TIn, i: number) => TAsyncIterator<TAccum, TMaybeString>
+export function mapper<TIn, TOut>(
+		lItems:  Generator<TIn> |
+					AsyncGenerator<TIn> |
+					TIn[]
+		mapFunc: (x: TIn, i: number) =>
+			TOut? |
+			Promise<TOut?> |
+			Generator<TOut, TMaybeCmd> |
+			AsyncGenerator<TOut, TMaybeCmd>
+		): AsyncGenerator<TOut>
+
+	# --- NOTE: You can await something even if it's not async
+	for await item,i of lItems
+		iter := mapFunc item, i
+		if isIterator(iter) || isAsyncIterator(iter)
+			loop
+				{done, value} := await iter.next()
+				if done
+					if (value == 'stop')  # value returned from mapFunc()
+						return
+					else
+						break
+				else if (value != undefined)
+					yield value
+		else if (iter != undefined)
+			if isPromise(iter)
+				# --- iter is a TOut
+				result := await iter
+				if (result != undefined)
+					yield result
+			else
+				yield iter
+	return
+
+# ---------------------------------------------------------------------------
+
+export reducer := <TIn, TAccum>(
+		lItems: Generator<TIn> |
+				AsyncGenerator<TIn> |
+				TIn[]
+		acc: TAccum
+		redFunc: (acc: TAccum, x: TIn, i: number) =>
+			TAccum? |
+			Promise<TAccum?> |
+			Generator<TAccum, TMaybeCmd> |
+			AsyncGenerator<TAccum, TMaybeCmd>
+		): TAccum ->
+
+	for await item,i of lItems
+		iter := redFunc acc, item, i
+		if isIterator(iter) || isAsyncIterator(iter)
+			loop
+				{done, value} := await iter.next()
+				if done
+					if (value == 'stop')
+						return await acc
+					else
+						break
+				else if (value != undefined)
+					acc = value
+		else if (iter != undefined)
+			if isPromise(iter)
+				result := await iter
+				if (result != undefined)
+					acc = result
+			else
+				acc = iter
+	return await acc
 
 # ---------------------------------------------------------------------------
 
 export function syncMapper<TIn, TOut>(
 		lItems:  IterableIterator<TIn> | TIn[]
-		mapFunc: TFuncMapper<TIn, TOut> | TMapper<TIn, TOut>
-		): TIterator<TOut, TMaybeString>
+		mapFunc: (x: TIn, i: number) =>
+			TOut? |
+			Generator<TOut, TMaybeCmd>
+		): Generator<TOut, TMaybeCmd>
 
 	for item,i of lItems
 		iter := mapFunc item, i
-		if defined(iter)
-			if isObject(iter) && ((Symbol.iterator in iter) || (Symbol.asyncIterator in iter))
+		if (iter != undefined)
+			if isIterator(iter) || isAsyncIterator(iter)
 				loop
+					# --- I'm tired of wrestling with TypeScript !
+					# @ts-ignore
 					{done, value} := iter.next()
 					if done
 						if (value == 'stop')
 							return
 						else
 							break
-					else
+					else if (value != undefined)
 						yield value
 			else
 				yield iter
@@ -43,14 +108,16 @@ export function syncMapper<TIn, TOut>(
 # ---------------------------------------------------------------------------
 
 export syncReducer := <TIn, TAccum>(
-		lItems: TIterator<TIn> | TIn[]
+		lItems: Generator<TIn> | TIn[]
 		acc: TAccum
-		reduceFunc: TFuncReducer<TAccum, TIn> | TReducer<TAccum, TIn>
+		redFunc: (acc: TAccum, x: TIn, i: number) =>
+			TAccum? |
+			Generator<TAccum, TMaybeCmd>
 		): TAccum ->
 
 	for item,i of lItems
-		iter := reduceFunc acc, item, i
-		if defined(iter)
+		iter := redFunc acc, item, i
+		if (iter != undefined)
 			if isIterator(iter)
 				loop
 					{done, value} := iter.next()
@@ -59,70 +126,9 @@ export syncReducer := <TIn, TAccum>(
 							return acc
 						else
 							break
-					else
+					else if (value != undefined)
 						acc = value
 			else
 				# --- now iter is of type TAccum
 				acc = iter
 	return acc
-
-# ---------------------------------------------------------------------------
-
-export function mapper<TIn, TOut>(
-		lItems:     TIterator<TIn>
-		mapFunc:    TFuncMapper<TIn, TOut> | TMapper<TIn, TOut>
-		): TAsyncIterator<TOut, TMaybeString>
-
-export function mapper<TIn, TOut>(
-		lItems:     TAsyncIterator<TIn>
-		mapFunc:    TFuncMapper<TIn, TOut> | TMapper<TIn, TOut> | TAsyncMapper<TIn, TOut>
-		): TAsyncIterator<TOut, TMaybeString>
-
-export function* mapper<TIn, TOut>(
-		lItems:    TIterator<TIn>         | TAsyncIterator<TIn>
-		mapFunc:   TFuncMapper<TIn, TOut> | TMapper<TIn, TOut> | TAsyncMapper<TIn, TOut>
-		): TAsyncIterator<TOut, TMaybeString>
-
-	# --- NOTE: You can await something even if it's not async
-	for await item,i of lItems
-		iter := mapFunc item, i
-		if defined(iter)
-			if isObject(iter) && ((Symbol.iterator in iter) || (Symbol.asyncIterator in iter))
-				loop
-					{done, value} := await iter.next()
-					if done
-						if (value == 'stop')
-							return
-						else
-							break
-					else
-						yield value
-			else
-				# --- iter is either a TOut
-				yield iter
-	return
-
-# ---------------------------------------------------------------------------
-
-export reducer := <TIn, TAccum>(
-		lItems: TIterator<TIn> | TAsyncIterator<TIn> | TIn[]
-		acc: TAccum
-		reduceFunc: TFuncReducer<TAccum, TIn> | TReducer<TAccum, TIn>
-		): TAccum ->
-
-	for await item,i of lItems
-		iter := reduceFunc acc, item, i
-		if defined(iter)
-			if isIterator(iter)
-				loop
-					{done, value} := iter.next()
-					if done
-						if (value == 'stop')
-							return await acc
-						else
-							break
-					else
-						acc = value
-			else
-				acc = iter
-	return await acc

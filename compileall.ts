@@ -1,26 +1,21 @@
 "use strict";
 // compileall.civet
 
-import {assert} from "jsr:@std/assert"
-import {sprintf} from 'jsr:@std/fmt/printf'
-import {compile} from 'npm:@danielx/civet'
-import {resolve, relative} from 'jsr:@std/path'
-import {RawSourceMap, SourceMapConsumer} from 'npm:source-map'
+import {assert} from "@std/assert"
+import {sprintf} from '@std/fmt/printf'
+import {compile} from '@danielx/civet'
+import {resolve, relative} from '@std/path'
+import {RawSourceMap, SourceMapConsumer} from 'npm-source-map'
 
-import {
-	TIterator, TAsyncIterator, isIterator, isAsyncIterator,
-	} from 'datatypes'
 import {
 	undef, verbose, LOG, ERR, DBG, croak, getErrStr, isDir, isFile, centered,
-	normalizePath, toFullPath, typeCheck, alreadyCompiled,
+	normalizePath, toFullPath, typeCheck, alreadyCompiled, DUMP,
 	haveSourceMapFor, extractSourceMap, addSourceMap, saveSourceMaps,
-	allCivetFiles,     // --- (): TAsyncIterator<string>
-	TOkResult,         //     {destPath, code, hSrcMap}
-	compileCivetFile,  //     (path: string) -> TAsyncIterator<TOkResult, void>
-	typeCheckTsFile,   //     (h: TOkResult) -> boolean
+	mapper, reducer, TResult, TOkResult,
+	allCivetFiles,     // --- (): AsyncGenerator<string>
+	compileCivetFile,  //     (path: string) -> AsyncGenerator<TResult, void>
+	typeCheckTsFile,   //     (h: TResult) -> boolean
 	} from './compileall.lib.ts'
-
-import {mapper, reducer} from 'var-free'
 
 import hCivetConfig from "civetconfig" with {type: "json"}
 
@@ -41,61 +36,68 @@ assert(isFile('.gitignore'))
 
 // ---------------------------------------------------------------------------
 
+export const isAsyncIterator = <T,>(
+		x: unknown
+		): x is AsyncIterableIterator<T> => {
+
+	if (
+			   (x === undefined)
+			|| (x === null)
+			|| (typeof x !== 'object')
+			|| (!('next' in x))
+			|| (typeof x.next !== 'function')
+			|| (!(Symbol.asyncIterator in x))
+			) {
+		return false
+	}
+	const iter = x[Symbol.asyncIterator]
+	return (typeof iter === 'function') && (iter.call(x) === x)
+}
+
+// ---------------------------------------------------------------------------
+
 const t0 = Date.now()
 
-// --- We must keep track of how many civet files there are
-let numFiles = 0
-
 // --- TIn is string
-// --- TOut is TOkResult
-// --- allCivetFiles() returns a TAsyncIterator<string>
-// --- compileCivetFile is type (string => TAsyncIterator<TOkResult>)
-// --- abortFunc is type (string => boolean)
+// --- TOut is TResult
+// --- allCivetFiles() returns an AsyncGenerator<string>
+// --- compileCivetFile is type (path: string) => AsyncGenerator<TResult>
 
-// --- allCivetFiles    is () => TAsyncIterator<string>
-//     compileCivetFile is (path: string) -> TAsyncIterator<TOkResult>
-debugger
-const iter = await mapper(allCivetFiles(), compileCivetFile)
-assert(isAsyncIterator<TOkResult>(iter), `Not an async iterator: ${iter}`)
+const iterResults = await mapper<string,TResult>(allCivetFiles(), compileCivetFile)
+const lResults: TResult[] = await Array.fromAsync(iterResults)
+// DUMP lResults
+const [numSkip, numOk, numErr, numFiles] = await reducer(lResults, [0,0,0,0], function(acc, x) {
+	const [nSkip, nOk, nErr, nFiles] = acc
+	return [
+		(x.status === 'alreadyCompiled') ? nSkip + 1 : nSkip,
+		(x.status === 'ok') ? nOk + 1 : nOk,
+		(x.status === 'error') ? nErr + 1 : nErr,
+		nFiles + 1
+		]
+})
+LOG(`${numSkip} already compiled, ${numOk} compiled, ${numErr} errors`)
 
-const lToTypeCheck: TOkResult[] = await Array.fromAsync(iter)
-const numCompiled = lToTypeCheck.length
-if (numCompiled === 0) {
+if (numOk === 0) {
 	LOG("All files already compiled")
 	Deno.exit(0)
 }
 
-// --- If any files failed to compile, there is no point
-//     to type checking because it will probably fail
-if (numCompiled !== numFiles) {
-	const numFailed = numFiles - numCompiled
-	ERR(`${numFailed}/${numFiles} civet files failed to compile`)
+if (numErr > 0) {
+	ERR(`${numErr}/${numFiles} civet files failed to compile`)
 	Deno.exit(-1)
 }
 
-// --- type check files that were compiled
-//     tsCode will include the inline source map
-
-// --- This produces an array of booleans
-
-// --- we need something with a next() method
-//     lToTypeCheck is an array of TOkResult
-const iter2 = mapper(lToTypeCheck, typeCheckTsFile)
-const lTypeCheckResult = await Array.fromAsync(iter2)
-
-const nFailed = await reducer(lTypeCheckResult, 0, (accum, item) => {
-	return accum+1
+const lToTypeCheck: TOkResult[] = lResults.filter((h) => {
+	return (h.status === 'ok')
 })
 
-if (nFailed > 0) {
-	ERR(`${nFailed} files failed to compile`)
-	Deno.exit(-1)
-}
-
-if (numCompiled > 0) {
-	// --- Save source maps
-	LOG(`saving ${numCompiled} source maps`)
-	await saveSourceMaps()
+const iterCheck = mapper<TOkResult,boolean>(lToTypeCheck, typeCheckTsFile)
+const numFailed = await reducer(iterCheck, 0, function(acc, x) {
+	return x ? acc : acc+1
+})
+if (numFailed > 0) {
+		ERR(`${numFailed} files failed type checking`)
+		Deno.exit(-1)
 }
 
 const secs = (Date.now() - t0) / 1000

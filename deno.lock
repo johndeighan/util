@@ -328,6 +328,7 @@
   },
   "workspace": {
     "dependencies": [
+      "jsr:@deno/emit@*",
       "jsr:@std/assert@*",
       "jsr:@std/async@*",
       "jsr:@std/fmt@*",
@@ -337,8 +338,11 @@
       "jsr:@std/path@*",
       "jsr:@std/streams@*",
       "jsr:@std/yaml@*",
+      "npm:@danielx/civet@*",
       "npm:fast-deep-equal@latest",
       "npm:n-readlines@*",
+      "npm:source-map@*",
+      "npm:typescript@*",
       "npm:uglify-js@latest"
     ],
     "packageJson": {

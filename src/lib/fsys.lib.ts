@@ -998,5 +998,3 @@ export var openTextFile = (
 			}
 	}
 }
-
-

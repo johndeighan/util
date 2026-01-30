@@ -429,7 +429,7 @@ export isClass := (x: unknown): boolean =>
 
 # ---------------------------------------------------------------------------
 
-export isPromise := (x: unknown): boolean =>
+export isPromise := <T>(x: unknown): x is Promise<T> =>
 
 	return (
 		   (typeof x == 'object')

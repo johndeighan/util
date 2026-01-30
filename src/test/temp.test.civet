@@ -2,10 +2,10 @@
 
 import {undef} from 'datatypes'
 import {
-	TMapper, TAsyncMapper, TIterator, TAsyncIterator, TMaybeString,
+	TSyncMapper, TAsyncMapper, TIterator, TAsyncIterator, TMaybeCmd,
 	syncMapper, syncReducer, mapper, reducer,
 	} from 'var-free'
-import {equal, getAsync} from 'unit-test'
+import {equal, generateAsync} from 'unit-test'
 
 # ---------------------------------------------------------------------------
 # --- test reducer() with plain function
@@ -13,7 +13,7 @@ import {equal, getAsync} from 'unit-test'
 await (() =>
 	# --- reducing (getting the sum)
 
-	sum := await reducer getAsync([1..4]), 0, (acc, n) =>
+	sum := await reducer generateAsync([1..4]), 0, (acc, n) =>
 		return acc + n
 
 	equal sum, 10
@@ -31,7 +31,7 @@ await (() =>
 await (() =>
 	# --- reducing (getting the sum, early abort)
 
-	sum := await reducer getAsync([1..4]), 0, (acc, n) =>
+	sum := await reducer generateAsync([1..4]), 0, (acc, n) =>
 		return (n < 3) ? acc + n : undef
 
 	equal sum, 3
@@ -51,7 +51,7 @@ await (() =>
 
 	type TAcc = [number, number]
 
-	[sum, sumsq] := await reducer getAsync([1..4]), [0, 0], (acc, n) =>
+	[sum, sumsq] := await reducer generateAsync([1..4]), [0, 0], (acc, n) =>
 		[sum, sumsq] := acc
 		return [sum + n, sumsq + n*n]
 
@@ -78,7 +78,7 @@ await (() =>
 
 	type TAcc = [number, number]
 
-	[sum, sumsq] := await reducer getAsync([1..4]), [0, 0], (acc, n) =>
+	[sum, sumsq] := await reducer generateAsync([1..4]), [0, 0], (acc, n) =>
 		[sum, sumsq] := acc
 		return (n % 2 == 0) ? [sum + n, sumsq + n*n] : acc
 

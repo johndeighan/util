@@ -6,7 +6,7 @@ import {
 	} from 'jsr:@std/fmt/colors'
 
 import {esc} from 'unicode'
-import {TMaybeString, syncMapper} from 'var-free'
+import {TMaybeCmd, syncMapper} from 'var-free'
 import {TIterator, defined, nonEmpty, isInteger} from 'datatypes'
 
 # --- hash of all supported colors
@@ -28,7 +28,7 @@ export f := (
 		): string =>
 
 	[firstStr, mainWidth, mainEsc, mainColor] := fsplit lStrings[0]
-	lParts := Array.from(syncMapper<unknown,string> lValues, (val: unknown, i: number): TIterator<string, TMaybeString> ->
+	lParts := Array.from(syncMapper<unknown,string> lValues, (val: unknown, i: number): TIterator<string, TMaybeCmd> ->
 		[str, width, doEsc, color] := fsplit lStrings[i+1]
 		result := switch typeof val
 			when 'string'

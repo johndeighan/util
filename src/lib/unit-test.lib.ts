@@ -865,7 +865,7 @@ export const setDirTree_org = async (desc: string): AutoPromise1<AutoPromise<TFi
 // ---------------------------------------------------------------------------
 // --- Create some values for testing
 
-export const val: hashof<unknown> = {
+export const sampleVal: hashof<unknown> = {
 	undef: undefined,
 	null: null,
 	emptyStr: '',
@@ -903,16 +903,9 @@ export const allTrue = (
 		pred: TFilterFunc
 		): boolean => {
 
-	for (const name in val) {const value = val[name];
-		if (lNames.includes(name)) {
-			if (!pred(value)) {
-				return false
-			}
-		}
-		else {
-			if (pred(value)) {
-				return false
-			}
+	for (const name of lNames) {
+		if (!pred(sampleVal[name])) {
+			return false
 		}
 	}
 	return true
@@ -920,23 +913,15 @@ export const allTrue = (
 
 // ---------------------------------------------------------------------------
 // --- Returns true only if all the named values return true
-//     AND all the not named values return false
 
 export const allFalse = (
 		lNames: string[],
 		pred: TFilterFunc
 		): boolean => {
 
-	for (const name in val) {const value = val[name];
-		if (lNames.includes(name)) {
-			if (pred(value)) {
-				return false
-			}
-		}
-		else {
-			if (!pred(value)) {
-				return false
-			}
+	for (const name of lNames) {
+		if (pred(sampleVal[name])) {
+			return false
 		}
 	}
 	return true
@@ -944,7 +929,19 @@ export const allFalse = (
 
 // ---------------------------------------------------------------------------
 
-export const getAsync = async function*<T>(
+export const generateSync = function*<T>(
+		lItems: T[],
+		): Generator<T> {
+
+	for (const item of lItems) {
+		yield item
+	}
+	return
+}
+
+// ---------------------------------------------------------------------------
+
+export const generateAsync = async function*<T>(
 		lItems: T[],
 		sleepFor: number = 1
 		): AsyncGenerator<T> {

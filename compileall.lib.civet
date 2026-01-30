@@ -6,14 +6,144 @@ import {expandGlob} from '@std/fs/expand-glob'
 import {RawSourceMap, SourceMapConsumer} from 'npm:source-map'
 import {compile as compileCivet} from 'npm:@danielx/civet'
 
-import {TIterator, TAsyncIterator} from 'datatypes'
-import {mapper, reducer} from 'var-free'
-
 import hCivetConfig from "civetconfig" with {type: "json"}
 
 sourceMapPath := './sourcemap.json'
 
 export undef := undefined
+
+type TDefined = NonNullable<unknown>
+export defined := (x: unknown): x is TDefined =>
+	return (x != undef) && (x != null)
+
+type TNotDefined = null | undefined
+export notdefined := (x: unknown): x is TNotDefined =>
+	return not defined(x)
+
+# ---------------------------------------------------------------------------
+
+export DUMP := (x: unknown): void =>
+
+	console.dir x, {depth: null}
+	return
+
+# ---------------------------------------------------------------------------
+
+export isIterator := <T>(x: unknown): x is IterableIterator<T> =>
+
+	if (
+			   (x == undef)
+			|| (x == null)
+			|| (typeof x != 'object')
+			|| ('next' not in x)
+			|| (typeof x.next != 'function')
+			|| (Symbol.iterator not in x)
+			)
+		return false
+	iter := x[Symbol.iterator]
+	return (typeof iter == 'function') && (iter.call(x) == x)
+
+# ---------------------------------------------------------------------------
+
+export isAsyncIterator := <T>(x: unknown): x is AsyncIterableIterator<T> =>
+
+	if (
+			   (x == undef)
+			|| (x == null)
+			|| (typeof x != 'object')
+			|| ('next' not in x)
+			|| (typeof x.next != 'function')
+			|| (Symbol.asyncIterator not in x)
+			)
+		return false
+	iter := x[Symbol.asyncIterator]
+	return (typeof iter == 'function') && (iter.call(x) == x)
+
+# ---------------------------------------------------------------------------
+
+export isPromise := <T>(x: unknown): x is Promise<T> =>
+
+	return (
+		   (typeof x == 'object')
+		&& (x != null)
+		&& ('then' in x)
+		&& (typeof x.then == 'function')
+		)
+
+# ---------------------------------------------------------------------------
+
+export type TMaybeCmd = 'stop' | undefined | void
+
+# ---------------------------------------------------------------------------
+
+export function mapper<TIn, TOut>(
+		lItems:  Generator<TIn> |
+					AsyncGenerator<TIn> |
+					TIn[]
+		mapFunc: (x: TIn, i: number) =>
+			TOut? |
+			Promise<TOut?> |
+			Generator<TOut, TMaybeCmd> |
+			AsyncGenerator<TOut, TMaybeCmd>
+		): AsyncGenerator<TOut>
+
+	# --- NOTE: You can await something even if it's not async
+	for await item,i of lItems
+		iter := mapFunc item, i
+		if isIterator(iter) || isAsyncIterator(iter)
+			loop
+				{done, value} := await iter.next()
+				if done
+					if (value == 'stop')  # value returned from mapFunc()
+						return
+					else
+						break
+				else if (value != undefined)
+					yield value
+		else if (iter != undefined)
+			if isPromise(iter)
+				# --- iter is a TOut
+				result := await iter
+				if (result != undefined)
+					yield result
+			else
+				yield iter
+	return
+
+# ---------------------------------------------------------------------------
+
+export reducer := <TIn, TAccum>(
+		lItems: Generator<TIn> |
+				AsyncGenerator<TIn> |
+				TIn[]
+		acc: TAccum
+		redFunc: (acc: TAccum, x: TIn, i: number) =>
+			TAccum? |
+			Promise<TAccum?> |
+			Generator<TAccum, TMaybeCmd> |
+			AsyncGenerator<TAccum, TMaybeCmd>
+		): TAccum ->
+
+	for await item,i of lItems
+		iter := redFunc acc, item, i
+		if isIterator(iter) || isAsyncIterator(iter)
+			loop
+				{done, value} := await iter.next()
+				if done
+					if (value == 'stop')
+						return await acc
+					else
+						break
+				else if (value != undefined)
+					acc = value
+		else if (iter != undefined)
+			if isPromise(iter)
+				result := await iter
+				if (result != undefined)
+					acc = result
+			else
+				acc = iter
+	return await acc
 
 # ---------------------------------------------------------------------------
 
@@ -181,7 +311,11 @@ hGlobOptions := {
 		]
 	}
 
-export allCivetFiles := (): TAsyncIterator<string> ->
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export allCivetFiles := (): AsyncGenerator<string> ->
+
 	path := Deno.args[0]
 	if path
 		assert isFile path
@@ -264,10 +398,30 @@ export saveSourceMaps := (): void =>
 
 # ---------------------------------------------------------------------------
 
+# export type TStatus = 'ok' | 'error' | 'alreadyCompiled'
+# export type TResult = {
+# 		status: TStatus
+# 		destPath: string
+# 		code: string
+# 		hSrcMap: RawSourceMap
+# 		}
+
 export type TOkResult = {
+	status: 'ok'
+	destPath: string
+	code: string
+	hSrcMap: RawSourceMap
+	}
+
+export type TResult = TOkResult |
+	{
+		status: 'error'
 		destPath: string
-		code: string
-		hSrcMap: RawSourceMap
+		errMsg: string
+		} |
+	{
+		status: 'alreadyCompiled'
+		destPath: string
 		}
 
 # ---------------------------------------------------------------------------
@@ -275,7 +429,7 @@ export type TOkResult = {
 
 export compileCivetFile := (
 		path: string
-		): TAsyncIterator<TOkResult, void> ->
+		): AsyncGenerator<TResult, void, void> ->
 
 	civetPath := toFullPath path
 	relPath := relative('.', civetPath)
@@ -285,6 +439,10 @@ export compileCivetFile := (
 	if alreadyCompiled(path)
 		DBG centered("COMPILE: #{relPath}")
 		DBG "already compiled to #{relDestPath}", 1
+		yield {
+			status: 'alreadyCompiled'
+			destPath
+			}
 		return
 
 	try
@@ -299,10 +457,13 @@ export compileCivetFile := (
 			}
 		assert tsCode && not tsCode.startsWith('COMPILE FAILED'),
 			"CIVET COMPILE FAILED: #{relPath}"
-		LOG "compile succeeded", 1
 		[code, hSrcMap] := extractSourceMap tsCode
 		assert (hSrcMap != undef), "Missing source map"
+		await Deno.writeTextFile destPath, code
+		addSourceMap destPath, hSrcMap
+		LOG "compile OK, wrote #{relDestPath}, source map added", 1
 		yield {
+			status: 'ok'
 			destPath
 			code
 			hSrcMap
@@ -310,32 +471,26 @@ export compileCivetFile := (
 
 	catch err
 		ERR "ERROR in #{relDestPath}:\n#{err}"
+		yield {
+			status: 'error'
+			destPath
+			errMsg: getErrStr(err)
+			}
 	return
 
 # ---------------------------------------------------------------------------
 # --- ASYNC
 
-export typeCheckTsFile := (
-		hResult: TOkResult
-		): boolean =>
+export typeCheckTsFile := (h: TOkResult, i: number): boolean? =>
 
-	{destPath, code, hSrcMap} := hResult
+	{destPath, code, hSrcMap} := h
 	relDestPath := relative '.', destPath
 	LOG centered("TYPE CHECK: #{relDestPath}")
 	try
-		# --- Unfortunately, we have to write the code to a file
-		#     in order to type check it :-(
-
-		tempPath := 'src/temp/_tempcode_.ts'
-		encoded := encoder.encode(code)
-		await Deno.writeFile tempPath, encoded
-		success := await typeCheck tempPath
+		success := await typeCheck destPath
 		assert success, "type check failed for #{relDestPath}"
 
-		await Deno.writeFile destPath, encoded
-		LOG "TS file written", 1
 		LOG "type check OK", 1
-		LOG "adding source map for #{relDestPath}", 1
 		addSourceMap destPath, hSrcMap
 		return true
 

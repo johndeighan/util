@@ -764,7 +764,7 @@ export setDirTree_org := (desc: string): AutoPromise<TFileOp[]> =>
 # ---------------------------------------------------------------------------
 # --- Create some values for testing
 
-export val: hashof<unknown> := {
+export sampleVal: hashof<unknown> := {
 	undef: undefined
 	null: null
 	emptyStr: ''
@@ -798,36 +798,37 @@ export allTrue := (
 		pred: TFilterFunc
 		): boolean =>
 
-	for name,value in val
-		if lNames.includes name
-			if not pred(value)
-				return false
-		else
-			if pred(value)
-				return false
+	for name of lNames
+		if not pred(sampleVal[name])
+			return false
 	return true
 
 # ---------------------------------------------------------------------------
 # --- Returns true only if all the named values return true
-#     AND all the not named values return false
 
 export allFalse := (
 		lNames: string[],
 		pred: TFilterFunc
 		): boolean =>
 
-	for name,value in val
-		if lNames.includes name
-			if pred(value)
-				return false
-		else
-			if not pred(value)
-				return false
+	for name of lNames
+		if pred(sampleVal[name])
+			return false
 	return true
 
 # ---------------------------------------------------------------------------
 
-export getAsync := <T>(
+export generateSync := <T>(
+		lItems: T[],
+		): Generator<T> ->
+
+	for item of lItems
+		yield item
+	return
+
+# ---------------------------------------------------------------------------
+
+export generateAsync := <T>(
 		lItems: T[],
 		sleepFor: number = 1
 		): AsyncGenerator<T> ->

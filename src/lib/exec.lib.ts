@@ -4,20 +4,20 @@
 type AutoPromise1<T> = Promise<Awaited<T>>;
 type AutoPromise<T> = Promise<Awaited<T>>
 
-import {transpile} from "jsr:@deno/emit"
-import fs from 'node:fs'
-import {existsSync} from 'jsr:@std/fs'
-import {statSync} from 'node:fs'
-import {stripAnsiCode} from 'jsr:@std/fmt/colors'
+import {transpile} from "@deno/emit"
+import fs from 'fs'
+import {existsSync} from '@std/fs'
+import {statSync} from 'fs'
+import {stripAnsiCode} from '@std/fmt/colors'
 import {
 	CompilerOptions, ScriptTarget, ModuleKind, CompilerHost,
 	createSourceFile, createProgram, getPreEmitDiagnostics,
 	flattenDiagnosticMessageText, createCompilerHost,
-	} from 'npm:typescript'
-import {sprintf} from 'jsr:@std/fmt/printf'
-import {compile as compileCivet} from 'npm:@danielx/civet'
+	} from 'npm-typescript'
+import {sprintf} from '@std/fmt/printf'
+import {compile as compileCivet} from '@danielx/civet'
 import hCivetConfig from "civetconfig" with { type: "json" };
-import {RawSourceMap} from 'npm:source-map-sync'
+import {RawSourceMap} from 'npm-source-map'
 
 import {
 	undef, defined, notdefined, assert, croak, hash,

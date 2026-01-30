@@ -10,13 +10,17 @@
 		"@std/yaml": "jsr:@std/yaml",
 		"@std/fmt": "jsr:@std/fmt",
 		"@std/fmt/colors": "jsr:@std/fmt/colors",
+		"@std/fmt/printf": "jsr:@std/fmt/printf",
+		"@std/fmt/fprintf": "jsr:@std/fmt/fprintf",
 		"@std/fs": "jsr:@std/fs",
 		"@std/fs/expand-glob": "jsr:@std/fs/expand-glob",
 		"@std/jsonc": "jsr:@std/jsonc",
 		"@std/log": "jsr:@std/log",
 		"@std/path": "jsr:@std/path",
 		"@std/streams": "jsr:@std/streams",
-		"@std/fmt/fprintf": "jsr:@std/fmt/fprintf",
+
+		"@deno/emit": "jsr:@deno/emit",
+		"@danielx/civet": "npm:@danielx/civet",
 
 		"module": "node:module",
 		"fs": "node:fs",
@@ -26,7 +30,8 @@
 		"uglify-js": "npm:uglify-js@latest",
 		"fast-deep-equal": "npm:fast-deep-equal@latest",
 		"n-readlines": "npm:n-readlines",
-		"source-map": "npm:source-map",
+		"npm-source-map": "npm:source-map",
+		"npm-typescript": "npm:typescript",
 
 		"datatypes":     "file:///C:/Users/johnd/util/src/lib/datatypes.lib.ts",
 		"source-map":    "file:///C:/Users/johnd/util/src/lib/source-map.lib.ts",

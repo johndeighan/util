@@ -1,12 +1,9 @@
 to do
 
-compileall.civet still has type errors
-	- try 'cfile compileall'
+Investigate whether compileall.civet could compile needed
+files, then dynamically import from the resulting TS files
 
-continue adding libs to deno.json (currently at fsys)
-
-in compileall.civet
-	- write and use function typeCheckTsFile()
+Remove all prefixes (e.g. jsr: npm:) from all imports
 
 doInstallCmd needs to uninstall previous version AND remove the .json file
 mapsrc command needs to display a nice error message if the source map

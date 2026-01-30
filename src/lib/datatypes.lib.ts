@@ -505,7 +505,7 @@ export const isClass = (x: unknown): boolean => {
 
 // ---------------------------------------------------------------------------
 
-export const isPromise = (x: unknown): boolean => {
+export const isPromise = <T,>(x: unknown): x is Promise<T> => {
 
 	return (
 		   (typeof x === 'object')
@@ -603,4 +603,3 @@ export const isAsyncIterator = <T,>(x: unknown): x is AsyncIterableIterator<T> =
 	const iter = x[Symbol.asyncIterator]
 	return (typeof iter === 'function') && (iter.call(x) === x)
 }
-

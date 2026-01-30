@@ -1,10 +1,11 @@
 # var-free.lib.test.civet
 
 import {undef, TIterator, TAsyncIterator} from 'datatypes'
+import {sleep} from 'llutils'
 import {
-	syncMapper, syncReducer, mapper, reducer, TMaybeString,
+	syncMapper, syncReducer, mapper, reducer, TMaybeCmd,
 	} from 'var-free'
-import {getAsync, equal} from 'unit-test'
+import {generateSync, generateAsync, equal} from 'unit-test'
 
 # ---------------------------------------------------------------------------
 # --- test syncMapper()
@@ -40,7 +41,7 @@ import {getAsync, equal} from 'unit-test'
 (() =>
 	# --- pure mapping, using a generator
 
-	gen := (): TIterator<number, TMaybeString> ->
+	gen := (): TIterator<number, TMaybeCmd> ->
 		for i of [1..4]
 			yield i
 		return
@@ -116,7 +117,7 @@ import {getAsync, equal} from 'unit-test'
 (() =>
 	# --- pure mapping, using a generator
 
-	gen := (): TIterator<number, TMaybeString> ->
+	gen := (): TIterator<number, TMaybeCmd> ->
 		for i of [1..4]
 			yield i
 		return
@@ -255,9 +256,56 @@ import {getAsync, equal} from 'unit-test'
 # --- test mapper()
 
 await (() =>
-	# --- pure mapping
+	# --- pure mapping, using array
 
-	iterStrings := mapper getAsync([1..4]), (n) ->
+	iterStrings := mapper [1..4], (n) ->
+		yield "number is #{n}"
+		return
+
+	equal await Array.fromAsync(iterStrings), [
+		"number is 1"
+		"number is 2"
+		"number is 3"
+		"number is 4"
+		]
+	)()
+
+await (() =>
+	# --- pure mapping, using sync generator
+
+	iterStrings := mapper generateSync([1..4]), (n) ->
+		yield "number is #{n}"
+		return
+
+	equal await Array.fromAsync(iterStrings), [
+		"number is 1"
+		"number is 2"
+		"number is 3"
+		"number is 4"
+		]
+	)()
+
+await (() =>
+	# --- pure mapping, using async generator
+
+	iterStrings := mapper generateAsync([1..4]), (n) ->
+		yield "number is #{n}"
+		return
+
+	equal await Array.fromAsync(iterStrings), [
+		"number is 1"
+		"number is 2"
+		"number is 3"
+		"number is 4"
+		]
+	)()
+
+await (() =>
+	# --- pure mapping, using async generator as input
+	#     and async generator for mapper
+
+	iterStrings := mapper generateAsync([1..4]), (n) ->
+		await sleep(1)
 		yield "number is #{n}"
 		return
 
@@ -272,7 +320,7 @@ await (() =>
 await (() =>
 	# --- pure mapping
 
-	iterStrings := mapper getAsync([1..4]), (n) ->
+	iterStrings := mapper generateAsync([1..4]), (n) ->
 		yield "number is #{n}"
 		return (n==2) ? 'stop' : undef
 
@@ -285,7 +333,7 @@ await (() =>
 await (() =>
 	# --- pure filtering
 
-	iterItems := mapper getAsync([1..4]), (n) ->
+	iterItems := mapper generateAsync([1..4]), (n) ->
 		if (n % 2 == 0)
 			yield n
 		return
@@ -299,7 +347,7 @@ await (() =>
 	abortFunc := (n: number) ->
 		return (n == 3)
 
-	iterNum := mapper getAsync([1..4]), (n) ->
+	iterNum := mapper generateAsync([1..4]), (n) ->
 		if (n % 2 == 0)
 			yield n
 		return (n==2) ? 'stop' : undef
@@ -310,7 +358,7 @@ await (() =>
 await (() =>
 	# --- combined filtering and mapping
 
-	iterStr := mapper getAsync([1..4]), (n) ->
+	iterStr := mapper generateAsync([1..4]), (n) ->
 		if (n % 2 == 0)
 			yield "2n = #{2*n}"
 			yield "number is #{10 * n}"
@@ -329,7 +377,7 @@ await (() =>
 await (() =>
 	# --- pure mapping
 
-	iterStrings := mapper getAsync([1..4]), (n) =>
+	iterStrings := mapper generateAsync([1..4]), (n) =>
 		return "number is #{n}"
 
 	equal await Array.fromAsync(iterStrings), [
@@ -343,7 +391,7 @@ await (() =>
 await (() =>
 	# --- pure mapping
 
-	iterStrings := mapper getAsync([1..4]), (n) =>
+	iterStrings := mapper generateAsync([1..4]), (n) =>
 		return (n < 3) ? "number is #{n}" : undef
 
 	equal await Array.fromAsync(iterStrings), [
@@ -355,7 +403,7 @@ await (() =>
 await (() =>
 	# --- pure filtering
 
-	iterItems := mapper getAsync([1..4]), (n) =>
+	iterItems := mapper generateAsync([1..4]), (n) =>
 		return (n % 2 == 0) ? n : undef
 
 	equal await Array.fromAsync(iterItems), [2, 4]
@@ -364,7 +412,7 @@ await (() =>
 await (() =>
 	# --- combined filtering and mapping
 
-	iterStr := mapper getAsync([1..4]), (n) =>
+	iterStr := mapper generateAsync([1..4]), (n) =>
 		return (n % 2 == 0) ? "number is #{10 * n}" : undef
 
 	equal await Array.fromAsync(iterStr),
@@ -380,7 +428,7 @@ await (() =>
 await (() =>
 	# --- reducing (getting the sum)
 
-	sum := await reducer getAsync([1..4]), 0, (acc, n) ->
+	sum := await reducer generateAsync([1..4]), 0, (acc, n) ->
 		yield acc + n
 		return
 
@@ -400,7 +448,7 @@ await (() =>
 await (() =>
 	# --- reducing (getting the sum, early abort)
 
-	sum := await reducer getAsync([1..4]), 0, (acc, n) ->
+	sum := await reducer generateAsync([1..4]), 0, (acc, n) ->
 		yield acc + n
 		return (n==2) ? 'stop' : undef
 
@@ -422,7 +470,7 @@ await (() =>
 
 	type TAcc = [number, number]
 
-	[sum, sumsq] := await reducer getAsync([1..4]), [0, 0], (acc, n) ->
+	[sum, sumsq] := await reducer generateAsync([1..4]), [0, 0], (acc, n) ->
 		[sum, sumsq] := acc
 		yield [sum + n, sumsq + n*n]
 		return
@@ -451,7 +499,7 @@ await (() =>
 
 	type TAcc = [number, number]
 
-	[sum, sumsq] := await reducer getAsync([1..4]), [0, 0], (acc, n) ->
+	[sum, sumsq] := await reducer generateAsync([1..4]), [0, 0], (acc, n) ->
 		[sum, sumsq] := acc
 		yield (n % 2 == 0) ? [sum + n, sumsq + n*n] : acc
 		return
@@ -481,7 +529,7 @@ await (() =>
 await (() =>
 	# --- reducing (getting the sum)
 
-	sum := await reducer getAsync([1..4]), 0, (acc, n) =>
+	sum := await reducer generateAsync([1..4]), 0, (acc, n) =>
 		return acc + n
 
 	equal sum, 10
@@ -499,7 +547,7 @@ await (() =>
 await (() =>
 	# --- reducing (getting the sum, early abort)
 
-	sum := await reducer getAsync([1..4]), 0, (acc, n) =>
+	sum := await reducer generateAsync([1..4]), 0, (acc, n) =>
 		return (n < 3) ? acc + n : undef
 
 	equal sum, 3
@@ -519,7 +567,7 @@ await (() =>
 
 	type TAcc = [number, number]
 
-	[sum, sumsq] := await reducer getAsync([1..4]), [0, 0], (acc, n) =>
+	[sum, sumsq] := await reducer generateAsync([1..4]), [0, 0], (acc, n) =>
 		[sum, sumsq] := acc
 		return [sum + n, sumsq + n*n]
 
@@ -546,7 +594,7 @@ await (() =>
 
 	type TAcc = [number, number]
 
-	[sum, sumsq] := await reducer getAsync([1..4]), [0, 0], (acc, n) =>
+	[sum, sumsq] := await reducer generateAsync([1..4]), [0, 0], (acc, n) =>
 		[sum, sumsq] := acc
 		return (n % 2 == 0) ? [sum + n, sumsq + n*n] : acc
 

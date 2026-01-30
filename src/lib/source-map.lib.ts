@@ -5,7 +5,7 @@ import {parse as parseFilePath} from 'node:path'
 import {existsSync} from 'jsr:@std/fs'
 import {
 	RawSourceMap, SourceMapConsumer,
-	} from 'npm:source-map'              // was source-map-sync
+	} from 'npm-source-map'              // was source-map-sync
 
 import {
 	undef, assert, assertIsDefined, defined, notdefined, hash, croak,

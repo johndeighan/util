@@ -3,33 +3,122 @@
 
 type AutoPromise<T> = Promise<Awaited<T>>;
 import {
-	defined, isIterator, isObject,
-	TIterator, TAsyncIterator,
+	isIterator, isAsyncIterator, isPromise,
 	} from 'datatypes'
 
-export type TMaybeString = 'stop' | undefined | void
-export type TAnyIterator<T,U,V> = TIterator<T,U,V> | TAsyncIterator<T,U,V>
+export type TMaybeCmd = 'stop' | undefined | void
 
-export type TFuncMapper<TIn, TOut>     = (item: TIn, i: number) => (TOut | undefined)
-export type TMapper<TIn, TOut>         = (item: TIn, i: number) => TIterator<TOut, TMaybeString>
-export type TAsyncMapper<TIn, TOut>    = (item: TIn, i: number) => TAsyncIterator<TOut, TMaybeString>
+// ---------------------------------------------------------------------------
 
-export type TFuncReducer<TAccum, TIn>  = (acc: TAccum, x: TIn, i: number) => (TAccum | undefined)
-export type TReducer<TAccum, TIn>      = (acc: TAccum, x: TIn, i: number) => TIterator<TAccum, TMaybeString>
-export type TAsyncReducer<TAccum, TIn> = (acc: TAccum, x: TIn, i: number) => TAsyncIterator<TAccum, TMaybeString>
+export async function* mapper<TIn, TOut>(
+		lItems:  Generator<TIn> |
+					AsyncGenerator<TIn> |
+					TIn[],
+		mapFunc: (x: TIn, i: number) =>
+			(TOut | undefined) |
+			Promise<(TOut | undefined)> |
+			Generator<TOut, TMaybeCmd> |
+			AsyncGenerator<TOut, TMaybeCmd>
+		): AsyncGenerator<TOut> {
+
+	// --- NOTE: You can await something even if it's not async
+	let i1 = 0;for await (const item of lItems) {const i = i1++;
+		const iter = mapFunc(item, i)
+		if (isIterator(iter) || isAsyncIterator(iter)) {
+			while(true) {
+				const {done, value} = await iter.next()
+				if (done) {
+					if (value === 'stop') {  // value returned from mapFunc()
+						return
+					}
+					else {
+						break
+					}
+				}
+				else if (value !== undefined) {
+					yield value
+				}
+			}
+		}
+		else if (iter !== undefined) {
+			if (isPromise(iter)) {
+				// --- iter is a TOut
+				const result = await iter
+				if (result !== undefined) {
+					yield result
+				}
+			}
+			else {
+				yield iter
+			}
+		}
+	}
+	return
+}
+
+// ---------------------------------------------------------------------------
+
+export const reducer = async function<TIn, TAccum>(
+		lItems: Generator<TIn> |
+				AsyncGenerator<TIn> |
+				TIn[],
+		acc: TAccum,
+		redFunc: (acc: TAccum, x: TIn, i: number) =>
+			(TAccum | undefined) |
+			Promise<(TAccum | undefined)> |
+			Generator<TAccum, TMaybeCmd> |
+			AsyncGenerator<TAccum, TMaybeCmd>
+		): AutoPromise<TAccum> {
+
+	let i2 = 0;for await (const item of lItems) {const i = i2++;
+		const iter = redFunc(acc, item, i)
+		if (isIterator(iter) || isAsyncIterator(iter)) {
+			while(true) {
+				const {done, value} = await iter.next()
+				if (done) {
+					if (value === 'stop') {
+						return await acc
+					}
+					else {
+						break
+					}
+				}
+				else if (value !== undefined) {
+					acc = value
+				}
+			}
+		}
+		else if (iter !== undefined) {
+			if (isPromise(iter)) {
+				const result = await iter
+				if (result !== undefined) {
+					acc = result
+				}
+			}
+			else {
+				acc = iter
+			}
+		}
+	}
+	return await acc
+}
 
 // ---------------------------------------------------------------------------
 
 export function* syncMapper<TIn, TOut>(
 		lItems:  IterableIterator<TIn> | TIn[],
-		mapFunc: TFuncMapper<TIn, TOut> | TMapper<TIn, TOut>
-		): TIterator<TOut, TMaybeString> {
+		mapFunc: (x: TIn, i: number) =>
+			(TOut | undefined) |
+			Generator<TOut, TMaybeCmd>
+		): Generator<TOut, TMaybeCmd> {
 
-	let i1 = 0;for (const item of lItems) {const i = i1++;
+	let i3 = 0;for (const item of lItems) {const i = i3++;
 		const iter = mapFunc(item, i)
-		if (defined(iter)) {
-			if (isObject(iter) && ((Symbol.iterator in iter) || (Symbol.asyncIterator in iter))) {
+		if (iter !== undefined) {
+			if (isIterator(iter) || isAsyncIterator(iter)) {
 				while(true) {
+					// --- I'm tired of wrestling with TypeScript !
+					// @ts-ignore
 					const {done, value} = iter.next()
 					if (done) {
 						if (value === 'stop') {
@@ -39,7 +128,7 @@ export function* syncMapper<TIn, TOut>(
 							break
 						}
 					}
-					else {
+					else if (value !== undefined) {
 						yield value
 					}
 				}
@@ -55,14 +144,16 @@ export function* syncMapper<TIn, TOut>(
 // ---------------------------------------------------------------------------
 
 export const syncReducer = function<TIn, TAccum>(
-		lItems: TIterator<TIn> | TIn[],
+		lItems: Generator<TIn> | TIn[],
 		acc: TAccum,
-		reduceFunc: TFuncReducer<TAccum, TIn> | TReducer<TAccum, TIn>
+		redFunc: (acc: TAccum, x: TIn, i: number) =>
+			(TAccum | undefined) |
+			Generator<TAccum, TMaybeCmd>
 		): TAccum {
 
-	let i2 = 0;for (const item of lItems) {const i = i2++;
-		const iter = reduceFunc(acc, item, i)
-		if (defined(iter)) {
+	let i4 = 0;for (const item of lItems) {const i = i4++;
+		const iter = redFunc(acc, item, i)
+		if (iter !== undefined) {
 			if (isIterator(iter)) {
 				while(true) {
 					const {done, value} = iter.next()
@@ -74,7 +165,7 @@ export const syncReducer = function<TIn, TAccum>(
 							break
 						}
 					}
-					else {
+					else if (value !== undefined) {
 						acc = value
 					}
 				}
@@ -86,85 +177,4 @@ export const syncReducer = function<TIn, TAccum>(
 		}
 	}
 	return acc
-}
-
-// ---------------------------------------------------------------------------
-
-export function mapper<TIn, TOut>(
-		lItems:     TIterator<TIn>,
-		mapFunc:    TFuncMapper<TIn, TOut> | TMapper<TIn, TOut>
-		): TAsyncIterator<TOut, TMaybeString>
-
-export function mapper<TIn, TOut>(
-		lItems:     TAsyncIterator<TIn>,
-		mapFunc:    TFuncMapper<TIn, TOut> | TMapper<TIn, TOut> | TAsyncMapper<TIn, TOut>
-		): TAsyncIterator<TOut, TMaybeString>
-
-export async function* mapper<TIn, TOut>(
-		lItems:    TIterator<TIn>         | TAsyncIterator<TIn>,
-		mapFunc:   TFuncMapper<TIn, TOut> | TMapper<TIn, TOut> | TAsyncMapper<TIn, TOut>
-		): TAsyncIterator<TOut, TMaybeString> {
-
-	// --- NOTE: You can await something even if it's not async
-	let i3 = 0;for await (const item of lItems) {const i = i3++;
-		const iter = mapFunc(item, i)
-		if (defined(iter)) {
-			if (isObject(iter) && ((Symbol.iterator in iter) || (Symbol.asyncIterator in iter))) {
-				while(true) {
-					const {done, value} = await iter.next()
-					if (done) {
-						if (value === 'stop') {
-							return
-						}
-						else {
-							break
-						}
-					}
-					else {
-						yield value
-					}
-				}
-			}
-			else {
-				// --- iter is either a TOut
-				yield iter
-			}
-		}
-	}
-	return
-}
-
-// ---------------------------------------------------------------------------
-
-export const reducer = async function<TIn, TAccum>(
-		lItems: TIterator<TIn> | TAsyncIterator<TIn> | TIn[],
-		acc: TAccum,
-		reduceFunc: TFuncReducer<TAccum, TIn> | TReducer<TAccum, TIn>
-		): AutoPromise<TAccum> {
-
-	let i4 = 0;for await (const item of lItems) {const i = i4++;
-		const iter = reduceFunc(acc, item, i)
-		if (defined(iter)) {
-			if (isIterator(iter)) {
-				while(true) {
-					const {done, value} = iter.next()
-					if (done) {
-						if (value === 'stop') {
-							return await acc
-						}
-						else {
-							break
-						}
-					}
-					else {
-						acc = value
-					}
-				}
-			}
-			else {
-				acc = iter
-			}
-		}
-	}
-	return await acc
 }
