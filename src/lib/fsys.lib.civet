@@ -1,22 +1,17 @@
 # fsys.lib.civet
 
-type AutoPromise<T> = Promise<Awaited<T>>
-import {parse: parseFilePath} from 'path'
+import {parse: parseFilePath} from 'node-path'
 import {parse: parseJSONC, JsonValue} from '@std/jsonc'
 import {debounce} from '@std/async/debounce'
 import {existsSync, emptyDirSync, ensureDirSync} from '@std/fs'
-import {appendFileSync, openSync, closeSync} from 'fs'
-import {EventEmitter} from 'events'
-import NReadLines from 'n-readlines'
-
+import {appendFileSync, openSync, closeSync} from 'node-fs'
+import {EventEmitter} from 'node-events'
+import NReadLines from 'npm-n-readlines'
 import {expandGlobSync} from '@std/fs/expand-glob'
 import {TextLineStream} from '@std/streams'
-
-# --- Use Deno's path library
-
 import {
 	parse, resolve, relative, fromFileUrl,
-	} from 'jsr:@std/path'
+	} from '@std/path'
 
 import {
 	undef, defined, notdefined, assert, croak,
@@ -344,11 +339,11 @@ export class FileEventHandler
  *   await watchFile ['temp.txt', 'src/lib'], handler
  */
 
-export watchFile := (
+export watchFiles := (
 		path: string | string[],
 		watcherCB: TFsEventHandler,
 		hOptions: hash = {}
-		): AutoPromise<void> ->
+		): void ->
 
 	# --- debounceBy is milliseconds to debounce by, default is 200
 	type opt = {
@@ -377,7 +372,7 @@ export watchFile := (
 		for path of fsEvent.paths
 			# --- fsCallback will be (eventually) called
 			handler.handle fsEvent
-export watchFiles := watchFile
+export watchFile := watchFiles
 
 # ---------------------------------------------------------------------------
 
@@ -464,7 +459,7 @@ export slurp := (path: string): string =>
 
 # ---------------------------------------------------------------------------
 
-export slurpAsync := async (path: string): AutoPromise<string> =>
+export slurpAsync := async (path: string): string =>
 
 	data := await Deno.readTextFile path
 	return defined(data) ? removeCR(data) : ''

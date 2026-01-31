@@ -1,8 +1,8 @@
 "use strict";
 // datatypes.lib.civet
 
-import {minify} from 'uglify-js'
-import deepEqual from 'fast-deep-equal'
+import {minify} from 'npm-uglify-js'
+import deepEqual from 'npm-fast-deep-equal'
 
 export {deepEqual}
 
@@ -603,3 +603,4 @@ export const isAsyncIterator = <T,>(x: unknown): x is AsyncIterableIterator<T> =
 	const iter = x[Symbol.asyncIterator]
 	return (typeof iter === 'function') && (iter.call(x) === x)
 }
+

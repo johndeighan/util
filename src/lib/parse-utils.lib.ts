@@ -1,7 +1,7 @@
 "use strict";
 // parse-utils.lib.civet
 
-import {sprintf} from 'jsr:@std/fmt/printf'
+import {sprintf} from '@std/fmt/printf'
 
 import {uni, esc} from 'unicode'
 import {

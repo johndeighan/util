@@ -1,10 +1,8 @@
 "use strict";
 // automate.lib.civet
 
-type AutoPromise1<T> = Promise<Awaited<T>>;
-type AutoPromise<T> = Promise<Awaited<T>>
-
-import {compile as compileSvelte} from 'npm:svelte/compiler'
+type AutoPromise<T> = Promise<Awaited<T>>;
+import {compile as compileSvelte} from 'npm-svelte/compiler'
 
 import {
 	undef, defined, notdefined, assert, croak,
@@ -473,7 +471,7 @@ export const runUnitTestsFor = function*(
 export const installCmd = async (
 		path: string,
 		name: (string | undefined) = undef
-		): AutoPromise1<AutoPromise<void>> => {
+		): AutoPromise<void> => {
 
 	if (notdefined(name)) {
 		await execCmd('deno', [
@@ -504,7 +502,7 @@ export const installCmd = async (
 export const uninstallCmd = async (
 		path: string,
 		name: (string | undefined) = undef
-		): AutoPromise1<AutoPromise<void>> => {
+		): AutoPromise<void> => {
 
 	if (notdefined(name)) {
 		await execCmd('deno', [
@@ -524,3 +522,4 @@ export const uninstallCmd = async (
 	}
 	return
 }
+

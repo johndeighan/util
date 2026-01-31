@@ -1,8 +1,7 @@
 # hera-compile.lib.civet
 
-type AutoPromise<T> = Promise<Awaited<T>>
-import {statSync} from 'node:fs'
-import {existsSync} from 'jsr:@std/fs'
+import {statSync} from 'node-fs'
+import {existsSync} from '@std/fs'
 
 import {uni, esc} from 'unicode'
 import {
@@ -19,7 +18,7 @@ import {ML} from 'to-nice'
 import {fileExt, withExt, isValidStub, pathStr} from 'fsys'
 import {
 	execCmd, CFileHandler, TExecResult,
-	procFiles, doCompileCivet, doUnitTest,
+	procFiles, doUnitTest,
 	} from 'exec'
 
 # ---------------------------------------------------------------------------
@@ -32,7 +31,7 @@ export class CHeraCompiler extends CFileHandler
 	override handle(
 			path: string,
 			hOptions: hash = {}
-			): AutoPromise<TExecResult>
+			): TExecResult
 
 		assert (fileExt(path) == '.hera'), "Not a hera file"
 		destPath := withExt path, '.ts'

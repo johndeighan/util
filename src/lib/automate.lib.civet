@@ -1,8 +1,6 @@
 # automate.lib.civet
 
-type AutoPromise<T> = Promise<Awaited<T>>
-
-import {compile: compileSvelte} from 'npm:svelte/compiler'
+import {compile: compileSvelte} from 'npm-svelte/compiler'
 
 import {
 	undef, defined, notdefined, assert, croak,
@@ -391,7 +389,7 @@ export runUnitTestsFor := (
 export installCmd := (
 		path: string,
 		name: string? = undef
-		): AutoPromise<void> =>
+		): void =>
 
 	if notdefined(name)
 		await execCmd 'deno', [
@@ -419,7 +417,7 @@ export installCmd := (
 export uninstallCmd := (
 		path: string,
 		name: string? = undef
-		): AutoPromise<void> =>
+		): void =>
 
 	if notdefined(name)
 		await execCmd 'deno', [

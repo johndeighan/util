@@ -1,7 +1,7 @@
 # datatypes.lib.civet
 
-import {minify} from 'uglify-js'
-import deepEqual from 'fast-deep-equal'
+import {minify} from 'npm-uglify-js'
+import deepEqual from 'npm-fast-deep-equal'
 
 export {deepEqual}
 

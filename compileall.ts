@@ -6,9 +6,13 @@ import {sprintf} from '@std/fmt/printf'
 import {compile} from '@danielx/civet'
 import {resolve, relative} from '@std/path'
 import {RawSourceMap, SourceMapConsumer} from 'npm-source-map'
+import {debounce} from '@std/async/debounce'
 
 import {
-	undef, verbose, LOG, ERR, DBG, croak, getErrStr, isDir, isFile, centered,
+	undef, defined, notdefined,
+	} from 'datatypes'
+import {
+	verbose, LOG, ERR, DBG, croak, getErrStr, isDir, isFile, centered,
 	normalizePath, toFullPath, typeCheck, alreadyCompiled, DUMP,
 	haveSourceMapFor, extractSourceMap, addSourceMap, saveSourceMaps,
 	mapper, reducer, TResult, TOkResult,
@@ -79,26 +83,42 @@ LOG(`${numSkip} already compiled, ${numOk} compiled, ${numErr} errors`)
 
 if (numOk === 0) {
 	LOG("All files already compiled")
-	Deno.exit(0)
 }
-
-if (numErr > 0) {
-	ERR(`${numErr}/${numFiles} civet files failed to compile`)
-	Deno.exit(-1)
-}
-
-const lToTypeCheck: TOkResult[] = lResults.filter((h) => {
-	return (h.status === 'ok')
-})
-
-const iterCheck = mapper<TOkResult,boolean>(lToTypeCheck, typeCheckTsFile)
-const numFailed = await reducer(iterCheck, 0, function(acc, x) {
-	return x ? acc : acc+1
-})
-if (numFailed > 0) {
-		ERR(`${numFailed} files failed type checking`)
+else {
+	if (numErr > 0) {
+		ERR(`${numErr}/${numFiles} civet files failed to compile`)
 		Deno.exit(-1)
+	}
+
+	const lToTypeCheck: TOkResult[] = lResults.filter((h) => {
+		return (h.status === 'ok')
+	})
+
+	const iterCheck = mapper<TOkResult,boolean>(lToTypeCheck, typeCheckTsFile)
+	const numFailed = await reducer(iterCheck, 0, function(acc, x) {
+		return x ? acc : acc+1
+	})
+	if (numFailed > 0) {
+			ERR(`${numFailed} files failed type checking`)
+			Deno.exit(-1)
+	}
 }
 
 const secs = (Date.now() - t0) / 1000
-LOG(`DONE in ${sprintf('%.2d', secs)} secs.`)
+LOG(`DONE in ${sprintf('%.2d', secs)} secs.\n`)
+
+// ---------------------------------------------------------------------------
+
+LOG("Watching for file changes in the current directory...")
+
+const log = debounce(((event: Deno.FsEvent) => {
+	console.log("[%s] %s", event.kind, event.paths[0])
+}
+	), 200)
+
+const watcher = Deno.watchFs('./')
+
+for await (const event of watcher) {
+	log(event)
+}
+

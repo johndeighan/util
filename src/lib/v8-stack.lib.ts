@@ -1,8 +1,8 @@
 "use strict";
 // v8-stack.lib.civet
 
-import {sprintf} from 'jsr:@std/fmt/printf'
-import {CallSite} from 'npm:@types/node'
+import {sprintf} from '@std/fmt/printf'
+import {CallSite} from 'npm-@types/node'
 
 import {
 	undef, defined, notdefined, assert, croak,
@@ -11,8 +11,7 @@ import {
 	} from 'datatypes'
 import {f, sep, rpad, getOptions, getErrStr} from 'llutils'
 import {OL, ML, DUMP} from 'to-nice'
-import {pushLogLevel, popLogLevel} from 'logger'
-import {DBG, LOG} from 'logger'
+import {LOG, DBG, pushLogLevel, popLogLevel} from 'logger'
 import {
 	isFile, mkpath, fileExt, withExt, normalizePath, relpath,
 	} from 'fsys'

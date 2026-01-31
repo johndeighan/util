@@ -4,7 +4,7 @@
 import {sprintf} from '@std/fmt/printf'
 import {
 	cyan, blue, black, red, green, magenta, stripAnsiCode,
-	} from 'jsr:@std/fmt/colors'
+	} from '@std/fmt/colors'
 
 import {esc} from 'unicode'
 import {TMaybeCmd, syncMapper} from 'var-free'

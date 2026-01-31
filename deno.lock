@@ -339,9 +339,11 @@
       "jsr:@std/streams@*",
       "jsr:@std/yaml@*",
       "npm:@danielx/civet@*",
+      "npm:@types/node@*",
       "npm:fast-deep-equal@latest",
       "npm:n-readlines@*",
       "npm:source-map@*",
+      "npm:svelte@*",
       "npm:typescript@*",
       "npm:uglify-js@latest"
     ],

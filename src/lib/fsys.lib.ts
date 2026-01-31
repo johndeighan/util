@@ -1,24 +1,19 @@
 "use strict";
 // fsys.lib.civet
 
-type AutoPromise1<T> = Promise<Awaited<T>>;
-type AutoPromise<T> = Promise<Awaited<T>>
-import {parse as parseFilePath} from 'path'
+type AutoPromise<T> = Promise<Awaited<T>>;
+import {parse as parseFilePath} from 'node-path'
 import {parse as parseJSONC, JsonValue} from '@std/jsonc'
 import {debounce} from '@std/async/debounce'
 import {existsSync, emptyDirSync, ensureDirSync} from '@std/fs'
-import {appendFileSync, openSync, closeSync} from 'fs'
-import {EventEmitter} from 'events'
-import NReadLines from 'n-readlines'
-
+import {appendFileSync, openSync, closeSync} from 'node-fs'
+import {EventEmitter} from 'node-events'
+import NReadLines from 'npm-n-readlines'
 import {expandGlobSync} from '@std/fs/expand-glob'
 import {TextLineStream} from '@std/streams'
-
-// --- Use Deno's path library
-
 import {
 	parse, resolve, relative, fromFileUrl,
-	} from 'jsr:@std/path'
+	} from '@std/path'
 
 import {
 	undef, defined, notdefined, assert, croak,
@@ -386,11 +381,11 @@ export class FileEventHandler {
  *   await watchFile ['temp.txt', 'src/lib'], handler
  */
 
-export const watchFile = async function(
+export const watchFiles = async function(
 		path: string | string[],
 		watcherCB: TFsEventHandler,
 		hOptions: hash = {}
-		): AutoPromise1<AutoPromise<void>> {
+		): AutoPromise<void> {
 
 	// --- debounceBy is milliseconds to debounce by, default is 200
 	type opt = {
@@ -425,7 +420,7 @@ export const watchFile = async function(
 		}
 	}
 }
-export const watchFiles = watchFile
+export const watchFile = watchFiles
 
 // ---------------------------------------------------------------------------
 
@@ -527,7 +522,7 @@ export const slurp = (path: string): string => {
 
 // ---------------------------------------------------------------------------
 
-export const slurpAsync = async (path: string): AutoPromise1<AutoPromise<string>> => {
+export const slurpAsync = async (path: string): AutoPromise<string> => {
 
 	const data = await Deno.readTextFile(path)
 	return defined(data) ? removeCR(data) : ''
@@ -998,3 +993,5 @@ export var openTextFile = (
 			}
 	}
 }
+
+

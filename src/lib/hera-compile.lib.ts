@@ -1,10 +1,9 @@
 "use strict";
 // hera-compile.lib.civet
 
-type AutoPromise1<T> = Promise<Awaited<T>>;
-type AutoPromise<T> = Promise<Awaited<T>>
-import {statSync} from 'node:fs'
-import {existsSync} from 'jsr:@std/fs'
+type AutoPromise<T> = Promise<Awaited<T>>;
+import {statSync} from 'node-fs'
+import {existsSync} from '@std/fs'
 
 import {uni, esc} from 'unicode'
 import {
@@ -21,7 +20,7 @@ import {ML} from 'to-nice'
 import {fileExt, withExt, isValidStub, pathStr} from 'fsys'
 import {
 	execCmd, CFileHandler, TExecResult,
-	procFiles, doCompileCivet, doUnitTest,
+	procFiles, doUnitTest,
 	} from 'exec'
 
 // ---------------------------------------------------------------------------
@@ -35,7 +34,7 @@ export class CHeraCompiler extends CFileHandler {
 	override async handle(
 			path: string,
 			hOptions: hash = {}
-			): AutoPromise1<AutoPromise<TExecResult>> {
+			): AutoPromise<TExecResult> {
 
 		assert((fileExt(path) === '.hera'), "Not a hera file")
 		const destPath = withExt(path, '.ts')
@@ -325,3 +324,4 @@ export const compileHera = (
 
 	return lLines.join('\n')
 }
+

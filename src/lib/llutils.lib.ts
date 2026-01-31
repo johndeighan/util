@@ -1,13 +1,12 @@
 "use strict";
 // llutils.lib.civet
 
-type AutoPromise1<T> = Promise<Awaited<T>>;
-type AutoPromise<T> = Promise<Awaited<T>>
-import {createRequire} from 'module'
+type AutoPromise<T> = Promise<Awaited<T>>;
+import {createRequire} from 'node-module'
 import {sprintf} from '@std/fmt/printf'
 import {relative} from '@std/path'
 import {existsSync} from '@std/fs'
-import {statSync} from 'fs'
+import {statSync} from 'node-fs'
 import {parse as parseYAML} from "@std/yaml";
 
 import {
@@ -258,7 +257,7 @@ export const hit = (pct: number = 50): boolean => {
 // ---------------------------------------------------------------------------
 // --- ASYNC !
 
-export const sleep = async (sec: number): AutoPromise1<AutoPromise<void>> => {
+export const sleep = async (sec: number): AutoPromise<void> => {
 	await new Promise((r) => setTimeout(r, 1000 * sec))
 	return
 }
@@ -826,3 +825,4 @@ export const getErrStr = (err: unknown): string => {
 		return "Serious Error"
 	}
 }
+

@@ -1,11 +1,9 @@
 # exec.lib.civet
 
-type AutoPromise<T> = Promise<Awaited<T>>
-
 import {transpile} from "@deno/emit"
 import fs from 'fs'
 import {existsSync} from '@std/fs'
-import {statSync} from 'fs'
+import {statSync} from 'node-fs'
 import {stripAnsiCode} from '@std/fmt/colors'
 import {
 	CompilerOptions, ScriptTarget, ModuleKind, CompilerHost,
@@ -13,9 +11,6 @@ import {
 	flattenDiagnosticMessageText, createCompilerHost,
 	} from 'npm-typescript'
 import {sprintf} from '@std/fmt/printf'
-import {compile: compileCivet} from '@danielx/civet'
-import hCivetConfig from "civetconfig" with { type: "json" };
-import {RawSourceMap} from 'npm-source-map'
 
 import {
 	undef, defined, notdefined, assert, croak, hash,
@@ -35,10 +30,8 @@ import {
 	} from 'logger'
 import {
 	barf, pathStr, allFilesMatching, normalizePath, mkpath, barfTempFile,
-	fileExt, withExt, slurpAsync, parsePath, relpath, addJsonValue,
+	fileExt, withExt, slurpAsync, parsePath, relpath,
 	} from 'fsys'
-import {extractSourceMap, haveSourceMapFor} from 'source-map'
-import {str2indents} from 'hera-parse'
 
 # ---------------------------------------------------------------------------
 
@@ -136,7 +129,7 @@ export execCmd := (
 		cmdName: string
 		lArgs: string[] = []
 		hOptions: hash = {}
-		): AutoPromise<TExecResult> =>
+		): TExecResult =>
 
 	type opt = {
 		capture: boolean
@@ -270,7 +263,7 @@ export type TProcSpec = [string, CFileHandler]
 export procFiles := (
 		procSpec: TProcSpec,
 		hOptions: hash = {}
-		): AutoPromise<TExecResult[]> =>
+		): TExecResult[] =>
 
 	type opt = {
 		root: string
@@ -372,7 +365,7 @@ export procOneFile := (
 		path: string,
 		handler: CFileHandler,
 		hOptions: hash = {}
-		): AutoPromise<TExecResult> =>
+		): TExecResult =>
 
 	assert existsSync(path), "No such file: #{path}"
 	type opt = {
@@ -466,7 +459,7 @@ class CFileRemover extends CFileHandler
 	override handle(
 			path: string,
 			hOptions: hash = {}
-			): AutoPromise<TExecResult>
+			): TExecResult
 
 		if existsSync(path)
 			await Deno.remove path
@@ -484,7 +477,7 @@ class CTsFileRemover extends CFileHandler
 	override handle(
 			path: string,
 			hOptions: hash = {}
-			): AutoPromise<TExecResult>
+			): TExecResult
 
 		assert (fileExt(path) == '.ts'), "Not a TypeScript file: #{path}"
 		civetPath := withExt path, '.civet'
@@ -493,66 +486,6 @@ class CTsFileRemover extends CFileHandler
 		return success: true
 
 export doRemoveTsFile := new CTsFileRemover()
-
-# ---------------------------------------------------------------------------
-# --- Due to a bug in either the v8 engine or Deno,
-#     we have to generate, then remove the inline source map,
-#     saving it to use in mapping source lines later
-
-class CCivetCompiler extends CFileHandler
-
-	get op()
-		return 'doCompileCivet'
-
-	override handle(
-			path: string,
-			hOptions: hash = {}
-			): AutoPromise<TExecResult>
-
-		assert (fileExt(path) == '.civet'), "Not a civet file: #{path}"
-		destPath := withExt path, '.ts'
-
-		# --- Check if a newer compiled version already exists
-		if (
-				   not hOptions.force
-				&& existsSync(destPath)
-				&& (statSync(destPath).mtimeMs > statSync(path).mtimeMs)
-				&& haveSourceMapFor(path)
-				)
-			return {success: true}
-
-		try
-			civetCode := await slurpAsync path
-			tsCode: string := await compileCivet civetCode, {
-				...hCivetConfig
-				inlineMap: true
-				filename: path
-				}
-			if not tsCode || tsCode.startsWith('COMPILE FAILED')
-				errMsg := "CIVET COMPILE FAILED: #{pathStr(path)}"
-				return {
-					success: false
-					stderr: errMsg
-					output: errMsg
-					}
-			tempPath := barfTempFile tsCode, {ext: '.ts'}
-			hResult := await execCmd 'deno', ['check', tempPath]
-			assert hResult.success, "Type check failed"
-			[code, hSrcMap] := extractSourceMap(tsCode)
-			if defined(hSrcMap)
-				addJsonValue 'sourcemap.jsonc', normalizePath(destPath), hSrcMap
-			await Deno.writeTextFile destPath, code
-			return {success: true}
-		catch err
-			if debugging
-				LOG getErrStr(err)
-			errMsg := "COMPILE FAILED: #{pathStr(path)} - #{getErrStr(err)}"
-			return
-				success: false
-				stderr: errMsg
-				output: errMsg
-
-export doCompileCivet := new CCivetCompiler()
 
 # ---------------------------------------------------------------------------
 
@@ -564,7 +497,7 @@ class CUnitTester extends CFileHandler
 	override handle(
 			path: string,
 			hOptions: hash = {}
-			): AutoPromise<TExecResult>
+			): TExecResult
 
 		assert path.endsWith('.test.ts'), "Not a unit test file"
 		type opt = {
@@ -593,11 +526,11 @@ class CCmdInstaller extends CFileHandler
 	override handle(
 			path: string,
 			hOptions: hash = {}
-			): AutoPromise<TExecResult>
+			): TExecResult
 
 		assert (fileExt(path) == '.ts'), "Not a TypeScript file: #{path}"
 		name := parsePath(path).stub.replaceAll '.', '_'
-		ret: Awaited<AutoPromise<TExecResult>> := await execCmd 'deno', [
+		ret := await execCmd 'deno', [
 			'install'
 			'--global'
 			'--force'
@@ -620,16 +553,16 @@ class CCmdUninstaller extends CFileHandler
 	override handle(
 			path: string,
 			hOptions: hash = {}
-			): AutoPromise<TExecResult>
+			): TExecResult
 
 		name := parsePath(path).stub.replaceAll '.', '_'
-		ret1: Awaited<AutoPromise<TExecResult>> := await execCmd 'deno', [
+		ret := await execCmd 'deno', [
 			'uninstall'
 			'-gA'
 			name
 			path
 		]
-		return ret1
+		return ret
 
 export doUninstallCmd := new CCmdUninstaller()
 
@@ -643,7 +576,7 @@ class CFileRunner extends CFileHandler
 	override handle(
 			path: string,
 			hOptions: hash = {}
-			): AutoPromise<TExecResult>
+			): TExecResult
 
 		assert (fileExt(path) == '.ts'), "Not a TypeScript file"
 		type opt = {
@@ -671,7 +604,7 @@ class CFileDebugger extends CFileHandler
 	override handle(
 			path: string,
 			hOptions: hash = {}
-			): AutoPromise<TExecResult>
+			): TExecResult
 
 		assert (fileExt(path) == '.ts'), "Not a TypeScript file"
 		console.log "Chrome debugger is listening..."

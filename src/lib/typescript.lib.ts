@@ -1,15 +1,15 @@
 "use strict";
 // typescript.lib.civet
 
-import {existsSync} from 'jsr:@std/fs'
-import {statSync} from 'node:fs'
+import {existsSync} from '@std/fs'
+import {statSync} from 'node-fs'
 import {
 	SourceFile, Node, ScriptTarget, SyntaxKind, ModuleKind,
 	NewLineKind, EmitHint, CompilerOptions, ModuleResolutionKind,
 	createSourceFile, createPrinter, createProgram,
 	transpileModule, getPreEmitDiagnostics, forEachChild,
 	flattenDiagnosticMessageText, getLineAndCharacterOfPosition,
-	} from 'npm:typescript'
+	} from 'npm-typescript'
 
 import {
 	undef, defined, notdefined, integer, hash, hashof,

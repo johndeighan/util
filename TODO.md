@@ -1,7 +1,7 @@
 to do
 
-Investigate whether compileall.civet could compile needed
-files, then dynamically import from the resulting TS files
+In compileall.civet, after Deno.watchFs, compile file if
+it's a civet file
 
 Remove all prefixes (e.g. jsr: npm:) from all imports
 

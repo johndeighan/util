@@ -7,9 +7,9 @@ import {
 	withExt, findFile, parsePath, allFilesMatching,
 	} from 'fsys'
 import {
-	doCompileCivet, doUnitTest, doInstallCmd,
-	procFiles, procOneFile,
+	doUnitTest, doInstallCmd, procFiles, procOneFile,
 	} from 'exec'
+import {doCompileCivet} from 'civet'
 import {doCompileHera} from 'hera-compile'
 
 stdChecks "buildpar (all | <stub>+)"

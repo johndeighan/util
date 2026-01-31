@@ -1,11 +1,11 @@
 "use strict";
 // source-map.lib.civet
 
-import {parse as parseFilePath} from 'node:path'
-import {existsSync} from 'jsr:@std/fs'
+import {parse as parseFilePath} from 'node-path'
+import {existsSync} from '@std/fs'
 import {
 	RawSourceMap, SourceMapConsumer,
-	} from 'npm-source-map'              // was source-map-sync
+	} from 'npm-source-map'
 
 import {
 	undef, assert, assertIsDefined, defined, notdefined, hash, croak,

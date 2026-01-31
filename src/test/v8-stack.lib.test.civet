@@ -5,7 +5,7 @@ import {o} from 'llutils'
 import {DBG} from 'logger'
 import {relpath} from 'fsys'
 import {
-	execCmd, execCmdSync, procOneFile, doCompileCivet,
+	execCmd, execCmdSync, procOneFile,
 	} from 'exec'
 import {
 	TStackFrame, getV8Stack, getMyCaller,

@@ -1,13 +1,12 @@
 "use strict";
 // unit-test.lib.civet
 
-type AutoPromise1<T> = Promise<Awaited<T>>;
-type AutoPromise<T> = Promise<Awaited<T>>
+type AutoPromise<T> = Promise<Awaited<T>>;
 import {
 	assert, assertEquals, assertStrictEquals, assertNotEquals,
 	assertObjectMatch, assertStringIncludes, assertMatch,
 	assertArrayIncludes,
-	} from 'jsr:@std/assert'
+	} from '@std/assert'
 
 import {esc, mesc} from 'unicode'
 import {
@@ -37,12 +36,11 @@ import {
 	isDir, clearDir, pushWD, popWD,
 	} from 'fsys'
 import {Fetcher} from 'fetcher'
-import {typeCheckTsCode} from 'typescript'
 import {doParse} from 'hera-parse'
 import {TPLLToken, allTokensInBlock, tokenTable, tkEOF} from 'pll'
 import {civet2tsFile} from 'civet'
 import {sourceLib, getNeededImportStmts} from 'symbols'
-import {getTsCode, getImportCode} from 'typescript'
+import {getTsCode, getImportCode, typeCheckTsCode} from 'typescript'
 import {getMyOutsideCaller} from 'v8-stack'
 
 const stringify = JSON.stringify
@@ -686,7 +684,7 @@ export const execFileOps = (
 
 export const getFileOps = async function(
 		desc: string
-		): AutoPromise1<TFileOp[]> {
+		): AutoPromise<TFileOp[]> {
 
 	try {
 		let root: string = ''
@@ -796,7 +794,7 @@ export const getFileOps = async function(
 // ---------------------------------------------------------------------------
 // ASYNC
 
-export const setDirTree = async (desc: string): AutoPromise1<TFileOp[]> => {
+export const setDirTree = async (desc: string): AutoPromise<TFileOp[]> => {
 
 	const lFileOps = await getFileOps(desc)
 	execFileOps(lFileOps)
@@ -849,7 +847,7 @@ export const fileOpsTable = (lFileOps: TFileOp[]): string => {
 // ---------------------------------------------------------------------------
 // ASYNC
 
-export const setDirTree_org = async (desc: string): AutoPromise1<AutoPromise<TFileOp[]>> => {
+export const setDirTree_org = async (desc: string): AutoPromise<TFileOp[]> => {
 
 	try {
 		const lFileOps = await doParse<TFileOp[]>('dir-tree', desc)
