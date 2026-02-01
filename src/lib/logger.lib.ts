@@ -13,17 +13,67 @@ export const UNDENT = Symbol('undent')
 // --- useful for unit testing
 //     or saving final log to a log file
 export let lLogLines: string[] = []
+export type TLogLevel = 'silent' | 'info' | 'debug'
+
+let lLogLevels: TLogLevel[] = ['info']
 
 // ---------------------------------------------------------------------------
 
 const logLine = (
 		str: string,
-		oneIndent: string = '\t'
 		): void => {
 
-	const line = oneIndent.repeat(level) + str
+	const line = '\t'.repeat(level) + str
 	lLogLines.push(line)
 	writeln(line)
+	return
+}
+
+// ---------------------------------------------------------------------------
+
+export const LOG = (...lItems: unknown[]): void => {
+
+	if (curLogLevel() !== 'silent') {
+		for (const item of lItems) {
+			if (item === INDENT) {
+				level += 1
+			}
+			else if (item === UNDENT) {
+				if (level > 0) {
+					level -= 1
+				}
+			}
+			else {
+				logLine(isString(item) ? item : OL(item))
+			}
+		}
+	}
+	return
+}
+
+// ---------------------------------------------------------------------------
+
+export const DBG = (...lItems: unknown[]): void => {
+
+	if (curLogLevel() === 'debug') {
+		LOG(...lItems)
+	}
+	return
+}
+
+// ---------------------------------------------------------------------------
+
+export const LOGVALUE = (label: string, value: unknown): void => {
+
+	LOG(f`${label}:{blue} = ${ML(value)}`)
+	return
+}
+
+// ---------------------------------------------------------------------------
+
+export const DBGVALUE = (label: string, value: unknown): void => {
+
+	DBG(f`${label}:{blue} = ${ML(value)}`)
 	return
 }
 
@@ -33,12 +83,6 @@ export const getLog = (): string => {
 
 	return lLogLines.join('\n')
 }
-
-// ---------------------------------------------------------------------------
-
-export type TLogLevel = 'silent' | 'info' | 'debug'
-
-let lLogLevels: TLogLevel[] = ['info']
 
 // ---------------------------------------------------------------------------
 
@@ -82,56 +126,5 @@ export const popLogLevel = (): TLogLevel => {
 		lLogLevels.pop()
 		return retval
 	}
-}
-
-// ---------------------------------------------------------------------------
-
-export const LOG = (...lItems: unknown[]): void => {
-
-	if (curLogLevel() !== 'silent') {
-		for (const item of lItems) {
-			if (item === INDENT) {
-				level += 1
-			}
-			else if (item === UNDENT) {
-				if (level > 0) {
-					level -= 1
-				}
-			}
-			else if (isString(item)) {
-				writeln(item)
-			}
-			else {
-				writeln(OL(item))
-			}
-		}
-	}
-	return
-}
-
-// ---------------------------------------------------------------------------
-
-export const DBG = (...lItems: unknown[]): void => {
-
-	if (curLogLevel() === 'debug') {
-		LOG(...lItems)
-	}
-	return
-}
-
-// ---------------------------------------------------------------------------
-
-export const LOGVALUE = (label: string, value: unknown): void => {
-
-	LOG(f`${label}:{blue} = ${ML(value)}`)
-	return
-}
-
-// ---------------------------------------------------------------------------
-
-export const DBGVALUE = (label: string, value: unknown): void => {
-
-	DBG(f`${label}:{blue} = ${ML(value)}`)
-	return
 }
 

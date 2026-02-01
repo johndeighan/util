@@ -62,3 +62,4 @@ equal(getPrefix(2, 'withFlat'),   '│   ├── ')
 equal(getPrefix(2, 'withYield'),  '│   ├<─ ')
 equal(getPrefix(2, 'noLastVbar'), '│       ')
 equal(getPrefix(2, 'none'),       '        ')
+

@@ -23,7 +23,7 @@ import {
 import {DBG} from 'logger'
 import {
 	equal, truthy, falsy, fails, succeeds, isType, notType,
-	val,
+	sampleVal,
 	} from 'unit-test'
 
 // ---------------------------------------------------------------------------
@@ -55,18 +55,18 @@ isType('number', 42)
 
 // ---------------------------------------------------------------------------
 
-truthy(isGenerator(val.genFunc))
-truthy(isAsyncGenerator(val.asyncGenFunc))
-falsy( isGenerator(val.regularFunc))
-falsy( isGenerator(val.lambdaFunc))
+truthy(isGenerator(sampleVal.genFunc))
+truthy(isAsyncGenerator(sampleVal.asyncGenFunc))
+falsy( isGenerator(sampleVal.regularFunc))
+falsy( isGenerator(sampleVal.lambdaFunc))
 
-if (isGenerator(val.genFunc)) {
-	truthy(isIterator(val.genFunc()))
+if (isGenerator(sampleVal.genFunc)) {
+	truthy(isIterator(sampleVal.genFunc()))
 }
-if (isAsyncGenerator(val.asyncGenFunc)) {
-	truthy(isAsyncIterator(val.asyncGenFunc()))
+if (isAsyncGenerator(sampleVal.asyncGenFunc)) {
+	truthy(isAsyncIterator(sampleVal.asyncGenFunc()))
 }
 
-falsy( isIterator(val.genFunc))
-falsy( isIterator(val.regularFunc))
-falsy( isIterator(val.lambdaFunc))
+falsy( isIterator(sampleVal.genFunc))
+falsy( isIterator(sampleVal.regularFunc))
+falsy( isIterator(sampleVal.lambdaFunc))

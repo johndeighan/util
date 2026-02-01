@@ -75,6 +75,8 @@ export setCmdArgs := (
 			for ch of optStr.split('')
 				if (ch == 'D')
 					setLogLevel('debug')
+				else if (ch == 'S')
+					setLogLevel('silent')
 				hFlags[ch] = true
 
 setCmdArgs()
@@ -114,7 +116,7 @@ export getCmdArgErrors := (hDesc: TCmdDesc): string? =>
 
 	lErrors: string[] := []
 	for flag of keys(hFlags)
-		if !(flag in hDesc) && !(flag != 'D')
+		if (flag not in hDesc) && (flag != 'D')
 			lErrors.push "Unknown flag: #{flag}"
 	for key in hValues
 		value := hValues[key]

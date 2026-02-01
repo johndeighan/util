@@ -87,6 +87,9 @@ export const setCmdArgs = (
 				if (ch === 'D') {
 					setLogLevel('debug')
 				}
+				else if (ch === 'S') {
+					setLogLevel('silent')
+				}
 				hFlags[ch] = true
 			}
 		}
@@ -136,7 +139,7 @@ export const getCmdArgErrors = (hDesc: TCmdDesc): (string | undefined) => {
 
 	const lErrors: string[] = []
 	for (const flag of keys(hFlags)) {
-		if (!(flag in hDesc) && !(flag !== 'D')) {
+		if ((!(flag in hDesc)) && (flag !== 'D')) {
 			lErrors.push(`Unknown flag: ${flag}`)
 		}
 	}

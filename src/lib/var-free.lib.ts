@@ -24,7 +24,23 @@ export async function* mapper<TIn, TOut>(
 	// --- NOTE: You can await something even if it's not async
 	let i1 = 0;for await (const item of lItems) {const i = i1++;
 		const iter = mapFunc(item, i)
-		if (isIterator(iter) || isAsyncIterator(iter)) {
+		if (isIterator(iter)) {
+			while(true) {
+				const {done, value} = iter.next()
+				if (done) {
+					if (value === 'stop') {  // value returned from mapFunc()
+						return
+					}
+					else {
+						break
+					}
+				}
+				else if (value !== undefined) {
+					yield value
+				}
+			}
+		}
+		else if (isAsyncIterator(iter)) {
 			while(true) {
 				const {done, value} = await iter.next()
 				if (done) {

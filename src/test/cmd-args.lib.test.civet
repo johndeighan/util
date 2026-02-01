@@ -15,7 +15,7 @@ import {
 (() =>
 	setCmdArgs [
 		'-n'
-		'-xtE'
+		'-xtD'
 		'abc'
 		'-label=xyz'
 		'-width=32'
@@ -25,11 +25,11 @@ import {
 	truthy flag('n')
 	truthy flag('x')
 	truthy flag('t')
-	truthy flag('E')
+	truthy flag('D')
 	falsy  flag('a')
 	falsy  flag('l')
 
-	equal curLogLevel(), 'error'
+	equal curLogLevel(), 'debug'
 
 	equal Array.from(allNonOptions()), ['abc']
 	equal nonOption(0), 'abc'

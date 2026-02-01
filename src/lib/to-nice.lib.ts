@@ -95,7 +95,10 @@ const getCompareFunc = (lSortKeys: string[]): TCompareFunc => {
 
 // ---------------------------------------------------------------------------
 
-export const rotpos = <T,>(lArray: T[], i: integer): T => {
+export const rotpos = <T,>(
+	lArray: T[],
+	i: integer
+	): T => {
 
 	return lArray[i % lArray.length]
 }
@@ -264,9 +267,7 @@ export const toNice = (
 				}
 				mapVisited.set(x, buildPath(lPath))
 				const lLines = []
-				let i2 = 0
-				for (const val of x) {
-					const i = i2++
+				let i2 = 0;for (const val of x) {const i = i2++;
 					const block = toNice(val, hOptions, mapVisited, [...lPath, i])
 					if (compact) {
 						lLines.push(block)
@@ -290,26 +291,30 @@ export const toNice = (
 
 			// --- It's an object
 			if (x instanceof Set) {
-				const results = []
-				for (const key of x.keys()) {
+				const results=[];for (const key of x.keys()) {
 					results.push(toNice(key))
-				}
-				const lKeys = results
+				};const lParts =results
 				return (
-					(lKeys.length === 0?
-						mark("emptySet")
-					:
-						mark(`set ${lKeys.join(' ')}`))
+					  (lParts.length === 0)
+					? mark("emptySet")
+					: mark(`set ${lParts.join(' ')}`)
 					)
 			}
 			if (x instanceof Map) {
-				const results1 = []
-				for (const [key, val] of x.entries()) {
-					results1.push(`${toNice(key)}:: ${toNice(val)}`)
-				}
-				const lLines = results1
-				return lLines.join('\n')
+				const results1=[];for (const [key, val] of x.entries()) {
+					const keyStr = toNice(key)
+					const valStr = toNice(val, hOptions, mapVisited, [...lPath, key])
+					if (valStr.includes('\n')) {
+						const oneIndent = rotpos<string>(lIndents, lPath.length)
+						results1.push(indented(valStr, oneIndent))
+					}
+					else {
+						results1.push(`${keyStr}:: ${valStr}`)
+					}
+				};const lParts =results1
+				return (lParts.length === 0) ? mark('emptyMap') : lParts.join('\n')
 			}
+
 			const lKeys = Object.keys(x)
 			if (lKeys.length === 0) {
 				return '{}'
@@ -360,7 +365,13 @@ export const toNice = (
 							lLines.push(`${key}: ${str}`)
 						}
 						else if (isEmpty(val)) {
-							lLines.push(isArray(val) ? `${key}: []` : `${key}: {}`)
+							const str = (
+								  (val instanceof Set) ? mark('emptySet')
+								: (val instanceof Map) ? mark('emptyMap')
+								: isArray(val)         ? '[]'
+								:                        '{}'
+								)
+							lLines.push(`${key}: ${str}`)
 						}
 						else {
 							lLines.push(`${key}:`)

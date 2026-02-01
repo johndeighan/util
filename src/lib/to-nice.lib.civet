@@ -79,7 +79,10 @@ getCompareFunc := (lSortKeys: string[]): TCompareFunc =>
 
 # ---------------------------------------------------------------------------
 
-export rotpos := <T>(lArray: T[], i: integer): T =>
+export rotpos := <T>(
+	lArray: T[],
+	i: integer
+	): T =>
 
 	return lArray[i % lArray.length]
 
@@ -171,7 +174,7 @@ export toNice := (
 		assert notdefined(descFunc), "can't use descFunc if recoverable"
 
 	# --- You can provide sortKeys or a sortFunc, but not both
-	assert !(sortKeys && defined(sortFunc)), "Bad options"
+	assert not (sortKeys && defined(sortFunc)), "Bad options"
 	switch typeof x
 		case 'undefined':
 			return mark('undef')
@@ -225,9 +228,7 @@ export toNice := (
 					return '[]'
 				mapVisited.set x, buildPath(lPath)
 				lLines := []
-				let i2 = 0
-				for val of x
-					i := i2++
+				for val,i of x
 					block := toNice val, hOptions, mapVisited, [...lPath, i]
 					if compact
 						lLines.push block
@@ -244,22 +245,24 @@ export toNice := (
 
 			# --- It's an object
 			if (x instanceof Set)
-				results := []
-				for key of x.keys()
-					results.push toNice key
-				lKeys := results
+				lParts := for key of x.keys()
+					toNice key
 				return (
-					if (lKeys.length == 0)
-						mark("emptySet")
-					else
-						mark("set #{lKeys.join(' ')}")
+					  (lParts.length == 0)
+					? mark "emptySet"
+					: mark "set #{lParts.join(' ')}"
 					)
 			if (x instanceof Map)
-				results1 := []
-				for [key, val] of x.entries()
-					results1.push "#{toNice(key)}:: #{toNice(val)}"
-				lLines := results1
-				return lLines.join '\n'
+				lParts := for [key, val] of x.entries()
+					keyStr := toNice(key)
+					valStr := toNice(val, hOptions, mapVisited, [...lPath, key])
+					if valStr.includes('\n')
+						oneIndent := rotpos<string> lIndents, lPath.length
+						indented valStr, oneIndent
+					else
+						"#{keyStr}:: #{valStr}"
+				return (lParts.length == 0) ? mark('emptyMap') : lParts.join('\n')
+
 			lKeys := Object.keys x
 			if lKeys.length == 0
 				return '{}'
@@ -295,10 +298,16 @@ export toNice := (
 					else
 						prevpath := isObject(val) ? mapVisited.get val : undef
 						if defined(prevpath)
-							str := mark("ref #{prevpath}")
+							str := mark "ref #{prevpath}"
 							lLines.push "#{key}: #{str}"
 						else if isEmpty(val)
-							lLines.push isArray(val) ? "#{key}: []" : "#{key}: {}"
+							str := (
+								  (val instanceof Set) ? mark('emptySet')
+								: (val instanceof Map) ? mark('emptyMap')
+								: isArray(val)         ? '[]'
+								:                        '{}'
+								)
+							lLines.push "#{key}: #{str}"
 						else
 							lLines.push "#{key}:"
 							oneIndent := rotpos<string> lIndents, lPath.length

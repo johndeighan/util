@@ -1,5 +1,7 @@
 to do
 
+continue running utest X (fails for cmd-args)
+
 In compileall.civet, after Deno.watchFs, compile file if
 it's a civet file
 
