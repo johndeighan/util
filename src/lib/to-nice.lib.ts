@@ -7,11 +7,14 @@ import {
 	assert, croak, undef, defined, notdefined,
 	hash, hashof, isString, isArray, isClass, isRegExp, isObject,
 	isPrimitive, isEmpty, nonEmpty, assertIsHash, integer,
-	symbolName, className, functionName, regexpDef,
+	symbolName, className, functionName, regexpDef, jsType,
+	assertIsFunction, assertIsClass, assertIsArray,
 	} from 'datatypes'
 import {
-	getOptions, f, o, toBlock, spaces, mapEachLine, sep,
+	getOptions, f, o, toBlock, spaces, mapEachLine, sep, keys,
 	} from 'llutils'
+import {indented} from 'indent'
+import {mapper, syncMapper} from 'var-free'
 
 // ---------------------------------------------------------------------------
 
@@ -31,15 +34,18 @@ export const alphaCompare: TCompareFunc = (a: string, b: string): number => {
 
 // ---------------------------------------------------------------------------
 
-// --- any leading digit must be preceded by a single '\'
+// --- any leading digit must be preceded by a curly quote char
 
 export const toNiceString = (
 		str: string,
-		compact: boolean = true
 		): string => {
 
+	if (str === '') {
+		return mark('emptyString')
+	}
+
 	// --- escape spaces and \t, \n or \r with unicode chars
-	const estr = esc(str, compact ? 'oneline' : 'multiline')
+	const estr = esc(str)
 
 	// --- precede with '“' if
 	//        - starts with digit
@@ -57,11 +63,13 @@ export const toNiceString = (
 }
 
 // ---------------------------------------------------------------------------
-
 // --- Returns a function that:
 //        compares 2 strings based on their position in lSortKeys
 //        else compares alphabetically
-const getCompareFunc = (lSortKeys: string[]): TCompareFunc => {
+
+export const getCompareFunc = (
+		lSortKeys: string[]
+		): TCompareFunc => {
 
 	// --- Create map of key to number
 	const h: hashof<number> = {}
@@ -105,13 +113,6 @@ export const rotpos = <T,>(
 
 // ---------------------------------------------------------------------------
 
-const indented = (block: string, oneIndent: string) => {
-
-	return mapEachLine(block, (line) => oneIndent + line)
-}
-
-// ---------------------------------------------------------------------------
-
 export type TPathIndex = string | number
 export const buildPath = (lPath: TPathIndex[]): string => {
 
@@ -129,268 +130,306 @@ export const buildPath = (lPath: TPathIndex[]): string => {
 
 // ---------------------------------------------------------------------------
 
-export const displayStr = (
+export type TMapFunc = (
 		key: string,
-		val: unknown,
-		par: hash,
-		displayFunc: (TMapFunc | undefined),
-		descFunc: (TMapFunc | undefined)
+		value: unknown,
+		hParent: unknown
+		) => string
+
+// ---------------------------------------------------------------------------
+
+export type TNiceOptions = {
+	compact: boolean
+	recoverable: boolean
+	oneIndent: string
+	ignoreEmptyKeys: boolean
+	ignoreEmptyItems: boolean
+	sortKeys: boolean
+	sortFunc: (TCompareFunc | undefined)
+	displayFunc: (TMapFunc | undefined)
+	descFunc: (TMapFunc | undefined)
+	lInclude: ((string[]) | undefined)
+	lExclude: string[]
+	}
+
+export const hNiceDefaults = {
+	compact: false,
+	recoverable: false,
+	oneIndent: '   ',
+	ignoreEmptyKeys: false,
+	ignoreEmptyItems: false,
+	sortKeys: false,
+	sortFunc: undef,
+	displayFunc: undef,
+	descFunc: undef,
+	lInclude: undef,
+	lExclude: []
+	}
+
+// ---------------------------------------------------------------------------
+
+export const hash2nice = (
+		mark: string,
+		parent: unknown,
+		lKeys: string[],
+		getter: (s: string) => unknown,
+		hOptions: hash = {},
+		mapVisited: Map<object, string>,
+		lPath: TPathIndex[]
 		): string => {
 
-	const str = (
-		  defined(displayFunc)
-		? displayFunc(key, val, par)
-		: toNice(val, {compact: true})
+	const {compact, sortFunc, sortKeys, lInclude, lExclude, ignoreEmptyKeys,
+		displayFunc, descFunc, oneIndent, recoverable,
+		} = getOptions<TNiceOptions>(hOptions, hNiceDefaults)
+
+	// --- You can provide sortKeys or a sortFunc, but not both
+	assert(!(sortKeys && defined(sortFunc)), "Bad options")
+
+	if (recoverable) {
+		assert(notdefined(displayFunc), "can't use displayFunc w/recoverable")
+		assert(notdefined(descFunc), "can't use descFunc w/recoverable")
+	}
+
+	const func: (TCompareFunc | undefined) = (
+		(()=>{if (defined(sortFunc)) {
+			return sortFunc
+		}
+		else if (defined(lInclude)) {
+			return getCompareFunc(lInclude)
+		}
+		else if (sortKeys) {
+			return alphaCompare
+		}
+		else {
+			return undef
+		}})()
 		)
-	const desc = defined(descFunc) ? descFunc(key, val, par) : ''
-	return desc ? f`${str} ${desc}:{cyan}` : str
+	const useKey = (key: string): boolean => {
+		if (lExclude.includes(key)) {
+			return false
+		}
+		if (defined(lInclude) && !lInclude.includes(key)) {
+			return false
+		}
+		return true
+	}
+	const iterKeys = (defined(func) ? lKeys.sort(func) : lKeys).filter(useKey)
+	const iterParts = syncMapper(iterKeys, function*(key: string): Generator<string> {
+		const val = getter(key)
+		if (!ignoreEmptyKeys || nonEmpty(val)) {
+			if (isPrimitive(val)) {
+				const str = displayStr(key, val, parent, displayFunc, descFunc)
+				yield `${key}${mark} ${str}`
+			}
+			else {
+				const str = toNice(val, hOptions, mapVisited, [...lPath, key])
+				if (str.includes('\n')) {
+					yield `${key}${mark}\n` + indented(str, 1, {oneIndent})
+				}
+				else {
+					yield `${key}${mark} ${str}`
+				}
+			}
+		}
+	})
+	const lParts = Array.from(iterParts)
+	return (
+		  compact
+		? '{' + lParts.join(' ') + '}'
+		: lParts.join('\n')
+		)
 }
 
 // ---------------------------------------------------------------------------
 
-export type TMapFunc = (
-		key: string,
-		value: unknown,
-		hParent: hash
-		) => string
-
-export const toNice = (
-		x: unknown,
+export const seq2nice = (
+		prefix: string,
+		lValues: unknown[],
 		hOptions: hash = {},
-		mapVisited: Map<object, string> = new Map<object, string>(),
-		lPath: TPathIndex[] = []
+		mapVisited: Map<object, string>,
+		lPath: TPathIndex[]
 		): string => {
 
-	// --- When recoverable, classes and functions
-	//     include their definitions,
-	//     with escaped chars
-	type opt = {
-		compact: boolean
-		recoverable: boolean
-		ignoreEmptyValues: boolean
-		sortKeys: boolean
-		sortFunc: (TCompareFunc | undefined)
-		displayFunc: (TMapFunc | undefined)
-		descFunc: (TMapFunc | undefined)
-		lInclude: ((string[]) | undefined)
-		lExclude: ((string[]) | undefined)
-		lIndents: string[]
-	}
-	const {
-			compact, recoverable, ignoreEmptyValues,
-			sortKeys, sortFunc,
-			displayFunc, descFunc, lInclude, lExclude, lIndents
-			} = getOptions<opt>(hOptions, {
-		compact: false,
-		recoverable: false,
-		ignoreEmptyValues: false,
-		sortKeys: false,
-		sortFunc: undef,
-		displayFunc: undef,
-		descFunc: undef,
-		lInclude: undef,
-		lExclude: undef,
-		lIndents: ['   ', '❘  ']
-		})
+	const {compact, ignoreEmptyItems, oneIndent
+		} = getOptions<TNiceOptions>(hOptions, hNiceDefaults)
 
-	if (recoverable) {
-		assert(notdefined(displayFunc), "can't use displayFunc if recoverable")
-		assert(notdefined(descFunc), "can't use descFunc if recoverable")
-	}
+	const iterParts = syncMapper(lValues, function*(val: unknown, i: number): Generator<string> {
+		if (!ignoreEmptyItems || nonEmpty(val)) {
+			const str = toNice(val, hOptions, mapVisited, [...lPath, i])
+			if (str.includes('\n')) {
+				yield `${prefix}\n` + indented(str, 1, {oneIndent})
+			}
+			else if (compact) {
+				yield str
+			}
+			else {
+				yield `${prefix} ${str}`
+			}
+		}
+	})
+	const lParts = Array.from(iterParts)
+	return (
+		  compact
+		? '[' + lParts.join(' ') + ']'
+		: lParts.join('\n')
+		)
+}
 
-	// --- You can provide sortKeys or a sortFunc, but not both
-	assert(!(sortKeys && defined(sortFunc)), "Bad options")
-	switch(typeof x) {
-		case 'undefined':
-			return mark('undef')
-		case 'boolean':
-			return (x? mark('true') : mark('false'))
-		case 'number':
-			return (
-				  Number.isNaN(x)    ? mark('NaN')
-				: Number.isFinite(x) ? x.toString()
-				:                      ((x < 0) ? mark('neginf') : mark('inf'))
-				)
-		case 'bigint':
-			return x.toString() + 'n'
-		case 'string':
-			return toNiceString(x, compact)
-		case 'symbol':
+// ---------------------------------------------------------------------------
+
+export const toNice = (
+	x: unknown,
+	hOptions: hash = {},
+	mapVisited: Map<object, string> = new Map<object, string>(),
+	lPath: TPathIndex[] = []
+	): string => {
+
+	const {compact, recoverable, oneIndent, displayFunc, descFunc
+		} = getOptions<TNiceOptions>(hOptions, hNiceDefaults)
+
+	const typ = jsType(x)
+	switch(typ) {
+		case 'undef':case 'NaN':case 'inf':case 'neginf':case 'null': {
+			return mark(typ)
+		}
+		case 'boolean': {
+			return x ? mark('true') : mark('false')
+		}
+		case 'string': {
+			return toNiceString(x as string)
+		}
+		case 'symbol': {
 			const name = symbolName(x)
-			if (name) {
-				return mark(`symbol ${name}`)
+			return name ? mark(`symbol ${name}`) : mark("symbol")
+		}
+		case 'bigint': {
+			return (x as bigint).toString() + 'n'
+		}
+		case 'integer':case 'float': {
+			return (x as number).toString()
+		}
+		case 'regexp': {
+			const desc = esc(regexpDef(x))
+			return desc ? mark(`regexp /${desc}/`) : mark("regexp")
+		}
+		case 'array': {
+			assertIsArray(x)
+			if (x.length === 0) {
+				return '[]'
 			}
 			else {
-				return mark("symbol")
-			}
-		case 'function':
-			if (isClass(x)) {
-				const name = className(x)
-				if (name) {
-					return mark(`class ${name}`)
+				// --- Check if object was previously visited
+				const prevpath = mapVisited.get(x)
+				if (prevpath) {
+					return mark(`ref ${prevpath}`)
 				}
 				else {
-					return mark("class")
+					mapVisited.set(x, buildPath(lPath))
+					return seq2nice('-', x, hOptions, mapVisited, lPath)
 				}
+			}
+		}
+		case 'set': {
+			assert((x instanceof Set))
+			if (x.size === 0) {
+				return mark('emptySet')
 			}
 			else {
-				const name = functionName(x)
-				if (name) {
-					return mark(`function ${name}`)
+				// --- Check if object was previously visited
+				const prevpath = mapVisited.get(x)
+				if (prevpath) {
+					return mark(`ref ${prevpath}`)
 				}
 				else {
-					return mark("function")
+					mapVisited.set(x, buildPath(lPath))
+					const lValues = Array.from(x.values())
+					return seq2nice('--', lValues, hOptions, mapVisited, lPath)
 				}
 			}
-		case 'object':
-			if (x === null) {
-				return mark('null')
-			}
-
-			// --- Check if object was previously visited
-			const prevpath = mapVisited.get(x)
-			if (prevpath) {
-				return mark(`ref ${prevpath}`)
-			}
-			if (isRegExp(x)) {
-				const desc = esc(regexpDef(x))
-				if (desc) {
-					return mark(`regexp ${desc}`)
-				}
-				else {
-					return mark("regexp")
-				}
-			}
-			if (isArray(x)) {
-				if (x.length === 0) {
-					return '[]'
-				}
-				mapVisited.set(x, buildPath(lPath))
-				const lLines = []
-				let i2 = 0;for (const val of x) {const i = i2++;
-					const block = toNice(val, hOptions, mapVisited, [...lPath, i])
-					if (compact) {
-						lLines.push(block)
-					}
-					else if (isPrimitive(val) || block.startsWith('.') || isEmpty(val)) {
-						lLines.push(`- ${block}`)
-					}
-					else {
-						lLines.push('-')
-						const oneIndent = rotpos<string>(lIndents, lPath.length)
-						lLines.push(indented(block, oneIndent))
-					}
-				}
-				if (compact) {
-					return '[' + lLines.join(' ') + ']'
-				}
-				else {
-					return toBlock(lLines)
-				}
-			}
-
-			// --- It's an object
-			if (x instanceof Set) {
-				const results=[];for (const key of x.keys()) {
-					results.push(toNice(key))
-				};const lParts =results
-				return (
-					  (lParts.length === 0)
-					? mark("emptySet")
-					: mark(`set ${lParts.join(' ')}`)
-					)
-			}
-			if (x instanceof Map) {
-				const results1=[];for (const [key, val] of x.entries()) {
-					const keyStr = toNice(key)
-					const valStr = toNice(val, hOptions, mapVisited, [...lPath, key])
-					if (valStr.includes('\n')) {
-						const oneIndent = rotpos<string>(lIndents, lPath.length)
-						results1.push(indented(valStr, oneIndent))
-					}
-					else {
-						results1.push(`${keyStr}:: ${valStr}`)
-					}
-				};const lParts =results1
-				return (lParts.length === 0) ? mark('emptyMap') : lParts.join('\n')
-			}
-
+		}
+		case 'hash': {
+			assertIsHash(x)
 			const lKeys = Object.keys(x)
 			if (lKeys.length === 0) {
 				return '{}'
 			}
-			const func: (TCompareFunc | undefined) = (
-				(()=>{if (defined(sortFunc)) {
-					return sortFunc
-				}
-				else if (defined(lInclude)) {
-					return getCompareFunc(lInclude)
-				}
-				else if (sortKeys) {
-					return alphaCompare
+			else {
+				// --- Check if object was previously visited
+				const prevpath = mapVisited.get(x)
+				if (prevpath) {
+					return mark(`ref ${prevpath}`)
 				}
 				else {
-					return undef
-				}})()
-				)
-			const useKey = (key: unknown): boolean => {
-				if (typeof key !== 'string') {
-					return false
-				}
-				if (defined(lExclude) && lExclude.includes(key)) {
-					return false
-				}
-				if (defined(lInclude) && !lInclude.includes(key)) {
-					return false
-				}
-				return true
-			}
-			mapVisited.set(x, buildPath(lPath))
-			assertIsHash(x) // --- will allow us to index with any string
-			const lLines = []
-			for (const key of (defined(func) ? lKeys.sort(func) : lKeys).filter(useKey)) {
-				const val = x[key]
-				if (!ignoreEmptyValues || nonEmpty(val)) {
-					if (val === null) {
-						lLines.push(`${key}: ${mark('null')}`)
-					}
-					else if (isPrimitive(val)) {
-						const str = displayStr(key, val, x, displayFunc, descFunc)
-						lLines.push(`${key}: ${str}`)
-					}
-					else {
-						const prevpath = isObject(val) ? mapVisited.get(val) : undef
-						if (defined(prevpath)) {
-							const str = mark(`ref ${prevpath}`)
-							lLines.push(`${key}: ${str}`)
-						}
-						else if (isEmpty(val)) {
-							const str = (
-								  (val instanceof Set) ? mark('emptySet')
-								: (val instanceof Map) ? mark('emptyMap')
-								: isArray(val)         ? '[]'
-								:                        '{}'
-								)
-							lLines.push(`${key}: ${str}`)
-						}
-						else {
-							lLines.push(`${key}:`)
-							const oneIndent = rotpos<string>(lIndents, lPath.length)
-							const block = toNice(val, hOptions, mapVisited, [...lPath, key])
-							lLines.push(indented(block, oneIndent))
-						}
-					}
+					mapVisited.set(x, buildPath(lPath))
+					const getter = (name: string): unknown => x[name]
+					return hash2nice(':', x, keys(x), getter, hOptions, mapVisited, lPath)
 				}
 			}
-
-			if (compact) {
-				return '{' + lLines.join(' ') + '}'
+		}
+		case 'map': {
+			assert((x instanceof Map))
+			if (x.size === 0) {
+				return mark('emptyMap')
 			}
 			else {
-				return toBlock(lLines)
+				// --- Check if object was previously visited
+				const prevpath = mapVisited.get(x)
+				if (prevpath) {
+					return mark(`ref ${prevpath}`)
+				}
+				else {
+					mapVisited.set(x, buildPath(lPath))
+					const getter = (name: string): unknown => {
+						return x.get(name)
+					}
+					const lKeys = Array.from(x.keys())
+					return hash2nice('::', x, lKeys, getter, hOptions, mapVisited, lPath)
+				}
 			}
+		}
+		case 'generator': {
+			assertIsFunction(x)
+			return mark(`generator ${functionName(x)}`)
+		}
+		case 'asyncGenerator': {
+			assertIsFunction(x)
+			return mark(`asyncGenerator ${functionName(x)}`)
+		}
+		case 'class': {
+			assertIsClass(x)
+			return mark(`class ${className(x)}`)
+		}
+		case 'plainFunction': {
+			assertIsFunction(x)
+			return mark(`function ${functionName(x)}`)
+		}
 	}
-	return `<Unknown object ${x}>`
+
+	return mark('unknown')
+}
+
+// ---------------------------------------------------------------------------
+// --- val must be a primitive
+
+export const displayStr = (
+		key: string,
+		val: unknown,
+		parent: unknown,
+		displayFunc: (TMapFunc | undefined),
+		descFunc: (TMapFunc | undefined)
+		): string => {
+
+	assert(isPrimitive(val), `Not a primitive: ${val}`)
+	const str = (
+		  defined(displayFunc)
+		? displayFunc(key, val, parent)
+		: toNice(val)
+		)
+	return (
+		  defined(descFunc)
+		? f`${str} ${descFunc(key, val, parent)}:{cyan}`
+		: str
+		)
 }
 
 // ---------------------------------------------------------------------------

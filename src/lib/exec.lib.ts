@@ -3,9 +3,9 @@
 
 type AutoPromise<T> = Promise<Awaited<T>>;
 import {transpile} from "@deno/emit"
-import fs from 'fs'
+import fs from 'node-fs'
 import {existsSync} from '@std/fs'
-import {statSync} from 'fs'
+import {statSync} from 'node-fs'
 import {stripAnsiCode} from '@std/fmt/colors'
 import {
 	CompilerOptions, ScriptTarget, ModuleKind, CompilerHost,
@@ -34,7 +34,6 @@ import {
 	barf, pathStr, allFilesMatching, normalizePath, mkpath, barfTempFile,
 	fileExt, withExt, slurpAsync, parsePath, relpath,
 	} from 'fsys'
-import {str2indents} from 'hera-parse'
 
 // ---------------------------------------------------------------------------
 

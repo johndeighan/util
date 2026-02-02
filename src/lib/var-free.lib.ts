@@ -3,12 +3,14 @@
 
 type AutoPromise<T> = Promise<Awaited<T>>;
 import {
-	isIterator, isAsyncIterator, isPromise,
+	undef, defined, notdefined,
+	isIterator, isAsyncIterator, isPromise, assertIsDefined,
 	} from 'datatypes'
 
 export type TMaybeCmd = 'stop' | undefined | void
 
 // ---------------------------------------------------------------------------
+// ASYNC
 
 export async function* mapper<TIn, TOut>(
 		lItems:  Generator<TIn> |
@@ -73,6 +75,7 @@ export async function* mapper<TIn, TOut>(
 }
 
 // ---------------------------------------------------------------------------
+// ASYNC
 
 export const reducer = async function<TIn, TAccum>(
 		lItems: Generator<TIn> |
@@ -130,28 +133,27 @@ export function* syncMapper<TIn, TOut>(
 
 	let i3 = 0;for (const item of lItems) {const i = i3++;
 		const iter = mapFunc(item, i)
-		if (iter !== undefined) {
-			if (isIterator(iter) || isAsyncIterator(iter)) {
-				while(true) {
-					// --- I'm tired of wrestling with TypeScript !
-					// @ts-ignore
-					const {done, value} = iter.next()
-					if (done) {
-						if (value === 'stop') {
-							return
-						}
-						else {
-							break
-						}
+		if (isIterator(iter) || isAsyncIterator(iter)) {
+			assertIsDefined(iter)
+			while(true) {
+				// --- I'm tired of wrestling with TypeScript !
+				// @ts-ignore
+				const {done, value} = iter.next()
+				if (done) {
+					if (value === 'stop') {
+						return
 					}
-					else if (value !== undefined) {
-						yield value
+					else {
+						break
 					}
 				}
+				else if (value !== undefined) {
+					yield value
+				}
 			}
-			else {
-				yield iter
-			}
+		}
+		else if (defined(iter)) {
+			yield iter
 		}
 	}
 	return

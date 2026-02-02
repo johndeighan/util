@@ -1,0 +1,194 @@
+# ---------------------------------------------------------------------------
+
+export toNice := (
+		x: unknown,
+		hOptions: hash = {},
+		mapVisited: Map<object, string> = new Map<object, string>(),
+		lPath: TPathIndex[] = []
+		): string =>
+
+	# --- When recoverable, classes and functions
+	#     include their definitions,
+	#     with escaped chars
+	type opt = {
+		compact: boolean
+		recoverable: boolean
+		ignoreEmptyValues: boolean
+		sortKeys: boolean
+		sortFunc: TCompareFunc?
+		displayFunc: TMapFunc?
+		descFunc: TMapFunc?
+		lInclude: string[]?
+		lExclude: string[]?
+		lIndents: string[]
+		}
+
+	{
+			compact, recoverable, ignoreEmptyValues,
+			sortKeys, sortFunc,
+			displayFunc, descFunc, lInclude, lExclude, lIndents
+			} := getOptions<opt> hOptions, {
+		compact: false
+		recoverable: false
+		ignoreEmptyValues: false
+		sortKeys: false
+		sortFunc: undef
+		displayFunc: undef
+		descFunc: undef
+		lInclude: undef
+		lExclude: undef
+		lIndents: ['   ', '❘  ']
+		}
+
+	if recoverable
+		assert notdefined(displayFunc), "can't use displayFunc if recoverable"
+		assert notdefined(descFunc), "can't use descFunc if recoverable"
+
+	# --- You can provide sortKeys or a sortFunc, but not both
+	assert not (sortKeys && defined(sortFunc)), "Bad options"
+	switch typeof x
+		case 'undefined':
+			return mark('undef')
+		case 'boolean':
+			return if x then mark('true') else mark('false')
+		case 'number':
+			return (
+				  Number.isNaN(x)    ? mark('NaN')
+				: Number.isFinite(x) ? x.toString()
+				: (x < 0)            ? mark('neginf')
+				:                      mark('inf')
+				)
+		case 'bigint':
+			return x.toString() + 'n'
+		case 'string':
+			return toNiceString x, compact
+		case 'symbol':
+			name := symbolName x
+			if name
+				return mark("symbol #{name}")
+			else
+				return mark("symbol")
+		case 'function':
+			if isClass(x)
+				name := className x
+				if name
+					return mark("class #{name}")
+				else
+					return mark("class")
+			else
+				name := functionName x
+				if name
+					return mark("function #{name}")
+				else
+					return mark("function")
+		case 'object':
+			if x == null
+				return mark('null')
+
+			# --- Check if object was previously visited
+			prevpath := mapVisited.get x
+			if prevpath
+				return mark("ref #{prevpath}")
+			if isRegExp(x)
+				desc := esc regexpDef x
+				if desc
+					return mark("regexp /#{desc}/")
+				else
+					return mark("regexp")
+			if isArray(x)
+				if x.length == 0
+					return '[]'
+				mapVisited.set x, buildPath(lPath)
+				lLines := []
+				for val,i of x
+					block := toNice val, hOptions, mapVisited, [...lPath, i]
+					if compact
+						lLines.push block
+					else if isPrimitive(val) || block.startsWith('.') || isEmpty(val)
+						lLines.push "- #{block}"
+					else
+						lLines.push '-'
+						oneIndent := rotpos<string> lIndents, lPath.length
+						lLines.push indented(block, oneIndent)
+				if compact
+					return '[' + lLines.join(' ') + ']'
+				else
+					return toBlock lLines
+
+			# --- It's an object
+			if (x instanceof Set)
+				lParts := for key of x.keys()
+					toNice key
+				return (
+					  (lParts.length == 0)
+					? mark "emptySet"
+					: mark "set #{lParts.join(' ')}"
+					)
+			if (x instanceof Map)
+				lParts := for [key, val] of x.entries()
+					keyStr := toNice(key)
+					valStr := toNice(val, hOptions, mapVisited, [...lPath, key])
+					if valStr.includes('\n')
+						oneIndent := rotpos<string> lIndents, lPath.length
+						indented valStr, oneIndent
+					else
+						"#{keyStr}:: #{valStr}"
+				return (lParts.length == 0) ? mark('emptyMap') : lParts.join('\n')
+
+			lKeys := Object.keys x
+			if lKeys.length == 0
+				return '{}'
+			func: TCompareFunc? := (
+				if defined(sortFunc)
+					sortFunc
+				else if defined(lInclude)
+					getCompareFunc(lInclude)
+				else if sortKeys
+					alphaCompare
+				else
+					undef
+				)
+			useKey := (key: unknown): boolean =>
+				if (typeof key != 'string')
+					return false
+				if defined(lExclude) && lExclude.includes(key)
+					return false
+				if defined(lInclude) && not lInclude.includes(key)
+					return false
+				return true
+			mapVisited.set x, buildPath(lPath)
+			assertIsHash x # --- will allow us to index with any string
+			lLines := []
+			for key of (defined(func) ? lKeys.sort(func) : lKeys).filter(useKey)
+				val := x[key]
+				if not ignoreEmptyValues || nonEmpty(val)
+					if (val == null)
+						lLines.push "#{key}: #{mark('null')}"
+					else if isPrimitive(val)
+						str := displayStr(key, val, x, displayFunc, descFunc)
+						lLines.push "#{key}: #{str}"
+					else
+						prevpath := isObject(val) ? mapVisited.get val : undef
+						if defined(prevpath)
+							str := mark "ref #{prevpath}"
+							lLines.push "#{key}: #{str}"
+						else if isEmpty(val)
+							str := (
+								  (val instanceof Set) ? mark('emptySet')
+								: (val instanceof Map) ? mark('emptyMap')
+								: isArray(val)         ? '[]'
+								:                        '{}'
+								)
+							lLines.push "#{key}: #{str}"
+						else
+							lLines.push "#{key}:"
+							oneIndent := rotpos<string> lIndents, lPath.length
+							block := toNice(val, hOptions, mapVisited, [...lPath, key])
+							lLines.push indented(block, oneIndent)
+
+			if compact
+				return '{' + lLines.join(' ') + '}'
+			else
+				return toBlock lLines
+	return "<Unknown object #{x}>"
+

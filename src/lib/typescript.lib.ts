@@ -78,7 +78,7 @@ export const ast2ts = (node: Node): string => {
 export const descFunc: TMapFunc = (
 		key: string,
 		value: unknown,
-		hParent: hash
+		hParent: unknown
 		): string => {
 
 	return (key === 'kind') && isNumber(value) ? f`(${kindStr(value)})` : ''

@@ -1,12 +1,14 @@
 # var-free.lib.civet
 
 import {
-	isIterator, isAsyncIterator, isPromise,
+	undef, defined, notdefined,
+	isIterator, isAsyncIterator, isPromise, assertIsDefined,
 	} from 'datatypes'
 
 export type TMaybeCmd = 'stop' | undefined | void
 
 # ---------------------------------------------------------------------------
+# ASYNC
 
 export function mapper<TIn, TOut>(
 		lItems:  Generator<TIn> |
@@ -53,6 +55,7 @@ export function mapper<TIn, TOut>(
 	return
 
 # ---------------------------------------------------------------------------
+# ASYNC
 
 export reducer := <TIn, TAccum>(
 		lItems: Generator<TIn> |
@@ -98,21 +101,21 @@ export function syncMapper<TIn, TOut>(
 
 	for item,i of lItems
 		iter := mapFunc item, i
-		if (iter != undefined)
-			if isIterator(iter) || isAsyncIterator(iter)
-				loop
-					# --- I'm tired of wrestling with TypeScript !
-					# @ts-ignore
-					{done, value} := iter.next()
-					if done
-						if (value == 'stop')
-							return
-						else
-							break
-					else if (value != undefined)
-						yield value
-			else
-				yield iter
+		if isIterator(iter) || isAsyncIterator(iter)
+			assertIsDefined(iter)
+			loop
+				# --- I'm tired of wrestling with TypeScript !
+				# @ts-ignore
+				{done, value} := iter.next()
+				if done
+					if (value == 'stop')
+						return
+					else
+						break
+				else if (value != undefined)
+					yield value
+		else if defined(iter)
+			yield iter
 	return
 
 # ---------------------------------------------------------------------------

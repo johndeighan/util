@@ -105,7 +105,7 @@ export symbolName := (x: unknown): string =>
 
 export functionName := (x: Function): string =>
 
-	return x.name || ''
+	return x.name || '<anonymous>'
 
 # ---------------------------------------------------------------------------
 
@@ -134,13 +134,13 @@ export classDef := (x: unknown): string =>
 
 # ---------------------------------------------------------------------------
 
-export className := (x: unknown): string? =>
+export className := (x: unknown): string =>
 
 	# --- item can be a class or an object
 	if (typeof x == 'function') && x.toString().startsWith('class')
-		return x.name || ''
+		return x.name || '<unknown>'
 	if (typeof x == 'object') && (x != null)
-		return x.constructor.name || ''
+		return x.constructor.name || '<none>'
 	croak "Not a class"
 	return ''    # --- TypeScript bug
 
@@ -314,6 +314,12 @@ export assertIsArray: (x: unknown) => asserts x is array := (x: unknown): assert
 
 export assertIsHash: (x: unknown) => asserts x is hash := (x: unknown): asserts x is hash =>
 	assert isHash(x), "Not a hash: #{typeof x}"
+
+export assertIsFunction: (x: unknown) => asserts x is Function := (x: unknown): asserts x is Function =>
+	assert isFunction(x), "Not a function: #{typeof x}"
+
+export assertIsClass: (x: unknown) => asserts x is Function := (x: unknown): asserts x is Function =>
+	assert isClass(x), "Not a class: #{typeof x}"
 
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
@@ -511,3 +517,42 @@ export isAsyncIterator := <T>(x: unknown): x is AsyncIterableIterator<T> =>
 	iter := x[Symbol.asyncIterator]
 	return (typeof iter == 'function') && (iter.call(x) == x)
 
+# ---------------------------------------------------------------------------
+
+GenFunc := (function* () {}).constructor
+AsyncGenFunc := (async function* () {}).constructor
+
+export jsType := (x: unknown): string =>
+
+	switch typeof x
+		when 'undefined'
+			return 'undef'
+		when 'boolean', 'string', 'symbol', 'bigint'
+			return typeof x
+		when 'number'
+			if Number.isFinite(x)
+				return Number.isInteger(x) ? 'integer' : 'float'
+			else
+				return (
+					  Number.isNaN(x)  ? 'NaN'
+					: (x == -Infinity) ? 'neginf'
+					:                    'inf'
+					)
+		when 'object'
+			return (
+				  (x == null)           ? 'null'
+				: (x instanceof RegExp) ? 'regexp'
+				: (x instanceof Set)    ? 'set'
+				: (x instanceof Map)    ? 'map'
+				: Array.isArray(x)      ? 'array'
+				: isIterator(x)         ? 'iterator'
+				: isAsyncIterator(x)    ? 'asyncIterator'
+				:                         'hash'
+				)
+		when 'function'
+			return (
+				  x.toString().startsWith('class ') ? 'class'
+				: (x instanceof GenFunc)            ? 'generator'
+				: (x instanceof AsyncGenFunc)       ? 'asyncGenerator'
+				:                                     'plainFunction'
+				)

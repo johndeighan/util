@@ -15,6 +15,7 @@ import {
 
 // ---------------------------------------------------------------------------
 
+equal(toNiceString(''), "｟emptyString｠")
 equal(toNiceString('abc'), 'abc')
 equal(toNiceString('\tabc\n'), '→abc↓')
 equal(toNiceString('123'), "“123")
@@ -48,8 +49,6 @@ equal(rotpos([1,2,3], 5), 3)
 
 // ---------------------------------------------------------------------------
 
-DBG("toNice()")
-
 // --- 'undefined'
 equal(toNice(undef),      '｟undef｠')
 
@@ -70,8 +69,8 @@ equal(toNice(12345678n),  '12345678n')
 // --- 'string'
 equal(toNice('abc'),      'abc')
 equal(toNice('say "hi"'), 'say˳"hi"')
-equal(toNice('a\tb'),     'a→  b')
-equal(toNice('a\nb'),     'a↓\nb')
+equal(toNice('a\tb'),     'a→b')
+equal(toNice('a\nb'),     'a↓b')
 equal(toNice('｟true｠'),   "｟true｠")
 equal(toNice('｟abc｠'),     "｟abc｠")
 equal(toNice('- abc'),    "“-˳abc")
@@ -114,7 +113,7 @@ equal(toNice(Symbol('abc')), '｟symbol abc｠');
 // --- 'object'
 equal(toNice(null), '｟null｠')
 
-equal(toNice(/^abc$/), '｟regexp ^abc$｠')
+equal(toNice(/^abc$/), '｟regexp /^abc$/｠')
 
 equal(toNice([]), "[]")
 equal(toNice([1,2]), `- 1
@@ -150,6 +149,37 @@ lName: Deighan`)
 	)();
 
 // ---------------------------------------------------------------------------
+// --- test references in arrays
+
+(() => {
+	type Node = [string, unknown[], string]
+	const lItems: Node = ['abc', [], 'xyz']
+	lItems[1] = lItems
+
+
+	equal(toNice(lItems), s`- abc
+- ｟ref root｠
+- xyz`)
+}
+	)();
+
+// ---------------------------------------------------------------------------
+// --- test nested references in arrays
+
+(() => {
+	type Node = [string, [string, unknown[]], string]
+	const lItems: Node = ['abc', ['def', []], 'xyz']
+	lItems[1][1] = lItems[1]
+
+	equal(toNice(lItems), s`- abc
+-
+	- def
+	- ｟ref root[1]｠
+- xyz`)
+}
+	)();
+
+// ---------------------------------------------------------------------------
 // --- test references
 
 (() => {
@@ -166,6 +196,42 @@ lName: Deighan`)
 
 	equal(toNice(hAst), s`name: John
 ref: ｟ref root｠`)
+}
+	)();
+
+// ---------------------------------------------------------------------------
+// --- test nested references
+
+(() => {
+	type Node = {
+		kind: string
+		stmt: {
+			kind: string
+			cond: {
+				kind: string
+				parent: (object | undefined)
+				}
+			}
+		}
+
+	const hAst: Node = {
+		kind: 'program',
+		stmt: {
+			kind: 'ifStmt',
+			cond: {
+				kind: 'compare',
+				parent: undef
+				}
+			}
+		}
+	hAst.stmt.cond.parent = hAst.stmt
+
+	equal(toNice(hAst), s`kind: program
+stmt:
+	kind: ifStmt
+	cond:
+		kind: compare
+		parent: ｟ref root.stmt｠`)
 }
 	)()
 
@@ -192,13 +258,6 @@ equal(toNice(['a', []]), s`- a
 
 equal(toNice({a: 1, b: {}}), s`a: 1
 b: {}`)
-
-// ---------------------------------------------------------------------------
-// --- test option 'compact'
-
-equal(toNice(['ab', 'cd', 'e f'], o`compact`), '[ab cd e˳f]')
-
-equal(toNice({a: 1, b: 2}, o`compact`), '{a: 1 b: 2}')
 
 // ---------------------------------------------------------------------------
 // --- test OL() and ML()
@@ -236,7 +295,8 @@ equal(ML([1,'abc']), `- 1
 //                    Set
 // ---------------------------------------------------------------------------
 
-equal(toNice(new Set(['abc','def'])), '｟set abc def｠')
+equal(toNice(new Set(['abc','def'])), `-- abc
+-- def`)
 equal(toNice(new Set([])), '｟emptySet｠')
 
 // ---------------------------------------------------------------------------

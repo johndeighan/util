@@ -120,7 +120,7 @@ export const symbolName = (x: unknown): string => {
 
 export const functionName = (x: Function): string => {
 
-	return x.name || ''
+	return x.name || '<anonymous>'
 }
 
 // ---------------------------------------------------------------------------
@@ -155,14 +155,14 @@ export const classDef = (x: unknown): string => {
 
 // ---------------------------------------------------------------------------
 
-export const className = (x: unknown): (string | undefined) => {
+export const className = (x: unknown): string => {
 
 	// --- item can be a class or an object
 	if ((typeof x === 'function') && x.toString().startsWith('class')) {
-		return x.name || ''
+		return x.name || '<unknown>'
 	}
 	if ((typeof x === 'object') && (x !== null)) {
-		return x.constructor.name || ''
+		return x.constructor.name || '<none>'
 	}
 	croak("Not a class")
 	return ''
@@ -368,6 +368,14 @@ export const assertIsArray: (x: unknown) => asserts x is array = (x: unknown): a
 
 export const assertIsHash: (x: unknown) => asserts x is hash = (x: unknown): asserts x is hash => {
 	assert(isHash(x), `Not a hash: ${typeof x}`)
+}
+
+export const assertIsFunction: (x: unknown) => asserts x is Function = (x: unknown): asserts x is Function => {
+	assert(isFunction(x), `Not a function: ${typeof x}`)
+}
+
+export const assertIsClass: (x: unknown) => asserts x is Function = (x: unknown): asserts x is Function => {
+	assert(isClass(x), `Not a class: ${typeof x}`)
 }
 
 // ---------------------------------------------------------------------------
@@ -604,3 +612,51 @@ export const isAsyncIterator = <T,>(x: unknown): x is AsyncIterableIterator<T> =
 	return (typeof iter === 'function') && (iter.call(x) === x)
 }
 
+// ---------------------------------------------------------------------------
+
+const GenFunc = (function* () {}).constructor
+const AsyncGenFunc = (async function* () {}).constructor
+
+export const jsType = (x: unknown): string => {
+
+	switch(typeof x) {
+		case 'undefined': {
+			return 'undef'
+		}
+		case 'boolean':case 'string':case 'symbol':case 'bigint': {
+			return typeof x
+		}
+		case 'number': {
+			if (Number.isFinite(x)) {
+				return Number.isInteger(x) ? 'integer' : 'float'
+			}
+			else {
+				return (
+					  Number.isNaN(x)  ? 'NaN'
+					: (x === -Infinity) ? 'neginf'
+					:                    'inf'
+					)
+			}
+		}
+		case 'object': {
+			return (
+				  (x === null)           ? 'null'
+				: (x instanceof RegExp) ? 'regexp'
+				: (x instanceof Set)    ? 'set'
+				: (x instanceof Map)    ? 'map'
+				: Array.isArray(x)      ? 'array'
+				: isIterator(x)         ? 'iterator'
+				: isAsyncIterator(x)    ? 'asyncIterator'
+				:                         'hash'
+				)
+		}
+		case 'function': {
+			return (
+				  x.toString().startsWith('class ') ? 'class'
+				: (x instanceof GenFunc)            ? 'generator'
+				: (x instanceof AsyncGenFunc)       ? 'asyncGenerator'
+				:                                     'plainFunction'
+				)
+		}
+	}
+}

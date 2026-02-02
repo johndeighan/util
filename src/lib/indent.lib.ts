@@ -17,7 +17,9 @@ export let oneIndent: (string | undefined) = undef
 
 // ---------------------------------------------------------------------------
 
-export const resetOneIndent = (str: (string | undefined) = undef): void => {
+export const resetOneIndent = (
+		str: (string | undefined) = undef
+		): void => {
 
 	oneIndent = str
 	return
@@ -100,6 +102,7 @@ export function indented(
 	type opt = {
 		oneIndent: (string | undefined)
 		}
+
 	// --- Because there's a global named oneIndent,
 	//     we have to put the option in a new variable, i.e. 'ind'
 	const {oneIndent: ind} = getOptions<opt>(hOptions, {

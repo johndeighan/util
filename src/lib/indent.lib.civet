@@ -16,7 +16,9 @@ export let oneIndent: string? = undef
 
 # ---------------------------------------------------------------------------
 
-export resetOneIndent := (str: string? = undef): void =>
+export resetOneIndent := (
+		str: string? = undef
+		): void =>
 
 	oneIndent = str
 	return
@@ -92,6 +94,7 @@ export function indented(
 	type opt = {
 		oneIndent: string?
 		}
+
 	# --- Because there's a global named oneIndent,
 	#     we have to put the option in a new variable, i.e. 'ind'
 	{oneIndent: ind} := getOptions<opt> hOptions, {

@@ -18,7 +18,7 @@ import {
 	isSymbol, symbolName, functionName, functionDef,
 	classDef, regexpDef, hashLike,
 	isObject, isGenerator, isAsyncGenerator,
-	isIterator, isAsyncIterator,
+	isIterator, isAsyncIterator, jsType,
 	} from 'datatypes'
 import {DBG} from 'logger'
 import {
@@ -70,3 +70,22 @@ if (isAsyncGenerator(sampleVal.asyncGenFunc)) {
 falsy( isIterator(sampleVal.genFunc))
 falsy( isIterator(sampleVal.regularFunc))
 falsy( isIterator(sampleVal.lambdaFunc))
+
+// ---------------------------------------------------------------------------
+
+equal(jsType(sampleVal.undef), 'undef')
+equal(jsType(sampleVal.null), 'null')
+equal(jsType(sampleVal.emptyStr), 'string')
+equal(jsType(sampleVal.str), 'string')
+equal(jsType(sampleVal.i), 'integer')
+equal(jsType(sampleVal.f), 'float')
+equal(jsType(sampleVal.b), 'boolean')
+equal(jsType(sampleVal.genFunc), 'generator')
+equal(jsType(sampleVal.asyncGenFunc), 'asyncGenerator')
+equal(jsType(sampleVal.regularFunc), 'plainFunction')
+equal(jsType(sampleVal.lambdaFunc), 'plainFunction')
+equal(jsType(sampleVal.emptyHash), 'hash')
+equal(jsType(sampleVal.fullHash), 'hash')
+equal(jsType(sampleVal.emptyList), 'array')
+equal(jsType(sampleVal.fullList), 'array')
+

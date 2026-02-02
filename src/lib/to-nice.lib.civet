@@ -6,11 +6,14 @@ import {
 	assert, croak, undef, defined, notdefined,
 	hash, hashof, isString, isArray, isClass, isRegExp, isObject,
 	isPrimitive, isEmpty, nonEmpty, assertIsHash, integer,
-	symbolName, className, functionName, regexpDef,
+	symbolName, className, functionName, regexpDef, jsType,
+	assertIsFunction, assertIsClass, assertIsArray,
 	} from 'datatypes'
 import {
-	getOptions, f, o, toBlock, spaces, mapEachLine, sep,
+	getOptions, f, o, toBlock, spaces, mapEachLine, sep, keys,
 	} from 'llutils'
+import {indented} from 'indent'
+import {mapper, syncMapper} from 'var-free'
 
 # ---------------------------------------------------------------------------
 
@@ -28,15 +31,17 @@ export alphaCompare: TCompareFunc := (a: string, b: string): number =>
 
 # ---------------------------------------------------------------------------
 
-# --- any leading digit must be preceded by a single '\'
+# --- any leading digit must be preceded by a curly quote char
 
 export toNiceString := (
 		str: string,
-		compact: boolean = true
 		): string =>
 
+	if (str == '')
+		return mark('emptyString')
+
 	# --- escape spaces and \t, \n or \r with unicode chars
-	estr := esc(str, compact ? 'oneline' : 'multiline')
+	estr := esc(str)
 
 	# --- precede with '“' if
 	#        - starts with digit
@@ -50,11 +55,13 @@ export toNiceString := (
 		return estr
 
 # ---------------------------------------------------------------------------
-
 # --- Returns a function that:
 #        compares 2 strings based on their position in lSortKeys
 #        else compares alphabetically
-getCompareFunc := (lSortKeys: string[]): TCompareFunc =>
+
+export getCompareFunc := (
+		lSortKeys: string[]
+		): TCompareFunc =>
 
 	# --- Create map of key to number
 	h: hashof<number> := {}
@@ -88,12 +95,6 @@ export rotpos := <T>(
 
 # ---------------------------------------------------------------------------
 
-indented := (block: string, oneIndent: string) =>
-
-	return mapEachLine block, (line) => oneIndent + line
-
-# ---------------------------------------------------------------------------
-
 export type TPathIndex = string | number
 export buildPath := (lPath: TPathIndex[]): string =>
 
@@ -107,218 +108,251 @@ export buildPath := (lPath: TPathIndex[]): string =>
 
 # ---------------------------------------------------------------------------
 
-export displayStr := (
-		key: string
-		val: unknown
-		par: hash
-		displayFunc: TMapFunc?
-		descFunc: TMapFunc?
-		): string =>
-
-	str := (
-		  defined(displayFunc)
-		? displayFunc(key, val, par)
-		: toNice(val, {compact: true})
-		)
-	desc := defined(descFunc) ? descFunc(key, val, par) : ''
-	return desc ? f"#{str} #{desc}:{cyan}" : str
-
-# ---------------------------------------------------------------------------
-
 export type TMapFunc = (
 		key: string,
 		value: unknown,
-		hParent: hash
+		hParent: unknown
 		) => string
 
-export toNice := (
-		x: unknown,
-		hOptions: hash = {},
-		mapVisited: Map<object, string> = new Map<object, string>(),
-		lPath: TPathIndex[] = []
+# ---------------------------------------------------------------------------
+
+export type TNiceOptions = {
+	compact: boolean
+	recoverable: boolean
+	oneIndent: string
+	ignoreEmptyKeys: boolean
+	ignoreEmptyItems: boolean
+	sortKeys: boolean
+	sortFunc: TCompareFunc?
+	displayFunc: TMapFunc?
+	descFunc: TMapFunc?
+	lInclude: string[]?
+	lExclude: string[]
+	}
+
+export hNiceDefaults := {
+	compact: false
+	recoverable: false
+	oneIndent: '   '
+	ignoreEmptyKeys: false
+	ignoreEmptyItems: false
+	sortKeys: false
+	sortFunc: undef
+	displayFunc: undef
+	descFunc: undef
+	lInclude: undef
+	lExclude: []
+	}
+
+# ---------------------------------------------------------------------------
+
+export hash2nice := (
+		mark: string
+		parent: unknown
+		lKeys: string[]
+		getter: (s: string) => unknown
+		hOptions: hash = {}
+		mapVisited: Map<object, string>
+		lPath: TPathIndex[]
 		): string =>
 
-	# --- When recoverable, classes and functions
-	#     include their definitions,
-	#     with escaped chars
-	type opt =
-		compact: boolean
-		recoverable: boolean
-		ignoreEmptyValues: boolean
-		sortKeys: boolean
-		sortFunc: TCompareFunc?
-		displayFunc: TMapFunc?
-		descFunc: TMapFunc?
-		lInclude: string[]?
-		lExclude: string[]?
-		lIndents: string[]
-	{
-			compact, recoverable, ignoreEmptyValues,
-			sortKeys, sortFunc,
-			displayFunc, descFunc, lInclude, lExclude, lIndents
-			} := getOptions<opt> hOptions, {
-		compact: false
-		recoverable: false
-		ignoreEmptyValues: false
-		sortKeys: false
-		sortFunc: undef
-		displayFunc: undef
-		descFunc: undef
-		lInclude: undef
-		lExclude: undef
-		lIndents: ['   ', '❘  ']
-		}
-
-	if recoverable
-		assert notdefined(displayFunc), "can't use displayFunc if recoverable"
-		assert notdefined(descFunc), "can't use descFunc if recoverable"
+	{compact, sortFunc, sortKeys, lInclude, lExclude, ignoreEmptyKeys,
+		displayFunc, descFunc, oneIndent, recoverable,
+		} := getOptions<TNiceOptions> hOptions, hNiceDefaults
 
 	# --- You can provide sortKeys or a sortFunc, but not both
 	assert not (sortKeys && defined(sortFunc)), "Bad options"
-	switch typeof x
-		case 'undefined':
-			return mark('undef')
-		case 'boolean':
-			return if x then mark('true') else mark('false')
-		case 'number':
-			return (
-				  Number.isNaN(x)    ? mark('NaN')
-				: Number.isFinite(x) ? x.toString()
-				:                      ((x < 0) ? mark('neginf') : mark('inf'))
-				)
-		case 'bigint':
-			return x.toString() + 'n'
-		case 'string':
-			return toNiceString x, compact
-		case 'symbol':
+
+	if recoverable
+		assert notdefined(displayFunc), "can't use displayFunc w/recoverable"
+		assert notdefined(descFunc), "can't use descFunc w/recoverable"
+
+	func: TCompareFunc? := (
+		if defined(sortFunc)
+			sortFunc
+		else if defined(lInclude)
+			getCompareFunc(lInclude)
+		else if sortKeys
+			alphaCompare
+		else
+			undef
+		)
+	useKey := (key: string): boolean =>
+		if lExclude.includes(key)
+			return false
+		if defined(lInclude) && not lInclude.includes(key)
+			return false
+		return true
+	iterKeys := (defined(func) ? lKeys.sort(func) : lKeys).filter(useKey)
+	iterParts := syncMapper iterKeys, (key: string): Generator<string> ->
+		val := getter(key)
+		if not ignoreEmptyKeys || nonEmpty(val)
+			if isPrimitive(val)
+				str := displayStr(key, val, parent, displayFunc, descFunc)
+				yield "#{key}#{mark} #{str}"
+			else
+				str := toNice(val, hOptions, mapVisited, [lPath..., key])
+				if str.includes('\n')
+					yield "#{key}#{mark}\n" + indented(str, 1, {oneIndent})
+				else
+					yield "#{key}#{mark} #{str}"
+	lParts := Array.from(iterParts)
+	return (
+		  compact
+		? '{' + lParts.join(' ') + '}'
+		: lParts.join('\n')
+		)
+
+# ---------------------------------------------------------------------------
+
+export seq2nice := (
+		prefix: string
+		lValues: unknown[]
+		hOptions: hash = {}
+		mapVisited: Map<object, string>
+		lPath: TPathIndex[]
+		): string =>
+
+	{compact, ignoreEmptyItems, oneIndent
+		} := getOptions<TNiceOptions> hOptions, hNiceDefaults
+
+	iterParts := syncMapper lValues, (val: unknown, i: number): Generator<string> ->
+		if not ignoreEmptyItems || nonEmpty(val)
+			str := toNice(val, hOptions, mapVisited, [lPath..., i])
+			if str.includes('\n')
+				yield "#{prefix}\n" + indented(str, 1, {oneIndent})
+			else if compact
+				yield str
+			else
+				yield "#{prefix} #{str}"
+	lParts := Array.from(iterParts)
+	return (
+		  compact
+		? '[' + lParts.join(' ') + ']'
+		: lParts.join('\n')
+		)
+
+# ---------------------------------------------------------------------------
+
+export toNice := (
+	x: unknown
+	hOptions: hash = {},
+	mapVisited: Map<object, string> = new Map<object, string>(),
+	lPath: TPathIndex[] = []
+	): string =>
+
+	{compact, recoverable, oneIndent, displayFunc, descFunc
+		} := getOptions<TNiceOptions> hOptions, hNiceDefaults
+
+	typ := jsType(x)
+	switch typ
+		when 'undef','NaN','inf','neginf','null'
+			return mark(typ)
+		when 'boolean'
+			return x ? mark('true') : mark('false')
+		when 'string'
+			return toNiceString(x as string)
+		when 'symbol'
 			name := symbolName x
-			if name
-				return mark("symbol #{name}")
+			return name ? mark("symbol #{name}") : mark("symbol")
+		when 'bigint'
+			return (x as bigint).toString() + 'n'
+		when 'integer','float'
+			return (x as number).toString()
+		when 'regexp'
+			desc := esc regexpDef x
+			return desc ? mark("regexp /#{desc}/") : mark("regexp")
+		when 'array'
+			assertIsArray(x)
+			if (x.length == 0)
+				return '[]'
 			else
-				return mark("symbol")
-		case 'function':
-			if isClass(x)
-				name := className x
-				if name
-					return mark("class #{name}")
+				# --- Check if object was previously visited
+				prevpath := mapVisited.get x
+				if prevpath
+					return mark("ref #{prevpath}")
 				else
-					return mark("class")
+					mapVisited.set x, buildPath(lPath)
+					return seq2nice '-', x, hOptions, mapVisited, lPath
+		when 'set'
+			assert (x instanceof Set)
+			if (x.size == 0)
+				return mark('emptySet')
 			else
-				name := functionName x
-				if name
-					return mark("function #{name}")
+				# --- Check if object was previously visited
+				prevpath := mapVisited.get x
+				if prevpath
+					return mark("ref #{prevpath}")
 				else
-					return mark("function")
-		case 'object':
-			if x == null
-				return mark('null')
-
-			# --- Check if object was previously visited
-			prevpath := mapVisited.get x
-			if prevpath
-				return mark("ref #{prevpath}")
-			if isRegExp(x)
-				desc := esc regexpDef x
-				if desc
-					return mark("regexp #{desc}")
-				else
-					return mark("regexp")
-			if isArray(x)
-				if x.length == 0
-					return '[]'
-				mapVisited.set x, buildPath(lPath)
-				lLines := []
-				for val,i of x
-					block := toNice val, hOptions, mapVisited, [...lPath, i]
-					if compact
-						lLines.push block
-					else if isPrimitive(val) || block.startsWith('.') || isEmpty(val)
-						lLines.push "- #{block}"
-					else
-						lLines.push '-'
-						oneIndent := rotpos<string> lIndents, lPath.length
-						lLines.push indented(block, oneIndent)
-				if compact
-					return '[' + lLines.join(' ') + ']'
-				else
-					return toBlock lLines
-
-			# --- It's an object
-			if (x instanceof Set)
-				lParts := for key of x.keys()
-					toNice key
-				return (
-					  (lParts.length == 0)
-					? mark "emptySet"
-					: mark "set #{lParts.join(' ')}"
-					)
-			if (x instanceof Map)
-				lParts := for [key, val] of x.entries()
-					keyStr := toNice(key)
-					valStr := toNice(val, hOptions, mapVisited, [...lPath, key])
-					if valStr.includes('\n')
-						oneIndent := rotpos<string> lIndents, lPath.length
-						indented valStr, oneIndent
-					else
-						"#{keyStr}:: #{valStr}"
-				return (lParts.length == 0) ? mark('emptyMap') : lParts.join('\n')
-
-			lKeys := Object.keys x
-			if lKeys.length == 0
+					mapVisited.set x, buildPath(lPath)
+					lValues := Array.from(x.values())
+					return seq2nice '--', lValues, hOptions, mapVisited, lPath
+		when 'hash'
+			assertIsHash(x)
+			lKeys := Object.keys(x)
+			if (lKeys.length == 0)
 				return '{}'
-			func: TCompareFunc? := (
-				if defined(sortFunc)
-					sortFunc
-				else if defined(lInclude)
-					getCompareFunc(lInclude)
-				else if sortKeys
-					alphaCompare
-				else
-					undef
-				)
-			useKey := (key: unknown): boolean =>
-				if (typeof key != 'string')
-					return false
-				if defined(lExclude) && lExclude.includes(key)
-					return false
-				if defined(lInclude) && not lInclude.includes(key)
-					return false
-				return true
-			mapVisited.set x, buildPath(lPath)
-			assertIsHash x # --- will allow us to index with any string
-			lLines := []
-			for key of (defined(func) ? lKeys.sort(func) : lKeys).filter(useKey)
-				val := x[key]
-				if not ignoreEmptyValues || nonEmpty(val)
-					if (val == null)
-						lLines.push "#{key}: #{mark('null')}"
-					else if isPrimitive(val)
-						str := displayStr(key, val, x, displayFunc, descFunc)
-						lLines.push "#{key}: #{str}"
-					else
-						prevpath := isObject(val) ? mapVisited.get val : undef
-						if defined(prevpath)
-							str := mark "ref #{prevpath}"
-							lLines.push "#{key}: #{str}"
-						else if isEmpty(val)
-							str := (
-								  (val instanceof Set) ? mark('emptySet')
-								: (val instanceof Map) ? mark('emptyMap')
-								: isArray(val)         ? '[]'
-								:                        '{}'
-								)
-							lLines.push "#{key}: #{str}"
-						else
-							lLines.push "#{key}:"
-							oneIndent := rotpos<string> lIndents, lPath.length
-							block := toNice(val, hOptions, mapVisited, [...lPath, key])
-							lLines.push indented(block, oneIndent)
-
-			if compact
-				return '{' + lLines.join(' ') + '}'
 			else
-				return toBlock lLines
-	return "<Unknown object #{x}>"
+				# --- Check if object was previously visited
+				prevpath := mapVisited.get x
+				if prevpath
+					return mark("ref #{prevpath}")
+				else
+					mapVisited.set x, buildPath(lPath)
+					getter := (name: string): unknown => x[name]
+					return hash2nice ':', x, keys(x), getter, hOptions, mapVisited, lPath
+		when 'map'
+			assert (x instanceof Map)
+			if (x.size == 0)
+				return mark('emptyMap')
+			else
+				# --- Check if object was previously visited
+				prevpath := mapVisited.get x
+				if prevpath
+					return mark("ref #{prevpath}")
+				else
+					mapVisited.set x, buildPath(lPath)
+					getter := (name: string): unknown =>
+						return x.get(name)
+					lKeys := Array.from(x.keys())
+					return hash2nice '::', x, lKeys, getter, hOptions, mapVisited, lPath
+		when 'generator'
+			assertIsFunction(x)
+			return mark("generator #{functionName(x)}")
+		when 'asyncGenerator'
+			assertIsFunction(x)
+			return mark("asyncGenerator #{functionName(x)}")
+		when 'class'
+			assertIsClass(x)
+			return mark("class #{className(x)}")
+		when 'plainFunction'
+			assertIsFunction(x)
+			return mark("function #{functionName(x)}")
+
+	return mark('unknown')
+
+# ---------------------------------------------------------------------------
+# --- val must be a primitive
+
+export displayStr := (
+		key: string
+		val: unknown
+		parent: unknown
+		displayFunc: TMapFunc?
+		descFunc: TMapFunc?
+		): string =>
+
+	assert isPrimitive(val), "Not a primitive: #{val}"
+	str := (
+		  defined(displayFunc)
+		? displayFunc(key, val, parent)
+		: toNice(val)
+		)
+	return (
+		  defined(descFunc)
+		? f"#{str} #{descFunc(key, val, parent)}:{cyan}"
+		: str
+		)
 
 # ---------------------------------------------------------------------------
 
