@@ -27,6 +27,7 @@ export assert: TAssertFunc := (
 		): asserts cond =>
 
 	if not cond
+		console.log "ERROR: #{msg}"
 		croak msg
 	return
 

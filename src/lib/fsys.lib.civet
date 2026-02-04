@@ -480,6 +480,7 @@ export normalizePath := (path: string): string =>
 # ---------------------------------------------------------------------------
 
 export pathStr := (path: string, root: string = 'src'): string =>
+
 	return normalizePath relative root, path
 
 # ---------------------------------------------------------------------------
@@ -527,7 +528,7 @@ export splitPatterns := (
 #
 #    NOTE: By default, searches from ./src
 #          By default, ignores anything inside a folder
-#                      named 'temp' or 'hide'
+#                      named 'temp', 'hide' or 'save'
 
 export allFilesMatching := (
 		lPatterns: string | string?[],
@@ -545,7 +546,7 @@ export allFilesMatching := (
 		} := getOptions<opt> hOptions, {
 			root: './src'
 			hMoreGlobOptions: {}
-			lIgnoreDirs: ['temp', 'hide']
+			lIgnoreDirs: ['temp', 'hide', 'save']
 			includeDirs: false
 			}
 
@@ -693,9 +694,18 @@ export parsePath := (path: string): TPathInfo =>
 
 # ---------------------------------------------------------------------------
 
-export relpath := (path: string): string =>
+export relpath := (
+		path: string,
+		root: string = Deno.cwd()
+		): string =>
 
-	return normalizePath relative(Deno.cwd(), path)
+	return normalizePath relative(root, path)
+
+# ---------------------------------------------------------------------------
+
+export toFullPath := (path: string): string =>
+
+	return normalizePath(resolve('.', path))
 
 # ---------------------------------------------------------------------------
 

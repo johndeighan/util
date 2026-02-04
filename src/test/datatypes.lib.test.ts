@@ -88,4 +88,3 @@ equal(jsType(sampleVal.emptyHash), 'hash')
 equal(jsType(sampleVal.fullHash), 'hash')
 equal(jsType(sampleVal.emptyList), 'array')
 equal(jsType(sampleVal.fullList), 'array')
-

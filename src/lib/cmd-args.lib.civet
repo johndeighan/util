@@ -13,7 +13,7 @@ import {OL, DUMP} from 'to-nice'
 
 hFlags: hashof<boolean> := {}
 hValues: hashof<string> := {}
-lNonOptions: string[] := []
+export lNonOptions: string[] := []
 
 doSetLogger := true # --- maybe check an env var first?
 doHandleClear := true # --- maybe check an env var first?
@@ -26,6 +26,13 @@ export flag := (ch: char): boolean =>
 
 # ---------------------------------------------------------------------------
 
+export flags := (...lChars: char[]): boolean[] =>
+
+	return for ch of lChars
+		flag ch
+
+# ---------------------------------------------------------------------------
+
 export numNonOptions := (): number =>
 
 	return lNonOptions.length
@@ -34,15 +41,17 @@ export numNonOptions := (): number =>
 
 export nonOption := (i: integer): string? =>
 
-	return ((i >= 0) && (i < lNonOptions.length)) ? lNonOptions[i] : undef
+	return (
+		  (i >= 0) && (i < lNonOptions.length)
+		? lNonOptions[i]
+		: undef
+		)
 
 # ---------------------------------------------------------------------------
 
-export allNonOptions := (): Generator<string, void, void> ->
+export allNonOptions := (): string[] ->
 
-	for str of lNonOptions
-		yield str
-	return
+	return lNonOptions
 
 # ---------------------------------------------------------------------------
 
@@ -56,16 +65,14 @@ export setCmdArgs := (
 		lArgs: string[] = Deno.args
 		): void =>
 
-	let i1 = 0
-	for arg of lArgs
-		i := i1++
+	for arg,i of lArgs
 		if (arg == '!') && (i == lArgs.length - 1) && doHandleClear
 			clearScreen()
 			continue
-		if arg == '--'
+		if (arg == '--')
 			continue
 		lMatches := arg.match /^-([A-Za-z0-9_-]+)(?:(=)(.*))?$/
-		if lMatches == null
+		if (lMatches == null)
 			lNonOptions.push arg
 			continue
 		[_, optStr, eqStr, valueStr] := lMatches
@@ -88,10 +95,11 @@ export inspecting := flag 'd'
 
 # ---------------------------------------------------------------------------
 
-export type TKeyDesc =
-	type?: string # --- ignored for key _
-	range?: [integer, integer] #     used only for key _
+export type TKeyDesc = {
+	type?: string                # --- ignored for key _
+	range?: [integer, integer]   #     used only for key _
 	desc?: string
+	}
 
 export type TCmdDesc =
 	[key: string]: TKeyDesc | string

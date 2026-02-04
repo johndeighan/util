@@ -6,7 +6,7 @@ import {allNonOptions} from 'cmd-args'
 
 # ---------------------------------------------------------------------------
 
-lNonOptions := Array.from allNonOptions()
+lNonOptions := allNonOptions()
 [stub, str] := switch lNonOptions.length
 		case 0:
 			croak "No args!"

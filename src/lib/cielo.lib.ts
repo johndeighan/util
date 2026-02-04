@@ -1,7 +1,7 @@
 "use strict";
 // cielo.lib.civet
 
-import {pathToFileURL} from 'node:url'
+import {pathToFileURL} from 'node-url'
 
 import {
 	undef, defined, notdefined, assert, croak, hash, isHash,

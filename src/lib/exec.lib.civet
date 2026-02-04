@@ -29,7 +29,8 @@ import {
 	INDENT, UNDENT,
 	} from 'logger'
 import {
-	barf, pathStr, allFilesMatching, normalizePath, mkpath, barfTempFile,
+	barf, pathStr, allFilesMatching, normalizePath,
+	mkpath, barfTempFile,
 	fileExt, withExt, slurpAsync, parsePath, relpath,
 	} from 'fsys'
 
@@ -71,6 +72,7 @@ export type TStreamType = 'piped' | 'inherit'
 export type TExecResult =
 	path?: string
 	success: boolean
+	notNeeded?: true
 	stdout?: string
 	stderr?: string
 	output?: string
@@ -258,7 +260,8 @@ export abstract class CFileHandler
 # ---------------------------------------------------------------------------
 # ASYNC
 
-export type TProcSpec = [string, CFileHandler]
+# --- Later, I want to allow passing multiple TProcSpecs
+export type TProcSpec = [CFileHandler, string]
 
 export procFiles := (
 		procSpec: TProcSpec,
@@ -280,7 +283,7 @@ export procFiles := (
 		abortOnError: true
 		}
 
-	[fileNamePat, handler] := procSpec
+	[handler, fileNamePat] := procSpec
 
 	h := {lIgnoreDirs}
 
@@ -534,7 +537,7 @@ class CCmdInstaller extends CFileHandler
 			'install'
 			'--global'
 			'--force'
-			'--config', 'deno.jsonc'
+			'--config', 'deno.json'
 			'-A'
 			'--name', name
 			path

@@ -34,6 +34,7 @@
 		"npm-typescript": "npm:typescript",
 		"npm-@types/node": "npm:@types/node",
 		"npm-svelte/compiler": "npm:svelte/compiler",
+		"npm-inline-source-map": "npm:inline-source-map",
 
 		"datatypes":     "file:///C:/Users/johnd/util/src/lib/datatypes.lib.ts",
 		"source-map":    "file:///C:/Users/johnd/util/src/lib/source-map.lib.ts",

@@ -11,8 +11,8 @@ import {DBG} from 'logger'
 import {slurp, withExt} from 'fsys'
 import {
 	typeCheckTsCode, splitFuncStr, getSymbolsFromType,
-	getImportCode, getTsCode,
-	ts2ast, ast2ts, typeCheckFiles, astAsString, analyze,
+	getImportCode, getTsCode, typeCheckTsFile,
+	ts2ast, ast2ts, astAsString, analyze,
 	} from 'typescript'
 import {civet2ts, a} from 'civet'
 import {
@@ -51,37 +51,37 @@ equal stripAnsiCode(astAsString(ast)), s"""
 	kind: 308 (SourceFile)
 	statements:
 		-
-		❘  kind: 244 (FirstStatement)
-		❘  declarationList:
-		❘     kind: 262 (VariableDeclarationList)
-		❘     declarations:
-		❘     ❘  -
-		❘     ❘     kind: 261 (VariableDeclaration)
-		❘     ❘     name:
-		❘     ❘     ❘  kind: 80 (Identifier)
-		❘     ❘     ❘  escapedText: func1
-		❘     ❘     initializer:
-		❘     ❘     ❘  kind: 220 (ArrowFunction)
-		❘     ❘     ❘  parameters:
-		❘     ❘     ❘     -
-		❘     ❘     ❘     ❘  kind: 170 (Parameter)
-		❘     ❘     ❘     ❘  name:
-		❘     ❘     ❘     ❘     kind: 80 (Identifier)
-		❘     ❘     ❘     ❘     escapedText: str
-		❘     ❘     ❘     ❘  type:
-		❘     ❘     ❘     ❘     kind: 154 (StringKeyword)
-		❘     ❘     ❘  type:
-		❘     ❘     ❘     kind: 136 (BooleanKeyword)
-		❘     ❘     ❘  equalsGreaterThanToken:
-		❘     ❘     ❘     kind: 39 (EqualsGreaterThanToken)
-		❘     ❘     ❘  body:
-		❘     ❘     ❘     kind: 242 (Block)
-		❘     ❘     ❘     statements:
-		❘     ❘     ❘     ❘  -
-		❘     ❘     ❘     ❘     kind: 254 (ReturnStatement)
-		❘     ❘     ❘     ❘     expression:
-		❘     ❘     ❘     ❘     ❘  kind: 112 (TrueKeyword)
-		❘     ❘     ❘     multiLine: ｟true｠
+		   kind: 244 (FirstStatement)
+		   declarationList:
+		      kind: 262 (VariableDeclarationList)
+		      declarations:
+		         -
+		            kind: 261 (VariableDeclaration)
+		            name:
+		               kind: 80 (Identifier)
+		               escapedText: func1
+		            initializer:
+		               kind: 220 (ArrowFunction)
+		               parameters:
+		                  -
+		                     kind: 170 (Parameter)
+		                     name:
+		                        kind: 80 (Identifier)
+		                        escapedText: str
+		                     type:
+		                        kind: 154 (StringKeyword)
+		               type:
+		                  kind: 136 (BooleanKeyword)
+		               equalsGreaterThanToken:
+		                  kind: 39 (EqualsGreaterThanToken)
+		               body:
+		                  kind: 242 (Block)
+		                  statements:
+		                     -
+		                        kind: 254 (ReturnStatement)
+		                        expression:
+		                           kind: 112 (TrueKeyword)
+		                  multiLine: ｟true｠
 	endOfFileToken:
 		kind: 1 (EndOfFileToken)
 	text: const˳func1˳=˳(str:˳string):˳boolean˳=>↓→return˳true
@@ -93,19 +93,19 @@ equal stripAnsiCode(astAsString(ast)), s"""
 	symbolCount: 0
 	parseDiagnostics:
 		-
-		❘  file: ｟ref root｠
-		❘  start: 41
-		❘  length: 6
-		❘  messageText: '{'˳expected.
-		❘  category: 1
-		❘  code: 1005
+		   file: ｟ref root｠
+		   start: 41
+		   length: 6
+		   messageText: '{'˳expected.
+		   category: 1
+		   code: 1005
 		-
-		❘  file: ｟ref root｠
-		❘  start: 52
-		❘  length: 0
-		❘  messageText: '}'˳expected.
-		❘  category: 1
-		❘  code: 1005
+		   file: ｟ref root｠
+		   start: 52
+		   length: 0
+		   messageText: '}'˳expected.
+		   category: 1
+		   code: 1005
 	"""
 DBG "getSymbolsFromType(typeStr)"
 

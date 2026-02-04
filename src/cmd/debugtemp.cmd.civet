@@ -5,7 +5,7 @@ import {undef, defined, assert, croak} from 'datatypes'
 import {findFile, parsePath, withExt, isFile} from 'fsys'
 import {DUMP} from 'to-nice'
 import {
-	procOneFile, procFiles, doDebug,
+	procOneFile, doDebug,
 	} from 'exec'
 import {splitArray, sep, stdChecks, getErrStr} from 'llutils'
 import {flag, argValue, allNonOptions} from 'cmd-args'

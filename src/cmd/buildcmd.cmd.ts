@@ -6,9 +6,9 @@ import {assert, defined} from 'datatypes'
 import {nonOption, allNonOptions, flag} from 'cmd-args'
 import {withExt, findFile, isFile} from 'fsys'
 import {
-	procFiles, procOneFile, doCompileCivet,
-	doUnitTest, doInstallCmd,
+	procFiles, procOneFile, doUnitTest, doInstallCmd,
 	} from 'exec'
+import {doCompileCivet} from 'civet'
 
 stdChecks("buildcmd -n (all | <stub>*)")
 const noInstall = flag('n')

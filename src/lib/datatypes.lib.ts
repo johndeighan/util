@@ -29,6 +29,7 @@ export const assert: TAssertFunc = (
 		): asserts cond => {
 
 	if (!cond) {
+		console.log(`ERROR: ${msg}`)
 		croak(msg)
 	}
 	return

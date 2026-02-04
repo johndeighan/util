@@ -1,5 +1,13 @@
 to do
 
+work on compileall.civet & compileall.lib.civet
+	- continue testing
+	- consider making allFilesMatching() root '.'
+	- create compiled exe file
+
+in setDirTree() in unit-test, don't change current directory
+just remember the current path
+
 continue running utest X (fails for cmd-args)
 
 In compileall.civet, after Deno.watchFs, compile file if

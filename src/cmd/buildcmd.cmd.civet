@@ -17,11 +17,11 @@ if noInstall
 # ---------------------------------------------------------------------------
 
 if (nonOption(0) == 'all')
-	await procFiles ['*.cmd.civet',      doCompileCivet]
-	await procFiles ['*.cmd.test.civet', doCompileCivet]
-	await procFiles ['*.cmd.test.ts',    doUnitTest]
+	await procFiles [doCompileCivet, '*.cmd.civet']
+	await procFiles [doCompileCivet, '*.cmd.test.civet']
+	await procFiles [doUnitTest,     '*.cmd.test.ts']
 	if not noInstall
-		await procFiles ['*.cmd.ts',      doInstallCmd]
+		await procFiles [doInstallCmd, '*.cmd.ts']
 else
 	for stub of allNonOptions()
 		fileName := "#{stub}.cmd.civet"

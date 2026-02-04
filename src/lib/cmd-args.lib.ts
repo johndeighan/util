@@ -14,7 +14,7 @@ import {OL, DUMP} from 'to-nice'
 
 const hFlags: hashof<boolean> = {}
 const hValues: hashof<string> = {}
-const lNonOptions: string[] = []
+export const lNonOptions: string[] = []
 
 const doSetLogger = true // --- maybe check an env var first?
 const doHandleClear = true // --- maybe check an env var first?
@@ -28,6 +28,15 @@ export const flag = (ch: char): boolean => {
 
 // ---------------------------------------------------------------------------
 
+export const flags = (...lChars: char[]): boolean[] => {
+
+	return (()=>{const results=[];for (const ch of lChars) {
+		results.push(flag(ch))
+	}return results})()
+}
+
+// ---------------------------------------------------------------------------
+
 export const numNonOptions = (): number => {
 
 	return lNonOptions.length
@@ -37,17 +46,18 @@ export const numNonOptions = (): number => {
 
 export const nonOption = (i: integer): (string | undefined) => {
 
-	return ((i >= 0) && (i < lNonOptions.length)) ? lNonOptions[i] : undef
+	return (
+		  (i >= 0) && (i < lNonOptions.length)
+		? lNonOptions[i]
+		: undef
+		)
 }
 
 // ---------------------------------------------------------------------------
 
-export const allNonOptions = function*(): Generator<string, void, void> {
+export const allNonOptions = function(): string[] {
 
-	for (const str of lNonOptions) {
-		yield str
-	}
-	return
+	return lNonOptions
 }
 
 // ---------------------------------------------------------------------------
@@ -63,9 +73,7 @@ export const setCmdArgs = (
 		lArgs: string[] = Deno.args
 		): void => {
 
-	let i1 = 0
-	for (const arg of lArgs) {
-		const i = i1++
+	let i1 = 0;for (const arg of lArgs) {const i = i1++;
 		if ((arg === '!') && (i === lArgs.length - 1) && doHandleClear) {
 			clearScreen()
 			continue
@@ -106,10 +114,10 @@ export const inspecting = flag('d')
 // ---------------------------------------------------------------------------
 
 export type TKeyDesc = {
-	type?: string // --- ignored for key _
-	range?: [integer, integer] //     used only for key _
+	type?: string                // --- ignored for key _
+	range?: [integer, integer]   //     used only for key _
 	desc?: string
-}
+	}
 
 export type TCmdDesc = {
 	[key: string]: TKeyDesc | string

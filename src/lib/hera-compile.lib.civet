@@ -18,7 +18,6 @@ import {ML} from 'to-nice'
 import {fileExt, withExt, isValidStub, pathStr} from 'fsys'
 import {
 	execCmd, CFileHandler, TExecResult,
-	procFiles, doUnitTest,
 	} from 'exec'
 
 # ---------------------------------------------------------------------------

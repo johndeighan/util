@@ -14,9 +14,7 @@ import {LOG, DBG, pushLogLevel, popLogLevel} from 'logger'
 import {
 	isFile, mkpath, fileExt, withExt, normalizePath, relpath,
 	} from 'fsys'
-import {
-	hSourceMaps, TFilePos, mapSourcePos, haveSourceMapFor,
-	} from 'source-map'
+import {mapSourcePos} from 'source-map'
 
 # ---------------------------------------------------------------------------
 

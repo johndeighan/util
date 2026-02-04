@@ -23,10 +23,10 @@ if noTest
 	console.log "noTest = #{noTest}"
 
 if (nonOption(0) == 'all')
-	await procFiles ['*.lib.civet', doCompileCivet], {force}
-	await procFiles ['*.lib.test.civet', doCompileCivet], {force}
+	await procFiles [doCompileCivet, '*.lib.civet'], {force}
+	await procFiles [doCompileCivet, '*.lib.test.civet'], {force}
 	if not noTest
-		await procFiles ['*.lib.test.ts', doUnitTest]
+		await procFiles [doUnitTest, '*.lib.test.ts']
 else
 	for stub of allNonOptions()
 		fileName := "#{stub}.lib.civet"

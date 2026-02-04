@@ -52,6 +52,14 @@ export DBG := (...lItems: unknown[]): void =>
 
 # ---------------------------------------------------------------------------
 
+export ERR := (...lStrings: string[]): void =>
+
+	for str of lStrings
+		LOG "#{str}{red}"
+	return
+
+# ---------------------------------------------------------------------------
+
 export LOGVALUE := (label: string, value: unknown): void =>
 
 	LOG f"#{label}:{blue} = #{ML(value)}"

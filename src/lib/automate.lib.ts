@@ -478,7 +478,7 @@ export const installCmd = async (
 			'install',
 			'-fgA',
 			'--config',
-			'deno.jsonc',
+			'deno.json',
 			path
 		])
 	}
@@ -489,7 +489,7 @@ export const installCmd = async (
 			'-n',
 			name,
 			'--config',
-			'deno.jsonc',
+			'deno.json',
 			path
 		])
 	}
@@ -522,4 +522,3 @@ export const uninstallCmd = async (
 	}
 	return
 }
-

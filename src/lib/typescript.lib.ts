@@ -27,7 +27,7 @@ import {TBlockDesc, Blockify} from 'indent'
 import {
 	LOG, DBG, LOGVALUE, INDENT, UNDENT, DBGVALUE,
 	} from 'logger'
-import {slurp, barf, barfTempFile, fileExt} from 'fsys'
+import {isFile, slurp, barf, barfTempFile, fileExt} from 'fsys'
 import {OL, toNice, TMapFunc} from 'to-nice'
 import {execCmdSync} from 'exec'
 import {extractSourceMap} from 'source-map'
@@ -104,26 +104,30 @@ hasNoDefaultLib`)
 }
 
 // ---------------------------------------------------------------------------
+
+export const typeCheckTsFile = (path: string): string => {
+
+	assert(isFile(path), `No such file: ${path}`)
+	const {success, stderr} = execCmdSync('deno', ['check', path])
+	if (success) {
+		return ''
+	}
+	else {
+		return stderr ? stderr : 'Unknown error'
+	}
+}
+
+// ---------------------------------------------------------------------------
 // --- We must place the TypeScript file at the project root
 //     so that paths gotten from .symbols resolve correctly
 
-export const typeCheckTsCode = (tsCode: string): ((string[]) | undefined) => {
+export const typeCheckTsCode = (
+		tsCode: string
+		): string => {
 
 	const path = "./_typecheck_.ts"
 	barf(path, tsCode)
-	const {success, stderr} = execCmdSync('deno', [
-		'check',
-		path
-		])
-	if (success) {
-		return []
-	}
-	else if (defined(stderr)) {
-		return [stderr]
-	}
-	else {
-		return ['Unknown error']
-	}
+	return typeCheckTsFile(path)
 }
 
 // ---------------------------------------------------------------------------
@@ -744,33 +748,3 @@ export const analyze = (
 	}
 	return analysis
 }
-
-// ---------------------------------------------------------------------------
-
-export const typeCheckFiles = (
-		lFileNames: string | string[],
-		hOptions: CompilerOptions = hDefConfig
-		): string[] => {
-
-	if (isString(lFileNames)) {
-		lFileNames = [lFileNames]
-	}
-	const program = createProgram(lFileNames, hOptions)
-	const emitResult = program.emit()
-	const lMsgs: string[] = []
-	getPreEmitDiagnostics(program).forEach((diag): void => {
-		const {file, start, messageText} = diag
-		const msg = flattenDiagnosticMessageText(messageText, "\n")
-		if (file) {
-			const {fileName} = file
-			const {line, character} = getLineAndCharacterOfPosition(file, start!)
-			lMsgs.push(`${fileName}:(${line + 1}:${character + 1}): ${msg}`)
-		}
-		else {
-			lMsgs.push(msg)
-		}
-	})
-	return lMsgs
-}
-
-export const typeCheckFile = typeCheckFiles // --- synonym

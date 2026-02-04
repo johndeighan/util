@@ -1,0 +1,184 @@
+# compile-all-libs.civet
+
+import {sprintf} from '@std/fmt/printf'
+import {compile as compileCivet} from '@danielx/civet'
+
+import {
+	undef, defined, notdefined, croak, assert, isEmpty, nonEmpty,
+	} from 'datatypes'
+import {centered, getErrStr} from 'llutils'
+import {f} from 'f-strings'
+import {setLogLevel, LOG, ERR, DBG} from 'logger'
+import {flag, flags, lNonOptions} from 'cmd-args'
+import {
+	isDir, isFile, findFile, allFilesMatching, watchFiles,
+	toFullPath, newerDestFileExists, relpath,
+	} from 'fsys'
+import {execCmd, procFiles} from 'exec'
+import {
+	RawSourceMap, haveSourceMapFor, extractSourceMap, addSourceMap,
+	} from 'source-map'
+import {mapper, reducer} from 'var-free'
+import {doCompileCivet} from 'civet'
+
+import hCivetConfig from "civetconfig" with {type: "json"}
+
+[verbose, watch, force] := flags 'v', 'w', 'f'
+if verbose
+	LOG "verbose = true"
+	setLogLevel 'debug'
+if watch
+	LOG "watch = true"
+if force
+	LOG "force = true"
+
+# ---------------------------------------------------------------------------
+# --- sanity check
+
+assert isFile('./compileall.civet'), "No file ./compileall.civet"
+assert isDir('src'),                 "No dir src"
+assert isFile('civetconfig.json'),   "No file civetconfig.json"
+assert isFile('.gitignore'),         "No file .gitignore"
+
+# ---------------------------------------------------------------------------
+
+export type TOkResult = {
+	status: 'ok'
+	destPath: string
+	code: string
+	hSrcMap: RawSourceMap
+	}
+
+export type TResult = TOkResult |
+	{
+		status: 'error'
+		destPath: string
+		errMsg: string
+		} |
+	{
+		status: 'alreadyCompiled'
+		destPath: string
+		}
+
+# ---------------------------------------------------------------------------
+
+t0 := Date.now()
+
+iterCivetFiles := (
+	if isEmpty(lNonOptions)
+		allFilesMatching [
+			"**/*.lib.civet"
+			"! **/temp/*"
+			"! **/save/*"
+			]
+	else
+		mapper lNonOptions, (stub) ->
+			fileName := "#{stub}.lib.civet"
+			path := findFile(fileName)
+			if path
+				yield path
+			else
+				ERR "No such file: #{fileName}"
+	)
+
+iterResults := await mapper iterCivetFiles, (path): AsyncGenerator<TResult> ->
+	civetPath := toFullPath path
+	relPath := relpath(civetPath)
+	destPath := civetPath.replace('.civet', '.ts')
+	relDestPath := relpath(destPath)
+	DBG "COMPILE: #{relPath}"
+
+	if not force && newerDestFileExists(path, '.ts')
+		DBG "   - already compiled"
+		yield {
+			status: 'alreadyCompiled'
+			destPath
+			}
+		return
+
+	try
+		civetCode := await Deno.readTextFile civetPath
+		tsCode: string := await compileCivet civetCode, {
+			...hCivetConfig
+			inlineMap: true
+			filename: civetPath
+			}
+		assert tsCode && not tsCode.startsWith('COMPILE FAILED'),
+			"CIVET COMPILE FAILED: #{relPath}"
+		[code, hSrcMap] := extractSourceMap tsCode
+		assert (hSrcMap != undef), "Missing source map"
+		await Deno.writeTextFile destPath, code
+		addSourceMap destPath, hSrcMap
+		DBG "   - compiled OK"
+		yield {
+			status: 'ok'
+			destPath
+			code
+			hSrcMap
+			}
+
+	catch err
+		ERR "ERROR in #{relDestPath}:\n#{getErrStr(err)}"
+		yield {
+			status: 'error'
+			destPath
+			errMsg: getErrStr(err)
+			}
+	return
+
+[numSkip, numOk, numErr, numFiles] := await reducer iterResults, [0,0,0,0],
+	(acc, x) ->
+		[nSkip, nOk, nErr, nFiles] := acc
+		return [
+			(x.status == 'alreadyCompiled') ? nSkip + 1 : nSkip
+			(x.status == 'ok') ? nOk + 1 : nOk
+			(x.status == 'error') ? nErr + 1 : nErr
+			nFiles + 1
+			]
+
+LOG '-'.repeat(32)
+LOG "#{numSkip} already compiled, #{numOk} compiled, #{numErr} errors"
+LOG '-'.repeat(32)
+
+assert (numSkip + numOk + numErr == numFiles), "Bad file count"
+
+if (numSkip == numFiles)
+	LOG "All files already compiled"
+else
+	if (numErr > 0)
+		ERR "#{numErr}/#{numFiles} civet files failed to compile"
+		Deno.exit -1
+
+	lResults: TResult[] := await Array.fromAsync(iterResults)
+	lToTypeCheck: TOkResult[] := lResults.filter (h) =>
+		return (h.status == 'ok')
+
+	iterCheck := mapper lToTypeCheck, (hResult: TOkResult): boolean ->
+		{destPath, hSrcMap} := hResult
+		relDestPath := relpath destPath
+		LOG "TYPE CHECK: #{relDestPath}"
+		try
+			assert isFile(destPath), "No such file: #{destPath}"
+			{success, stderr} := await execCmd 'deno', ['check', destPath]
+			assert success, "type check failed for #{relDestPath}: #{stderr}"
+			addSourceMap destPath, hSrcMap
+			return true
+		catch err
+			ERR "ERROR in #{relDestPath}:\n#{getErrStr(err)}"
+			return false
+
+	numFailed := await reducer iterCheck, 0, (acc, x) ->
+		return x ? acc : acc+1
+	if (numFailed > 0)
+		ERR f"#{numFailed} files failed type checking"
+		Deno.exit -1
+
+secs := (Date.now() - t0) / 1000
+LOG "DONE in #{sprintf('%.2d', secs)} secs.\n"
+
+if watch
+	LOG "Watching for file changes in the current directory..."
+
+	await watchFiles '.', (kind, path) =>
+		LOG "[#{kind}] #{path}"
+		return

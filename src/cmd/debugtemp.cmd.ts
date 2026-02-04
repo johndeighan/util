@@ -6,11 +6,12 @@ import {undef, defined, assert, croak} from 'datatypes'
 import {findFile, parsePath, withExt, isFile} from 'fsys'
 import {DUMP} from 'to-nice'
 import {
-	procOneFile, procFiles, doDebug, doCompileCivet,
+	procOneFile, procFiles, doDebug,
 	} from 'exec'
 import {splitArray, sep, stdChecks, getErrStr} from 'llutils'
 import {flag, argValue, allNonOptions} from 'cmd-args'
 import {LOG, DBG} from 'logger'
+import {doCompileCivet} from 'civet'
 
 stdChecks(`runtemp [-d] [-name=<temp_stub> { <lib_stub> }
 	- if lib  <lib_stub>.lib.civet   exists, compile it

@@ -7,7 +7,7 @@ import {sprintf} from '@std/fmt/printf'
 import {relative} from '@std/path'
 import {existsSync} from '@std/fs'
 import {statSync} from 'node-fs'
-import {parse as parseYAML} from "@std/yaml";
+import {parse as parseYAML} from "@std/yaml"
 
 import {
 	undef, defined, notdefined, assert, char, deepEqual,
@@ -825,4 +825,3 @@ export const getErrStr = (err: unknown): string => {
 		return "Serious Error"
 	}
 }
-

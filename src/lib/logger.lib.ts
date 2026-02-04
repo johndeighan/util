@@ -63,6 +63,16 @@ export const DBG = (...lItems: unknown[]): void => {
 
 // ---------------------------------------------------------------------------
 
+export const ERR = (...lStrings: string[]): void => {
+
+	for (const str of lStrings) {
+		LOG(`${str}{red}`)
+	}
+	return
+}
+
+// ---------------------------------------------------------------------------
+
 export const LOGVALUE = (label: string, value: unknown): void => {
 
 	LOG(f`${label}:{blue} = ${ML(value)}`)
@@ -127,4 +137,3 @@ export const popLogLevel = (): TLogLevel => {
 		return retval
 	}
 }
-

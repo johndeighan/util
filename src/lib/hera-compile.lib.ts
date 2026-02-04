@@ -324,4 +324,3 @@ export const compileHera = (
 
 	return lLines.join('\n')
 }
-

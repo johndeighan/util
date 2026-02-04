@@ -5,7 +5,7 @@ import {sprintf} from '@std/fmt/printf'
 import {relative} from '@std/path'
 import {existsSync} from '@std/fs'
 import {statSync} from 'node-fs'
-import {parse: parseYAML} from "@std/yaml";
+import {parse: parseYAML} from "@std/yaml"
 
 import {
 	undef, defined, notdefined, assert, char, deepEqual,

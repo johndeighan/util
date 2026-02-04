@@ -1,14 +1,14 @@
 "use strict";
 // source-map.lib.civet
 
+type AutoPromise<T> = Promise<Awaited<T>>;
 import {parse as parseFilePath} from 'node-path'
 import {existsSync} from '@std/fs'
-import {
-	RawSourceMap, SourceMapConsumer,
-	} from 'npm-source-map'
+import {SourceMapConsumer} from 'npm-source-map'
 
 import {
-	undef, assert, assertIsDefined, defined, notdefined, hash, croak,
+	undef, assert, defined, notdefined, hash, croak,
+	assertIsDefined, assertIsString,
 	} from 'datatypes'
 import {
 	getOptions, THashEntry, TEntryFilter, filterHash,
@@ -16,25 +16,42 @@ import {
 import {OL, DUMP} from 'to-nice'
 import {
 	fromJsonFile, parsePath, mkpath, normalizePath, relpath,
+	toFullPath,
 	} from 'fsys'
 
-export type {RawSourceMap, SourceMapConsumer}
-
 // --- Get info about all known source maps
-export const hSourceMaps = fromJsonFile('./sourcemap.json')
+const sourceMapPath = './sourcemap.json'
 
 // ---------------------------------------------------------------------------
 
-export const haveSourceMapFor = (path: (string | undefined)): boolean => {
-
-	if (defined(path)) {
-		assert(!path.includes('\\'), "Path not normalized")
-		return defined(hSourceMaps[path])
+export type RawSourceMap = {
+	version: number;        // The version of the source map spec (usually 3)
+	file: string;           // The generated file this map is associated with
+	sources: string[];      // Array of URLs to the original source files
+	names: string[];        // Array of identifiers (names) used in the mappings
+	sourceRoot?: string;    // Optional: URL root for the sources
+	sourcesContent?: string[]; // Optional: Content of the original source files
+	mappings: string;       // The actual encoded mappings (Base64 VLQ)
 	}
-	else {
-		return false
+
+// ---------------------------------------------------------------------------
+// --- This allows the file to be missing
+
+type TSourceMaps = {
+	[path: string]: RawSourceMap
+	}
+
+const hSourceMaps: TSourceMaps = await (async () => {
+	try {
+		const {default: data} = await import(sourceMapPath, {with: {type: 'json'}})
+			// --- Or 'assert: { type: "json" }' depending on Deno version
+		return data as TSourceMaps
+	}
+	catch (err) {
+		return {}
 	}
 }
+	)()
 
 // ---------------------------------------------------------------------------
 
@@ -52,35 +69,13 @@ export const filePosStr = (h: TFilePos): string => {
 
 // ---------------------------------------------------------------------------
 
-export const extractSourceMap = (
-		contents: string
-		): [string, RawSourceMap?] => {
-
-	const lMatches = contents.match(/^(.*)\/\/\#\s+sourceMappingURL=data:application\/json;(?:charset=utf-8;)?base64,(.+)$/s)
-	if (notdefined(lMatches)) {
-		return [contents, undef]
-	}
-	assert(defined(lMatches), "Missing source map")
-	const code = lMatches[1].trim()
-	const hSrcMap = JSON.parse(atob(lMatches[2].trim())) as RawSourceMap
-	const {file} = hSrcMap
-	assert(defined(file), "File not defined in source map")
-	hSrcMap.file = normalizePath(file.replace('.tsx', '.ts'))
-	const results=[];for (const path of hSrcMap.sources) {
-		results.push(normalizePath(path))
-	};hSrcMap.sources = results
-	return [code, hSrcMap]
-}
-
-// ---------------------------------------------------------------------------
-
 export const decodeLine = (line: string): number[][] => {
 
 	if (line === '') {
 		return []
 	}
 
-	return (()=>{const results1=[];for (const token of line.split(',')) {
+	return (()=>{const results=[];for (const token of line.split(',')) {
 		const lOutput: number[] = []
 		let i = 0
 		while (i < token.length) {
@@ -96,8 +91,8 @@ export const decodeLine = (line: string): number[][] => {
 			}
 			lOutput.push(v & 1 ? -(v >> 1) : v >> 1)
 		} // low bit is sign
-		results1.push(lOutput)
-	}return results1})()
+		results.push(lOutput)
+	}return results})()
 }
 
 // ---------------------------------------------------------------------------
@@ -214,9 +209,10 @@ export const mapSourcePos = (
 		console.log(`Search for key ${path} in sourcemap.json`)
 	}
 
-	let hSrcMap = hSourceMaps[path] as RawSourceMap
+	const hSrcMap: RawSourceMap = hSourceMaps[path] as RawSourceMap
 	assert(defined(hSrcMap), `Not found in source map: ${path}`)
-	const {version, sources, mappings, names} = hSrcMap
+	// @ts-ignore
+	const {version, sources, mappings, names} = hSrcMap as RawSourceMap
 	assert((version === 3), `Bad version: ${version}`)
 	const lMappings = getMappings(mappings)
 	const [fileNum, srcLine, srcCol] = orgPos(lMappings, line, col)
@@ -243,4 +239,54 @@ export const mapSourcePos = (
 		line: srcLine,
 		col: srcCol
 		}
+}
+
+// ---------------------------------------------------------------------------
+
+export const extractSourceMap = (
+		contents: string
+		): [string, RawSourceMap?] => {
+
+	const lMatches = contents.match(/^(.*)\/\/\#\s+sourceMappingURL=data:application\/json;(?:charset=utf-8;)?base64,(.+)$/s)
+	if (lMatches === null) {
+		return [contents, undefined]
+	}
+	const code = lMatches[1].trim()
+	const hSrcMap = JSON.parse(atob(lMatches[2].trim())) as RawSourceMap
+	const {file} = hSrcMap
+	hSrcMap.file = normalizePath(file.replace('.tsx', '.ts'))
+	const results1=[];for (const path of hSrcMap.sources) {
+		results1.push(normalizePath(path))
+	};hSrcMap.sources = results1
+	return [code, hSrcMap]
+}
+
+// ---------------------------------------------------------------------------
+
+export const haveSourceMapFor = (path: string): boolean => {
+
+	return (toFullPath(path) in hSourceMaps)
+}
+
+// ---------------------------------------------------------------------------
+
+export const addSourceMap = (
+		path: string,
+		hSrcMap: RawSourceMap
+		): void => {
+
+	hSourceMaps[normalizePath(path)] = hSrcMap
+	return
+}
+
+// ---------------------------------------------------------------------------
+// ASYNC
+
+export const saveSourceMaps = async (): AutoPromise<void> => {
+
+	await Deno.writeTextFile(
+		sourceMapPath,
+		JSON.stringify(hSourceMaps, null, 3)
+		)
+	return
 }

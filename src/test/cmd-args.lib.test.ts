@@ -32,7 +32,7 @@ import {
 
 	equal(curLogLevel(), 'debug')
 
-	equal(Array.from(allNonOptions()), ['abc'])
+	equal(allNonOptions(), ['abc'])
 	equal(nonOption(0), 'abc')
 	equal(nonOption(1), undef)
 

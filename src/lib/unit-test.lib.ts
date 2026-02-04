@@ -499,7 +499,10 @@ export const checkType = (
 ${tsCode}`
 	DUMP(code, 'code')
 
-	typeCheckTsCode(code)
+	const errMsg = typeCheckTsCode(code)
+	if (errMsg) {
+		croak(errMsg)
+	}
 	return
 }
 
@@ -842,22 +845,6 @@ export const fileOpsTable = (lFileOps: TFileOp[]): string => {
 	}
 	tt.fullsep()
 	return tt.asString()
-}
-
-// ---------------------------------------------------------------------------
-// ASYNC
-
-export const setDirTree_org = async (desc: string): AutoPromise<TFileOp[]> => {
-
-	try {
-		const lFileOps = await doParse<TFileOp[]>('dir-tree', desc)
-		execFileOps(lFileOps)
-		return lFileOps
-	}
-	catch (err) {
-		croak(`ERROR in getFileOps(): ${getErrStr(err)}`)
-		return [] as TFileOp[]
-	}
 }
 
 // ---------------------------------------------------------------------------

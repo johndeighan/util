@@ -8,6 +8,7 @@ import {RawSourceMap} from 'npm-source-map'
 
 import {
 	undef, defined, notdefined, hash, assert, isString, isHash,
+	isEmpty, nonEmpty, croak,
 	} from 'datatypes'
 import {getOptions, o, getErrStr} from 'llutils'
 import {OL, ML} from 'to-nice'
@@ -20,10 +21,17 @@ import {
 import {
 	TExecResult, execCmdSync, execCmd, CFileHandler,
 	} from 'exec'
-import {ts2ast, analyze} from 'typescript'
+import {ts2ast, analyze, typeCheckTsCode} from 'typescript'
 import {extractSourceMap, haveSourceMapFor} from 'source-map'
 
-import hCivetConfig from "civetconfig" with { type: "json" };
+import hCivetConfig from "civetconfig" with {type: "json"};
+
+# ---------------------------------------------------------------------------
+
+export type TCivetOptions = {
+	force?: boolean
+	inlineMap?: boolean
+	}
 
 # ---------------------------------------------------------------------------
 # --- Due to a bug in either the v8 engine or Deno,
@@ -40,23 +48,28 @@ class CCivetCompiler extends CFileHandler
 			hOptions: hash = {}
 			): TExecResult
 
+		{force, inlineMap} := getOptions<TCivetOptions> hOptions, {
+			force: false
+			inlineMap: true
+			}
+
 		assert (fileExt(path) == '.civet'), "Not a civet file: #{path}"
 		destPath := withExt path, '.ts'
 
 		# --- Check if a newer compiled version already exists
 		if (
-				   not hOptions.force
+				   not force
 				&& existsSync(destPath)
 				&& (statSync(destPath).mtimeMs > statSync(path).mtimeMs)
 				&& haveSourceMapFor(path)
 				)
-			return {success: true}
+			return {success: true, notNeeded: true}
 
 		try
 			civetCode := await slurpAsync path
 			tsCode: string := await compileCivet civetCode, {
 				...hCivetConfig
-				inlineMap: true
+				inlineMap
 				filename: path
 				}
 			if not tsCode || tsCode.startsWith('COMPILE FAILED')
@@ -86,6 +99,7 @@ class CCivetCompiler extends CFileHandler
 export doCompileCivet := new CCivetCompiler()
 
 # ---------------------------------------------------------------------------
+# SYNC
 
 export civet2tsFile := (
 		path: string,
@@ -93,26 +107,28 @@ export civet2tsFile := (
 		hOptions: hash = {}
 		): string =>
 
-	assert (fileExt(path) == '.civet'), "Not a civet file: #{OL(path)}"
-	assert isFile(path), "No such file: #{OL(path)}"
-	type opt = {
-		nomap: boolean
-		}
-	{nomap} := getOptions<opt> hOptions, {
-		nomap: false
+	{force, inlineMap} := getOptions<TCivetOptions> hOptions, {
+		force: false
+		inlineMap: true
 		}
 
-	execCmdSync 'deno', [
-		'run'
-		'-A'
-		'npm:@danielx/civet'
-		...if nomap then [] else ['--inline-map']
-		'-o'
-		tsPath
-		'-c'
-		path
-	]
-	assert isFile(tsPath), "File not created: #{OL(tsPath)}"
+	assert (fileExt(path) == '.civet'), "Not a civet file: #{path}"
+
+	# --- Check if a newer compiled version already exists
+	if (
+				not force
+			&& existsSync(tsPath)
+			&& (statSync(tsPath).mtimeMs > statSync(path).mtimeMs)
+			&& haveSourceMapFor(path)
+			)
+		return tsPath
+
+	civetCode := slurp path
+	tsCode := civet2ts civetCode, hOptions, path
+	[code, hSrcMap] := extractSourceMap(tsCode)
+	if defined(hSrcMap)
+		addJsonValue 'sourcemap.jsonc', normalizePath(tsPath), hSrcMap
+	Deno.writeTextFileSync tsPath, code
 	return tsPath
 
 # ---------------------------------------------------------------------------
@@ -120,13 +136,30 @@ export civet2tsFile := (
 export civet2ts := (
 		civetCode: string,
 		hOptions: hash = {}
+		path: string? = undef
 		): string =>
 
-	tempFilePath := barfTempFile civetCode
-	tsFilePath := withExt tempFilePath, '.ts'
-	civet2tsFile tempFilePath, tsFilePath, hOptions
-	contents := slurp tsFilePath
-	return contents
+	{inlineMap} := getOptions<TCivetOptions> hOptions, {
+		inlineMap: true
+		}
+	if inlineMap && notdefined(path)
+		croak "path is required with inlineMap"
+
+	tsCode: string := compileCivet civetCode, {
+		...hCivetConfig
+		sync: true
+		inlineMap
+		filename: path
+		}
+	if not tsCode || tsCode.startsWith('COMPILE FAILED')
+		if defined(path)
+			croak "CIVET COMPILE FAILED: #{pathStr(path)}"
+		else
+			croak "CIVET COMPILE FAILED"
+	errMsg := typeCheckTsCode tsCode
+	if errMsg
+		croak errMsg
+	return tsCode
 
 # ---------------------------------------------------------------------------
 

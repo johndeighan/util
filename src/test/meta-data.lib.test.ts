@@ -14,4 +14,3 @@ lname: Deighan`), {
 		fname: 'John',
 		lname: 'Deighan'
 		})
-

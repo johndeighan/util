@@ -19,9 +19,9 @@ stdChecks "buildpar (all | <stub>+)"
 #     since unit test may require command to be installed
 
 if (nonOption(0) == 'all')
-	await procFiles ['*.parse.hera',       doCompileHera]
-	await procFiles ['*.parse.test.civet', doCompileCivet]
-	await procFiles ['*.parse.test.ts',    doUnitTest]
+	await procFiles [doCompileHera,  '*.parse.hera']
+	await procFiles [doCompileCivet, '*.parse.test.civet']
+	await procFiles [doUnitTest,     '*.parse.test.ts']
 else
 	for stub of allNonOptions()
 		heraFileName := "#{stub}.parse.hera"

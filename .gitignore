@@ -5,6 +5,8 @@ public/
 dist/
 typings/
 src/temp/
+src/save/
+src/test/**/*
 _typecheck_.ts
 
 # dotenv environment variables file

@@ -457,7 +457,9 @@ export checkType := (
 		"""
 	DUMP code, 'code'
 
-	typeCheckTsCode code
+	errMsg := typeCheckTsCode code
+	if errMsg
+		croak errMsg
 	return
 
 # ---------------------------------------------------------------------------
@@ -745,19 +747,6 @@ export fileOpsTable := (lFileOps: TFileOp[]): string =>
 				tt.data [h.op, h.path, '']
 	tt.fullsep()
 	return tt.asString()
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export setDirTree_org := (desc: string): TFileOp[] =>
-
-	try
-		lFileOps := await doParse<TFileOp[]> 'dir-tree', desc
-		execFileOps lFileOps
-		return lFileOps
-	catch err
-		croak "ERROR in getFileOps(): #{getErrStr(err)}"
-		return [] as TFileOp[]
 
 # ---------------------------------------------------------------------------
 # --- Create some values for testing

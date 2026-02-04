@@ -89,8 +89,8 @@ await setup()
 
 DBG("isFile()")
 
-truthy(isFile('./deno.jsonc'))
-truthy(isFile('deno.jsonc'))
+truthy(isFile('./deno.json'))
+truthy(isFile('deno.json'))
 falsy(isFile('./src/lib/notafile.txt'))
 truthy(isFile("./src/test/fsys/dummy.txt"))
 falsy( isFile("./src/test/fsys"))
@@ -110,7 +110,7 @@ DBG("type TPathType")
 
 DBG("getPathType()")
 
-equal(getPathType('./deno.jsonc'), 'file')
+equal(getPathType('./deno.json'), 'file')
 equal(getPathType("./src/test/fsys"), 'dir')
 equal(getPathType('./src/lib/notafile.txt'), 'missing')
 equal(getPathType("./src/test"), 'dir')
@@ -119,14 +119,14 @@ equal(getPathType("C:/temp/file.txt"), 'missing')
 
 DBG("fileExt()")
 
-equal(fileExt('C:/Users/johnd/util/deno.jsonc'), '.jsonc')
+equal(fileExt('C:/Users/johnd/util/deno.json'), '.jsonc')
 equal(fileExt("C:/temp/file.txt"), ".txt")
 equal(fileExt("c:\\temp/to/file.txt"), ".txt")
 equal(fileExt("c:\\temp/to/file.flag.txt"), ".txt")
 
 DBG("withExt()")
 
-equal(withExt('deno.jsonc', '.txt'), 'deno.txt')
+equal(withExt('deno.json', '.txt'), 'deno.txt')
 equal(withExt("C:/temp/file.txt", ".js"), "C:/temp/file.js")
 equal(withExt("c:\\temp/to/file.txt", ".js"), "c:\\temp/to/file.js")
 equal(withExt("c:\\temp/to/file.flag.txt", ".js"), "c:\\temp/to/file.flag.js")
@@ -279,13 +279,13 @@ equal(mkpath('c:\\', 'Users', 'johnd'), 'C:/Users/johnd')
 
 DBG("relpath()")
 
-equal(relpath('C:/Users/johnd/util/deno.jsonc'), 'deno.jsonc')
+equal(relpath('C:/Users/johnd/util/deno.json'), 'deno.json')
 
 DBG("type TPathDesc", "pathSubDirs()");
 
 (() => {
-	const fullPath = "C:/Users/johnd/util/src/test/fsys/deno.jsonc"
-	const relPath  = "src/test/fsys/deno.jsonc"
+	const fullPath = "C:/Users/johnd/util/src/test/fsys/deno.json"
+	const relPath  = "src/test/fsys/deno.json"
 
 	// --- non-relative, try both full and relative paths
 	equal(pathSubDirs(fullPath, o`!relative`), {

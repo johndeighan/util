@@ -548,6 +548,7 @@ export const normalizePath = (path: string): string => {
 // ---------------------------------------------------------------------------
 
 export const pathStr = (path: string, root: string = 'src'): string => {
+
 	return normalizePath(relative(root, path))
 }
 
@@ -610,7 +611,7 @@ export const splitPatterns = (
 //
 //    NOTE: By default, searches from ./src
 //          By default, ignores anything inside a folder
-//                      named 'temp' or 'hide'
+//                      named 'temp', 'hide' or 'save'
 
 export const allFilesMatching = function*(
 		lPatterns: string | (string | undefined)[],
@@ -628,7 +629,7 @@ export const allFilesMatching = function*(
 		} = getOptions<opt>(hOptions, {
 			root: './src',
 			hMoreGlobOptions: {},
-			lIgnoreDirs: ['temp', 'hide'],
+			lIgnoreDirs: ['temp', 'hide', 'save'],
 			includeDirs: false
 			})
 
@@ -803,9 +804,19 @@ export const parsePath = (path: string): TPathInfo => {
 
 // ---------------------------------------------------------------------------
 
-export const relpath = (path: string): string => {
+export const relpath = (
+		path: string,
+		root: string = Deno.cwd()
+		): string => {
 
-	return normalizePath(relative(Deno.cwd(), path))
+	return normalizePath(relative(root, path))
+}
+
+// ---------------------------------------------------------------------------
+
+export const toFullPath = (path: string): string => {
+
+	return normalizePath(resolve('.', path))
 }
 
 // ---------------------------------------------------------------------------
@@ -993,5 +1004,3 @@ export var openTextFile = (
 			}
 	}
 }
-
-

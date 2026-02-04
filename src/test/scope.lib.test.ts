@@ -65,16 +65,19 @@ import {
 	childScope.define('temp')
 
 	equal(toNice(mainScope), s`name: main
-sDefined: ｟set name gender｠
+sDefined:
+	-- name
+	-- gender
 sUsed: ｟emptySet｠
 parent: ｟undef｠
 lChildren:
 	-
-	❘  name: func
-	❘  sDefined: ｟set age temp｠
-	❘  sUsed: ｟emptySet｠
-	❘  parent: ｟ref root｠
-	❘  lChildren: []`)
+		name: func
+		sDefined:
+			-- age
+			-- temp
+		sUsed: ｟emptySet｠
+		parent: ｟ref root｠
+		lChildren: []`)
 }
 	)()
-

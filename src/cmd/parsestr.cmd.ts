@@ -7,7 +7,7 @@ import {allNonOptions} from 'cmd-args'
 
 // ---------------------------------------------------------------------------
 
-const lNonOptions = Array.from(allNonOptions())
+const lNonOptions = allNonOptions()
 let ref;switch(lNonOptions.length) {
 		case 0:
 			croak("No args!");
