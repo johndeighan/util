@@ -17,11 +17,12 @@ import {
 	functionDef, croak, assertIsString, assertIsNumber,
 	TStringMapper,
 	} from 'datatypes'
-import {f} from 'f-strings'
+import {f, colorize} from 'f-strings'
 
 export {f}
 
 const llutilsLoadTime: integer = Date.now()
+const defWidth = 64     // ---used in sep, centered
 
 // ---------------------------------------------------------------------------
 
@@ -584,6 +585,7 @@ export const heightOf = (block: string): number => {
 // ---------------------------------------------------------------------------
 
 export const blockify = (lStrings: string[], hOptions: hash = {}): string => {
+
 	type opt = {
 		sep: string
 		endsep: string
@@ -623,8 +625,6 @@ export const getOptions = <T extends hash,>(hOptions: hash = {}, hDefaults: T): 
 
 // ---------------------------------------------------------------------------
 
-const defWidth = 64
-
 export const sep = (
 		char: string = '-',
 		label: (string | undefined) = undef,
@@ -633,7 +633,7 @@ export const sep = (
 
 	assert((char.length === 1), `Not a char: ${char}`)
 	if (defined(label)) {
-		return centered(label, char, width)
+		return centered(label, {char, width})
 	}
 	else {
 		return char.repeat(width)
@@ -658,7 +658,7 @@ export const untabify = (str: string, replacement: string = '   '): string => {
 
 export const allLinesInBlock = function*(
 		block: string
-		): Generator<string, void, void> {
+		): Generator<string> {
 
 	let start = 0
 	let end = block.indexOf('\n')
@@ -674,33 +674,45 @@ export const allLinesInBlock = function*(
 }
 
 // ---------------------------------------------------------------------------
-
 // --- valid options:
 //        char - char to use on left and right
-//        buffer - num spaces around label when char <> ' '
+//        width - full width
+//        numBuffer - num spaces around label when char <> ' '
+//        color - color of entire string
+
 export const centered = (
 		label: string,
-		char: string = ' ',
-		width: number = defWidth,
-		numBuffer: number = 2
+		hOptions: hash = {}
 		): string => {
 
-	assert((char.length === 1), `Bad char: '${char}'`)
-	const totSpaces = width - label.length
-	if (totSpaces <= 0) {
-		return label
-	}
+	type opt = {
+		char: char
+		width: number
+		numBuffer: number
+		color: (string | undefined)
+		}
+	const {char, width, numBuffer, color} = getOptions<opt>(hOptions, {
+		char: ' ',
+		width: defWidth,
+		numBuffer: 2,
+		color: undef
+		})
+
+	const totSpaces = (width >= label.length) ? width - label.length : 0
 	const numLeft = Math.floor(totSpaces / 2)
 	const numRight = totSpaces - numLeft
-	if (char === ' ') {
-		return ' '.repeat(numLeft) + label + ' '.repeat(numRight)
-	}
-	else {
-		const buf = ' '.repeat(numBuffer)
-		const left = char.repeat(numLeft - numBuffer)
-		const right = char.repeat(numRight - numBuffer)
-		return left + buf + label + buf + right
-	}
+	const text = (
+		(()=>{if (char === ' ') {
+			return ' '.repeat(numLeft) + colorize(label, color) + ' '.repeat(numRight)
+		}
+		else {
+			const buf = ' '.repeat(numBuffer)
+			const left = char.repeat(numLeft - numBuffer)
+			const right = char.repeat(numRight - numBuffer)
+			return left + buf + colorize(label, color) + buf + right
+		}})()
+		)
+	return text
 }
 
 // ---------------------------------------------------------------------------
@@ -811,17 +823,3 @@ export const fromTAML = (block: string): unknown => {
 	return parseYAML(untabify(block))
 }
 
-// ---------------------------------------------------------------------------
-
-export const getErrStr = (err: unknown): string => {
-
-	if (isString(err)) {
-		return err
-	}
-	else if (err instanceof Error) {
-		return err.message
-	}
-	else {
-		return "Serious Error"
-	}
-}

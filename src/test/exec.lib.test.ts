@@ -20,7 +20,7 @@ const setup = async (): AutoPromise<void> => {
 
 	DBG("setDirTree()")
 
-	await setDirTree(`./src/test/exec clear
+	await setDirTree(`./src/test/exec
 bad.civet
 	str: string := undef
 `)
@@ -65,3 +65,4 @@ DBG("execCmd()", "type TExecResult");
 DBG("execCmdSync()", "type TExecResult")
 
 truthy(execCmdSync("echo", ["Hello"]).success)
+

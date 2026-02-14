@@ -14,15 +14,15 @@ stdChecks("reset")
 // 1. remove all *.ts files corresponding to *.civet files
 //           if purpose is 'lib', 'cmd', 'parse', or 'test'
 console.log("Remove *.{lib,cmd,parse,text}.ts")
-await procFiles(['*.{lib,cmd,parse,test}.ts', doRemoveTsFile])
+await procFiles([doRemoveTsFile, ['src/**/*.{lib,cmd,parse,test}.ts']])
 
 // 2. remove all temp files
 console.log("Remove temp files")
-await procFiles(['*.temp.*', doRemoveFile])
+await procFiles([doRemoveFile, ['src/**/*.temp.*']])
 
 // 3. If there is a directory named 'test', remove any subfolders
 console.log("Remove test subfolders")
-for (const path of allFilesMatching("**/test/*", {includeDirs: true})) {
+for (const path of allFilesMatching("src/**/test/*", {includeDirs: true})) {
 	if (isDir(path)) {
 		rmDir(path, {clear: true})
 	}
@@ -30,8 +30,8 @@ for (const path of allFilesMatching("**/test/*", {includeDirs: true})) {
 
 // 4. remove all log files
 console.log("Remove log files")
-await procFiles(['log/*', doRemoveFile])
+await procFiles([doRemoveFile, ['src/**/log/*']])
 
 // 5. uninstall all commands installed by this project
 console.log("Uninstall cmd files")
-await procFiles(['*.cmd.ts', doUninstallCmd])
+await procFiles([doUninstallCmd, ['src/**/*.cmd.ts']])

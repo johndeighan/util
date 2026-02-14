@@ -18,7 +18,7 @@ import {
 setup := (): void =>
 
 	await setDirTree """
-		./src/test/source-map clear
+		./src/test/source-map
 		test.temp.civet compile
 			import {undef} from 'datatypes'
 

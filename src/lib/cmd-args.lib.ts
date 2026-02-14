@@ -7,6 +7,7 @@ import {
 	isEmpty, isArray, isBoolean,
 	isInteger, isHash, isString,
 	} from 'datatypes'
+import {syncReducer} from 'var-free'
 import {keys, getOptions, o, spaces} from 'llutils'
 import {clearScreen} from 'console-utils'
 import {setLogLevel, LOG, DBG} from 'logger'
@@ -33,6 +34,29 @@ export const flags = (...lChars: char[]): boolean[] => {
 	return (()=>{const results=[];for (const ch of lChars) {
 		results.push(flag(ch))
 	}return results})()
+}
+
+// ---------------------------------------------------------------------------
+// --- hFlags should be { <name>: <char>, ... {\}
+// --- return hash      { <name>: <boolean>, ... }
+
+export const getFlags = (hFlags: hashof<char>): hashof<boolean> => {
+
+	return syncReducer(keys(hFlags), {}, (acc, name) => {
+		const bool = flag(hFlags[name])
+		if (bool) {
+			LOG(`${name} = true`)
+		}
+		return {...acc, [name]: bool}
+	})
+}
+
+// ---------------------------------------------------------------------------
+
+export const setFlag = (ch: char): void => {
+
+	hFlags[ch] = true
+	return
 }
 
 // ---------------------------------------------------------------------------

@@ -19,7 +19,7 @@ import {
 
 const setup = async (): AutoPromise<void> => {
 
-	await setDirTree(`./src/test/source-map clear
+	await setDirTree(`./src/test/source-map
 test.temp.civet compile
 	import {undef} from 'datatypes'
 
@@ -77,3 +77,5 @@ equal(mkpath(Deno.cwd()), "C:/Users/johnd/util");
 	equal(orgPos(lMappings, 9,  1), [1, 12, 73])
 }
 	)()
+
+

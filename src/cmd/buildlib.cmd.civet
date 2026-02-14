@@ -1,46 +1,61 @@
 # buildlib.cmd.civet
 
-import {stdChecks, o} from 'llutils'
-import {assert, defined} from 'datatypes'
-import {nonOption, allNonOptions, flag} from 'cmd-args'
-import {withExt, findFile} from 'fsys'
-import {
-	procFiles, procOneFile, doUnitTest, doInstallCmd,
-	} from 'exec'
+import {assert, defined, getErrStr} from 'datatypes'
+import {stdChecks, o, centered} from 'llutils'
+import {nonOption, allNonOptions, getFlags} from 'cmd-args'
+import {LOG, ERR} from 'logger'
+import {withExt, findFile, relpath} from 'fsys'
+import {procFiles, procOneFile, doUnitTest} from 'exec'
 import {doCompileCivet} from 'civet'
 
-stdChecks "buildlib -nf (all | <stub>*)"
+stdChecks """
+	buildlib -ftI (all | <stub>*)
+	   -f = force, i.e. always compile
+	   -t = test, i.e. run unit tests
+	   -I = use Chrome debugger for compile
+	   -J = use Chrome debugger for unit test
+	"""
 
 // ---------------------------------------------------------------------------
 
-force := flag('f')
-if force
-	console.log "force = #{force}"
+hStyle  := {char: '=', color: 'cyan'}
+try
+	# --- echoes if flag is set
+	{force, doTest, inspect, inspectTest} := getFlags {
+		force: 'f'
+		doTest: 't'
+		inspect: 'I'
+		inspectTest: 'J'
+		}
 
-# --- even with noTest, we'll compile and type check the unit tests
-noTest := flag('n')
-if noTest
-	console.log "noTest = #{noTest}"
+	if (nonOption(0) == 'all')
+		LOG centered("BUILD ALL LIBS", hStyle)
+		await procFiles [doCompileCivet, ['**/*.lib.civet']], {force}
+		if doTest
+			await procFiles [doCompileCivet, ['**/*.lib.test.civet']], {force}
+			await procFiles [doUnitTest, ['**/*.lib.test.ts']], {capture: false}
+	else
+		for stub of allNonOptions()
+			fileName := "#{stub}.lib.civet"
+			path := findFile fileName
+			assert defined(path), "No such file: #{fileName}"
+			LOG centered("BUILD LIB #{relpath(path)}", hStyle)
+			await procOneFile path, doCompileCivet, {force, inspect}
 
-if (nonOption(0) == 'all')
-	await procFiles [doCompileCivet, '*.lib.civet'], {force}
-	await procFiles [doCompileCivet, '*.lib.test.civet'], {force}
-	if not noTest
-		await procFiles [doUnitTest, '*.lib.test.ts']
-else
-	for stub of allNonOptions()
-		fileName := "#{stub}.lib.civet"
-		path := findFile fileName
-		assert defined(path), "No such file: #{fileName}"
-		await procOneFile path, doCompileCivet, {force}
-
-		# --- compile and check unit test file
-		testFileName := "#{stub}.lib.test.civet"
-		testPath := findFile testFileName
-		if defined(testPath)
-			await procOneFile testPath, doCompileCivet, {force}
-			if not noTest
-				tsPath := withExt(testPath, '.ts')
-				hResult := await procOneFile tsPath, doUnitTest, o'!capture'
-		else
-			console.log "No unit test for #{stub}.lib"
+			if doTest
+				# --- compile and check unit test file
+				testFileName := "#{stub}.lib.test.civet"
+				testPath := findFile testFileName
+				if defined(testPath)
+					LOG centered("COMPILE TEST #{relpath(testPath)}", hStyle)
+					await procOneFile testPath, doCompileCivet, {force}
+					tsPath := withExt(testPath, '.ts')
+					LOG centered("RUN TEST #{relpath(tsPath)}", hStyle)
+					hResult := await procOneFile tsPath, doUnitTest, {
+						capture: false
+						inspect: inspectTest
+						}
+				else
+					LOG "No unit test exists for #{stub}.lib"
+catch err
+	ERR getErrStr(err)

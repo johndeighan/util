@@ -2,6 +2,7 @@
 	"nodeModulesDir": "auto",
 	"compilerOptions": {
 		"module": "esnext"
+		"lib": ["dom", "dom.iterable", "dom.asynciterable", "deno.ns", "esnext"]
 		 },
 	"imports": {
 		"@std/assert": "jsr:@std/assert",
@@ -19,7 +20,8 @@
 		"@std/streams": "jsr:@std/streams",
 
 		"@deno/emit": "jsr:@deno/emit",
-		"@danielx/civet": "npm:@danielx/civet",
+		"@danielx/civet": "npm:@danielx/civet@latest",
+		"@danielx/hera": "npm:@danielx/hera@latest",
 
 		"node-module": "node:module",
 		"node-fs": "node:fs",
@@ -35,6 +37,8 @@
 		"npm-@types/node": "npm:@types/node",
 		"npm-svelte/compiler": "npm:svelte/compiler",
 		"npm-inline-source-map": "npm:inline-source-map",
+		"npm-console-gui-tools": "npm:console-gui-tools",
+		"npm-blessed": "npm:@unblessed/node",
 
 		"datatypes":     "file:///C:/Users/johnd/util/src/lib/datatypes.lib.ts",
 		"source-map":    "file:///C:/Users/johnd/util/src/lib/source-map.lib.ts",

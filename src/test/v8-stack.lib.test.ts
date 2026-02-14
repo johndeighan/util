@@ -7,9 +7,6 @@ import {o} from 'llutils'
 import {DBG} from 'logger'
 import {relpath} from 'fsys'
 import {
-	execCmd, execCmdSync, procOneFile,
-	} from 'exec'
-import {
 	TStackFrame, getV8Stack, getMyCaller,
 	getMyOutsideCaller, getV8StackStr,
 	} from 'v8-stack'
@@ -24,7 +21,7 @@ const setup = async (): AutoPromise<void> => {
 
 	DBG("setDirTree()")
 
-	await setDirTree(`./src/test/v8-stack clear
+	await setDirTree(`./src/test/v8-stack
 v8-module.civet compile
 	import {
 		getMyCaller, getMyOutsideCaller, TStackFrame,
@@ -190,3 +187,4 @@ DBG("getV8StackStr()");
 [script            ] src/test/v8-stack.lib.test.civet:187:  0`)
 }
 	)()
+

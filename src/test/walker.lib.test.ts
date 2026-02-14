@@ -504,3 +504,4 @@ class PersonWalker extends Walker<Person> {
 		])
 }
 	)()
+

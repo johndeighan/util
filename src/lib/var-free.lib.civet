@@ -1,7 +1,7 @@
 # var-free.lib.civet
 
 import {
-	undef, defined, notdefined,
+	undef, defined, notdefined, getErrStr,
 	isIterator, isAsyncIterator, isPromise, assertIsDefined,
 	} from 'datatypes'
 
@@ -145,3 +145,37 @@ export syncReducer := <TIn, TAccum>(
 				# --- now iter is of type TAccum
 				acc = iter
 	return acc
+
+# ---------------------------------------------------------------------------
+# ASYNC
+# --- returns [lFulfilled, lRejected, lFulfilledTags, lRejectedTags]
+#        lFulfilled is an array of T
+#        lRejected is an array of unknown (usually Error objects)
+#        lFulfilledTags and lRejectedTags are arrays of strings
+
+type TResult<T> = [T[], unknown[], string[], string[]]
+
+export asyncRunner := <T>(
+		lPromises: Promise<T>[]
+		lTags: string[] = []
+		): TResult<T> ->
+
+	lSettled := await Promise.allSettled(lPromises)
+	acc0: TResult<T> := [[],[],[],[]]
+	return await reducer lSettled, acc0, (acc, h, i): TResult<T> ->
+		tag := (i >= 0) && (i < lTags.length) ? lTags[i] : ''
+		[lFulfilled, lRejected, lTags1, lTags2] := acc
+		if (h.status == 'fulfilled')
+			return [
+				[...lFulfilled, h.value],
+				lRejected,
+				[...lTags1, tag],
+				lTags2
+				]
+		else
+			return [
+				lFulfilled
+				[...lRejected, getErrStr(h.reason)]
+				lTags1
+				[...lTags2, tag]
+				]

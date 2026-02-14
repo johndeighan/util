@@ -2,13 +2,13 @@
 // utest.cmd.civet
 
 import {writeln} from 'console-utils'
-import {undef, defined, assert, croak} from 'datatypes'
+import {undef, defined, assert, croak, getErrStr} from 'datatypes'
 import {findFile, parsePath, withExt, isFile} from 'fsys'
 import {DUMP} from 'to-nice'
 import {
-	procOneFile, procFiles, doRun,
+	procOneFile, doRun,
 	} from 'exec'
-import {splitArray, sep, stdChecks, getErrStr} from 'llutils'
+import {splitArray, sep, stdChecks} from 'llutils'
 import {flag, argValue, allNonOptions} from 'cmd-args'
 import {LOG, DBG} from 'logger'
 import {doCompileCivet} from 'civet'

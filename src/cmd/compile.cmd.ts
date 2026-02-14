@@ -34,7 +34,7 @@ const logResult = (hResult: TCompileResult): void => {
 
 if (numNonOptions() === 0) {
 	DBG("=====  Compiling all files  =====")
-	for (const path of allFilesMatching('**/*.{lib,cmd}.civet')) {
+	for (const path of allFilesMatching('src/**/*.{lib,cmd}.civet')) {
 		const hResult = compileFile(path)
 		logResult(hResult)
 	}
@@ -51,7 +51,7 @@ else {
 			const str: string = item
 			let ref;let ref1;if ((ref = str.match(/^([A-Za-z0-9_-]+)\.(lib|cmd)$/))) {const lMatches = ref;
 				const [_, stub, purpose] = lMatches
-				const pat = '**/' + stub + '.' + purpose + '.*'
+				const pat = 'src/**/' + stub + '.' + purpose + '.*'
 				for (const path of allFilesMatching(pat)) {
 					DBG(`compile file ${OL(path)}`)
 					logResult(compileFile(path))
@@ -59,7 +59,7 @@ else {
 			}
 			else if ((ref1 = str.match(/^([A-Za-z0-9_-]+)\.(lib|cmd)\.test$/))) {const lMatches2 = ref1;
 				const [_, stub, purpose] = lMatches2
-				const pat = '**/' + stub + '.' + purpose + '.test.*'
+				const pat = 'src/**/' + stub + '.' + purpose + '.test.*'
 				for (const path of allFilesMatching(pat)) {
 					DBG(`compile file ${OL(path)}`)
 					logResult(compileFile(path))

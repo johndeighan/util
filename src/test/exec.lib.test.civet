@@ -19,7 +19,7 @@ setup := (): void =>
 	DBG "setDirTree()"
 
 	await setDirTree """
-		./src/test/exec clear
+		./src/test/exec
 		bad.civet
 			str: string := undef
 

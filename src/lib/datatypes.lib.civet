@@ -27,7 +27,6 @@ export assert: TAssertFunc := (
 		): asserts cond =>
 
 	if not cond
-		console.log "ERROR: #{msg}"
 		croak msg
 	return
 
@@ -557,3 +556,15 @@ export jsType := (x: unknown): string =>
 				: (x instanceof AsyncGenFunc)       ? 'asyncGenerator'
 				:                                     'plainFunction'
 				)
+
+# ---------------------------------------------------------------------------
+
+export getErrStr := (err: unknown): string =>
+
+	if (typeof err == 'string')
+		return err
+	else if (err instanceof Error)
+		return err.message
+	else
+		return "Serious Error"
+

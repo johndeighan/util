@@ -1,12 +1,11 @@
-# compile-all-libs.civet
+# compile-libs.cmd.civet
 
-import {sprintf} from '@std/fmt/printf'
 import {compile as compileCivet} from '@danielx/civet'
 
 import {
-	undef, defined, notdefined, croak, assert, isEmpty, nonEmpty,
+	undef, defined, notdefined, croak, assert,
+	isEmpty, nonEmpty, getErrStr,
 	} from 'datatypes'
-import {centered, getErrStr} from 'llutils'
 import {f} from 'f-strings'
 import {setLogLevel, LOG, ERR, DBG} from 'logger'
 import {flag, flags, lNonOptions} from 'cmd-args'
@@ -14,9 +13,10 @@ import {
 	isDir, isFile, findFile, allFilesMatching, watchFiles,
 	toFullPath, newerDestFileExists, relpath,
 	} from 'fsys'
-import {execCmd, procFiles} from 'exec'
+import {execCmd, procFiles, procOneFile, CTimer} from 'exec'
 import {
-	RawSourceMap, haveSourceMapFor, extractSourceMap, addSourceMap,
+	RawSourceMap, haveSourceMapFor, extractSourceMap,
+	addSourceMap, saveSourceMaps, orgNumSourceMaps,
 	} from 'source-map'
 import {mapper, reducer} from 'var-free'
 import {doCompileCivet} from 'civet'
@@ -35,21 +35,19 @@ if force
 # ---------------------------------------------------------------------------
 # --- sanity check
 
-assert isFile('./compileall.civet'), "No file ./compileall.civet"
 assert isDir('src'),                 "No dir src"
 assert isFile('civetconfig.json'),   "No file civetconfig.json"
 assert isFile('.gitignore'),         "No file .gitignore"
+assert isFile('deno.json'),          "No file deno.json"
 
 # ---------------------------------------------------------------------------
 
-export type TOkResult = {
-	status: 'ok'
-	destPath: string
-	code: string
-	hSrcMap: RawSourceMap
-	}
-
-export type TResult = TOkResult |
+type TResult = {
+		status: 'ok'
+		destPath: string
+		code: string
+		hSrcMap: RawSourceMap
+		} |
 	{
 		status: 'error'
 		destPath: string
@@ -62,9 +60,12 @@ export type TResult = TOkResult |
 
 # ---------------------------------------------------------------------------
 
-t0 := Date.now()
+timer := new CTimer()
 
-iterCivetFiles := (
+# --- iterate full file paths
+#     command line may be a sequence of file stubs
+
+iterFiles := (
 	if isEmpty(lNonOptions)
 		allFilesMatching [
 			"**/*.lib.civet"
@@ -81,18 +82,24 @@ iterCivetFiles := (
 				ERR "No such file: #{fileName}"
 	)
 
-iterResults := await mapper iterCivetFiles, (path): AsyncGenerator<TResult> ->
+# --- iterate sequence of TResult objects resulting from
+#     attempting to compile the files
+
+iterResults := await mapper iterFiles, (path): AsyncGenerator<TResult> ->
 	civetPath := toFullPath path
-	relPath := relpath(civetPath)
-	destPath := civetPath.replace('.civet', '.ts')
-	relDestPath := relpath(destPath)
+	relPath := relpath civetPath
+	tsPath := civetPath.replace('.civet', '.ts')
+	relTsPath := relpath tsPath
 	DBG "COMPILE: #{relPath}"
 
-	if not force && newerDestFileExists(path, '.ts')
+	if (not force
+			&& newerDestFileExists(path, '.ts')
+			&& haveSourceMapFor(tsPath)
+			)
 		DBG "   - already compiled"
 		yield {
 			status: 'alreadyCompiled'
-			destPath
+			destPath: tsPath
 			}
 		return
 
@@ -106,22 +113,23 @@ iterResults := await mapper iterCivetFiles, (path): AsyncGenerator<TResult> ->
 		assert tsCode && not tsCode.startsWith('COMPILE FAILED'),
 			"CIVET COMPILE FAILED: #{relPath}"
 		[code, hSrcMap] := extractSourceMap tsCode
-		assert (hSrcMap != undef), "Missing source map"
-		await Deno.writeTextFile destPath, code
-		addSourceMap destPath, hSrcMap
+		assert (hSrcMap != undef), "Missing source map for #{relPath}"
+		await Deno.writeTextFile tsPath, code
+		assert isFile(tsPath), "File #{relTsPath} did not appear"
+		addSourceMap tsPath, hSrcMap
 		DBG "   - compiled OK"
 		yield {
 			status: 'ok'
-			destPath
+			destPath: tsPath
 			code
 			hSrcMap
 			}
 
 	catch err
-		ERR "ERROR in #{relDestPath}:\n#{getErrStr(err)}"
+		ERR "ERROR in #{relTsPath}:\n#{getErrStr(err)}"
 		yield {
 			status: 'error'
-			destPath
+			destPath: tsPath
 			errMsg: getErrStr(err)
 			}
 	return
@@ -137,44 +145,40 @@ iterResults := await mapper iterCivetFiles, (path): AsyncGenerator<TResult> ->
 			]
 
 LOG '-'.repeat(32)
-LOG "#{numSkip} already compiled, #{numOk} compiled, #{numErr} errors"
+if (numSkip > 0)
+	LOG "#{numSkip} already compiled"
+if (numOk > 0)
+	LOG "#{numOk} compiled"
+if (numErr > 0)
+	LOG "#{numErr} errors"
 LOG '-'.repeat(32)
 
 assert (numSkip + numOk + numErr == numFiles), "Bad file count"
 
-if (numSkip == numFiles)
-	LOG "All files already compiled"
-else
-	if (numErr > 0)
-		ERR "#{numErr}/#{numFiles} civet files failed to compile"
-		Deno.exit -1
-
-	lResults: TResult[] := await Array.fromAsync(iterResults)
-	lToTypeCheck: TOkResult[] := lResults.filter (h) =>
-		return (h.status == 'ok')
-
-	iterCheck := mapper lToTypeCheck, (hResult: TOkResult): boolean ->
-		{destPath, hSrcMap} := hResult
+# --- type check all files that were compiled
+iterChecked := mapper iterResults, (hResult): AsyncGenerator<boolean, void> ->
+	{status, destPath} := hResult
+	if (status == 'ok')
 		relDestPath := relpath destPath
-		LOG "TYPE CHECK: #{relDestPath}"
+		DBG "TYPE CHECK: #{relDestPath}"
 		try
-			assert isFile(destPath), "No such file: #{destPath}"
 			{success, stderr} := await execCmd 'deno', ['check', destPath]
 			assert success, "type check failed for #{relDestPath}: #{stderr}"
-			addSourceMap destPath, hSrcMap
-			return true
+			yield true
 		catch err
 			ERR "ERROR in #{relDestPath}:\n#{getErrStr(err)}"
-			return false
+			yield false
+	return
 
-	numFailed := await reducer iterCheck, 0, (acc, x) ->
-		return x ? acc : acc+1
-	if (numFailed > 0)
-		ERR f"#{numFailed} files failed type checking"
-		Deno.exit -1
+numFailed := await reducer iterChecked, 0, (acc, x) ->
+	return x ? acc : acc+1
+if (numFailed > 0)
+	ERR f"#{numFailed} files failed type checking"
 
-secs := (Date.now() - t0) / 1000
-LOG "DONE in #{sprintf('%.2d', secs)} secs.\n"
+nMaps := await saveSourceMaps()
+LOG "#{nMaps} source maps saved (#{nMaps - orgNumSourceMaps} new)"
+
+LOG "DONE in #{timer.timeTaken()} secs.\n"
 
 if watch
 	LOG "Watching for file changes in the current directory..."

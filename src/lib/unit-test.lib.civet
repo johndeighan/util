@@ -13,12 +13,12 @@ import {
 	deepEqual, hashLike, integer, THashCompareFunc,
 	THashLikeFunc, THashToStringFunc, TFilterFunc,
 	normalizeCode, isFunction, isClass, functionDef, classDef,
-	TVoidFunc, TVoidIterator,
+	TVoidFunc, TVoidIterator, getErrStr,
 	croak, assertIsDefined, isGenerator, isIterator,
 	} from 'datatypes'
 import {
 	pass, o, keys, getOptions, spaces, blockToArray,
-	allLinesInBlock, truncStr, getErrStr, sleep,
+	allLinesInBlock, truncStr, sleep,
 	} from 'llutils'
 import {splitLine, indented} from 'indent'
 import {OL, ML, DUMP} from 'to-nice'
@@ -30,8 +30,8 @@ import {
 	} from 'logger'
 import {flag} from 'cmd-args'
 import {
-	relpath, mkpath, mkDir, barf, getPathType, fileExt,
-	isDir, clearDir, pushWD, popWD,
+	relpath, mkDir, barf, getPathType, fileExt,
+	isDir, clearDir,
 	} from 'fsys'
 import {Fetcher} from 'fetcher'
 import {doParse} from 'hera-parse'
@@ -101,20 +101,8 @@ export same := (value: unknown, expected: unknown): void =>
 
 # ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests if value is truthy
- * Reports line number of the test.
-
- * @param {any} value - any JavaScript value
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * truthy isString('abc')
- * ```
- * This test will pass.
- */
 export truthy := (value: unknown): void =>
+
 	name := getTestName()
 	DBG "truthy #{stringify(value)} (#{name})"
 	Deno.test name, () => assert value
@@ -122,20 +110,8 @@ export truthy := (value: unknown): void =>
 
 # ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests if value is falsy
- * Reports line number of the test.
- *
- * @param {any} value - any JavaScript value
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * falsy isString(42)
- * ```
- * This test will pass.
- */
 export falsy := (value: unknown): void =>
+
 	name := getTestName()
 	DBG "falsy #{stringify(value)} (#{name})"
 	Deno.test name, () => assert (not value)
@@ -143,20 +119,8 @@ export falsy := (value: unknown): void =>
 
 # ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests if calling the provided function
- * throws an exception. Reports line number of the test.
- *
- * @param {any => any} func - any JavaScript function
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * fails () => throw new Error('bad')
- * ```
- * This test will pass.
- */
 export fails := (func: TVoidFunc): void =>
+
 	pushLogLevel 'silent' # --- silence any errors generated
 	name := getTestName()
 	DBG "fails <func> (#{name})"
@@ -171,21 +135,8 @@ export fails := (func: TVoidFunc): void =>
 
 # ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests if calling the provided function
- * runs without throwing an exception.
- * Reports line number of the test.
- *
- * @param {any => any} func - any JavaScript function
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * succeeds () => return 42
- * ```
- * This test will pass.
- */
 export succeeds := (func: TVoidFunc): void =>
+
 	assert (typeof func == 'function'), "test succeeds() passed non-function"
 	name := getTestName()
 	DBG "succeeds <func> (#{name})"
@@ -202,7 +153,11 @@ export succeeds := (func: TVoidFunc): void =>
 
 # ---------------------------------------------------------------------------
 
-export iterEqual := (iter: Iterable<unknown>, expected: unknown[]): void =>
+export iterEqual := (
+		iter: Iterable<unknown>,
+		expected: unknown[]
+		): void =>
+
 	name := getTestName()
 	DBG "iterEqual ?, #{stringify(expected)} (#{name})"
 	Deno.test name, () => assertEquals Array.from(iter), expected
@@ -210,7 +165,11 @@ export iterEqual := (iter: Iterable<unknown>, expected: unknown[]): void =>
 
 # ---------------------------------------------------------------------------
 
-export iterLike := (iter: Iterable<hash>, expected: hash[]): void =>
+export iterLike := (
+		iter: Iterable<hash>,
+		expected: hash[]
+		): void =>
+
 	name := getTestName()
 	DBG "iterEqual ?, #{stringify(expected)} (#{name})"
 	lItems := Array.from iter
@@ -224,28 +183,8 @@ export iterLike := (iter: Iterable<hash>, expected: hash[]): void =>
 
 # ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests a value, which must be a string,
- * matches either a substring or a regular expression.
- * Reports line number of the test.
- *
- * @param {any} value - any JavaScript value
- * @param {any} expected - any JavaScript value
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * matches 'abcde', 'bce'
- * ```
- * This test will pass.
- *
- * @example
- * ```js
- * matches 'aabbcc', /a+b+c+/
- * ```
- * This test will pass.
- */
 export matches := (value: unknown, expected: unknown): void =>
+
 	assert isString(value), "Not a string: #{value}"
 	name := getTestName()
 	DBG "matches ?, #{stringify(expected)} (#{name})"
@@ -259,23 +198,8 @@ export matches := (value: unknown, expected: unknown): void =>
 
 # ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests if one hash matches another hash.
- * the first hash must have all the properties in the second hash,
- * but extra properties are allowed.
- * Reports line number of the test.
- *
- * @param {hash} value - any JavaScript object
- * @param {hash} expected - any JavaScript object
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * like {a:1, b:2, c:3}, {a:1, c:3}
- * ```
- * This test will pass.
- */
 export like := (value: object?, expected: hash): void =>
+
 	name := getTestName()
 	DBG "like ?, #{stringify(expected)} (#{name})"
 	if notdefined(value)
@@ -287,6 +211,7 @@ export like := (value: object?, expected: hash): void =>
 # ---------------------------------------------------------------------------
 
 export codeLike := (value: string, expected: string): void =>
+
 	name := getTestName()
 	DBG "codeLike ?, #{stringify(expected)} (#{name})"
 	Deno.test name, : void =>
@@ -295,7 +220,11 @@ export codeLike := (value: string, expected: string): void =>
 
 # ---------------------------------------------------------------------------
 
-export strListLike := (value: string[], expected: string[]): void =>
+export strListLike := (
+		value: string[],
+		expected: string[]
+		): void =>
+
 	name := getTestName()
 	DBG "strListLike ?, #{stringify(expected)}"
 	len := value.length
@@ -314,33 +243,6 @@ export strListLike := (value: string[], expected: string[]): void =>
 
 # ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests if each Object in an array matches
- * each object in another array. The 2 arrays must be of the
- * same length. If a function is passed as the 3rd parameter,
- * then each array is first sorted by using the function to
- * convert each object to a string, then sorting the array
- * using those strings.
- * A matching function can also be provided as the 4th argument.
- * By default, the function hashLike (from llutils.lib) is used.
- * Reports line number of the test.
- *
- * @param {array | object} value - any JavaScript value
- * @param {array | object} expected - any JavaScript value
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * like {a:1, b:2, c:3}, {a:1, c:3}
- * ```
- * This test will pass.
- *
- * @example
- * ```js
- * like [{a:1, b:2, c:3}, {a:3, b:5, c:23}], [{a:1, b:2}]
- * ```
- * This test will pass.
- */
 export objListLike := (
 		value: hash[],
 		expected: hash[],
@@ -383,22 +285,8 @@ export objListLike := (
 
 # ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests a value, which must be an array,
- * includes the expected value.
- * Reports line number of the test
- *
- * @param {Array<any>} value - an array
- * @param {any} expected - any JavaScript value
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * includes ['a', 'b', 'c'], 'b'
- * ```
- * This test will pass.
- */
 export includes := (value: unknown, expected: unknown): void =>
+
 	assert Array.isArray(value), "not an array: #{value}"
 	name := getTestName()
 	DBG "includes ?, #{stringify(expected)} (#{name})"
@@ -407,21 +295,6 @@ export includes := (value: unknown, expected: unknown): void =>
 
 # ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests a value, which must be an array,
- * includes all of the items in the expected array.
- * Reports line number of the test
- *
- * @param {Array<any>} value - an array
- * @param {Array<any>} expected - an array
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * includesAll ['a', 'b', 'c'], ['b', 'c']
- * ```
- * This test will pass.
- */
 export includesAll := (value: unknown, expected: unknown): void =>
 	assert Array.isArray(value), "not an array: #{value}"
 	assert Array.isArray(expected), "not an array: #{expected}"
@@ -464,29 +337,6 @@ export checkType := (
 
 # ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests if a value is of a given type.
- * Relies on a .symbols file being correctly set up, and
- * it containing the type we're testing when testing
- * a non-buildin type
- *
- * @param {string} typeStr - a type as a string
- * @param {any} value - any JavaScript value
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * isType 'string', 'abc'
- * ```
- * This test will pass.
- *
- * @example
- * ```js
- * isType 'number', 'abc'
- * ```
- * This test will fail.
- */
-
 export isType := (
 		typeStr: string,
 		value: unknown,
@@ -511,25 +361,6 @@ export isType := (
 
 # ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests if a value is not of a given type.
- *
- * @param {string} typeStr - a type as a string
- * @param {any} value - any JavaScript value
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * notType 'string', 'abc'
- * ```
- * This test will fail.
- *
- * @example
- * ```js
- * notType 'number', 'abc'
- * ```
- * This test will pass.
- */
 export notType := (
 		typeStr: string,
 		value: unknown,
@@ -554,7 +385,7 @@ export notType := (
 # ---------------------------------------------------------------------------
 
 export type TFileOp = {
-		op: 'mkDir' | 'clearDir' | 'compile' | 'pushWD'
+		op: 'mkDir' | 'clearDir' | 'compile'
 		path: string
 		}
 	| {
@@ -562,29 +393,6 @@ export type TFileOp = {
 		path: string
 		contents: string
 		}
-	| {
-		op: 'popWD'
-		}
-
-# ---------------------------------------------------------------------------
-
-export fileOpsOk := (lFileOps: TFileOp[]): boolean =>
-
-	try
-		assert (lFileOps.length >= 2)
-		firstOp  := lFileOps[0].op
-		secondOp := lFileOps[1].op
-		# @ts-ignore
-		lastOp   := lFileOps.at(-1).op
-
-		assert (firstOp == 'clearDir') || (firstOp == 'mkDir')
-		assert (secondOp == 'pushWD')
-		assert (lastOp == 'popWD')
-		for hOp of lFileOps.slice(2, -1)
-			assert (hOp.op != 'pushWD') && (hOp.op != 'popWD')
-		return true
-	catch err
-		return false
 
 # ---------------------------------------------------------------------------
 
@@ -592,12 +400,6 @@ export execFileOps := (
 		lFileOps: TFileOp[]
 		): void =>
 
-	# --- To be safe, we make sure
-	#        - 1st op is pushWD with path including 'src/test/<word>/
-	#        - Last op is popWD
-	#        - there are no other pushWD or popWD ops
-
-	assert fileOpsOk(lFileOps), "Bad lFileOps:\n#{ML(lFileOps)}\n"
 	for h of lFileOps
 		switch h.op
 			when 'mkDir'
@@ -606,106 +408,17 @@ export execFileOps := (
 				clearDir h.path
 			when 'compile'
 				civet2tsFile h.path
-			when 'pushWD'
-				pushWD h.path
 			when 'barf'
-				assertIsDefined h.contents
 				barf h.path, h.contents
-			when 'popWD'
-				popWD()
 	return
 
 # ---------------------------------------------------------------------------
 # ASYNC
 
-export getFileOps := (
-		desc: string
-		): TFileOp[] ->
+export getFileOps := (desc: string): TFileOp[] =>
 
-	try
-		let root: string = ''
-		let curFileName: string = ''
-		let compileFile: boolean = false
-		lLines: string[] := []
-		lFileOps: TFileOp[] := []
-
-		pushBarfOp := (): void =>
-			assert not curFileName.startsWith('/'),
-				"Bad file name: #{curFileName}"
-			lFileOps.push {
-				op: 'barf'
-				path: curFileName
-				contents: lLines.join('\n')
-				}
-			if compileFile
-				lFileOps.push {
-					op: 'compile'
-					path: curFileName
-					}
-			curFileName = ''
-			compileFile = false
-			lLines.length = 0
-			return
-
-		for line,i of await allLinesInBlock(desc)
-			[level, str] := splitLine line
-			if (i == 0)
-				assert (level == 0), "Bad line 1"
-				lParts := str.split(/\s+/)
-				let root: string
-				let clear: boolean
-				switch lParts.length
-					when 1
-						[root, clear] = [str, false]
-					when 2
-						assert (lParts[1] == 'clear'), "Bad header: #{line}"
-						[root, clear] = [lParts[0], true]
-					else
-						croak "Bad header: #{line}"
-						[root, clear] = ['', false]   # --- shouldn't be needed
-				assert nonEmpty(root), "Missing root"
-				lFileOps.push {
-					op: clear ? 'clearDir' : 'mkDir'
-					path: root
-					}
-				lFileOps.push {
-					op: 'pushWD'
-					path: root
-					}
-			else if isEmpty(str)
-				lLines.push ''
-			else if (level == 0)
-				if curFileName
-					pushBarfOp()
-				lParts := str.split(/\s+/)
-				let fname: string
-				let compile: boolean
-				switch lParts.length
-					when 1
-						[fname, compile] = [str, false]
-					when 2
-						assert (lParts[1] == 'compile'), "Bad header: #{line}"
-						[fname, compile] = [lParts[0], true]
-					else
-						croak "Bad header: #{line}"
-						[fname, compile] = ['', false]  # --- shouldn't be needed
-				assert nonEmpty(fname), "Missing fname"
-				curFileName = fname
-				compileFile = compile
-				lLines.length = 0
-			else
-				lLines.push indented(str, level-1)
-		if curFileName
-			pushBarfOp()
-		lFileOps.push {
-			op: 'popWD'
-			}
-		assert fileOpsOk(lFileOps), "Bad lFileOps:\n#{ML(lFileOps)}\n"
-		return lFileOps
-
-	catch err
-		croak "ERROR in getFileOps(): #{getErrStr(err)}"
-	return [] as TFileOp[]
+	lFileOps := await doParse<TFileOp[]> 'dir-tree', desc
+	return lFileOps
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -718,7 +431,19 @@ export setDirTree := (desc: string): TFileOp[] =>
 
 # ---------------------------------------------------------------------------
 
-export fileOpsTable := (lFileOps: TFileOp[]): string =>
+export fileOpsTable := (
+		lFileOps: TFileOp[]
+		hOptions: hash = {}
+		): string =>
+
+	type opt = {
+		oneLine: boolean
+		trunc: number
+		}
+	{oneLine, trunc} := getOptions<opt> hOptions, {
+		oneLine: true
+		trunc: 32
+		}
 
 	tt := new TextTable("l l l")
 	tt.fullsep()
@@ -731,18 +456,19 @@ export fileOpsTable := (lFileOps: TFileOp[]): string =>
 			when 'barf'
 				{path, contents} := h
 				str := contents || ''
-				lLines := blockToArray str
-				if lLines.length == 0
+				if str.length == 0
 					tt.data ['barf', path, '<empty>']
+				else if oneLine
+					output := truncStr(esc(str), trunc)
+					tt.data ['barf', path, output]
 				else
+					lLines := blockToArray str
 					for line,i of lLines
-						contents := truncStr(esc(lLines[i]), 40)
+						contents := truncStr(esc(lLines[i]), trunc)
 						if (i == 0)
 							tt.data ['barf', path, contents]
 						else
 							tt.data ['', '', contents]
-			when 'popWD'
-				tt.data ['popWD', '', '']
 			else
 				tt.data [h.op, h.path, '']
 	tt.fullsep()
@@ -805,6 +531,27 @@ export allFalse := (
 
 # ---------------------------------------------------------------------------
 
+export getPromiseOf := <T>(
+		value: T
+		sleepFor = 1
+		): T ->
+
+	await sleep(sleepFor)
+	# @ts-ignore
+	return value
+
+# ---------------------------------------------------------------------------
+
+export getRejectedPromiseOf := <T>(
+		errMsg: string
+		sleepFor = 1
+		): never ->
+
+	await sleep(sleepFor)
+	throw new Error(errMsg)
+
+# ---------------------------------------------------------------------------
+
 export generateSync := <T>(
 		lItems: T[],
 		): Generator<T> ->
@@ -817,10 +564,10 @@ export generateSync := <T>(
 
 export generateAsync := <T>(
 		lItems: T[],
-		sleepFor: number = 1
+		sleepFor = 1
 		): AsyncGenerator<T> ->
 
 	for item of lItems
-		await sleep(1)
+		await sleep(sleepFor)
 		yield item
 	return

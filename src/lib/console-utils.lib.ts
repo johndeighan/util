@@ -31,7 +31,17 @@ export const clearScreen = (): void => {
 
 export const resetLine = (): void => {
 
-	write('\r')
-	write("\x1b[K")
+	write("\x1b[2K")
 	return
 }
+
+// ---------------------------------------------------------------------------
+
+export const clearPreviousLines = (numLines: number): void => {
+	// \x1b[nA moves the cursor up 'n' lines
+	// \r moves the cursor to the beginning of the line
+	// \x1b[K clears the line from the cursor to the end (optional, but good practice)
+
+	Deno.stdout.writeSync(encoder.encode(`\x1b[${numLines}A\r\x1b[K`))
+}
+

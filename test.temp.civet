@@ -1,0 +1,8 @@
+import {undef} from 'datatypes'
+
+lNames := ['John', 'Billy']
+export sum := (x: number, y: number) =>
+
+	for name,i of lNames
+		console.log "#{i}: #{name}"
+	return x + y

@@ -15,11 +15,12 @@ import {
 	functionDef, croak, assertIsString, assertIsNumber,
 	TStringMapper,
 	} from 'datatypes'
-import {f} from 'f-strings'
+import {f, colorize} from 'f-strings'
 
 export {f}
 
 llutilsLoadTime: integer := Date.now()
+defWidth := 64     # ---used in sep, centered
 
 # ---------------------------------------------------------------------------
 
@@ -481,6 +482,7 @@ export heightOf := (block: string): number =>
 # ---------------------------------------------------------------------------
 
 export blockify := (lStrings: string[], hOptions: hash = {}): string =>
+
 	type opt = {
 		sep: string
 		endsep: string
@@ -515,8 +517,6 @@ export getOptions := <T extends hash>(hOptions: hash = {}, hDefaults: T): T =>
 
 # ---------------------------------------------------------------------------
 
-defWidth := 64
-
 export sep := (
 		char: string = '-',
 		label: string? = undef,
@@ -525,7 +525,7 @@ export sep := (
 
 	assert (char.length == 1), "Not a char: #{char}"
 	if defined(label)
-		return centered label, char, width
+		return centered label, {char, width}
 	else
 		return char.repeat width
 
@@ -544,7 +544,7 @@ export untabify := (str: string, replacement: string = '   '): string =>
 
 export allLinesInBlock := (
 		block: string
-		): Generator<string, void, void> ->
+		): Generator<string> ->
 
 	let start = 0
 	let end = block.indexOf '\n'
@@ -557,30 +557,43 @@ export allLinesInBlock := (
 	return
 
 # ---------------------------------------------------------------------------
-
 # --- valid options:
 #        char - char to use on left and right
-#        buffer - num spaces around label when char <> ' '
+#        width - full width
+#        numBuffer - num spaces around label when char <> ' '
+#        color - color of entire string
+
 export centered := (
 		label: string
-		char: string = ' '
-		width: number = defWidth
-		numBuffer: number = 2
+		hOptions: hash = {}
 		): string =>
 
-	assert (char.length == 1), "Bad char: '#{char}'"
-	totSpaces := width - label.length
-	if (totSpaces <= 0)
-		return label
+	type opt = {
+		char: char
+		width: number
+		numBuffer: number
+		color: string?
+		}
+	{char, width, numBuffer, color} := getOptions<opt> hOptions, {
+		char: ' '
+		width: defWidth
+		numBuffer: 2
+		color: undef
+		}
+
+	totSpaces := (width >= label.length) ? width - label.length : 0
 	numLeft := Math.floor totSpaces / 2
 	numRight := totSpaces - numLeft
-	if (char == ' ')
-		return ' '.repeat(numLeft) + label + ' '.repeat(numRight)
-	else
-		buf := ' '.repeat numBuffer
-		left := char.repeat numLeft - numBuffer
-		right := char.repeat numRight - numBuffer
-		return left + buf + label + buf + right
+	text := (
+		if (char == ' ')
+			' '.repeat(numLeft) + colorize(label, color) + ' '.repeat(numRight)
+		else
+			buf := ' '.repeat numBuffer
+			left := char.repeat numLeft - numBuffer
+			right := char.repeat numRight - numBuffer
+			left + buf + colorize(label, color) + buf + right
+		)
+	return text
 
 # ---------------------------------------------------------------------------
 
@@ -666,15 +679,3 @@ export isTAML := (x: unknown): boolean =>
 export fromTAML := (block: string): unknown =>
 
 	return parseYAML(untabify(block))
-
-# ---------------------------------------------------------------------------
-
-export getErrStr := (err: unknown): string =>
-
-	if isString(err)
-		return err
-	else if (err instanceof Error)
-		return err.message
-	else
-		return "Serious Error"
-

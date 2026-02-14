@@ -18,7 +18,7 @@ const setup = async (): AutoPromise<void> => {
 
 	DBG("setDirTree()")
 
-	await setDirTree(`./src/test/cielo clear
+	await setDirTree(`./src/test/cielo
 file.config.ts
 	export default new Object({
 		a: 1,
@@ -47,3 +47,4 @@ DBG("configFromFile(path)");
 	}
 }
 	)
+

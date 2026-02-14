@@ -1,11 +1,12 @@
 "use strict";
 // buildpar.cmd.civet
 
-import {assert, defined} from 'datatypes'
-import {stdChecks} from 'llutils'
-import {flag, nonOption, allNonOptions} from 'cmd-args'
+import {assert, defined, getErrStr} from 'datatypes'
+import {stdChecks, centered} from 'llutils'
+import {flag, nonOption, allNonOptions, getFlags} from 'cmd-args'
+import {LOG, DBG, ERR} from 'logger'
 import {
-	withExt, findFile, parsePath, allFilesMatching,
+	withExt, findFile, parsePath,
 	} from 'fsys'
 import {
 	doUnitTest, doInstallCmd, procFiles, procOneFile,
@@ -13,31 +14,55 @@ import {
 import {doCompileCivet} from 'civet'
 import {doCompileHera} from 'hera-compile'
 
-stdChecks("buildpar (all | <stub>+)")
+stdChecks(`buildpar -ftI (all | <stub>*)
+	-f = force
+	-t = run unit test
+	-I = use Chrome debugger`)
 
 // ---------------------------------------------------------------------------
 // --- install before running unit tests
 //     since unit test may require command to be installed
 
-if (nonOption(0) === 'all') {
-	await procFiles(['*.parse.hera',       doCompileHera])
-	await procFiles(['*.parse.test.civet', doCompileCivet])
-	await procFiles(['*.parse.test.ts',    doUnitTest])
-}
-else {
-	for (const stub of allNonOptions()) {
-		const heraFileName = `${stub}.parse.hera`
-		const heraPath = findFile(heraFileName)
-		assert(defined(heraPath), `No such hera file: ${heraFileName}`)
-		await procOneFile(heraPath, doCompileHera)
-		const testFileName = withExt(heraFileName, '.test.civet')
-		const testPath = findFile(testFileName)
-		if (defined(testPath)) {
-			await procOneFile(testPath, doCompileCivet)
-			await procOneFile(withExt(heraPath, '.ts'), doUnitTest)
+const hStyle  = {char: '=', color: 'cyan'}
+try {
+	// --- echoes if flag is set
+	const {force, doTest, inspect} = getFlags({
+		force: 'f',
+		doTest: 't',
+		inspect: 'I'
+		})
+
+	if (nonOption(0) === 'all') {
+		console.log(centered("BUILD ALL PARSERS", hStyle))
+		await procFiles([doCompileHera,  ['src/**/*.parse.hera']], {force})
+		if (doTest) {
+			await procFiles([doCompileCivet, ['src/**/*.parse.test.civet']], {force})
+			await procFiles([doUnitTest,     ['src/**/*.parse.test.ts']])
 		}
-		else {
-			console.log(`No unit test named ${testPath}`)
+	}
+	else {
+		for (const stub of allNonOptions()) {
+			console.log(centered(`BUILD PARSER ${stub}`, hStyle))
+			const heraFileName = `${stub}.parse.hera`
+			const heraPath = findFile(heraFileName)
+			assert(defined(heraPath), `Can't find file: ${heraFileName}`)
+			await procOneFile(heraPath, doCompileHera, {force, inspect})
+			if (doTest) {
+				const testFileName = withExt(heraFileName, '.test.civet')
+				const testPath = findFile(testFileName)
+				if (defined(testPath)) {
+					await procOneFile(testPath, doCompileCivet, {force})
+					await procOneFile(withExt(heraPath, '.ts'), doUnitTest)
+				}
+				else {
+					console.log(`No unit test named ${testPath}`)
+				}
+			}
 		}
 	}
 }
+catch (err) {
+	ERR(getErrStr(err))
+}
+
+

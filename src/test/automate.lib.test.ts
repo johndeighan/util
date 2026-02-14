@@ -6,7 +6,6 @@ import {defined, isHash, isFunction} from 'datatypes'
 import {o} from 'llutils'
 import {withExt, TPathInfo, isFile} from 'fsys'
 import {DBG} from 'logger'
-import {execCmd} from 'exec'
 import {
 	TTesterFunc, TCompileStatus, TCompilerFunc, TPostProcessor,
 	TCompilerInfo, isCompilerInfo, TCompilerConfig, isCompilerConfig,
@@ -24,7 +23,7 @@ import {
 
 const setup = async (): AutoPromise<void> => {
 
-	await setDirTree(`./src/test/automate clear
+	await setDirTree(`./src/test/automate
 test1.cielo
 	# test1.cielo
 
@@ -170,3 +169,4 @@ fails(() => compileFile('nosuchfile.civet'));
 	truthy(isFile('src/test/automate/test1.temp.civet'))
 }
 	)()
+

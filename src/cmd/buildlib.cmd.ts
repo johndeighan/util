@@ -1,56 +1,70 @@
 "use strict";
 // buildlib.cmd.civet
 
-import {stdChecks, o} from 'llutils'
-import {assert, defined} from 'datatypes'
-import {nonOption, allNonOptions, flag} from 'cmd-args'
-import {withExt, findFile} from 'fsys'
-import {
-	procFiles, procOneFile, doUnitTest, doInstallCmd,
-	} from 'exec'
+import {assert, defined, getErrStr} from 'datatypes'
+import {stdChecks, o, centered} from 'llutils'
+import {nonOption, allNonOptions, getFlags} from 'cmd-args'
+import {LOG, ERR} from 'logger'
+import {withExt, findFile, relpath} from 'fsys'
+import {procFiles, procOneFile, doUnitTest} from 'exec'
 import {doCompileCivet} from 'civet'
 
-stdChecks("buildlib -nf (all | <stub>*)")
+stdChecks(`buildlib -ftI (all | <stub>*)
+   -f = force, i.e. always compile
+   -t = test, i.e. run unit tests
+   -I = use Chrome debugger for compile
+   -J = use Chrome debugger for unit test`)
 
 // ---------------------------------------------------------------------------
 
-const force = flag('f')
-if (force) {
-	console.log(`force = ${force}`)
-}
+const hStyle  = {char: '=', color: 'cyan'}
+try {
+	// --- echoes if flag is set
+	const {force, doTest, inspect, inspectTest} = getFlags({
+		force: 'f',
+		doTest: 't',
+		inspect: 'I',
+		inspectTest: 'J'
+		})
 
-// --- even with noTest, we'll compile and type check the unit tests
-const noTest = flag('n')
-if (noTest) {
-	console.log(`noTest = ${noTest}`)
-}
-
-if (nonOption(0) === 'all') {
-	await procFiles(['*.lib.civet', doCompileCivet], {force})
-	await procFiles(['*.lib.test.civet', doCompileCivet], {force})
-	if (!noTest) {
-		await procFiles(['*.lib.test.ts', doUnitTest])
+	if (nonOption(0) === 'all') {
+		LOG(centered("BUILD ALL LIBS", hStyle))
+		await procFiles([doCompileCivet, ['**/*.lib.civet']], {force})
+		if (doTest) {
+			await procFiles([doCompileCivet, ['**/*.lib.test.civet']], {force})
+			await procFiles([doUnitTest, ['**/*.lib.test.ts']], {capture: false})
+		}
 	}
-}
-else {
-	for (const stub of allNonOptions()) {
-		const fileName = `${stub}.lib.civet`
-		const path = findFile(fileName)
-		assert(defined(path), `No such file: ${fileName}`)
-		await procOneFile(path, doCompileCivet, {force})
+	else {
+		for (const stub of allNonOptions()) {
+			const fileName = `${stub}.lib.civet`
+			const path = findFile(fileName)
+			assert(defined(path), `No such file: ${fileName}`)
+			LOG(centered(`BUILD LIB ${relpath(path)}`, hStyle))
+			await procOneFile(path, doCompileCivet, {force, inspect})
 
-		// --- compile and check unit test file
-		const testFileName = `${stub}.lib.test.civet`
-		const testPath = findFile(testFileName)
-		if (defined(testPath)) {
-			await procOneFile(testPath, doCompileCivet, {force})
-			if (!noTest) {
-				const tsPath = withExt(testPath, '.ts')
-				const hResult = await procOneFile(tsPath, doUnitTest, o`!capture`)
+			if (doTest) {
+				// --- compile and check unit test file
+				const testFileName = `${stub}.lib.test.civet`
+				const testPath = findFile(testFileName)
+				if (defined(testPath)) {
+					LOG(centered(`COMPILE TEST ${relpath(testPath)}`, hStyle))
+					await procOneFile(testPath, doCompileCivet, {force})
+					const tsPath = withExt(testPath, '.ts')
+					LOG(centered(`RUN TEST ${relpath(tsPath)}`, hStyle))
+					const hResult = await procOneFile(tsPath, doUnitTest, {
+						capture: false,
+						inspect: inspectTest
+						})
+				}
+				else {
+					LOG(`No unit test exists for ${stub}.lib`)
+				}
 			}
 		}
-		else {
-			console.log(`No unit test for ${stub}.lib`)
-		}
 	}
 }
+catch (err) {
+	ERR(getErrStr(err))
+}
+

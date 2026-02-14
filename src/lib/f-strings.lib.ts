@@ -29,7 +29,7 @@ export const f = (
 		): string => {
 
 	const [firstStr, mainWidth, mainEsc, mainColor] = fsplit(lStrings[0])
-	const lParts = Array.from(syncMapper<unknown,string>(lValues, function*(val: unknown, i: number): TIterator<string, TMaybeCmd> {
+	const iterParts = syncMapper(lValues, function*(val, i): TIterator<string, TMaybeCmd> {
 		const [str, width, doEsc, color] = fsplit(lStrings[i+1])
 		let ref;switch(typeof val) {
 			case 'string': {
@@ -45,31 +45,19 @@ export const f = (
 		yield result + str
 		return
 	})
-		)
+	const lParts = Array.from(iterParts)
 	const mainStr = [firstStr, ...lParts].join('')
 	return formatStr(mainStr, mainWidth, mainEsc, mainColor, '-')
 }
 
 // ---------------------------------------------------------------------------
 
-export const formatStr = (
+export const colorize = (
 		str: string,
-		width: number,
-		doEsc: boolean,
-		color: string,
-		justify: '-' | ''
+		color: (string | undefined)
 		): string => {
 
-	const valStr = doEsc ? esc(str) : str
-	const outstr = width ? sprintf(`%${justify}${width}s`, valStr) : valStr
-	return colorize(outstr, color)
-}
-
-// ---------------------------------------------------------------------------
-
-export const colorize = (str: string, color: string) => {
-
-	if (color in hColor) {
+	if (color && (color in hColor)) {
 		switch(color) {
 			case 'cyan': { return cyan(str)
 			}
@@ -83,12 +71,24 @@ export const colorize = (str: string, color: string) => {
 			}
 			case 'magenta': { return magenta(str)
 			}
-			default: { return str }
 		}
 	}
-	else {
-		return str
-	}
+	return str
+}
+
+// ---------------------------------------------------------------------------
+
+export const formatStr = (
+		str: string,
+		width: number,
+		doEsc: boolean,
+		color: (string | undefined),
+		justify: '-' | ''
+		): string => {
+
+	const valStr = doEsc ? esc(str) : str
+	const outstr = width ? sprintf(`%${justify}${width}s`, valStr) : valStr
+	return colorize(outstr, color)
 }
 
 // ---------------------------------------------------------------------------
@@ -122,3 +122,4 @@ export const fsplit = (str: string): [string, number, boolean, string] => {
 		return [str, 0, false, '']
 	}
 }
+

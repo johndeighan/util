@@ -3,7 +3,7 @@
 
 import {esc, mesc} from 'unicode'
 import {
-	doCompileHera, compileHera,
+	doCompileHera, preprocessHera,
 	} from 'hera-compile'
 import {
 	equal, truthy, falsy, succeeds, fails,
@@ -13,12 +13,12 @@ import {
 
 // --- Very simple rule
 
-equal(esc(compileHera(`Main
+equal(esc(preprocessHera(`Main
 	/abc/`)), 'Main↓˳˳/abc/')
 
 // --- Very simple rule, with comment and blank like
 
-equal(mesc(compileHera(`# file
+equal(mesc(preprocessHera(`# file
 
 Main
 	/abc/`)), `#˳file↓
@@ -28,7 +28,7 @@ Main↓
 
 // --- Some code to execute
 
-equal(mesc(compileHera(`Main
+equal(mesc(preprocessHera(`Main
 	/abc/ ->
 		write`)), `Main↓
 ˳˳/abc/˳->↓
@@ -36,13 +36,13 @@ equal(mesc(compileHera(`Main
 
 // --- This should fail, '->' is missing
 
-fails(() => compileHera(`Main
+fails(() => preprocessHera(`Main
 	/abc/
 		write`))
 
 // --- add a code block
 
-equal(mesc(compileHera(`# --- my parser
+equal(mesc(preprocessHera(`# --- my parser
 
 \`\`\`
 	console.log('Hello');
@@ -62,7 +62,7 @@ Main↓
 
 // --- add a multiple code blocks
 
-equal(mesc(compileHera(`# --- my parser
+equal(mesc(preprocessHera(`# --- my parser
 
 \`\`\`
 	console.log('Hello');
@@ -90,7 +90,7 @@ Main↓
 
 // --- Multiple Rules
 
-equal(mesc(compileHera(`Main
+equal(mesc(preprocessHera(`Main
 	Root "abc" ->
 		write $2
 
@@ -105,3 +105,4 @@ Root↓
 ˳˳/\..*/˳->↓
 ˳˳˳˳write˳$1↓
 ˳˳˳˳exit`)
+

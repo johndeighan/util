@@ -8,19 +8,19 @@ import {existsSync} from '@std/fs'
 import {uni, esc} from 'unicode'
 import {
 	undef, defined, notdefined, assertIsDefined,
-	assert, croak, hash, isEmpty, nonEmpty,
+	assert, croak, hash, isEmpty, nonEmpty, getErrStr,
 	} from 'datatypes'
 import {
 	allLinesInBlock, arrayToBlock, getOptions,
-	f, sep, pass, untabify, getErrStr,
+	f, sep, pass, untabify,
 	} from 'llutils'
 import {resetOneIndent, splitLine, indented} from 'indent'
+import {LOG, DBG, ERR} from 'logger'
 import {debugging} from 'cmd-args'
 import {ML} from 'to-nice'
 import {fileExt, withExt, isValidStub, pathStr} from 'fsys'
 import {
-	execCmd, CFileHandler, TExecResult,
-	procFiles, doUnitTest,
+	execCmd, CFileHandler, THandlerResult,
 	} from 'exec'
 
 // ---------------------------------------------------------------------------
@@ -34,7 +34,7 @@ export class CHeraCompiler extends CFileHandler {
 	override async handle(
 			path: string,
 			hOptions: hash = {}
-			): AutoPromise<TExecResult> {
+			): AutoPromise<THandlerResult> {
 
 		assert((fileExt(path) === '.hera'), "Not a hera file")
 		const destPath = withExt(path, '.ts')
@@ -43,41 +43,38 @@ export class CHeraCompiler extends CFileHandler {
 				&& existsSync(destPath)
 				&& (statSync(destPath).mtimeMs > statSync(path).mtimeMs)
 				) {
-			return {success: true}
+			return {path, success: true}
 		}
 
 		try {
 			const inProc = (str: string): string => {
-				return compileHera(str, hOptions)
+				return preprocessHera(str, hOptions)
 			}
 
 			const outProc = (str: string): string => {
-				return '#@ts-nocheck\n' + str.replaceAll('@danielx', 'npm:@danielx')
+				return '// @ts-nocheck\n' + str.replaceAll('@danielx', 'npm:@danielx')
 			}
 
 			const hResult = await execCmd('deno', [
 				'run',
 				'-A',
 				'npm:@danielx/hera',
-				'--module'
+				'--module',
+				(hOptions.debug ? '--inspect-brk' : '')
 			], {
 				infile: path,
 				inProc,
 				outfile: destPath,
 				outProc
 				})
-			assert(hResult.success, "FAILED")
-			assert(existsSync(destPath), `Missing file: ${destPath}`)
-			return hResult
+			return {...hResult, path}
 		}
 
 		catch (err) {
-			if (debugging) {
-				console.log(getErrStr(err))
-			}
 			const errMsg = `HERA COMPILE FAILED: ${pathStr(path)} - ${getErrStr(err)}`
 			return {
 				success: false,
+				path,
 				stderr: errMsg,
 				output: errMsg
 				}
@@ -112,7 +109,9 @@ let ruleMatch = (
 	}
 \`\`\``
 
-export const compileHera = (
+// ---------------------------------------------------------------------------
+
+export const preprocessHera = (
 		code: string,
 		hOptions: hash = {}
 		): string => {
@@ -324,3 +323,4 @@ export const compileHera = (
 
 	return lLines.join('\n')
 }
+

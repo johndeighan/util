@@ -96,3 +96,4 @@ export class Section {
 		return this.level ? indented(mapped, this.level) : mapped
 	}
 }
+

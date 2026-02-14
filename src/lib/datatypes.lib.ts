@@ -29,7 +29,6 @@ export const assert: TAssertFunc = (
 		): asserts cond => {
 
 	if (!cond) {
-		console.log(`ERROR: ${msg}`)
 		croak(msg)
 	}
 	return
@@ -661,3 +660,20 @@ export const jsType = (x: unknown): string => {
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------
+
+export const getErrStr = (err: unknown): string => {
+
+	if (typeof err === 'string') {
+		return err
+	}
+	else if (err instanceof Error) {
+		return err.message
+	}
+	else {
+		return "Serious Error"
+	}
+}
+
+

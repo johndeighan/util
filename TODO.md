@@ -1,6 +1,34 @@
 to do
 
-work on compileall.civet & compileall.lib.civet
+respond to issue in github civet page
+
+Run 'ttest' and figure out why all frames are being filtered
+
+in hera-parse.doParse()
+	display matched string along with matches
+
+run unit tests from bottom up
+
+doUnitTest should just display a summary unless there were errors
+
+Execute this:
+	clear && buildpar -n dir-tree && runtemp
+It indicates an error, but provides no information
+Actually, I think the tests should pass???
+
+in unit-test
+	work with temp.civet to be sure of the file ops created
+	modify execFileOps to keep an array of path parts
+		- ops pushWD and popWD should operate on that array
+		- barf should construct the file path using that array
+
+try using mapSourcePos() and command mapsrc to see
+	why unit tests don't display correct line numbers
+
+Test procFiles() using the doEchoFile handler
+
+work on compile-all-libs.civet
+	- use doCompileCivet and procFiles() to compile
 	- continue testing
 	- consider making allFilesMatching() root '.'
 	- create compiled exe file

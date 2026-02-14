@@ -9,7 +9,7 @@ import {
 	equal, truthy, falsy, fails, succeeds, iterEqual, iterLike,
 	like, strListLike, objListLike,
 	matches, includes, includesAll,
-	TFileOp, setDirTree, fileOpsTable,
+	TFileOp, setDirTree, getFileOps, fileOpsTable,
 	sampleVal, allTrue, allFalse, generateSync, generateAsync,
 	} from 'unit-test'
 
@@ -162,8 +162,7 @@ ${spaces(13)}FILE OPS
 ----- -------------------- --------
 mkDir /usr/bin
 barf  /usr/bin/deighan.txt <empty>
-barf  /usr/bin/temp.txt    abc
-${spaces(27)}def
+barf  /usr/bin/temp.txt    abc↓def
 -----------------------------------`)
 }
 	)()
@@ -176,4 +175,31 @@ truthy(allTrue(['emptyStr', 'str'],
 truthy(allFalse(['genFunc', 'regularFunc', 'lambdaFunc'],
 	(x) => (typeof x !== 'function')))
 
-equal(await Array.fromAsync(generateAsync([1, 2, 3, 4, 5])), [1, 2, 3, 4, 5])
+equal(await Array.fromAsync(generateAsync([1, 2, 3, 4, 5])), [1, 2, 3, 4, 5]);
+
+// ---------------------------------------------------------------------------
+
+(async () => {
+	const lFileOps = await getFileOps(`./src/test/automate clear
+test1.ts
+	LOG("Hello, World!");
+/subdir
+	test1.cielo
+		LOG "Hello, World!"`)
+	equal(lFileOps, [
+		{ op: "clearDir", path: "./src/test/automate" },
+		{
+			op: "barf",
+			path: "./src/test/automate/test1.ts",
+			contents: 'LOG("Hello, World!");\n'
+			},
+		{ op: "mkDir", path: "./src/test/automate/subdir" },
+		{
+			op: "barf",
+			path: "./src/test/automate/subdir/test1.cielo",
+			contents: 'LOG "Hello, World!"'
+			}
+		])
+}
+	)()
+

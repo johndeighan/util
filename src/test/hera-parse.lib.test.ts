@@ -13,11 +13,13 @@ import {
 
 equal(esc(str2indents(`file
 	abc
-	def`)), 'file↓»abc↓def«')
+	def`)), 'file↓»abc↓def↓«')
 
 equal(esc(str2indents(`file
 	abc
 		def
 /dir
 	file
-		xyz`)), 'file↓»abc↓»def↓««/dir↓»file↓»xyz««')
+		xyz`)), 'file↓»abc↓»def↓««/dir↓»file↓»xyz↓««')
+
+

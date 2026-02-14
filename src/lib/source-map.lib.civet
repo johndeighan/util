@@ -6,47 +6,73 @@ import {SourceMapConsumer} from 'npm-source-map'
 
 import {
 	undef, assert, defined, notdefined, hash, croak,
-	assertIsDefined, assertIsString,
+	assertIsDefined, assertIsString, getErrStr,
 	} from 'datatypes'
 import {
 	getOptions, THashEntry, TEntryFilter, filterHash,
 	} from 'llutils'
 import {OL, DUMP} from 'to-nice'
+import {LOG, DBG, ERR} from 'logger'
+import {TextTable} from 'text-table'
 import {
 	fromJsonFile, parsePath, mkpath, normalizePath, relpath,
-	toFullPath,
+	toFullPath, isFile, fileExt,
 	} from 'fsys'
 
 # --- Get info about all known source maps
-sourceMapPath := './sourcemap.json'
+sourceMapPath := "C:/Users/johnd/util/sourcemaps.json"
+sourceMapURL := "file:///#{sourceMapPath}"
 
 # ---------------------------------------------------------------------------
 
 export type RawSourceMap = {
-	version: number;        // The version of the source map spec (usually 3)
-	file: string;           // The generated file this map is associated with
-	sources: string[];      // Array of URLs to the original source files
-	names: string[];        // Array of identifiers (names) used in the mappings
-	sourceRoot?: string;    // Optional: URL root for the sources
-	sourcesContent?: string[]; // Optional: Content of the original source files
-	mappings: string;       // The actual encoded mappings (Base64 VLQ)
+	version: number;           # The version of the source map spec (usually 3)
+	file: string;              # The generated file this map is associated with
+	sources: string[];         # Array of URLs to the original source files
+	names: string[];           # Array of identifiers (names) used in the mappings
+	sourceRoot?: string;       # Optional: URL root for the sources
+	sourcesContent?: string[]; # Content of the original source files (optional)
+	mappings: string;          # The actual encoded mappings (Base64 VLQ)
 	}
 
 # ---------------------------------------------------------------------------
-# --- This allows the file to be missing
 
 type TSourceMaps = {
 	[path: string]: RawSourceMap
 	}
 
-hSourceMaps: TSourceMaps := await (() =>
-	try
-		{default: data} := await import(sourceMapPath, {with: {type: 'json'}})
-			# --- Or 'assert: { type: "json" }' depending on Deno version
-		return data as TSourceMaps
-	catch err
-		return {}
-	)()
+let hSourceMaps: TSourceMaps = (
+	if isFile(sourceMapPath)
+		content := Deno.readTextFileSync(sourceMapPath)
+		JSON.parse(content)
+	else
+		{}
+	)
+
+# --- This allows the file to be missing
+# let hSourceMaps: TSourceMaps = await (() =>
+# 	try
+# 		{default: data} := await import(sourceMapURL, {with: {type: 'json'}})
+# 		return data as TSourceMaps
+# 	catch err
+# 		return {}
+# 	)()
+
+# ---------------------------------------------------------------------------
+
+export getSourceMapFor := (path: string): RawSourceMap? =>
+
+	return hSourceMaps[path]
+
+# ---------------------------------------------------------------------------
+
+export numSourceMaps := (): number =>
+
+	return Object.keys(hSourceMaps).length
+
+# ---------------------------------------------------------------------------
+
+export orgNumSourceMaps := numSourceMaps()
 
 # ---------------------------------------------------------------------------
 
@@ -151,66 +177,50 @@ export orgPos := (
 # ---------------------------------------------------------------------------
 
 type TStrictFilePos = {
-	source: string?
+	source: string
 	line: number
 	col: number
 	}
 
+# --- This allows passing in a full stack frame
+#     as long as it has fields source, line and col
 export type TFilePos = TStrictFilePos & {
 	[key: string | symbol]: unknown
 	}
 
+# ---------------------------------------------------------------------------
+# --- returns undef if for any reason, it can't map
+
 export mapSourcePos := (
 		h: TFilePos,
-		hOptions: hash = {}
-		): TFilePos =>
+		): TStrictFilePos? =>
 
-	type opt = {
-		debug: boolean
-		}
-	{debug} := getOptions<opt> hOptions, {
-		debug: false
-		}
+	try
+		{source, line, col} := h
 
-	{source, line, col} := h
+		assert source, "EMPTY source in mapSourcePos"
+		assert existsSync(source), "No such file: #{source}"
 
-	assert source, "EMPTY source in mapSourcePos"
-	assert (source != 'unknown'), "unknown source in mapSourcePos"
-	assert existsSync(source), "No such file: #{source}"
+		path := toFullPath(source)
+		DBG "Search for key #{path} in sourcemap.json"
 
-	path := mkpath(source)
-	if debug
-		console.log "Search for key #{path} in sourcemap.json"
+		hSrcMap: RawSourceMap := hSourceMaps[path] as RawSourceMap
+		assert defined(hSrcMap), "Not found in source map: #{path}"
+		# @ts-ignore
+		{version, sources, mappings, names} := hSrcMap as RawSourceMap
+		assert (version == 3), "Bad version: #{version}"
+		lMappings := getMappings(mappings)
+		[fileNum, srcLine, srcCol] := orgPos(lMappings, line, col)
 
-	hSrcMap: RawSourceMap := hSourceMaps[path] as RawSourceMap
-	assert defined(hSrcMap), "Not found in source map: #{path}"
-	# @ts-ignore
-	{version, sources, mappings, names} := hSrcMap as RawSourceMap
-	assert (version == 3), "Bad version: #{version}"
-	lMappings := getMappings(mappings)
-	[fileNum, srcLine, srcCol] := orgPos(lMappings, line, col)
-
-#	# --- Use the with() helper for automatic consumer handling
-#	let newSource, newLine, newCol
-#	SourceMapConsumer.with hSrcMap, null, (consumer) =>
-#		# --- Find the original position
-#		{
-#			source: newSource,
-#			line: newLine,
-#			column: newCol
-#			} = consumer.originalPositionFor {line, column: col}
-
-#	assert defined(newLine), "OPF returned line #{newLine}"
-#	assert defined(newCol), "OPF returned #{newCol}"
-#	assert defined(newSource), "OPF returned source #{newSource}"
-
-	if debug
-		console.log "   FOUND: #{source}"
-	return {
-		source: sources[fileNum]
-		line: srcLine
-		col: srcCol
-		}
+		DBG "   FOUND: #{source}"
+		return {
+			source: sources[fileNum]
+			line: srcLine
+			col: srcCol
+			}
+	catch err
+		DBG "ERROR: #{getErrStr(err)}"
+		return undef
 
 # ---------------------------------------------------------------------------
 
@@ -227,19 +237,22 @@ export extractSourceMap := (
 			(.+)
 			$///s
 	if (lMatches == null)
-		return [contents, undefined]
-	code := lMatches[1].trim()
-	hSrcMap := JSON.parse(atob(lMatches[2].trim())) as RawSourceMap
+		return [contents, undef]
+	[_, code, hSrcMapStr] := lMatches
+	hSrcMap := JSON.parse(atob(hSrcMapStr)) as RawSourceMap
 	{file} := hSrcMap
-	hSrcMap.file = normalizePath(file.replace('.tsx', '.ts'))
+	if file.includes('.tsx')
+		ERR "file ends with .tsx in source map"
+	hSrcMap.file = relpath(file)
 	hSrcMap.sources = for path of hSrcMap.sources
-		normalizePath(path)
+		relpath(path)
 	return [code, hSrcMap]
 
 # ---------------------------------------------------------------------------
 
 export haveSourceMapFor := (path: string): boolean =>
 
+	assert (fileExt(path) == '.ts'), "Not a .ts file: #{path}"
 	return (toFullPath(path) in hSourceMaps)
 
 # ---------------------------------------------------------------------------
@@ -255,11 +268,53 @@ export addSourceMap := (
 # ---------------------------------------------------------------------------
 # ASYNC
 
-export saveSourceMaps := (): void =>
+export saveSourceMaps := (): number =>
 
 	await Deno.writeTextFile(
 		sourceMapPath
 		JSON.stringify(hSourceMaps, null, 3)
 		)
-	return
+	return numSourceMaps()
 
+# ---------------------------------------------------------------------------
+
+export dumpSourceMapFor := (
+		path: string
+		hOptions: hash = {}
+		): void =>
+
+	type opt = {
+		linesOnly: boolean
+		}
+	{linesOnly} := getOptions<opt> hOptions, {
+		linesOnly: false
+		}
+
+	fullPath := toFullPath path
+	hSrcMap := getSourceMapFor(fullPath)
+	if notdefined(hSrcMap)
+		LOG "There is not source map for #{path}"
+		return
+	assert (hSrcMap.version == 3), "Not version 3"
+	assert (hSrcMap.sources.length == 1), "Multiple sources"
+
+	lMappings := getMappings(hSrcMap.mappings)
+
+	fmtStr := (linesOnly ? 'r r r' : 'r r r r r')
+	table := new TextTable(fmtStr, {decPlaces: 0})
+	table.title   relpath(hSrcMap.file)
+	table.fullsep '-'
+	if linesOnly
+		table.labels  ['ts line', '=>', 'cv line']
+		let prevLine = -1
+		for item of lMappings
+			[line, col, iFile, iLine, iCol] := item
+			if (line != prevLine)
+				table.data [line, '=>', iLine]
+				prevLine = line
+	else
+		table.labels  ['line', 'col', '=>', 'line', 'col']
+		for item of lMappings
+			[line, col, iFile, iLine, iCol] := item
+			table.data [line, col, '=>', iLine, iCol]
+	LOG table.asString()

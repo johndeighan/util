@@ -16,6 +16,7 @@ assert isFile(source), "No such file: #{source}"
 
 for str,i of allNonOptions()
 	if (i == 0)
+		# --- skip the path
 		continue
 	assert defined(str), "Missing line number"
 	assert str.match(/^\d+$/), "Bad line number: #{str}"
@@ -25,5 +26,6 @@ for str,i of allNonOptions()
 		line: parseInt(str)
 		col: 1
 		}
+	console.log "Line #{str} maps to:"
 	console.dir hPos
 

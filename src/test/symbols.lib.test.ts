@@ -64,3 +64,4 @@ equal(getNeededImportStmts(['defined','array']), [
 equal(getNeededImportStmts(['arrayof','integer']), [
 	"import {arrayof, integer} from 'datatypes';"
 	])
+

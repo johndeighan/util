@@ -244,7 +244,7 @@ import {generateSync, generateAsync, equal} from 'unit-test';
 
 	type TAcc = [number, number]
 
-	const [sum, sumsq] = syncReducer([1, 2, 3, 4], [0, 0], function*(acc, n) {
+	const [sum, sumsq] = syncReducer([1, 2, 3, 4], [0, 0], function*(acc, n)  {
 		const [sum, sumsq] = acc
 		yield (n % 2 === 0) ? [sum + n, sumsq + n*n] : acc
 		return
@@ -288,7 +288,7 @@ import {generateSync, generateAsync, equal} from 'unit-test';
 
 	type TAcc = [number, number]
 
-	const [sum, sumsq] = syncReducer([1, 2, 3, 4], [0, 0], function(acc, n) {
+	const [sum, sumsq] = syncReducer([1, 2, 3, 4], [0, 0], function(acc, n)  {
 		const [sum, sumsq] = acc
 		return (n % 2 === 0) ? [sum + n, sumsq + n*n] : acc
 	})
@@ -296,12 +296,12 @@ import {generateSync, generateAsync, equal} from 'unit-test';
 	equal(sum, 6)
 	equal(sumsq, 20)
 }
-	)()
+	)();
 
 // ---------------------------------------------------------------------------
 // --- test mapper()
 
-await (async () => {
+(async () => {
 	// --- pure mapping, using array
 
 	const iterStrings = mapper([1, 2, 3, 4], function*(n) {
@@ -316,9 +316,9 @@ await (async () => {
 		"number is 4"
 		])
 }
-	)()
+	)();
 
-await (async () => {
+(async () => {
 	// --- pure mapping, using sync generator
 
 	const iterStrings = mapper(generateSync([1, 2, 3, 4]), function*(n) {
@@ -338,7 +338,7 @@ await (async () => {
 await (async () => {
 	// --- pure mapping, using async generator
 
-	const iterStrings = mapper(generateAsync([1, 2, 3, 4]), function*(n) {
+	const iterStrings = await mapper(generateAsync([1, 2, 3, 4]), function*(n) {
 		yield `number is ${n}`
 		return
 	})
@@ -356,7 +356,7 @@ await (async () => {
 	// --- pure mapping, using async generator as input
 	//     and async generator for mapper
 
-	const iterStrings = mapper(generateAsync([1, 2, 3, 4]), async function*(n) {
+	const iterStrings = await mapper(generateAsync([1, 2, 3, 4]), async function*(n) {
 		await sleep(1)
 		yield `number is ${n}`
 		return
@@ -374,7 +374,7 @@ await (async () => {
 await (async () => {
 	// --- pure mapping
 
-	const iterStrings = mapper(generateAsync([1, 2, 3, 4]), function*(n) {
+	const iterStrings = await mapper(generateAsync([1, 2, 3, 4]), function*(n) {
 		yield `number is ${n}`
 		return (n===2) ? 'stop' : undef
 	})
@@ -389,7 +389,7 @@ await (async () => {
 await (async () => {
 	// --- pure filtering
 
-	const iterItems = mapper(generateAsync([1, 2, 3, 4]), function*(n) {
+	const iterItems = await mapper(generateAsync([1, 2, 3, 4]), function*(n) {
 		if (n % 2 === 0) {
 			yield n
 		}
@@ -407,7 +407,7 @@ await (async () => {
 		return (n === 3)
 	}
 
-	const iterNum = mapper(generateAsync([1, 2, 3, 4]), function*(n) {
+	const iterNum = await mapper(generateAsync([1, 2, 3, 4]), function*(n) {
 		if (n % 2 === 0) {
 			yield n
 		}
@@ -421,7 +421,7 @@ await (async () => {
 await (async () => {
 	// --- combined filtering and mapping
 
-	const iterStr = mapper(generateAsync([1, 2, 3, 4]), function*(n) {
+	const iterStr = await mapper(generateAsync([1, 2, 3, 4]), function*(n) {
 		if (n % 2 === 0) {
 			yield `2n = ${2*n}`
 			yield `number is ${10 * n}`
@@ -443,7 +443,7 @@ await (async () => {
 await (async () => {
 	// --- pure mapping
 
-	const iterStrings = mapper(generateAsync([1, 2, 3, 4]), (n) => {
+	const iterStrings = await mapper(generateAsync([1, 2, 3, 4]), (n) => {
 		return `number is ${n}`
 	})
 
@@ -459,7 +459,7 @@ await (async () => {
 await (async () => {
 	// --- pure mapping
 
-	const iterStrings = mapper(generateAsync([1, 2, 3, 4]), (n) => {
+	const iterStrings = await mapper(generateAsync([1, 2, 3, 4]), (n) => {
 		return (n < 3) ? `number is ${n}` : undef
 	})
 
@@ -473,7 +473,7 @@ await (async () => {
 await (async () => {
 	// --- pure filtering
 
-	const iterItems = mapper(generateAsync([1, 2, 3, 4]), (n) => {
+	const iterItems = await mapper(generateAsync([1, 2, 3, 4]), (n) => {
 		return (n % 2 === 0) ? n : undef
 	})
 
@@ -484,7 +484,7 @@ await (async () => {
 await (async () => {
 	// --- combined filtering and mapping
 
-	const iterStr = mapper(generateAsync([1, 2, 3, 4]), (n) => {
+	const iterStr = await mapper(generateAsync([1, 2, 3, 4]), (n) => {
 		return (n % 2 === 0) ? `number is ${10 * n}` : undef
 	})
 
@@ -509,9 +509,9 @@ await (async () => {
 
 	equal(sum, 10)
 }
-	)()
+	)();
 
-await (async () => {
+(async () => {
 	// --- reducing (getting the sum)
 
 	const sum = await reducer([1, 2, 3, 4], 0, function*(acc, n) {
@@ -533,9 +533,9 @@ await (async () => {
 
 	equal(sum, 3)
 }
-	)()
+	)();
 
-await (async () => {
+(async () => {
 	// --- reducing (getting the sum, early abort)
 
 	const sum = await reducer([1, 2, 3, 4], 0, function*(acc, n) {
@@ -561,9 +561,9 @@ await (async () => {
 	equal(sum, 10)
 	equal(sumsq, 30)
 }
-	)()
+	)();
 
-await (async () => {
+(async () => {
 	// --- reducing (getting the sum AND sum of squares)
 
 	type TAcc = [number, number]
@@ -594,9 +594,9 @@ await (async () => {
 	equal(sum, 6)
 	equal(sumsq, 20)
 }
-	)()
+	)();
 
-await (async () => {
+(async () => {
 	// --- reducing
 	//     (getting the sum AND sum of squares of only even nums)
 
@@ -625,9 +625,9 @@ await (async () => {
 
 	equal(sum, 10)
 }
-	)()
+	)();
 
-await (async () => {
+(async () => {
 	// --- reducing (getting the sum)
 
 	const sum = await reducer([1, 2, 3, 4], 0, (acc, n) => {
@@ -647,9 +647,9 @@ await (async () => {
 
 	equal(sum, 3)
 }
-	)()
+	)();
 
-await (async () => {
+(async () => {
 	// --- reducing (getting the sum, early abort)
 
 	const sum = await reducer([1, 2, 3, 4], 0, (acc, n) => {
@@ -673,9 +673,9 @@ await (async () => {
 	equal(sum, 10)
 	equal(sumsq, 30)
 }
-	)()
+	)();
 
-await (async () => {
+(async () => {
 	// --- reducing (getting the sum AND sum of squares)
 
 	type TAcc = [number, number]
@@ -704,9 +704,9 @@ await (async () => {
 	equal(sum, 6)
 	equal(sumsq, 20)
 }
-	)()
+	)();
 
-await (async () => {
+(async () => {
 	// --- reducing
 	//     (getting the sum AND sum of squares of only even nums)
 
@@ -721,3 +721,4 @@ await (async () => {
 	equal(sumsq, 20)
 }
 	)()
+

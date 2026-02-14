@@ -255,7 +255,7 @@ import {generateSync, generateAsync, equal} from 'unit-test'
 # ---------------------------------------------------------------------------
 # --- test mapper()
 
-await (() =>
+(() =>
 	# --- pure mapping, using array
 
 	iterStrings := mapper [1..4], (n) ->
@@ -270,7 +270,7 @@ await (() =>
 		]
 	)()
 
-await (() =>
+(() =>
 	# --- pure mapping, using sync generator
 
 	iterStrings := mapper generateSync([1..4]), (n) ->
@@ -288,7 +288,7 @@ await (() =>
 await (() =>
 	# --- pure mapping, using async generator
 
-	iterStrings := mapper generateAsync([1..4]), (n) ->
+	iterStrings := await mapper generateAsync([1..4]), (n) ->
 		yield "number is #{n}"
 		return
 
@@ -304,7 +304,7 @@ await (() =>
 	# --- pure mapping, using async generator as input
 	#     and async generator for mapper
 
-	iterStrings := mapper generateAsync([1..4]), (n) ->
+	iterStrings := await mapper generateAsync([1..4]), (n) ->
 		await sleep(1)
 		yield "number is #{n}"
 		return
@@ -320,7 +320,7 @@ await (() =>
 await (() =>
 	# --- pure mapping
 
-	iterStrings := mapper generateAsync([1..4]), (n) ->
+	iterStrings := await mapper generateAsync([1..4]), (n) ->
 		yield "number is #{n}"
 		return (n==2) ? 'stop' : undef
 
@@ -333,7 +333,7 @@ await (() =>
 await (() =>
 	# --- pure filtering
 
-	iterItems := mapper generateAsync([1..4]), (n) ->
+	iterItems := await mapper generateAsync([1..4]), (n) ->
 		if (n % 2 == 0)
 			yield n
 		return
@@ -347,7 +347,7 @@ await (() =>
 	abortFunc := (n: number) ->
 		return (n == 3)
 
-	iterNum := mapper generateAsync([1..4]), (n) ->
+	iterNum := await mapper generateAsync([1..4]), (n) ->
 		if (n % 2 == 0)
 			yield n
 		return (n==2) ? 'stop' : undef
@@ -358,7 +358,7 @@ await (() =>
 await (() =>
 	# --- combined filtering and mapping
 
-	iterStr := mapper generateAsync([1..4]), (n) ->
+	iterStr := await mapper generateAsync([1..4]), (n) ->
 		if (n % 2 == 0)
 			yield "2n = #{2*n}"
 			yield "number is #{10 * n}"
@@ -377,7 +377,7 @@ await (() =>
 await (() =>
 	# --- pure mapping
 
-	iterStrings := mapper generateAsync([1..4]), (n) =>
+	iterStrings := await mapper generateAsync([1..4]), (n) =>
 		return "number is #{n}"
 
 	equal await Array.fromAsync(iterStrings), [
@@ -391,7 +391,7 @@ await (() =>
 await (() =>
 	# --- pure mapping
 
-	iterStrings := mapper generateAsync([1..4]), (n) =>
+	iterStrings := await mapper generateAsync([1..4]), (n) =>
 		return (n < 3) ? "number is #{n}" : undef
 
 	equal await Array.fromAsync(iterStrings), [
@@ -403,7 +403,7 @@ await (() =>
 await (() =>
 	# --- pure filtering
 
-	iterItems := mapper generateAsync([1..4]), (n) =>
+	iterItems := await mapper generateAsync([1..4]), (n) =>
 		return (n % 2 == 0) ? n : undef
 
 	equal await Array.fromAsync(iterItems), [2, 4]
@@ -412,7 +412,7 @@ await (() =>
 await (() =>
 	# --- combined filtering and mapping
 
-	iterStr := mapper generateAsync([1..4]), (n) =>
+	iterStr := await mapper generateAsync([1..4]), (n) =>
 		return (n % 2 == 0) ? "number is #{10 * n}" : undef
 
 	equal await Array.fromAsync(iterStr),
@@ -435,7 +435,7 @@ await (() =>
 	equal sum, 10
 	)()
 
-await (() =>
+(() =>
 	# --- reducing (getting the sum)
 
 	sum := await reducer [1..4], 0, (acc, n) ->
@@ -455,7 +455,7 @@ await (() =>
 	equal sum, 3
 	)()
 
-await (() =>
+(() =>
 	# --- reducing (getting the sum, early abort)
 
 	sum := await reducer [1..4], 0, (acc, n) ->
@@ -479,7 +479,7 @@ await (() =>
 	equal sumsq, 30
 	)()
 
-await (() =>
+(() =>
 	# --- reducing (getting the sum AND sum of squares)
 
 	type TAcc = [number, number]
@@ -508,7 +508,7 @@ await (() =>
 	equal sumsq, 20
 	)()
 
-await (() =>
+(() =>
 	# --- reducing
 	#     (getting the sum AND sum of squares of only even nums)
 
@@ -535,7 +535,7 @@ await (() =>
 	equal sum, 10
 	)()
 
-await (() =>
+(() =>
 	# --- reducing (getting the sum)
 
 	sum := await reducer [1..4], 0, (acc, n) =>
@@ -553,7 +553,7 @@ await (() =>
 	equal sum, 3
 	)()
 
-await (() =>
+(() =>
 	# --- reducing (getting the sum, early abort)
 
 	sum := await reducer [1..4], 0, (acc, n) =>
@@ -575,7 +575,7 @@ await (() =>
 	equal sumsq, 30
 	)()
 
-await (() =>
+(() =>
 	# --- reducing (getting the sum AND sum of squares)
 
 	type TAcc = [number, number]
@@ -602,7 +602,7 @@ await (() =>
 	equal sumsq, 20
 	)()
 
-await (() =>
+(() =>
 	# --- reducing
 	#     (getting the sum AND sum of squares of only even nums)
 

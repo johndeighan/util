@@ -88,7 +88,7 @@ export build := (
 	# --- Even though it's a constant, we can still
 	#     append strings to it!
 	lUnitTests: string[] := []
-	pat := "**/#{name}.#{purp}.civet"
+	pat := "src/**/#{name}.#{purp}.civet"
 	for path of allFilesMatching(pat)
 		{fileName, purpose, stub} := parsePath path
 		assert isNonEmptyString(stub), "Empty stub"
@@ -103,7 +103,7 @@ export build := (
 				'.ts'
 				'-c'
 				relpath(path)
-			]
+				]
 			if success
 				LOG "   BUILD OK"
 				# --- type check the TypeScript file
@@ -111,7 +111,7 @@ export build := (
 					'check'
 					'-q'
 					withExt(path, '.ts')
-				]
+					]
 				if hResult.success
 					LOG "   CHECK OK"
 				else
@@ -130,7 +130,7 @@ export build := (
 					stub || 'unknown'
 					'--no-config'
 					withExt(path, '.ts')
-				]
+					]
 				LOG "   INSTALL #{if success then 'OK' else 'FAILED'}"
 			when 'lib'
 				if defined(stub) && not nopp
@@ -193,7 +193,7 @@ export getCompilerConfig := (
 					getOutPaths: (path: string) =>
 						return [withExt(path, '.svg')]
 					tester: =>
-						return execCmdSync('dot', ['--version'], o'quiet').success
+						return execCmdSync('dot', ['--version']).success
 					compiler: (path: string) =>
 						svgPath := withExt path, '.svg'
 						rmFile svgPath
@@ -206,7 +206,7 @@ export getCompilerConfig := (
 					getOutPaths: (path: string) => [withExt(path, '.ts')]
 					tester: =>
 						# --- we need civet to be installed
-						return execCmdSync('civet', ['--version'], o'quiet').success
+						return execCmdSync('civet', ['--version']).success
 					compiler: (path: string) =>
 						# --- start with a *.cielo file
 						civetPath := withExt path, '.temp.civet'
@@ -214,7 +214,7 @@ export getCompilerConfig := (
 						rmFile civetPath # --- needed?
 						rmFile tsPath # --- needed?
 						cielo2civetFile path, civetPath
-						civet2tsFile civetPath, tsPath
+						civet2tsFile civetPath
 						{fileName} := parsePath path
 						patchFirstLine civetPath, fileName, withExt(fileName, '.temp.civet')
 						patchFirstLine tsPath, fileName, withExt(fileName, '.ts')
@@ -223,14 +223,14 @@ export getCompilerConfig := (
 					getOutPaths: (path: string) =>
 						return [withExt(path, '.ts')]
 					tester: =>
-						return execCmdSync('civet', ['--version'], o'quiet').success
+						return execCmdSync('civet', ['--version']).success
 					compiler: (path: string) =>
 						{purpose, fileName} := parsePath path
 						if defined(purpose) && ['temp', 'debug'].includes(purpose)
 							return 'temp'
 						tsPath := withExt path, '.ts'
 						tsName := withExt fileName, '.ts'
-						civet2tsFile path, tsPath
+						civet2tsFile path
 						patchFirstLine tsPath, fileName, tsName
 						return 'compiled'
 			}
@@ -285,7 +285,11 @@ export getPostProcessor := (purpose: string): TPostProcessor? =>
 #        'failed'     - compiling failed
 #        'compiled'   - successfully compiled
 
-export compileFile := (path: string, hOptions: hash = {}): TCompileResult =>
+export compileFile := (
+		path: string,
+		hOptions: hash = {}
+		): TCompileResult =>
+
 	assert isFile(path), "No such file: #{OL(path)}"
 	DBG "COMPILE: #{OL(path)}", INDENT
 	type opt = {
@@ -298,11 +302,19 @@ export compileFile := (path: string, hOptions: hash = {}): TCompileResult =>
 	{stub, purpose, ext} := parsePath path
 	if notdefined(ext)
 		DBG "Not compiling - no file extension in #{OL(path)}", UNDENT
-		return status: 'nocompiler', path: relpath(path)
+		return {
+			status: 'nocompiler'
+			path: relpath(path)
+			}
+
 	hCompilerInfo := getCompilerInfo ext
 	if notdefined(hCompilerInfo)
 		DBG "Not compiling - no compiler for #{OL(ext)}", UNDENT
-		return status: 'nocompiler', path: relpath(path)
+		return {
+			status: 'nocompiler'
+			path: relpath(path)
+			}
+
 	# @ts-ignore
 	{compiler, getOutPaths} := hCompilerInfo
 	lOutPaths := getOutPaths relpath path
@@ -314,7 +326,12 @@ export compileFile := (path: string, hOptions: hash = {}): TCompileResult =>
 			break
 	if allNewer
 		DBG "Not compiling, newer #{OL(lOutPaths)} exist", UNDENT
-		return { status: 'exists', path: relpath(path), lOutPaths }
+		return {
+			status: 'exists'
+			path: relpath(path)
+			lOutPaths
+			}
+
 	DBG "compiling #{OL(path)} to #{OL(lOutPaths)}"
 	status := compiler path
 	let postProcStatus: unknown? = undef
@@ -327,11 +344,21 @@ export compileFile := (path: string, hOptions: hash = {}): TCompileResult =>
 				postProc path
 			catch err
 				postProcStatus = err
+
 	DBG UNDENT
 	if defined(postProcStatus)
-		return { status, path: relpath(path), lOutPaths, postProcStatus }
+		return {
+			status
+			path: relpath(path)
+			lOutPaths
+			postProcStatus
+			}
 	else
-		return { status, path: relpath(path), lOutPaths }
+		return {
+			status
+			path: relpath(path)
+			lOutPaths
+			}
 
 # ---------------------------------------------------------------------------
 # --- GENERATOR
@@ -355,7 +382,7 @@ export runUnitTestsFor := (
 	#     (no error if there is no compiler for the file)
 	build stub
 	# --- Compile and run all unit tests for stub
-	for path of allFilesMatching("**/#{stub}*.test.*")
+	for path of allFilesMatching("src/**/#{stub}*.test.*")
 		{status, lOutPaths} := compileFile path, o'nopp'
 		assert (status != 'failed'), "compile of #{path} failed"
 		if notdefined(lOutPaths)
@@ -365,7 +392,7 @@ export runUnitTestsFor := (
 			assert isFile(outPath), "File #{OL(outPath)} not found"
 		# --- Compile all files in subdir if it exists
 		if isDir("test/#{stub}")
-			for path of allFilesMatching('test/' + stub + '/*')
+			for path of allFilesMatching('src/test/' + stub + '/*')
 				{status, lOutPaths} := compileFile path
 				assert (status != 'failed'), "Compile of #{path} failed"
 				if notdefined(lOutPaths)
@@ -377,7 +404,7 @@ export runUnitTestsFor := (
 				'test'
 				'-qA'
 				outPath
-			]
+				]
 			yield {stub, success}
 	if not verbose
 		popLogLevel()
@@ -398,7 +425,7 @@ export installCmd := (
 			'--config'
 			'deno.json'
 			path
-		]
+			]
 	else
 		await execCmd 'deno', [
 			'install'
@@ -408,7 +435,7 @@ export installCmd := (
 			'--config'
 			'deno.json'
 			path
-		]
+			]
 	return
 
 # ---------------------------------------------------------------------------
@@ -424,7 +451,7 @@ export uninstallCmd := (
 			'uninstall'
 			'-g'
 			path
-		]
+			]
 	else
 		await execCmd 'deno', [
 			'uninstall'
@@ -432,6 +459,6 @@ export uninstallCmd := (
 			'-n'
 			name
 			path
-		]
+			]
 	return
 

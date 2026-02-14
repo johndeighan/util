@@ -35,3 +35,4 @@ equal(f`abc`, "abc");
 	equal(decolorize(str), "meaning is  42")
 }
 	)()
+

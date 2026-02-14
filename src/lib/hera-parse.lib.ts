@@ -5,13 +5,14 @@ type AutoPromise<T> = Promise<Awaited<T>>;
 import {uni, esc} from 'unicode'
 import {
 	undef, defined, notdefined, hash, assert, croak, isEmpty,
-	TStringMapper,
+	TStringMapper, getErrStr, TVoidFunc,
 	} from 'datatypes'
 import {
-	allLinesInBlock, getOptions, sep, getErrStr,
+	allLinesInBlock, getOptions, sep,
 	} from 'llutils'
 import {resetOneIndent, splitLine} from 'indent'
-import {pm} from 'dir-tree'
+import {LOG, DBG, ERR} from 'logger'
+import {CParseMatches} from 'parse-utils';
 
 // ---------------------------------------------------------------------------
 // --- Replaces indentation with uni.shiftin and uni.shiftout
@@ -43,7 +44,14 @@ export const str2indents = (str: string): string => {
 			level = newLevel
 		}
 	}
-	return lParts.join('\n') + uni.shiftout.repeat(level)
+
+	// --- join parts, making sure result ends with a newline
+	const block = (
+		  (lParts.length > 0) && lParts.at(-1)?.endsWith('\n')
+		? lParts.join('\n')
+		: lParts.join('\n') + '\n'
+		)
+	return block + uni.shiftout.repeat(level)
 }
 
 // ---------------------------------------------------------------------------
@@ -69,18 +77,29 @@ export const doParse = async <T = unknown,>(
 	for (const func of lTransforms) {
 		text = func(text)
 	}
-	if (debug) {
-		console.log(esc(text, 'oneline'))
-		const n = Math.floor(text.length / 10) + 1
-		console.log("|         ".repeat(n))
-	}
+//	console.log esc(text, 'oneline')
+//	n := Math.floor(text.length / 10) + 1
+//	console.log "|         ".repeat n
+
+	// --- import things from the parser
+	let pm: CParseMatches
+	let reset: TVoidFunc
+	let parse: (str: string) => unknown
 	try {
-		const {parse} = await import(stub)
-		assert((typeof parse === 'function'), `No such parser: ${stub}`)
+		({pm, reset, parse} = await import(stub))
+	}
+	catch (err) {
+		throw `Bad Parser: ${stub}: ${getErrStr(err)}`
+	}
+
+	// --- Run the parser
+	try {
+		pm.reset()
+		reset()
 		return parse(text) as Awaited<T>
 	}
 	catch (err) {
-		console.log("PARSE ERROR in doParse()")
+		console.log(`PARSE ERROR in doParse(${stub})`)
 		if (stub === 'dir-tree') {
 			// --- Here we should display the string along with
 			//     whatever matches have already been found
@@ -88,6 +107,8 @@ export const doParse = async <T = unknown,>(
 			console.log(pm.matchesStr())
 			console.log(sep('-'))
 			console.log(sep('-', 'debug'))
+			const n = Math.floor(text.length / 10) + 1
+			console.log("|         ".repeat(n))
 			console.log(pm.debugStr(text))
 			console.log(sep('-'))
 		}
@@ -103,3 +124,6 @@ export const doParse = async <T = unknown,>(
 }
 
 // ---------------------------------------------------------------------------
+
+
+

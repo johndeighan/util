@@ -14,7 +14,7 @@ equal esc(str2indents("""
 	file
 		abc
 		def
-	""")), 'file↓»abc↓def«'
+	""")), 'file↓»abc↓def↓«'
 
 equal esc(str2indents("""
 	file
@@ -23,5 +23,5 @@ equal esc(str2indents("""
 	/dir
 		file
 			xyz
-	""")), 'file↓»abc↓»def↓««/dir↓»file↓»xyz««'
+	""")), 'file↓»abc↓»def↓««/dir↓»file↓»xyz↓««'
 

@@ -7,13 +7,17 @@ import {uni, esc} from 'unicode'
 import {
 	undef, defined, assert, croak, hash, hashof,
 	} from 'datatypes'
-import {range, centered, f} from 'llutils'
+import {range, centered} from 'llutils'
+import {f} from 'f-strings'
 import {OL} from 'to-nice'
 import {TextTable} from 'text-table'
 
 // ---------------------------------------------------------------------------
 
-export const slot = (name: string, width: number): [string, string] => {
+export const slot = (
+		name: string,
+		width: number
+		): [string, string] => {
 
 	switch(width) {
 		case 0:
@@ -31,7 +35,7 @@ export const slot = (name: string, width: number): [string, string] => {
 		default:
 			return [
 				uni.blcorner + uni.hbar.repeat(width - 2) + uni.brcorner,
-				centered(name.substring(0, width), ' ', width)
+				centered(name.substring(0, width), {char: ' ', width})
 			]
 	}
 }
@@ -133,3 +137,4 @@ export class CParseMatches {
 		return esc(str) + '\n' + lLines.join('\n')
 	}
 }
+

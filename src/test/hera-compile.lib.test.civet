@@ -2,7 +2,7 @@
 
 import {esc, mesc} from 'unicode'
 import {
-	doCompileHera, compileHera,
+	doCompileHera, preprocessHera,
 	} from 'hera-compile'
 import {
 	equal, truthy, falsy, succeeds, fails,
@@ -12,14 +12,14 @@ import {
 
 # --- Very simple rule
 
-equal esc(compileHera("""
+equal esc(preprocessHera("""
 	Main
 		/abc/
 	""")), 'Main↓˳˳/abc/'
 
 # --- Very simple rule, with comment and blank like
 
-equal mesc(compileHera("""
+equal mesc(preprocessHera("""
 	# file
 
 	Main
@@ -33,7 +33,7 @@ equal mesc(compileHera("""
 
 # --- Some code to execute
 
-equal mesc(compileHera("""
+equal mesc(preprocessHera("""
 	Main
 		/abc/ ->
 			write
@@ -45,7 +45,7 @@ equal mesc(compileHera("""
 
 # --- This should fail, '->' is missing
 
-fails () => compileHera("""
+fails () => preprocessHera("""
 	Main
 		/abc/
 			write
@@ -53,7 +53,7 @@ fails () => compileHera("""
 
 # --- add a code block
 
-equal mesc(compileHera("""
+equal mesc(preprocessHera("""
 	# --- my parser
 
 	```
@@ -77,7 +77,7 @@ equal mesc(compileHera("""
 
 # --- add a multiple code blocks
 
-equal mesc(compileHera("""
+equal mesc(preprocessHera("""
 	# --- my parser
 
 	```
@@ -109,7 +109,7 @@ equal mesc(compileHera("""
 
 # --- Multiple Rules
 
-equal mesc(compileHera("""
+equal mesc(preprocessHera("""
 	Main
 		Root "abc" ->
 			write $2

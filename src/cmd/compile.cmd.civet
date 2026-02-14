@@ -29,7 +29,7 @@ logResult := (hResult: TCompileResult): void =>
 
 if (numNonOptions() == 0)
 	DBG "=====  Compiling all files  ====="
-	for path of allFilesMatching('**/*.{lib,cmd}.civet')
+	for path of allFilesMatching('src/**/*.{lib,cmd}.civet')
 		hResult := compileFile path
 		logResult hResult
 else
@@ -44,13 +44,13 @@ else
 			str: string := item
 			if (lMatches := str.match(/^([A-Za-z0-9_-]+)\.(lib|cmd)$/))
 				[_, stub, purpose] := lMatches
-				pat := '**/' + stub + '.' + purpose + '.*'
+				pat := 'src/**/' + stub + '.' + purpose + '.*'
 				for path of allFilesMatching(pat)
 					DBG "compile file #{OL(path)}"
 					logResult compileFile path
 			else if (lMatches2 := str.match(/^([A-Za-z0-9_-]+)\.(lib|cmd)\.test$/))
 				[_, stub, purpose] := lMatches2
-				pat := '**/' + stub + '.' + purpose + '.test.*'
+				pat := 'src/**/' + stub + '.' + purpose + '.test.*'
 				for path of allFilesMatching(pat)
 					DBG "compile file #{OL(path)}"
 					logResult compileFile(path)

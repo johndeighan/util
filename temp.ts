@@ -1,12 +1,3 @@
-function isIterator<T>(x: unknown): x is Iterator<T> {
-
-	return (
-		   (x !== null)
-		&& (x !== undefined)
-		&& (typeof x === 'object')
-		&& (typeof x.next === 'function')
-		&& (typeof x[Symbol.iterator] == 'function')
-		&& (x[Symbol.iterator].call(x) === x)
-		)
-
-	}
+"use strict";
+console.log("Hello")
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoidGVtcC5jaXZldC50c3giLCJzb3VyY2VzIjpbInRlbXAuY2l2ZXQiXSwibWFwcGluZ3MiOiI7QUFBQSxPQUFPLENBQUMsR0FBRyxDQUFBLEFBQUMsT0FDWiIsIm5hbWVzIjpbXSwic291cmNlc0NvbnRlbnQiOlsiY29uc29sZS5sb2cgXCJIZWxsb1wiIl19

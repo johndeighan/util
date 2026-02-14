@@ -17,7 +17,7 @@ setup := (): void =>
 	DBG "setDirTree()"
 
 	await setDirTree """
-		./src/test/cielo clear
+		./src/test/cielo
 		file.config.ts
 			export default new Object({
 				a: 1,

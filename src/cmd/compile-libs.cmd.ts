@@ -1,14 +1,12 @@
 "use strict";
-// compile-all-libs.civet
+// compile-libs.cmd.civet
 
-type AutoPromise<T> = Promise<Awaited<T>>;
-import {sprintf} from '@std/fmt/printf'
 import {compile as compileCivet} from '@danielx/civet'
 
 import {
-	undef, defined, notdefined, croak, assert, isEmpty, nonEmpty,
+	undef, defined, notdefined, croak, assert,
+	isEmpty, nonEmpty, getErrStr,
 	} from 'datatypes'
-import {centered, getErrStr} from 'llutils'
 import {f} from 'f-strings'
 import {setLogLevel, LOG, ERR, DBG} from 'logger'
 import {flag, flags, lNonOptions} from 'cmd-args'
@@ -16,11 +14,14 @@ import {
 	isDir, isFile, findFile, allFilesMatching, watchFiles,
 	toFullPath, newerDestFileExists, relpath,
 	} from 'fsys'
-import {execCmd} from 'exec'
+import {execCmd, procFiles, procOneFile, CTimer} from 'exec'
 import {
-	RawSourceMap, haveSourceMapFor, extractSourceMap, addSourceMap,
+	RawSourceMap, haveSourceMapFor, extractSourceMap,
+	addSourceMap, saveSourceMaps, orgNumSourceMaps,
 	} from 'source-map'
 import {mapper, reducer} from 'var-free'
+import {doCompileCivet} from 'civet'
+
 import hCivetConfig from "civetconfig" with {type: "json"}
 
 const [verbose, watch, force] = flags('v', 'w', 'f')
@@ -38,21 +39,19 @@ if (force) {
 // ---------------------------------------------------------------------------
 // --- sanity check
 
-assert(isFile('./compileall.civet'), "No file ./compileall.civet")
 assert(isDir('src'),                 "No dir src")
 assert(isFile('civetconfig.json'),   "No file civetconfig.json")
 assert(isFile('.gitignore'),         "No file .gitignore")
+assert(isFile('deno.json'),          "No file deno.json")
 
 // ---------------------------------------------------------------------------
 
-export type TOkResult = {
-	status: 'ok'
-	destPath: string
-	code: string
-	hSrcMap: RawSourceMap
-	}
-
-export type TResult = TOkResult |
+type TResult = {
+		status: 'ok'
+		destPath: string
+		code: string
+		hSrcMap: RawSourceMap
+		} |
 	{
 		status: 'error'
 		destPath: string
@@ -65,9 +64,12 @@ export type TResult = TOkResult |
 
 // ---------------------------------------------------------------------------
 
-const t0 = Date.now()
+const timer = new CTimer()
 
-const iterCivetFiles = (
+// --- iterate full file paths
+//     command line may be a sequence of file stubs
+
+const iterFiles = (
 	(isEmpty(lNonOptions)?
 		allFilesMatching([
 			"**/*.lib.civet",
@@ -87,18 +89,24 @@ const iterCivetFiles = (
 		}))
 	)
 
-const iterResults = await mapper(iterCivetFiles, async function*(path): AsyncGenerator<TResult> {
+// --- iterate sequence of TResult objects resulting from
+//     attempting to compile the files
+
+const iterResults = await mapper(iterFiles, async function*(path): AsyncGenerator<TResult> {
 	const civetPath = toFullPath(path)
 	const relPath = relpath(civetPath)
-	const destPath = civetPath.replace('.civet', '.ts')
-	const relDestPath = relpath(destPath)
+	const tsPath = civetPath.replace('.civet', '.ts')
+	const relTsPath = relpath(tsPath)
 	DBG(`COMPILE: ${relPath}`)
 
-	if (!force && newerDestFileExists(path, '.ts')) {
+	if (!force
+			&& newerDestFileExists(path, '.ts')
+			&& haveSourceMapFor(tsPath)
+			) {
 		DBG("   - already compiled")
 		yield {
 			status: 'alreadyCompiled',
-			destPath
+			destPath: tsPath
 			}
 		return
 	}
@@ -113,23 +121,24 @@ const iterResults = await mapper(iterCivetFiles, async function*(path): AsyncGen
 		assert(tsCode && !tsCode.startsWith('COMPILE FAILED'),
 			`CIVET COMPILE FAILED: ${relPath}`)
 		const [code, hSrcMap] = extractSourceMap(tsCode)
-		assert((hSrcMap !== undef), "Missing source map")
-		await Deno.writeTextFile(destPath, code)
-		addSourceMap(destPath, hSrcMap)
+		assert((hSrcMap !== undef), `Missing source map for ${relPath}`)
+		await Deno.writeTextFile(tsPath, code)
+		assert(isFile(tsPath), `File ${relTsPath} did not appear`)
+		addSourceMap(tsPath, hSrcMap)
 		DBG("   - compiled OK")
 		yield {
 			status: 'ok',
-			destPath,
+			destPath: tsPath,
 			code,
 			hSrcMap
 			}
 	}
 
 	catch (err) {
-		ERR(`ERROR in ${relDestPath}:\n${getErrStr(err)}`)
+		ERR(`ERROR in ${relTsPath}:\n${getErrStr(err)}`)
 		yield {
 			status: 'error',
-			destPath,
+			destPath: tsPath,
 			errMsg: getErrStr(err)
 			}
 	}
@@ -148,53 +157,49 @@ const [numSkip, numOk, numErr, numFiles] = await reducer(iterResults, [0,0,0,0],
 	})
 
 LOG('-'.repeat(32))
-LOG(`${numSkip} already compiled, ${numOk} compiled, ${numErr} errors`)
+if (numSkip > 0) {
+	LOG(`${numSkip} already compiled`)
+}
+if (numOk > 0) {
+	LOG(`${numOk} compiled`)
+}
+if (numErr > 0) {
+	LOG(`${numErr} errors`)
+}
 LOG('-'.repeat(32))
 
 assert((numSkip + numOk + numErr === numFiles), "Bad file count")
 
-if (numSkip === numFiles) {
-	LOG("All files already compiled")
-}
-else {
-	if (numErr > 0) {
-		ERR(`${numErr}/${numFiles} civet files failed to compile`)
-		Deno.exit(-1)
-	}
-
-	const lResults: TResult[] = await Array.fromAsync(iterResults)
-	const lToTypeCheck: TOkResult[] = lResults.filter((h) => {
-		return (h.status === 'ok')
-	})
-
-	const iterCheck = mapper(lToTypeCheck, async function(hResult: TOkResult): AutoPromise<boolean> {
-		const {destPath, hSrcMap} = hResult
+// --- type check all files that were compiled
+const iterChecked = mapper(iterResults, async function*(hResult): AsyncGenerator<boolean, void> {
+	const {status, destPath} = hResult
+	if (status === 'ok') {
 		const relDestPath = relpath(destPath)
-		LOG(`TYPE CHECK: ${relDestPath}`)
+		DBG(`TYPE CHECK: ${relDestPath}`)
 		try {
-			assert(isFile(destPath), `No such file: ${destPath}`)
 			const {success, stderr} = await execCmd('deno', ['check', destPath])
 			assert(success, `type check failed for ${relDestPath}: ${stderr}`)
-			addSourceMap(destPath, hSrcMap)
-			return true
+			yield true
 		}
 		catch (err) {
 			ERR(`ERROR in ${relDestPath}:\n${getErrStr(err)}`)
-			return false
+			yield false
 		}
-	})
-
-	const numFailed = await reducer(iterCheck, 0, function(acc, x) {
-		return x ? acc : acc+1
-	})
-	if (numFailed > 0) {
-		ERR(f`${numFailed} files failed type checking`)
-		Deno.exit(-1)
 	}
+	return
+})
+
+const numFailed = await reducer(iterChecked, 0, function(acc, x) {
+	return x ? acc : acc+1
+})
+if (numFailed > 0) {
+	ERR(f`${numFailed} files failed type checking`)
 }
 
-const secs = (Date.now() - t0) / 1000
-LOG(`DONE in ${sprintf('%.2d', secs)} secs.\n`)
+const nMaps = await saveSourceMaps()
+LOG(`${nMaps} source maps saved (${nMaps - orgNumSourceMaps} new)`)
+
+LOG(`DONE in ${timer.timeTaken()} secs.\n`)
 
 if (watch) {
 	LOG("Watching for file changes in the current directory...")
@@ -204,3 +209,4 @@ if (watch) {
 		return
 	})
 }
+

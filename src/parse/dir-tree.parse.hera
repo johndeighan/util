@@ -1,20 +1,11 @@
 # dir-tree.parse.hera
 
-# $S = sequence
-# $C = choice
-# $P = plus
-# $Q = star
-
+# --- Every hera parser must export symbols:
+#        pm    - a CParseMatches object
+#        reset - a function called before each parse
 ```
-import {CParseMatches} from 'parse-utils'
+import {CParseMatches} from 'parse-utils';
 export let pm = new CParseMatches();
-let ruleMatch = (
-		name: string,
-		loc: [pos: number, length: number],
-		data: unknown = undefined
-		): void => {
-	pm.match(name, loc, data);
-	}
 
 import {undef, defined, assert, hash} from 'datatypes';
 import {indented, undented} from 'indent';
@@ -28,46 +19,58 @@ export type TFileOp = {
 		path: string
 		contents: string
 		};
-let lOps: TFileOp[] = [];
+
+let lFileOps: TFileOp[] = [];
 let lPathParts: string[] = [];
 
-let getPath = (name: string) => {
-	return [...lPathParts, name].join('/');
+export const reset = (): void => {
+	lFileOps.length = 0;
+	pm.reset();
+	}
+
+const getPath = (fileName: string = '') => {
+	if (fileName) {
+		return [...lPathParts, fileName].join('/');
+		}
+	else {
+		return [...lPathParts].join('/');
+		}
 	};
 
 ```
+# --- comments allowed
+#     _ is optional whitespace
 
 FullDesc
 	Root (FileDesc / DirDesc)+ ->
 		pm.match('FullDesc', $loc);
-		return lOps;
+		return lFileOps;
 
 Root
-	/\.\.?\/[A-Za-z_$\/-]+/ _ "clear"? NL ->
-		lOps.length = 0;
-		pm.reset();
-		pm.match('Root', $loc)
-		if (defined($3)) {
-			lOps.push({
-				op: 'clearDir',
-				path: $1
-				});
-			}
-		lPathParts = [$1];
+	/\.(?:\/[A-Za-z0-9_-]+)*/ _ "clear"?  NL ->
+		pm.match('Root', $loc);
+		let root = $1[0];
+		lFileOps.push({
+			op: defined($3) ? 'clearDir' : 'mkDir',
+			path: root
+			});
+		lPathParts = [root];
+		return;
 
 FileDesc
-	FileName INDENT Block UNDENT ->
+	FileName Contents ->
 		pm.match('FileDesc', $loc);
-		let [name, compile] = $1;
-		lOps.push({
+		let [fileName, doCompile] = $1;
+		let path = getPath(fileName);
+		lFileOps.push({
 			op: 'barf',
-			path: getPath(name),
-			contents: $3
+			path,
+			contents: $2
 			});
-		if (compile) {
-			lOps.push({
+		if (doCompile) {
+			lFileOps.push({
 				op: 'compile',
-				path: getPath(name)
+				path
 				});
 			}
 
@@ -76,47 +79,44 @@ FileName
 		pm.match('FileName', $loc);
 		return [$1, defined($3)]
 
+Contents
+	IndentedBlock ->
+		pm.match('Contents', $loc);
+		return undented($1);
+
+IndentedBlock
+	INDENT Block+ UNDENT ->
+		pm.match('IndentedBlock', $loc);
+		return indented($2.join('\n'));
+
+Block
+	Line IndentedBlock? ->
+		pm.match('Block', $loc);
+		if (defined($2)) {
+			return $1 + '\n' + $2;
+			}
+		else {
+			return $1;
+			}
+Line
+	/[^\x0F\x0E\n\r]*/ NL ->
+		pm.match('Line', $loc);
+		return $1
+
 DirDesc
-	DirName INDENT (DirDesc / FileDesc)+ UNDENT ->
+	DirName NL INDENT (DirDesc / FileDesc)+ UNDENT ->
 		pm.match('DirDesc', $loc);
-		lParts.pop()
+		lPathParts.pop()
 		return
 
 DirName
 	"/" Name _ "clear"? ->
 		pm.match('DirName', $loc);
 		lPathParts.push($2);
-		if (defined($4)) {
-			lOps.push({
-				op: 'clearDir',
-				path: getPath($2)
-				});
-			}
-
-Part
-	(IndentedBlock / Line) ->
-		pm.match('Part', $loc);
-		return $1
-
-Block
-	Part (NL Part)* ->
-		pm.match('Block', $loc);
-		const lParts: string[] = [$1];
-		for (const [_, text] of $2) {
-			lParts.push(text);
-			}
-		return lParts.join('\n');
-
-Line
-	/[^\x0F\x0E\n]*/ ->
-		pm.match('Line', $loc);
-		return $0
-
-IndentedBlock
-	INDENT Block UNDENT ->
-		pm.match('IndentedBlock', $loc);
-		return indented($2)
-
+		lFileOps.push({
+			op: defined($4) ? 'clearDir' : 'mkDir',
+			path: getPath()
+			});
 
 Name
 	/[A-Za-z_.-][A-Za-z0-9_.-]*/ ->
@@ -124,13 +124,13 @@ Name
 		return $0
 
 INDENT
-	/\x0F/
+	/\x0F/     # ASCII shift-in
 
 UNDENT
-	/\x0E/
+	/\x0E/     # ASCII shift-out
 
 NL
 	/\r?\n/
 
 _
-	/\s+/
+	/\x20*/

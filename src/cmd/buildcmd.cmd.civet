@@ -1,42 +1,59 @@
 # buildcmd.cmd.civet
 
-import {stdChecks} from 'llutils'
-import {assert, defined} from 'datatypes'
-import {nonOption, allNonOptions, flag} from 'cmd-args'
+import {assert, defined, getErrStr} from 'datatypes'
+import {stdChecks, centered} from 'llutils'
+import {nonOption, allNonOptions, getFlags} from 'cmd-args'
+import {ERR} from 'logger'
 import {withExt, findFile, isFile} from 'fsys'
 import {
 	procFiles, procOneFile, doUnitTest, doInstallCmd,
 	} from 'exec'
 import {doCompileCivet} from 'civet'
 
-stdChecks "buildcmd -n (all | <stub>*)"
-noInstall := flag('n')
-if noInstall
-	console.log "noInstall = #{noInstall}"
+stdChecks """
+	buildcmd -itI (all | <stub>+)
+	   -i = install the command
+	   -t = run unit test
+	   -I = use Chrome debugger
+	"""
 
 # ---------------------------------------------------------------------------
 
-if (nonOption(0) == 'all')
-	await procFiles [doCompileCivet, '*.cmd.civet']
-	await procFiles [doCompileCivet, '*.cmd.test.civet']
-	await procFiles [doUnitTest,     '*.cmd.test.ts']
-	if not noInstall
-		await procFiles [doInstallCmd, '*.cmd.ts']
-else
-	for stub of allNonOptions()
-		fileName := "#{stub}.cmd.civet"
-		path := findFile fileName
-		assert defined(path), "No such cmd file: #{fileName}"
-		await procOneFile path, doCompileCivet
-		tsPath := withExt path, '.ts'
-		assert isFile(tsPath), "File #{tsPath} not created"
+hStyle  := {char: '=', color: 'cyan'}
+try
+	# --- echoes if flag is set
+	{doInstall, doTest, inspect} := getFlags {
+		doInstall: 'i'
+		doTest: 't'
+		inspect: 'I'
+		}
 
-		testPath := withExt path, '.test.civet'
-		if findFile testPath
-			await procOneFile testPath, doCompileCivet
-			await procOneFile withExt(path, '.test.ts'), doUnitTest
-		else
-			console.log "No unit test named #{testPath}"
-		if not noInstall
-			await procOneFile tsPath, doInstallCmd
+	if (nonOption(0) == 'all')
+		console.log centered("BUILD ALL CMDS", hStyle)
+		await procFiles [doCompileCivet, ['src/**/*.cmd.civet']]
+		if doTest
+			await procFiles [doCompileCivet, ['src/**/*.cmd.test.civet']]
+			await procFiles [doUnitTest,     ['src/**/*.cmd.test.ts']]
+		if doInstall
+			await procFiles [doInstallCmd, ['src/**/*.cmd.ts']]
+	else
+		for stub of allNonOptions()
+			console.log centered("BUILD CMD #{stub}", hStyle)
+			fileName := "#{stub}.cmd.civet"
+			path := findFile fileName
+			assert defined(path), "Unable to find file: #{fileName}"
+			await procOneFile path, doCompileCivet, {inspect}
+			tsPath := withExt path, '.ts'
+			assert isFile(tsPath), "File #{tsPath} not created"
 
+			if doTest
+				testPath := withExt path, '.test.civet'
+				if findFile testPath
+					await procOneFile testPath, doCompileCivet
+					await procOneFile withExt(path, '.test.ts'), doUnitTest
+				else
+					console.log "No unit test named #{testPath}"
+			if doInstall
+				await procOneFile tsPath, doInstallCmd
+catch err
+	ERR getErrStr(err)

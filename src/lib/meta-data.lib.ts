@@ -49,3 +49,4 @@ export const convertMetaData = (
 	const converter = hMetaDataTypes[marker]
 	return converter(block)
 }
+

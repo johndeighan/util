@@ -38,6 +38,6 @@ logPath := (path: string): string? =>
 	console.log path
 	return (path == 'abc') ? "FILE: #{path}" : undefined
 
-hResults := await handleFiles "**/*.test.civet", logPath
+hResults := await handleFiles "src/**/*.test.civet", logPath
 console.dir hResults
 

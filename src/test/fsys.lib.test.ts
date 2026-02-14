@@ -17,7 +17,7 @@ import {
 	rmFile, rmDir, isExt, newerDestFileExists,
 	clearDir, mkDir, mkDirsForFile, slurp, barf,
 	removeFilesMatching, watchFile, FileEventHandler, TFsEventHandler,
-	TPathType, TPathInfo, patchFirstLine, FsEvent,
+	TPathType, TPathInfo, patchFirstLine, FsEvent, toFullPath,
 	} from 'fsys'
 import {
 	equal, truthy, falsy, like, objListLike, matches,
@@ -29,7 +29,7 @@ import {
 
 const setup = async (): AutoPromise<void> => {
 
-	const lFileOps = await setDirTree(`./src/test/fsys
+	await setDirTree(`./src/test/fsys
 dummy.txt
 	dummy
 tokens.txt
@@ -64,24 +64,22 @@ file.config.ts
 		a: 1,
 		b: 'abc',
 		f: () => 'hello'
-		})`)
-	console.log(fileOpsTable(lFileOps))
-	console.log(`WD = ${Deno.cwd()}`)
+		})
+/aaa
+	/bbb
+		newfile.txt
+			abc
+		oldfile.txt
+			abc
+		temp.txt
+			abc
+/subdir
+	new.txt
+		abc
+		def`)
 	return
 }
 
-//		/aaa
-//			/bbb
-//				newfile.txt
-//					abc
-//				oldfile.txt
-//					abc
-//				temp.txt
-//					abc
-//		/subdir
-//			new.txt
-//				abc
-//				def
 
 await setup()
 
@@ -94,6 +92,9 @@ truthy(isFile('deno.json'))
 falsy(isFile('./src/lib/notafile.txt'))
 truthy(isFile("./src/test/fsys/dummy.txt"))
 falsy( isFile("./src/test/fsys"))
+
+
+
 
 DBG("isDir()")
 
@@ -119,7 +120,7 @@ equal(getPathType("C:/temp/file.txt"), 'missing')
 
 DBG("fileExt()")
 
-equal(fileExt('C:/Users/johnd/util/deno.json'), '.jsonc')
+equal(fileExt('C:/Users/johnd/util/deno.json'), '.json')
 equal(fileExt("C:/temp/file.txt"), ".txt")
 equal(fileExt("c:\\temp/to/file.txt"), ".txt")
 equal(fileExt("c:\\temp/to/file.flag.txt"), ".txt")
@@ -154,73 +155,7 @@ like(parsePath(import.meta.url), {
 	stub: 'fsys.lib',
 	purpose: 'test',
 	ext: '.ts'
-	})
-
-DBG("allFilesMatching()");
-
-(() => {
-	const lFiles = Array.from(allFilesMatching('**/test/fsys/file*.txt'))
-	equal(lFiles.map((x) => relpath(x)), [
-		'src/test/fsys/file1.txt',
-		'src/test/fsys/file2.txt',
-		'src/test/fsys/file3.flags.txt'
-		])
-}
-	)();
-
-(() => {
-	const lFiles =  Array.from(allFilesMatching('test/fsys/**', o`includeDirs`))
-	equal(lFiles.map((x) => parsePath(x).fileName), [
-		'fsys',
-		'aaa',
-		'bbb',
-		'newfile.txt',
-		'oldfile.txt',
-		'temp.txt',
-		'dummy.txt',
-		'file.config.ts',
-		'file1.txt',
-		'file2.txt',
-		'file3.flags.txt',
-		'file4.cielo',
-		'file5.cielo',
-		'subdir',
-		'new.txt',
-		'tokens.txt',
-		])
-}
-	)();
-
-(() => {
-	const filterFunc = (path: string) => {
-		if (isDir(path)) {
-			return parsePath(path).fileName !== 'fsys'
-		}
-		else if (isFile(path)) {
-			const {fileName} = parsePath(path)
-			return defined(fileName.match(/^[a-z0-9]+\.txt$/))
-		}
-		else {
-			return false
-		}
-	}
-
-	const lPaths = Array.from(allFilesMatching('test/fsys/**', {includeDirs: true}))
-	equal(lPaths.filter(filterFunc).map((x) => parsePath(x).fileName), [
-		'aaa',
-		'bbb',
-		'newfile.txt',
-		'oldfile.txt',
-		'temp.txt',
-		'dummy.txt',
-		'file1.txt',
-		'file2.txt',
-		'subdir',
-		'new.txt',
-		'tokens.txt',
-		])
-}
-	)();
+	});
 
 (() => {
 	const filterFunc = (path: string) => {
@@ -228,7 +163,7 @@ DBG("allFilesMatching()");
 		return fileName.match(/^[a-z0-9]+\.txt$/)
 	}
 
-	const lPaths = Array.from(allFilesMatching('test/fsys/**'))
+	const lPaths = Array.from(allFilesMatching('src/test/fsys/**'))
 	equal(lPaths.filter(filterFunc).map((x) => parsePath(x).fileName), [
 		'newfile.txt',
 		'oldfile.txt',
@@ -287,31 +222,7 @@ DBG("type TPathDesc", "pathSubDirs()");
 	const fullPath = "C:/Users/johnd/util/src/test/fsys/deno.json"
 	const relPath  = "src/test/fsys/deno.json"
 
-	// --- non-relative, try both full and relative paths
-	equal(pathSubDirs(fullPath, o`!relative`), {
-		dir: 'C:/Users/johnd/util/src/test/fsys',
-		root: "C:/",
-		lParts: ['Users', 'johnd', 'util', 'src', 'test', 'fsys']
-		})
-	equal(pathSubDirs(relPath, o`!relative`), {
-		dir: 'C:/Users/johnd/util/src/test/fsys',
-		root: "C:/",
-		lParts: ['Users', 'johnd', 'util', 'src', 'test', 'fsys']
-		})
-
-	// --- relative, try both full and relative paths
-	equal(pathSubDirs(fullPath, o`relative`), {
-		dir: "src/test/fsys",
-		root: "",
-		lParts: ['src', 'test', 'fsys']
-		})
-	equal(pathSubDirs(relPath, o`relative`), {
-		dir: "src/test/fsys",
-		root: "",
-		lParts: ['src', 'test', 'fsys']
-		})
-
-	// --- Default is not relative
+	// --- try both full and relative paths
 	equal(pathSubDirs(fullPath), {
 		dir: 'C:/Users/johnd/util/src/test/fsys',
 		root: "C:/",
@@ -529,7 +440,7 @@ DBG("type TFsEventHandler", "watchFile()", "watchFiles()")
 
 await (async () => {
 	// --- Set contents of dummy.txt to standard contents
-	const path = mkpath('src/test/fsys/dummy.txt')
+	const path = toFullPath('src/test/fsys/dummy.txt')
 	barf(path, 'dummy')
 
 	let doStop: boolean = false
@@ -582,3 +493,73 @@ DBG("patchFirstLine(path, str, newstr)");
 	falsy( slurp(path2).includes('file.civet'))
 }
 	)()
+
+// ---------------------------------------------------------------------------
+// --- These tests depend on my particular directory structure
+
+DBG("allFilesMatching()");
+
+(() => {
+	const lFiles = Array.from(allFilesMatching('src/test/fsys/file*.txt'))
+	equal(lFiles.map((x) => relpath(x)), [
+		'src/test/fsys/file1.txt',
+		'src/test/fsys/file2.txt',
+		'src/test/fsys/file3.flags.txt'
+		])
+}
+	)();
+
+(() => {
+	const lFiles =  Array.from(allFilesMatching('src/test/fsys/**', o`includeDirs`))
+	equal(lFiles.map((x) => parsePath(x).fileName), [
+		'fsys',
+		'aaa',
+		'bbb',
+		'newfile.txt',
+		'oldfile.txt',
+		'temp.txt',
+		'dummy.txt',
+		'file.config.ts',
+		'file1.txt',
+		'file2.txt',
+		'file3.flags.txt',
+		'file4.cielo',
+		'file5.cielo',
+		'subdir',
+		'new.txt',
+		'tokens.txt',
+		])
+}
+	)();
+
+(() => {
+	const filterFunc = (path: string) => {
+		if (isDir(path)) {
+			return parsePath(path).fileName !== 'fsys'
+		}
+		else if (isFile(path)) {
+			const {fileName} = parsePath(path)
+			return defined(fileName.match(/^[a-z0-9]+\.txt$/))
+		}
+		else {
+			return false
+		}
+	}
+
+	const lPaths = Array.from(allFilesMatching('src/test/fsys/**', {includeDirs: true}))
+	equal(lPaths.filter(filterFunc).map((x) => parsePath(x).fileName), [
+		'aaa',
+		'bbb',
+		'newfile.txt',
+		'oldfile.txt',
+		'temp.txt',
+		'dummy.txt',
+		'file1.txt',
+		'file2.txt',
+		'subdir',
+		'new.txt',
+		'tokens.txt',
+		])
+}
+	)()
+

@@ -59,3 +59,4 @@ const strIter = function*(lStrings: string[]): Generator<string, void, void> {
 	equal(fetcher.toArray(), ['a', 'b'])
 }
 	)()
+

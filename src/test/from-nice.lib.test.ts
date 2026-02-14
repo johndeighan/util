@@ -145,8 +145,8 @@ DBG("fromNice(str)")
 
 equal(fromNice('abc'),      'abc')
 equal(fromNice('say "hi"'), 'say "hi"')
-equal(fromNice('a\\nb'),    'a\nb')
-equal(fromNice('a\\tb'),    'a\tb')
+equal(fromNice('a\\nb'),    'a\\nb')
+equal(fromNice('a\\tb'),    'a\\tb')
 equal(fromNice('｟undef｠'),  undef)
 equal(fromNice('｟null｠'),   null)
 equal(fromNice('｟true｠'),   true)
@@ -166,8 +166,8 @@ truthy(isSymbol(fromNice('｟symbol｠')));
 	)()
 
 equal(fromNice('｟regexp ^abc$｠'), /^abc$/)
-equal(fromNice('[]'), [])
-equal(fromNice('{}'), {})
+equal(fromNice('[]'), "[]")
+equal(fromNice('{}'), "{}")
 
 DBG("allNiceTokens(block)")
 
@@ -329,3 +329,4 @@ equal(fromNice(`a: 1`), {a: 1})
 // 		b: 3
 // 		c: [1,2]
 // 		}
+

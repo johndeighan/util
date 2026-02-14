@@ -3,7 +3,7 @@
 
 type AutoPromise<T> = Promise<Awaited<T>>;
 import {
-	undef, defined, notdefined,
+	undef, defined, notdefined, getErrStr,
 	isIterator, isAsyncIterator, isPromise, assertIsDefined,
 	} from 'datatypes'
 
@@ -196,3 +196,42 @@ export const syncReducer = function<TIn, TAccum>(
 	}
 	return acc
 }
+
+// ---------------------------------------------------------------------------
+// ASYNC
+// --- returns [lFulfilled, lRejected, lFulfilledTags, lRejectedTags]
+//        lFulfilled is an array of T
+//        lRejected is an array of unknown (usually Error objects)
+//        lFulfilledTags and lRejectedTags are arrays of strings
+
+type TResult<T> = [T[], unknown[], string[], string[]]
+
+export const asyncRunner = async function<T>(
+		lPromises: Promise<T>[],
+		lTags: string[] = []
+		): AutoPromise<TResult<T>> {
+
+	const lSettled = await Promise.allSettled(lPromises)
+	const acc0: TResult<T> = [[],[],[],[]]
+	return await reducer(lSettled, acc0, function(acc, h, i): TResult<T> {
+		const tag = (i >= 0) && (i < lTags.length) ? lTags[i] : ''
+		const [lFulfilled, lRejected, lTags1, lTags2] = acc
+		if (h.status === 'fulfilled') {
+			return [
+				[...lFulfilled, h.value],
+				lRejected,
+				[...lTags1, tag],
+				lTags2
+				]
+		}
+		else {
+			return [
+				lFulfilled,
+				[...lRejected, getErrStr(h.reason)],
+				lTags1,
+				[...lTags2, tag]
+				]
+		}
+	})
+}
+

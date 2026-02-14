@@ -27,7 +27,7 @@ setup := (): void =>
 	DBG "setDirTree()"
 
 	await setDirTree """
-		./src/test/typescript clear
+		./src/test/typescript
 		tstest.ts
 			const str: string = 'abc'
 		tstest2.ts

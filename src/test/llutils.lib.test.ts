@@ -417,3 +417,4 @@ baz:
 		foo: 'bar',
 		baz: ['qux', 'quux']
 		})
+

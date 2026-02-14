@@ -32,3 +32,4 @@ falsy( isSectionName('ABC'));
 	equal(section.getBlock(), "\tabc\n\txyz")
 }
 	)()
+

@@ -2,7 +2,7 @@
 
 import {write, writeln} from 'console-utils'
 import {isString} from 'datatypes'
-import {f} from 'llutils'
+import {f} from 'f-strings'
 import {OL, ML} from 'to-nice'
 
 let level = 0
@@ -55,7 +55,7 @@ export DBG := (...lItems: unknown[]): void =>
 export ERR := (...lStrings: string[]): void =>
 
 	for str of lStrings
-		LOG "#{str}{red}"
+		console.log f"#{str}:{red}"
 	return
 
 # ---------------------------------------------------------------------------

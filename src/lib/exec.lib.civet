@@ -1,8 +1,6 @@
 # exec.lib.civet
 
-import {transpile} from "@deno/emit"
-import fs from 'node-fs'
-import {existsSync} from '@std/fs'
+import {exists, existsSync} from '@std/fs'
 import {statSync} from 'node-fs'
 import {stripAnsiCode} from '@std/fmt/colors'
 import {
@@ -13,12 +11,11 @@ import {
 import {sprintf} from '@std/fmt/printf'
 
 import {
-	undef, defined, notdefined, assert, croak, hash,
+	undef, defined, notdefined, assert, croak, hash, getErrStr,
 	isString, isArray, isArrayOfStrings, isEmpty, nonEmpty,
 	} from 'datatypes'
 import {
-	getOptions, pass, blockToArray, decode, encode,
-	centered, sep, getErrStr,
+	getOptions, pass, blockToArray, decode, encode, sep, centered,
 	} from 'llutils'
 import {write, writeln, resetLine } from 'console-utils'
 import {flag, debugging, inspecting} from 'cmd-args'
@@ -29,10 +26,10 @@ import {
 	INDENT, UNDENT,
 	} from 'logger'
 import {
-	barf, pathStr, allFilesMatching, normalizePath,
-	mkpath, barfTempFile,
+	barf, pathStr, allFilesMatching, normalizePath, barfTempFile,
 	fileExt, withExt, slurpAsync, parsePath, relpath,
 	} from 'fsys'
+import {syncReducer, asyncRunner} from 'var-free'
 
 # ---------------------------------------------------------------------------
 
@@ -70,7 +67,6 @@ export getCmdLine := (cmdName: string, lArgs: string[]): string =>
 export type TStreamType = 'piped' | 'inherit'
 
 export type TExecResult =
-	path?: string
 	success: boolean
 	notNeeded?: true
 	stdout?: string
@@ -88,23 +84,24 @@ export execCmdSync := (
 
 	type opt = {
 		capture: boolean
-		hReplace: TReplaceHash?
 		}
-	{capture, hReplace} := getOptions<opt> hOptions, {
+	{capture} := getOptions<opt> hOptions, {
 		capture: true
-		hReplace: undef
 		}
 
 	streamType: TStreamType := capture ? 'piped' : 'inherit'
 	DBGVALUE "EXEC SYNC", "#{OL(getCmdLine cmdName, lArgs)}"
 	DBG INDENT
-	child := new Deno.Command(cmdName,
-		args: replaceInArray(lArgs, hReplace)
+	child := new Deno.Command cmdName,
+		args: lArgs
 		env: DEFAULT_LOGGER: curLogLevel()
 		stdout: streamType
 		stderr: streamType
-	)
-	{success, stdout: rawStdOut, stderr: rawStdErr} := child.outputSync()
+	{
+		success,
+		stdout: rawStdOut
+		stderr: rawStdErr
+		} := child.outputSync()
 	stdout := (capture && rawStdOut) ? decode(rawStdOut) : undef
 	stderr := (capture && rawStdErr) ? decode(rawStdErr) : undef
 	output := joinDefined stdout, stderr
@@ -114,7 +111,6 @@ export execCmdSync := (
 		stdout,
 		stderr,
 		output,
-		debug: undef
 		}
 
 # ---------------------------------------------------------------------------
@@ -139,18 +135,16 @@ export execCmd := (
 		inProc: TFileProcessor
 		outfile: string?
 		outProc: TFileProcessor
-		hReplace: TReplaceHash?
 		}
 
 	{
-			capture, infile, inProc, outfile, outProc, hReplace
+			capture, infile, inProc, outfile, outProc,
 			} := getOptions<opt> hOptions, {
 		capture: true
 		infile: undef
 		inProc: (str) => return str
 		outfile: undef
 		outProc: (str) => return str
-		hReplace: undef
 		}
 
 	streamType: TStreamType := capture ? 'piped' : 'inherit'
@@ -159,7 +153,7 @@ export execCmd := (
 			"When specifying infile or outfile, capture must be true"
 	try
 		cmd := new Deno.Command cmdName, {
-			args: replaceInArray(lArgs, hReplace)
+			args: lArgs
 			env: DEFAULT_LOGGER: if debugging then 'debug' else 'info'
 			stdin: streamType
 			stdout: streamType
@@ -197,28 +191,7 @@ export execCmd := (
 			stdout: undef
 			stderr: getErrStr(err)
 			output: getErrStr(err)
-			debug: undef
 			}
-
-# ---------------------------------------------------------------------------
-
-export replaceInArray := (
-		lStrings: string[],
-		hReplace: TReplaceHash?
-		): string[] =>
-
-	if defined(hReplace)
-		return ( =>
-			results := []
-			for str of lStrings
-				if hReplace.hasOwnProperty(str)
-					results.push hReplace[str]
-				else
-					results.push str
-			return results
-		)()
-	else
-		return lStrings
 
 # ---------------------------------------------------------------------------
 
@@ -241,89 +214,89 @@ export joinDefined := (...lParts: TStringSrc[]): string? =>
 # ---------------------------------------------------------------------------
 
 export class CTimer
+
 	t0 = Date.now()
-	timeTaken(): number
+
+	timeTaken(
+			reset: boolean = true,
+			decPlaces: number = 2
+			): string
+
 		now := Date.now()
 		secs := (now - @t0) / 1000
-		@t0 = now
-		return secs
+		if reset
+			@t0 = now
+		return sprintf("%.#{decPlaces}d", secs)
+
 timer := new CTimer()
 
 # ---------------------------------------------------------------------------
+
+export type THandlerResult = TExecResult & (path: string)
 
 export abstract class CFileHandler
 
 	abstract get op(): string
 
-	abstract handle(path: string, hOptions: hash): Promise<TExecResult>
+	abstract handle(
+			path: string,
+			hOptions: hash
+			): Promise<THandlerResult>
 
 # ---------------------------------------------------------------------------
 # ASYNC
 
 # --- Later, I want to allow passing multiple TProcSpecs
-export type TProcSpec = [CFileHandler, string]
+#     string is a glob pattern
+export type TProcSpec = [CFileHandler, lPatterns: string[]]
 
 export procFiles := (
 		procSpec: TProcSpec,
 		hOptions: hash = {}
 		): TExecResult[] =>
 
-	type opt = {
-		root: string
-		lIgnoreDirs: string[]?
-		abortOnError: boolean
-		}
+	[handler, lPatterns] := procSpec
+	{op} := handler
+	if flag('v')
+		writeln "(#{op})"
 
-	# --- This function uses root, if set
-	#     lIgnoreDirs is simply passed on to allFilesMatching()
-	#        - if not defined, will default to ['temp','hide']
-	{root, lIgnoreDirs, abortOnError} := getOptions<opt> hOptions, {
-		root: '**/'
-		lIgnoreDirs: undef
-		abortOnError: true
-		}
-
-	[handler, fileNamePat] := procSpec
-
-	h := {lIgnoreDirs}
-
-	# --- We need the paths for later
-	lPaths := Array.from allFilesMatching("#{root}#{fileNamePat}")
-
+	lPaths: string[] := Array.from allFilesMatching(lPatterns)
 	lPromises := for path of lPaths
 		handler.handle path, hOptions
 
-	lPromiseResults := await Promise.allSettled lPromises
+	[
+		lFulfilled,
+		lRejected,
+		lFulPaths,
+		lRejPaths
+		] := await asyncRunner(lPromises, lPaths)
 
-	resetLine()
-	{op} := handler
-	write "(#{op})"
-	let nOk = 0, nErr = 0, nRej = 0
-	lFinalResults: TExecResult[] := []
-	for h,i of lPromiseResults
-		path := lPaths[i]
-		status := h.status
-		if (status == 'fulfilled')
-			hResult := h.value
-			{success, output} := hResult
-			h.value.path = path
-			lFinalResults.push hResult
-			if success
-				nOk += 1
-				if flag('v')
-					showOkResult op, path, hResult
+	nRej := lRejected.length
+	[nNotNeeded, nOk, nErr] := syncReducer lFulfilled, [0,0,0], (acc, h) ->
+		[n1, n2, n3] := acc
+		if h.success
+			if h.notNeeded
+				return [n1+1, n2, n3]
 			else
-				nErr += 1
-				showErrResult op, path, h.value
+				return [n1, n2+1, n3]
 		else
-			nRej += 1
-			lFinalResults.push {success: false}
-			showRejResult op, path, h.reason
+			return [n1, n2, n3+1]
 
-	showFinalResult op, nOk, nErr, nRej, fileNamePat
-	if abortOnError && (nErr + nRej > 0)
-		Deno.exit 99
-	return lFinalResults
+	# --- Write results to the console
+
+	for hResult of lFulfilled
+		{path, success} := hResult
+		if success
+			if flag('v')
+				showOkResult op, path, hResult
+		else
+			showErrResult op, path, hResult
+
+	for reason,i of lRejected
+		showRejResult op, lRejPaths[i], getErrStr(reason)
+
+	showFinalResult op, nNotNeeded, nOk, nErr, nRej, lPatterns
+	return lFulfilled
 
 # ---------------------------------------------------------------------------
 
@@ -331,19 +304,22 @@ let headerPrinted = false
 
 showFinalResult := (
 		op: string,
+		non: number,
 		nOk: number,
 		nErr: number,
 		nRej: number,
-		fileNamePat: string
+		lPatterns: string[]
 		): void =>
 
 	resetLine()
 	if flag('v')
 		return
 	if not headerPrinted
+		LOG '-'.repeat 46
 		LOG [
 			sprintf('%6s', 'secs.')
 			sprintf('%-14s', 'op')
+			sprintf('%3s', 'non')
 			sprintf('%3s', 'OK')
 			sprintf('%3s', 'Bad')
 			sprintf('%3s', 'Rej')
@@ -354,10 +330,11 @@ showFinalResult := (
 	LOG [
 		sprintf('%6.2f', timer.timeTaken())
 		sprintf('%-14s', op)
+		sprintf('%3d', non)
 		sprintf('%3d', nOk)
 		sprintf('%3d', nErr)
 		sprintf('%3d', nRej)
-		fileNamePat
+		lPatterns.join(' + ')
 	].join ' '
 	return
 
@@ -368,19 +345,26 @@ export procOneFile := (
 		path: string,
 		handler: CFileHandler,
 		hOptions: hash = {}
-		): TExecResult =>
+		): THandlerResult =>
 
 	assert existsSync(path), "No such file: #{path}"
 	type opt = {
 		capture: boolean
 		dumpStdOut: boolean
 		abortOnError: boolean
+		inspect: boolean
 		}
-	{capture, dumpStdOut, abortOnError} := getOptions<opt> hOptions, {
-		capture: true
-		dumpStdOut: false
-		abortOnError: true
-		}
+	{
+		capture, dumpStdOut, abortOnError, inspect
+		} := getOptions<opt> hOptions, {
+			capture: true
+			dumpStdOut: false
+			abortOnError: true
+			inspect: false
+			}
+
+	if inspect
+		LOG "procOneFile(): inspect is set"
 
 	# --- NOTE: if capture is false, we need to expect
 	#           that when the handler is called,
@@ -391,14 +375,15 @@ export procOneFile := (
 		write "#{op} #{relpath(path)}"
 	else
 		writeln "#{op} #{relpath(path)} (no capture)"
+
 	try
 		hResult := await handler.handle path, hOptions
-		{success} := hResult
+		{success, notNeeded} := hResult
 
 		# --- If capture is false, output has already happened
 		if capture
 			if success
-				writeln " OK"
+				writeln notNeeded ? " Not Needed" : " OK"
 				if dumpStdOut
 					showOkResult op, path, hResult
 			else
@@ -408,6 +393,7 @@ export procOneFile := (
 					Deno.exit 99
 		hResult.path = path
 		return hResult
+
 	catch err
 		if capture
 			showRejResult op, path, err
@@ -423,6 +409,8 @@ showOkResult := (
 		hResult: TExecResult
 		): void =>
 
+	if hResult.notNeeded
+		LOG "NOT NEEDED"
 	if nonEmpty(hResult.stdout)
 		DUMP hResult.stdout, 'STDOUT'
 	return
@@ -435,8 +423,8 @@ showErrResult := (
 		hResult: TExecResult
 		): void =>
 
-	if nonEmpty(hResult.stderr)
-		DUMP hResult.stderr, 'STDERR'
+	if nonEmpty(hResult.output)
+		DUMP hResult.output, 'OUTPUT'
 	return
 
 # ---------------------------------------------------------------------------
@@ -450,9 +438,9 @@ showRejResult := (
 	DUMP reason, 'ERROR'
 	return
 
-# ==================================================
+# ---------------------------------------------------------------------------
 #       FileHandlers
-# ==================================================
+# ---------------------------------------------------------------------------
 
 class CFileRemover extends CFileHandler
 
@@ -462,13 +450,30 @@ class CFileRemover extends CFileHandler
 	override handle(
 			path: string,
 			hOptions: hash = {}
-			): TExecResult
+			): THandlerResult
 
 		if existsSync(path)
 			await Deno.remove path
-		return success: true
+		return {path, success: true}
 
 export doRemoveFile := new CFileRemover()
+
+# ---------------------------------------------------------------------------
+
+class CFileEchoer extends CFileHandler
+
+	get op()
+		return 'doEchoFile'
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): THandlerResult
+
+		LOG await exists(path) ? "#{path}" : "#{path} - #{'does not exist'}:{red}"
+		return {path, success: true}
+
+export doEchoFile := new CFileEchoer()
 
 # ---------------------------------------------------------------------------
 
@@ -480,13 +485,15 @@ class CTsFileRemover extends CFileHandler
 	override handle(
 			path: string,
 			hOptions: hash = {}
-			): TExecResult
+			): THandlerResult
 
 		assert (fileExt(path) == '.ts'), "Not a TypeScript file: #{path}"
 		civetPath := withExt path, '.civet'
-		if existsSync(civetPath)
+		if await exists(civetPath)
 			await Deno.remove path
-		return success: true
+			return {path, success: true}
+		else
+			return {path, success: true, notNeeded: true}
 
 export doRemoveTsFile := new CTsFileRemover()
 
@@ -500,22 +507,37 @@ class CUnitTester extends CFileHandler
 	override handle(
 			path: string,
 			hOptions: hash = {}
-			): TExecResult
+			): THandlerResult
 
 		assert path.endsWith('.test.ts'), "Not a unit test file"
 		type opt = {
 			capture: boolean
+			inspect: boolean
 			}
-		{capture} := getOptions<opt> hOptions, {
+		{capture, inspect} := getOptions<opt> hOptions, {
 			capture: true
+			inspect: false
 			}
-		hResult := await execCmd 'deno', [
-			'test'
-			'-A'
-			'--coverage-raw-data-only'
-			path
-			], {capture}
-		return hResult
+
+		hResult := (
+			if inspect
+				LOG "doUnitTest.handle(): inspect is set"
+				await execCmd 'deno', [
+					'test'
+					'-A'
+					'--inspect-brk'
+					'--coverage-raw-data-only'
+					path
+					], {capture}
+			else
+				await execCmd 'deno', [
+					'test'
+					'-A'
+					'--coverage-raw-data-only'
+					path
+					], {capture}
+			)
+		return {...hResult, path}
 
 export doUnitTest := new CUnitTester()
 
@@ -529,11 +551,11 @@ class CCmdInstaller extends CFileHandler
 	override handle(
 			path: string,
 			hOptions: hash = {}
-			): TExecResult
+			): THandlerResult
 
 		assert (fileExt(path) == '.ts'), "Not a TypeScript file: #{path}"
 		name := parsePath(path).stub.replaceAll '.', '_'
-		ret := await execCmd 'deno', [
+		hResult := await execCmd 'deno', [
 			'install'
 			'--global'
 			'--force'
@@ -542,7 +564,7 @@ class CCmdInstaller extends CFileHandler
 			'--name', name
 			path
 			]
-		return ret
+		return {...hResult, path}
 
 export doInstallCmd := new CCmdInstaller()
 
@@ -556,16 +578,16 @@ class CCmdUninstaller extends CFileHandler
 	override handle(
 			path: string,
 			hOptions: hash = {}
-			): TExecResult
+			): THandlerResult
 
 		name := parsePath(path).stub.replaceAll '.', '_'
-		ret := await execCmd 'deno', [
+		hResult := await execCmd 'deno', [
 			'uninstall'
 			'-gA'
 			name
 			path
-		]
-		return ret
+			]
+		return {...hResult, path}
 
 export doUninstallCmd := new CCmdUninstaller()
 
@@ -579,43 +601,23 @@ class CFileRunner extends CFileHandler
 	override handle(
 			path: string,
 			hOptions: hash = {}
-			): TExecResult
+			): THandlerResult
 
 		assert (fileExt(path) == '.ts'), "Not a TypeScript file"
-		type opt = {
-			capture: boolean
-			}
-		{capture} := getOptions<opt> hOptions, {
-			capture: true
-			}
 
-		return await execCmd 'deno', [
-			'run'
-			'-A'
-			path
-		], {capture}
+		hResult := if hOptions.inspect
+			await execCmd 'deno', [
+				'run'
+				'-A'
+				'--inspect-brk'
+				path
+				], hOptions
+		else
+			await execCmd 'deno', [
+				'run'
+				'-A'
+				path
+				], hOptions
+		return {...hResult, path}
 
 export doRun := new CFileRunner()
-
-# ---------------------------------------------------------------------------
-
-class CFileDebugger extends CFileHandler
-
-	get op()
-		return 'doDebug'
-
-	override handle(
-			path: string,
-			hOptions: hash = {}
-			): TExecResult
-
-		assert (fileExt(path) == '.ts'), "Not a TypeScript file"
-		console.log "Chrome debugger is listening..."
-		return await execCmd 'deno', [
-			'run'
-			'-A'
-			'--inspect-brk'
-			path
-		]
-
-export doDebug := new CFileDebugger()

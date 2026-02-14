@@ -15,12 +15,12 @@ import {
 	deepEqual, hashLike, integer, THashCompareFunc,
 	THashLikeFunc, THashToStringFunc, TFilterFunc,
 	normalizeCode, isFunction, isClass, functionDef, classDef,
-	TVoidFunc, TVoidIterator,
+	TVoidFunc, TVoidIterator, getErrStr,
 	croak, assertIsDefined, isGenerator, isIterator,
 	} from 'datatypes'
 import {
 	pass, o, keys, getOptions, spaces, blockToArray,
-	allLinesInBlock, truncStr, getErrStr, sleep,
+	allLinesInBlock, truncStr, sleep,
 	} from 'llutils'
 import {splitLine, indented} from 'indent'
 import {OL, ML, DUMP} from 'to-nice'
@@ -32,8 +32,8 @@ import {
 	} from 'logger'
 import {flag} from 'cmd-args'
 import {
-	relpath, mkpath, mkDir, barf, getPathType, fileExt,
-	isDir, clearDir, pushWD, popWD,
+	relpath, mkDir, barf, getPathType, fileExt,
+	isDir, clearDir,
 	} from 'fsys'
 import {Fetcher} from 'fetcher'
 import {doParse} from 'hera-parse'
@@ -111,20 +111,8 @@ export const same = (value: unknown, expected: unknown): void => {
 
 // ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests if value is truthy
- * Reports line number of the test.
-
- * @param {any} value - any JavaScript value
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * truthy isString('abc')
- * ```
- * This test will pass.
- */
 export const truthy = (value: unknown): void => {
+
 	const name = getTestName()
 	DBG(`truthy ${stringify(value)} (${name})`)
 	Deno.test(name, () => assert(value))
@@ -133,20 +121,8 @@ export const truthy = (value: unknown): void => {
 
 // ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests if value is falsy
- * Reports line number of the test.
- *
- * @param {any} value - any JavaScript value
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * falsy isString(42)
- * ```
- * This test will pass.
- */
 export const falsy = (value: unknown): void => {
+
 	const name = getTestName()
 	DBG(`falsy ${stringify(value)} (${name})`)
 	Deno.test(name, () => assert((!value)))
@@ -155,20 +131,8 @@ export const falsy = (value: unknown): void => {
 
 // ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests if calling the provided function
- * throws an exception. Reports line number of the test.
- *
- * @param {any => any} func - any JavaScript function
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * fails () => throw new Error('bad')
- * ```
- * This test will pass.
- */
 export const fails = (func: TVoidFunc): void => {
+
 	pushLogLevel('silent') // --- silence any errors generated
 	const name = getTestName()
 	DBG(`fails <func> (${name})`)
@@ -187,21 +151,8 @@ export const fails = (func: TVoidFunc): void => {
 
 // ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests if calling the provided function
- * runs without throwing an exception.
- * Reports line number of the test.
- *
- * @param {any => any} func - any JavaScript function
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * succeeds () => return 42
- * ```
- * This test will pass.
- */
 export const succeeds = (func: TVoidFunc): void => {
+
 	assert((typeof func === 'function'), "test succeeds() passed non-function")
 	const name = getTestName()
 	DBG(`succeeds <func> (${name})`)
@@ -222,7 +173,11 @@ export const succeeds = (func: TVoidFunc): void => {
 
 // ---------------------------------------------------------------------------
 
-export const iterEqual = (iter: Iterable<unknown>, expected: unknown[]): void => {
+export const iterEqual = (
+		iter: Iterable<unknown>,
+		expected: unknown[]
+		): void => {
+
 	const name = getTestName()
 	DBG(`iterEqual ?, ${stringify(expected)} (${name})`)
 	Deno.test(name, () => assertEquals(Array.from(iter), expected))
@@ -231,7 +186,11 @@ export const iterEqual = (iter: Iterable<unknown>, expected: unknown[]): void =>
 
 // ---------------------------------------------------------------------------
 
-export const iterLike = (iter: Iterable<hash>, expected: hash[]): void => {
+export const iterLike = (
+		iter: Iterable<hash>,
+		expected: hash[]
+		): void => {
+
 	const name = getTestName()
 	DBG(`iterEqual ?, ${stringify(expected)} (${name})`)
 	const lItems = Array.from(iter)
@@ -247,28 +206,8 @@ export const iterLike = (iter: Iterable<hash>, expected: hash[]): void => {
 
 // ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests a value, which must be a string,
- * matches either a substring or a regular expression.
- * Reports line number of the test.
- *
- * @param {any} value - any JavaScript value
- * @param {any} expected - any JavaScript value
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * matches 'abcde', 'bce'
- * ```
- * This test will pass.
- *
- * @example
- * ```js
- * matches 'aabbcc', /a+b+c+/
- * ```
- * This test will pass.
- */
 export const matches = (value: unknown, expected: unknown): void => {
+
 	assert(isString(value), `Not a string: ${value}`)
 	const name = getTestName()
 	DBG(`matches ?, ${stringify(expected)} (${name})`)
@@ -286,23 +225,8 @@ export const matches = (value: unknown, expected: unknown): void => {
 
 // ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests if one hash matches another hash.
- * the first hash must have all the properties in the second hash,
- * but extra properties are allowed.
- * Reports line number of the test.
- *
- * @param {hash} value - any JavaScript object
- * @param {hash} expected - any JavaScript object
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * like {a:1, b:2, c:3}, {a:1, c:3}
- * ```
- * This test will pass.
- */
 export const like = (value: (object | undefined), expected: hash): void => {
+
 	const name = getTestName()
 	DBG(`like ?, ${stringify(expected)} (${name})`)
 	if (notdefined(value)) {
@@ -317,6 +241,7 @@ export const like = (value: (object | undefined), expected: hash): void => {
 // ---------------------------------------------------------------------------
 
 export const codeLike = (value: string, expected: string): void => {
+
 	const name = getTestName()
 	DBG(`codeLike ?, ${stringify(expected)} (${name})`)
 	Deno.test(name, (): void => {
@@ -327,7 +252,11 @@ export const codeLike = (value: string, expected: string): void => {
 
 // ---------------------------------------------------------------------------
 
-export const strListLike = (value: string[], expected: string[]): void => {
+export const strListLike = (
+		value: string[],
+		expected: string[]
+		): void => {
+
 	const name = getTestName()
 	DBG(`strListLike ?, ${stringify(expected)}`)
 	const len = value.length
@@ -349,33 +278,6 @@ export const strListLike = (value: string[], expected: string[]): void => {
 
 // ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests if each Object in an array matches
- * each object in another array. The 2 arrays must be of the
- * same length. If a function is passed as the 3rd parameter,
- * then each array is first sorted by using the function to
- * convert each object to a string, then sorting the array
- * using those strings.
- * A matching function can also be provided as the 4th argument.
- * By default, the function hashLike (from llutils.lib) is used.
- * Reports line number of the test.
- *
- * @param {array | object} value - any JavaScript value
- * @param {array | object} expected - any JavaScript value
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * like {a:1, b:2, c:3}, {a:1, c:3}
- * ```
- * This test will pass.
- *
- * @example
- * ```js
- * like [{a:1, b:2, c:3}, {a:3, b:5, c:23}], [{a:1, b:2}]
- * ```
- * This test will pass.
- */
 export const objListLike = (
 		value: hash[],
 		expected: hash[],
@@ -425,22 +327,8 @@ export const objListLike = (
 
 // ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests a value, which must be an array,
- * includes the expected value.
- * Reports line number of the test
- *
- * @param {Array<any>} value - an array
- * @param {any} expected - any JavaScript value
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * includes ['a', 'b', 'c'], 'b'
- * ```
- * This test will pass.
- */
 export const includes = (value: unknown, expected: unknown): void => {
+
 	assert(Array.isArray(value), `not an array: ${value}`)
 	const name = getTestName()
 	DBG(`includes ?, ${stringify(expected)} (${name})`)
@@ -450,21 +338,6 @@ export const includes = (value: unknown, expected: unknown): void => {
 
 // ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests a value, which must be an array,
- * includes all of the items in the expected array.
- * Reports line number of the test
- *
- * @param {Array<any>} value - an array
- * @param {Array<any>} expected - an array
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * includesAll ['a', 'b', 'c'], ['b', 'c']
- * ```
- * This test will pass.
- */
 export const includesAll = (value: unknown, expected: unknown): void => {
 	assert(Array.isArray(value), `not an array: ${value}`)
 	assert(Array.isArray(expected), `not an array: ${expected}`)
@@ -508,29 +381,6 @@ ${tsCode}`
 
 // ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests if a value is of a given type.
- * Relies on a .symbols file being correctly set up, and
- * it containing the type we're testing when testing
- * a non-buildin type
- *
- * @param {string} typeStr - a type as a string
- * @param {any} value - any JavaScript value
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * isType 'string', 'abc'
- * ```
- * This test will pass.
- *
- * @example
- * ```js
- * isType 'number', 'abc'
- * ```
- * This test will fail.
- */
-
 export const isType = (
 		typeStr: string,
 		value: unknown,
@@ -560,25 +410,6 @@ export const isType = (
 
 // ---------------------------------------------------------------------------
 
-/**
- * In a unit test, tests if a value is not of a given type.
- *
- * @param {string} typeStr - a type as a string
- * @param {any} value - any JavaScript value
- * @returns {void} - nothing
- *
- * @example
- * ```js
- * notType 'string', 'abc'
- * ```
- * This test will fail.
- *
- * @example
- * ```js
- * notType 'number', 'abc'
- * ```
- * This test will pass.
- */
 export const notType = (
 		typeStr: string,
 		value: unknown,
@@ -608,7 +439,7 @@ export const notType = (
 // ---------------------------------------------------------------------------
 
 export type TFileOp = {
-		op: 'mkDir' | 'clearDir' | 'compile' | 'pushWD'
+		op: 'mkDir' | 'clearDir' | 'compile'
 		path: string
 		}
 	| {
@@ -616,33 +447,6 @@ export type TFileOp = {
 		path: string
 		contents: string
 		}
-	| {
-		op: 'popWD'
-		}
-
-// ---------------------------------------------------------------------------
-
-export const fileOpsOk = (lFileOps: TFileOp[]): boolean => {
-
-	try {
-		assert((lFileOps.length >= 2))
-		const firstOp  = lFileOps[0].op
-		const secondOp = lFileOps[1].op
-		// @ts-ignore
-		const lastOp   = lFileOps.at(-1).op
-
-		assert((firstOp === 'clearDir') || (firstOp === 'mkDir'))
-		assert((secondOp === 'pushWD'))
-		assert((lastOp === 'popWD'))
-		for (const hOp of lFileOps.slice(2, -1)) {
-			assert((hOp.op !== 'pushWD') && (hOp.op !== 'popWD'))
-		}
-		return true
-	}
-	catch (err) {
-		return false
-	}
-}
 
 // ---------------------------------------------------------------------------
 
@@ -650,12 +454,6 @@ export const execFileOps = (
 		lFileOps: TFileOp[]
 		): void => {
 
-	// --- To be safe, we make sure
-	//        - 1st op is pushWD with path including 'src/test/<word>/
-	//        - Last op is popWD
-	//        - there are no other pushWD or popWD ops
-
-	assert(fileOpsOk(lFileOps), `Bad lFileOps:\n${ML(lFileOps)}\n`)
 	for (const h of lFileOps) {
 		switch(h.op) {
 			case 'mkDir': {
@@ -667,15 +465,8 @@ export const execFileOps = (
 			case 'compile': {
 				civet2tsFile(h.path);break;
 			}
-			case 'pushWD': {
-				pushWD(h.path);break;
-			}
 			case 'barf': {
-				assertIsDefined(h.contents)
 				barf(h.path, h.contents);break;
-			}
-			case 'popWD': {
-				popWD();break;
 			}
 		}
 	}
@@ -685,113 +476,10 @@ export const execFileOps = (
 // ---------------------------------------------------------------------------
 // ASYNC
 
-export const getFileOps = async function(
-		desc: string
-		): AutoPromise<TFileOp[]> {
+export const getFileOps = async (desc: string): AutoPromise<TFileOp[]> => {
 
-	try {
-		let root: string = ''
-		let curFileName: string = ''
-		let compileFile: boolean = false
-		const lLines: string[] = []
-		const lFileOps: TFileOp[] = []
-
-		const pushBarfOp = (): void => {
-			assert(!curFileName.startsWith('/'),
-				`Bad file name: ${curFileName}`)
-			lFileOps.push({
-				op: 'barf',
-				path: curFileName,
-				contents: lLines.join('\n')
-				})
-			if (compileFile) {
-				lFileOps.push({
-					op: 'compile',
-					path: curFileName
-					})
-			}
-			curFileName = ''
-			compileFile = false
-			lLines.length = 0
-			return
-		}
-
-		let i4 = 0;for (const line of await allLinesInBlock(desc)) {const i = i4++;
-			const [level, str] = splitLine(line)
-			if (i === 0) {
-				assert((level === 0), "Bad line 1")
-				const lParts = str.split(/\s+/)
-				let root: string
-				let clear: boolean
-				switch(lParts.length) {
-					case 1: {
-						[root, clear] = [str, false];break;
-					}
-					case 2: {
-						assert((lParts[1] === 'clear'), `Bad header: ${line}`);
-						[root, clear] = [lParts[0], true];break;
-					}
-					default: {
-						croak(`Bad header: ${line}`);
-						[root, clear] = ['', false]
-					}
-				}   // --- shouldn't be needed
-				assert(nonEmpty(root), "Missing root")
-				lFileOps.push({
-					op: clear ? 'clearDir' : 'mkDir',
-					path: root
-					})
-				lFileOps.push({
-					op: 'pushWD',
-					path: root
-					})
-			}
-			else if (isEmpty(str)) {
-				lLines.push('')
-			}
-			else if (level === 0) {
-				if (curFileName) {
-					pushBarfOp()
-				}
-				const lParts = str.split(/\s+/)
-				let fname: string
-				let compile: boolean
-				switch(lParts.length) {
-					case 1: {
-						[fname, compile] = [str, false];break;
-					}
-					case 2: {
-						assert((lParts[1] === 'compile'), `Bad header: ${line}`);
-						[fname, compile] = [lParts[0], true];break;
-					}
-					default: {
-						croak(`Bad header: ${line}`);
-						[fname, compile] = ['', false]
-					}
-				}  // --- shouldn't be needed
-				assert(nonEmpty(fname), "Missing fname")
-				curFileName = fname
-				compileFile = compile
-				lLines.length = 0
-			}
-			else {
-				lLines.push(indented(str, level-1))
-			}
-		}
-		if (curFileName) {
-			pushBarfOp()
-		}
-		lFileOps.push({
-			op: 'popWD'
-			})
-		assert(fileOpsOk(lFileOps), `Bad lFileOps:\n${ML(lFileOps)}\n`)
-		return lFileOps
-	}
-
-	catch (err) {
-		croak(`ERROR in getFileOps(): ${getErrStr(err)}`)
-	}
-	return [] as TFileOp[]
+	const lFileOps = await doParse<TFileOp[]>('dir-tree', desc)
+	return lFileOps
 }
 
 // ---------------------------------------------------------------------------
@@ -806,7 +494,19 @@ export const setDirTree = async (desc: string): AutoPromise<TFileOp[]> => {
 
 // ---------------------------------------------------------------------------
 
-export const fileOpsTable = (lFileOps: TFileOp[]): string => {
+export const fileOpsTable = (
+		lFileOps: TFileOp[],
+		hOptions: hash = {}
+		): string => {
+
+	type opt = {
+		oneLine: boolean
+		trunc: number
+		}
+	const {oneLine, trunc} = getOptions<opt>(hOptions, {
+		oneLine: true,
+		trunc: 32
+		})
 
 	const tt = new TextTable("l l l")
 	tt.fullsep()
@@ -819,13 +519,17 @@ export const fileOpsTable = (lFileOps: TFileOp[]): string => {
 			case 'barf': {
 				const {path, contents} = h
 				const str = contents || ''
-				const lLines = blockToArray(str)
-				if (lLines.length === 0) {
+				if (str.length === 0) {
 					tt.data(['barf', path, '<empty>'])
 				}
+				else if (oneLine) {
+					const output = truncStr(esc(str), trunc)
+					tt.data(['barf', path, output])
+				}
 				else {
-					let i5 = 0;for (const line of lLines) {const i = i5++;
-						const contents = truncStr(esc(lLines[i]), 40)
+					const lLines = blockToArray(str)
+					let i4 = 0;for (const line of lLines) {const i = i4++;
+						const contents = truncStr(esc(lLines[i]), trunc)
 						if (i === 0) {
 							tt.data(['barf', path, contents])
 						}
@@ -834,9 +538,6 @@ export const fileOpsTable = (lFileOps: TFileOp[]): string => {
 						}
 					}
 				};break;
-			}
-			case 'popWD': {
-				tt.data(['popWD', '', '']);break;
 			}
 			default: {
 				tt.data([h.op, h.path, ''])
@@ -914,6 +615,29 @@ export const allFalse = (
 
 // ---------------------------------------------------------------------------
 
+export const getPromiseOf = async function<T>(
+		value: T,
+		sleepFor = 1
+		): AutoPromise<T> {
+
+	await sleep(sleepFor)
+	// @ts-ignore
+	return value
+}
+
+// ---------------------------------------------------------------------------
+
+export const getRejectedPromiseOf = async function<T>(
+		errMsg: string,
+		sleepFor = 1
+		): AutoPromise<never> {
+
+	await sleep(sleepFor)
+	throw new Error(errMsg)
+}
+
+// ---------------------------------------------------------------------------
+
 export const generateSync = function*<T>(
 		lItems: T[],
 		): Generator<T> {
@@ -928,12 +652,13 @@ export const generateSync = function*<T>(
 
 export const generateAsync = async function*<T>(
 		lItems: T[],
-		sleepFor: number = 1
+		sleepFor = 1
 		): AsyncGenerator<T> {
 
 	for (const item of lItems) {
-		await sleep(1)
+		await sleep(sleepFor)
 		yield item
 	}
 	return
 }
+

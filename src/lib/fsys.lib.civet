@@ -128,9 +128,10 @@ export pathToURL := (...lParts: string[]): string =>
 
 # ---------------------------------------------------------------------------
 
-export mkpath := (...lParts: string[]): string =>
+export mkpath := (...lParts: string?[]): string =>
 
-	path := resolve ...lParts
+	lUseParts := lParts.filter (x) => nonEmpty(x)
+	path := lUseParts.join('/').replaceAll(/[\\\/]+/g, '/')
 	return normalizePath path
 
 # ---------------------------------------------------------------------------
@@ -141,14 +142,12 @@ export type TPathDesc = {
 	lParts: string[]
 	}
 
-export pathSubDirs := (path: string, hOptions: hash = {}): TPathDesc =>
+export pathSubDirs := (
+		path: string,
+		hOptions: hash = {}
+		): TPathDesc =>
 
-	type opt = {
-		relative: boolean
-		}
-	{relative} := getOptions<opt> hOptions,
-		relative: false
-	path = relative ? relpath(path) : mkpath(path)
+	path = toFullPath(path)
 	{root, dir} := parse path
 	return {
 		dir
@@ -267,20 +266,6 @@ export clearDir := (dirPath: string): void =>
 		emptyDirSync dirPath
 	else
 		mkDir dirPath
-	return
-
-# ---------------------------------------------------------------------------
-
-# --- hOptions gets passed to allFilesMatching()
-export removeFilesMatching := (
-		pattern: string,
-		hOptions: hash = {}
-		): void =>
-
-	assert (pattern != '*') && (pattern != '**'),
-			"Can't delete files matching #{OL(pattern)}"
-	for path of allFilesMatching(pattern, hOptions)
-		Deno.removeSync path
 	return
 
 # ---------------------------------------------------------------------------
@@ -526,14 +511,14 @@ export splitPatterns := (
 #          OR
 #       lPaths := Array.from(allFilesMatching(lPats))
 #
-#    NOTE: By default, searches from ./src
+#    NOTE: By default, searches from .
 #          By default, ignores anything inside a folder
 #                      named 'temp', 'hide' or 'save'
 
 export allFilesMatching := (
 		lPatterns: string | string?[],
 		hOptions: hash = {}
-		): Generator<string, void, void> ->
+		): Generator<string> ->
 
 	type opt = {
 		root: string
@@ -544,7 +529,7 @@ export allFilesMatching := (
 
 	{root, hMoreGlobOptions, lIgnoreDirs, includeDirs
 		} := getOptions<opt> hOptions, {
-			root: './src'
+			root: '.'
 			hMoreGlobOptions: {}
 			lIgnoreDirs: ['temp', 'hide', 'save']
 			includeDirs: false
@@ -559,7 +544,9 @@ export allFilesMatching := (
 		}
 
 	lMorePatterns := (
-		defined(lIgnoreDirs) ? lIgnoreDirs.map((x) => '! **/' + x + '/**') : []
+		  defined(lIgnoreDirs)
+		? lIgnoreDirs.map((x) => '! **/' + x + '/**')
+		: []
 		)
 	[lPosPats, lNegPats] := splitPatterns lPatterns, lMorePatterns
 	if lNegPats.length > 0
@@ -576,8 +563,22 @@ export allFilesMatching := (
 			if not setSkip.has(path)
 				if debugging
 					LOG "PATH: #{path}"
-				yield path
+				yield normalizePath(path)
 				setSkip.add path
+	return
+
+# ---------------------------------------------------------------------------
+
+# --- hOptions gets passed to allFilesMatching()
+export removeFilesMatching := (
+		pattern: string,
+		hOptions: hash = {}
+		): void =>
+
+	assert (pattern != '*') && (pattern != '**'),
+			"Can't delete files matching #{OL(pattern)}"
+	for path of allFilesMatching(pattern, hOptions)
+		Deno.removeSync path
 	return
 
 # ---------------------------------------------------------------------------
@@ -596,8 +597,9 @@ export findFile := (
 		lIgnoreDirs: []
 		}
 
-	lPaths := Array.from allFilesMatching "**/#{fileName}", {
-		root
+	assert not root.endsWith('/'), "Bad root: #{root}"
+	pat := root ? "#{root}/**/#{fileName}" : "**/#{fileName}"
+	lPaths := Array.from allFilesMatching pat, {
 		lIgnoreDirs
 		}
 	DBGVALUE 'lPaths', lPaths

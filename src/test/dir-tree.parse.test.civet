@@ -10,6 +10,7 @@ equal await doParse('dir-tree', """
 	file.txt
 		abcdef
 	"""), [
+	{ op: 'mkDir', path: './src'}
 	{ op: 'barf', path: './src/file.txt', contents: "abcdef"}
 	]
 
@@ -23,13 +24,14 @@ equal await doParse('dir-tree', """
 	]
 
 equal await doParse('dir-tree', """
-	./src clear
+	./src
 	/temp
 		file.txt
 			abc
 			def
 	"""), [
-	{ op: 'clearDir', path: './src'}
+	{ op: 'mkDir', path: './src'}
+	{ op: 'mkDir', path: './src/temp'}
 	{ op: 'barf', path: './src/temp/file.txt', contents: "abc\ndef"}
 	]
 
@@ -42,5 +44,7 @@ equal await doParse('dir-tree', """
 				def
 	"""), [
 	{ op: 'clearDir', path: './src/test'}
+	{ op: 'mkDir', path: './src/test/temp'}
+	{ op: 'mkDir', path: './src/test/temp/next'}
 	{ op: 'barf', path: './src/test/temp/next/file.txt', contents: "abc\ndef"}
 	]

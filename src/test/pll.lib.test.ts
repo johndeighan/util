@@ -19,7 +19,7 @@ import {
 
 const setup = async (): AutoPromise<void> => {
 
-	await setDirTree(`./src/test/pll clear
+	await setDirTree(`./src/test/pll
 tokens.txt
 	if x==1
 		print "OK"
@@ -252,3 +252,5 @@ line   def
 undent
 eof
 ==========`)
+
+

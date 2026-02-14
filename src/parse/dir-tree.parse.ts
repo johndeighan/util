@@ -1,4 +1,4 @@
-//@ts-nocheck
+// @ts-nocheck
 import {
   $C,
   $E,
@@ -28,12 +28,12 @@ const grammar = {
 Root: Root,
 FileDesc: FileDesc,
 FileName: FileName,
-DirDesc: DirDesc,
-DirName: DirName,
-Part: Part,
+Contents: Contents,
+IndentedBlock: IndentedBlock,
 Block: Block,
 Line: Line,
-IndentedBlock: IndentedBlock,
+DirDesc: DirDesc,
+DirName: DirName,
 Name: Name,
 INDENT: INDENT,
 UNDENT: UNDENT,
@@ -49,55 +49,54 @@ const $L1 = $L("compile");
 const $L2 = $L("/");
 
 
-const $R0 = $R(new RegExp("\\.\\.?\\/[A-Za-z_$\\/-]+", 'suy'));
-const $R1 = $R(new RegExp("[^\\x0F\\x0E\\n]*", 'suy'));
+const $R0 = $R(new RegExp("\\.(?:\\/[A-Za-z0-9_-]+)*", 'suy'));
+const $R1 = $R(new RegExp("[^\\x0F\\x0E\\n\\r]*", 'suy'));
 const $R2 = $R(new RegExp("[A-Za-z_.-][A-Za-z0-9_.-]*", 'suy'));
 const $R3 = $R(new RegExp("\\x0F", 'suy'));
 const $R4 = $R(new RegExp("\\x0E", 'suy'));
 const $R5 = $R(new RegExp("\\r?\\n", 'suy'));
-const $R6 = $R(new RegExp("\\s+", 'suy'));
+const $R6 = $R(new RegExp("\\x20*", 'suy'));
 
 
 //@ts-ignore
 const FullDesc$0 = $TS($S(Root, $P($C(FileDesc, DirDesc))), function($skip, $loc, $0, $1, $2) {
 
 pm.match('FullDesc', $loc);
-return lOps;
+return lFileOps;
 });
 //@ts-ignore
 function FullDesc(ctx, state) { return $EVENT(ctx, state, "FullDesc", FullDesc$0) }
 
 //@ts-ignore
-const Root$0 = $TS($S($EXPECT($R0, "Root /\\.\\.?\\/[A-Za-z_$\\/-]+/"), _, $E($EXPECT($L0, "Root \"clear\"")), NL), function($skip, $loc, $0, $1, $2, $3, $4) {
+const Root$0 = $TS($S($EXPECT($R0, "Root /\\.(?:\\/[A-Za-z0-9_-]+)*/"), _, $E($EXPECT($L0, "Root \"clear\"")), NL), function($skip, $loc, $0, $1, $2, $3, $4) {
 
-lOps.length = 0;
-pm.reset();
-pm.match('Root', $loc)
-if (defined($3)) {
-  lOps.push({
-    op: 'clearDir',
-    path: $1
-    });
-  }
-lPathParts = [$1];
+pm.match('Root', $loc);
+let root = $1[0];
+lFileOps.push({
+  op: defined($3) ? 'clearDir' : 'mkDir',
+  path: root
+  });
+lPathParts = [root];
+return;
 });
 //@ts-ignore
 function Root(ctx, state) { return $EVENT(ctx, state, "Root", Root$0) }
 
 //@ts-ignore
-const FileDesc$0 = $TS($S(FileName, INDENT, Block, UNDENT), function($skip, $loc, $0, $1, $2, $3, $4) {
+const FileDesc$0 = $TS($S(FileName, Contents), function($skip, $loc, $0, $1, $2) {
 
 pm.match('FileDesc', $loc);
-let [name, compile] = $1;
-lOps.push({
+let [fileName, doCompile] = $1;
+let path = getPath(fileName);
+lFileOps.push({
   op: 'barf',
-  path: getPath(name),
-  contents: $3
+  path,
+  contents: $2
   });
-if (compile) {
-  lOps.push({
+if (doCompile) {
+  lFileOps.push({
     op: 'compile',
-    path: getPath(name)
+    path
     });
   }
 });
@@ -114,10 +113,51 @@ return [$1, defined($3)]
 function FileName(ctx, state) { return $EVENT(ctx, state, "FileName", FileName$0) }
 
 //@ts-ignore
-const DirDesc$0 = $TS($S(DirName, INDENT, $P($C(DirDesc, FileDesc)), UNDENT), function($skip, $loc, $0, $1, $2, $3, $4) {
+const Contents$0 = $TS($S(IndentedBlock), function($skip, $loc, $0, $1) {
+
+pm.match('Contents', $loc);
+return undented($1);
+});
+//@ts-ignore
+function Contents(ctx, state) { return $EVENT(ctx, state, "Contents", Contents$0) }
+
+//@ts-ignore
+const IndentedBlock$0 = $TS($S(INDENT, $P(Block), UNDENT), function($skip, $loc, $0, $1, $2, $3) {
+
+pm.match('IndentedBlock', $loc);
+return indented($2.join('\n'));
+});
+//@ts-ignore
+function IndentedBlock(ctx, state) { return $EVENT(ctx, state, "IndentedBlock", IndentedBlock$0) }
+
+//@ts-ignore
+const Block$0 = $TS($S(Line, $E(IndentedBlock)), function($skip, $loc, $0, $1, $2) {
+
+pm.match('Block', $loc);
+if (defined($2)) {
+  return $1 + '\n' + $2;
+  }
+else {
+  return $1;
+  }
+});
+//@ts-ignore
+function Block(ctx, state) { return $EVENT(ctx, state, "Block", Block$0) }
+
+//@ts-ignore
+const Line$0 = $TS($S($EXPECT($R1, "Line /[^\\x0F\\x0E\\n\\r]*/"), NL), function($skip, $loc, $0, $1, $2) {
+
+pm.match('Line', $loc);
+return $1
+});
+//@ts-ignore
+function Line(ctx, state) { return $EVENT(ctx, state, "Line", Line$0) }
+
+//@ts-ignore
+const DirDesc$0 = $TS($S(DirName, NL, INDENT, $P($C(DirDesc, FileDesc)), UNDENT), function($skip, $loc, $0, $1, $2, $3, $4, $5) {
 
 pm.match('DirDesc', $loc);
-lParts.pop()
+lPathParts.pop()
 return
 });
 //@ts-ignore
@@ -128,54 +168,13 @@ const DirName$0 = $TS($S($EXPECT($L2, "DirName \"/\""), Name, _, $E($EXPECT($L0,
 
 pm.match('DirName', $loc);
 lPathParts.push($2);
-if (defined($4)) {
-  lOps.push({
-    op: 'clearDir',
-    path: getPath($2)
-    });
-  }
+lFileOps.push({
+  op: defined($4) ? 'clearDir' : 'mkDir',
+  path: getPath()
+  });
 });
 //@ts-ignore
 function DirName(ctx, state) { return $EVENT(ctx, state, "DirName", DirName$0) }
-
-//@ts-ignore
-const Part$0 = $TV($C(IndentedBlock, Line), function($skip, $loc, $0, $1) {
-
-pm.match('Part', $loc);
-return $1
-});
-//@ts-ignore
-function Part(ctx, state) { return $EVENT(ctx, state, "Part", Part$0) }
-
-//@ts-ignore
-const Block$0 = $TS($S(Part, $Q($S(NL, Part))), function($skip, $loc, $0, $1, $2) {
-
-pm.match('Block', $loc);
-const lParts: string[] = [$1];
-for (const [_, text] of $2) {
-  lParts.push(text);
-  }
-return lParts.join('\n');
-});
-//@ts-ignore
-function Block(ctx, state) { return $EVENT(ctx, state, "Block", Block$0) }
-
-//@ts-ignore
-const Line$0 = $TR($EXPECT($R1, "Line /[^\\x0F\\x0E\\n]*/"), function($skip, $loc, $0, $1, $2, $3, $4, $5, $6, $7, $8, $9) {
-pm.match('Line', $loc);
-return $0
-});
-//@ts-ignore
-function Line(ctx, state) { return $EVENT(ctx, state, "Line", Line$0) }
-
-//@ts-ignore
-const IndentedBlock$0 = $TS($S(INDENT, Block, UNDENT), function($skip, $loc, $0, $1, $2, $3) {
-
-pm.match('IndentedBlock', $loc);
-return indented($2)
-});
-//@ts-ignore
-function IndentedBlock(ctx, state) { return $EVENT(ctx, state, "IndentedBlock", IndentedBlock$0) }
 
 //@ts-ignore
 const Name$0 = $TR($EXPECT($R2, "Name /[A-Za-z_.-][A-Za-z0-9_.-]*/"), function($skip, $loc, $0, $1, $2, $3, $4, $5, $6, $7, $8, $9) {
@@ -201,7 +200,7 @@ const NL$0 = $R$0($EXPECT($R5, "NL /\\r?\\n/"))
 function NL(ctx, state) { return $EVENT(ctx, state, "NL", NL$0) }
 
 //@ts-ignore
-const _$0 = $R$0($EXPECT($R6, "_ /\\s+/"))
+const _$0 = $R$0($EXPECT($R6, "_ /\\x20*/"))
 //@ts-ignore
 function _(ctx, state) { return $EVENT(ctx, state, "_", _$0) }
 
@@ -242,12 +241,12 @@ export {
   Root,
   FileDesc,
   FileName,
-  DirDesc,
-  DirName,
-  Part,
+  Contents,
+  IndentedBlock,
   Block,
   Line,
-  IndentedBlock,
+  DirDesc,
+  DirName,
   Name,
   INDENT,
   UNDENT,
@@ -256,15 +255,8 @@ export {
 }
 
 
-import {CParseMatches} from 'parse-utils'
+import {CParseMatches} from 'parse-utils';
 export let pm = new CParseMatches();
-let ruleMatch = (
-    name: string,
-    loc: [pos: number, length: number],
-    data: unknown = undefined
-    ): void => {
-  pm.match(name, loc, data);
-  }
 
 import {undef, defined, assert, hash} from 'datatypes';
 import {indented, undented} from 'indent';
@@ -278,10 +270,23 @@ export type TFileOp = {
     path: string
     contents: string
     };
-let lOps: TFileOp[] = [];
+
+let lFileOps: TFileOp[] = [];
 let lPathParts: string[] = [];
 
-let getPath = (name: string) => {
-  return [...lPathParts, name].join('/');
+export const reset = (): void => {
+  lFileOps.length = 0;
+  pm.reset();
+  }
+
+const getPath = (fileName: string = '') => {
+  if (fileName) {
+    return [...lPathParts, fileName].join('/');
+    }
+  else {
+    return [...lPathParts].join('/');
+    }
   };
 
+
+// @ts-nocheck

@@ -100,7 +100,7 @@ export const build = (
 	// --- Even though it's a constant, we can still
 	//     append strings to it!
 	const lUnitTests: string[] = []
-	const pat = `**/${name}.${purp}.civet`
+	const pat = `src/**/${name}.${purp}.civet`
 	for (const path of allFilesMatching(pat)) {
 		const {fileName, purpose, stub} = parsePath(path)
 		assert(isNonEmptyString(stub), "Empty stub")
@@ -116,7 +116,7 @@ export const build = (
 				'.ts',
 				'-c',
 				relpath(path)
-			])
+				])
 			if (success) {
 				LOG("   BUILD OK")
 				// --- type check the TypeScript file
@@ -124,7 +124,7 @@ export const build = (
 					'check',
 					'-q',
 					withExt(path, '.ts')
-				])
+					])
 				if (hResult.success) {
 					LOG("   CHECK OK")
 				}
@@ -148,7 +148,7 @@ export const build = (
 					stub || 'unknown',
 					'--no-config',
 					withExt(path, '.ts')
-				])
+					])
 				LOG(`   INSTALL ${(success? 'OK' : 'FAILED')}`);break;
 			}
 			case 'lib': {
@@ -227,7 +227,7 @@ export const getCompilerConfig = (
 						return [withExt(path, '.svg')]
 					},
 					tester: () => {
-						return execCmdSync('dot', ['--version'], o`quiet`).success
+						return execCmdSync('dot', ['--version']).success
 					},
 					compiler: (path: string) => {
 						const svgPath = withExt(path, '.svg')
@@ -243,7 +243,7 @@ export const getCompilerConfig = (
 					getOutPaths: (path: string) => [withExt(path, '.ts')],
 					tester: () => {
 						// --- we need civet to be installed
-						return execCmdSync('civet', ['--version'], o`quiet`).success
+						return execCmdSync('civet', ['--version']).success
 					},
 					compiler: (path: string) => {
 						// --- start with a *.cielo file
@@ -252,7 +252,7 @@ export const getCompilerConfig = (
 						rmFile(civetPath) // --- needed?
 						rmFile(tsPath) // --- needed?
 						cielo2civetFile(path, civetPath)
-						civet2tsFile(civetPath, tsPath)
+						civet2tsFile(civetPath)
 						const {fileName} = parsePath(path)
 						patchFirstLine(civetPath, fileName, withExt(fileName, '.temp.civet'))
 						patchFirstLine(tsPath, fileName, withExt(fileName, '.ts'))
@@ -264,7 +264,7 @@ export const getCompilerConfig = (
 						return [withExt(path, '.ts')]
 					},
 					tester: () => {
-						return execCmdSync('civet', ['--version'], o`quiet`).success
+						return execCmdSync('civet', ['--version']).success
 					},
 					compiler: (path: string) => {
 						const {purpose, fileName} = parsePath(path)
@@ -273,7 +273,7 @@ export const getCompilerConfig = (
 						}
 						const tsPath = withExt(path, '.ts')
 						const tsName = withExt(fileName, '.ts')
-						civet2tsFile(path, tsPath)
+						civet2tsFile(path)
 						patchFirstLine(tsPath, fileName, tsName)
 						return 'compiled'
 					}
@@ -345,7 +345,11 @@ export const getPostProcessor = (purpose: string): (TPostProcessor | undefined) 
 //        'failed'     - compiling failed
 //        'compiled'   - successfully compiled
 
-export const compileFile = (path: string, hOptions: hash = {}): TCompileResult => {
+export const compileFile = (
+		path: string,
+		hOptions: hash = {}
+		): TCompileResult => {
+
 	assert(isFile(path), `No such file: ${OL(path)}`)
 	DBG(`COMPILE: ${OL(path)}`, INDENT)
 	type opt = {
@@ -358,13 +362,21 @@ export const compileFile = (path: string, hOptions: hash = {}): TCompileResult =
 	const {stub, purpose, ext} = parsePath(path)
 	if (notdefined(ext)) {
 		DBG(`Not compiling - no file extension in ${OL(path)}`, UNDENT)
-		return {status: 'nocompiler', path: relpath(path)}
+		return {
+			status: 'nocompiler',
+			path: relpath(path)
+			}
 	}
+
 	const hCompilerInfo = getCompilerInfo(ext)
 	if (notdefined(hCompilerInfo)) {
 		DBG(`Not compiling - no compiler for ${OL(ext)}`, UNDENT)
-		return {status: 'nocompiler', path: relpath(path)}
+		return {
+			status: 'nocompiler',
+			path: relpath(path)
+			}
 	}
+
 	// @ts-ignore
 	const {compiler, getOutPaths} = hCompilerInfo
 	const lOutPaths = getOutPaths(relpath(path))
@@ -378,8 +390,13 @@ export const compileFile = (path: string, hOptions: hash = {}): TCompileResult =
 	}
 	if (allNewer) {
 		DBG(`Not compiling, newer ${OL(lOutPaths)} exist`, UNDENT)
-		return { status: 'exists', path: relpath(path), lOutPaths }
+		return {
+			status: 'exists',
+			path: relpath(path),
+			lOutPaths
+			}
 	}
+
 	DBG(`compiling ${OL(path)} to ${OL(lOutPaths)}`)
 	const status = compiler(path)
 	let postProcStatus: (unknown | undefined) = undef
@@ -396,12 +413,22 @@ export const compileFile = (path: string, hOptions: hash = {}): TCompileResult =
 			}
 		}
 	}
+
 	DBG(UNDENT)
 	if (defined(postProcStatus)) {
-		return { status, path: relpath(path), lOutPaths, postProcStatus }
+		return {
+			status,
+			path: relpath(path),
+			lOutPaths,
+			postProcStatus
+			}
 	}
 	else {
-		return { status, path: relpath(path), lOutPaths }
+		return {
+			status,
+			path: relpath(path),
+			lOutPaths
+			}
 	}
 }
 
@@ -428,7 +455,7 @@ export const runUnitTestsFor = function*(
 	//     (no error if there is no compiler for the file)
 	build(stub)
 	// --- Compile and run all unit tests for stub
-	for (const path of allFilesMatching(`**/${stub}*.test.*`)) {
+	for (const path of allFilesMatching(`src/**/${stub}*.test.*`)) {
 		const {status, lOutPaths} = compileFile(path, o`nopp`)
 		assert((status !== 'failed'), `compile of ${path} failed`)
 		if (notdefined(lOutPaths)) {
@@ -440,7 +467,7 @@ export const runUnitTestsFor = function*(
 		}
 		// --- Compile all files in subdir if it exists
 		if (isDir(`test/${stub}`)) {
-			for (const path of allFilesMatching('test/' + stub + '/*')) {
+			for (const path of allFilesMatching('src/test/' + stub + '/*')) {
 				const {status, lOutPaths} = compileFile(path)
 				assert((status !== 'failed'), `Compile of ${path} failed`)
 				if (notdefined(lOutPaths)) {
@@ -455,7 +482,7 @@ export const runUnitTestsFor = function*(
 				'test',
 				'-qA',
 				outPath
-			])
+				])
 			yield {stub, success}
 		}
 	}
@@ -480,7 +507,7 @@ export const installCmd = async (
 			'--config',
 			'deno.json',
 			path
-		])
+			])
 	}
 	else {
 		await execCmd('deno', [
@@ -491,7 +518,7 @@ export const installCmd = async (
 			'--config',
 			'deno.json',
 			path
-		])
+			])
 	}
 	return
 }
@@ -509,7 +536,7 @@ export const uninstallCmd = async (
 			'uninstall',
 			'-g',
 			path
-		])
+			])
 	}
 	else {
 		await execCmd('deno', [
@@ -518,7 +545,9 @@ export const uninstallCmd = async (
 			'-n',
 			name,
 			path
-		])
+			])
 	}
 	return
 }
+
+

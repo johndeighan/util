@@ -6,6 +6,7 @@ import {
 	isEmpty, isArray, isBoolean,
 	isInteger, isHash, isString,
 	} from 'datatypes'
+import {syncReducer} from 'var-free'
 import {keys, getOptions, o, spaces} from 'llutils'
 import {clearScreen} from 'console-utils'
 import {setLogLevel, LOG, DBG} from 'logger'
@@ -30,6 +31,25 @@ export flags := (...lChars: char[]): boolean[] =>
 
 	return for ch of lChars
 		flag ch
+
+# ---------------------------------------------------------------------------
+# --- hFlags should be { <name>: <char>, ... {\}
+# --- return hash      { <name>: <boolean>, ... }
+
+export getFlags := (hFlags: hashof<char>): hashof<boolean> =>
+
+	return syncReducer keys(hFlags), {}, (acc, name) =>
+		bool := flag(hFlags[name])
+		if bool
+			LOG "#{name} = true"
+		return {...acc, [name]: bool}
+
+# ---------------------------------------------------------------------------
+
+export setFlag := (ch: char): void =>
+
+	hFlags[ch] = true
+	return
 
 # ---------------------------------------------------------------------------
 

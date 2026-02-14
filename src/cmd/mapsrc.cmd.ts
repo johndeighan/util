@@ -17,6 +17,7 @@ assert(isFile(source), `No such file: ${source}`)
 
 let i1 = 0;for (const str of allNonOptions()) {const i = i1++;
 	if (i === 0) {
+		// --- skip the path
 		continue
 	}
 	assert(defined(str), "Missing line number")
@@ -27,5 +28,8 @@ let i1 = 0;for (const str of allNonOptions()) {const i = i1++;
 		line: parseInt(str),
 		col: 1
 		})
+	console.log(`Line ${str} maps to:`)
 	console.dir(hPos)
 }
+
+

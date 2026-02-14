@@ -18,7 +18,7 @@ import {
 setup := (): void =>
 
 	await setDirTree """
-		./src/test/pll clear
+		./src/test/pll
 		tokens.txt
 			if x==1
 				print "OK"

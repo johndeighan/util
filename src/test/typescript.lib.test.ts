@@ -28,7 +28,7 @@ const setup = async (): AutoPromise<void> => {
 
 	DBG("setDirTree()")
 
-	await setDirTree(`./src/test/typescript clear
+	await setDirTree(`./src/test/typescript
 tstest.ts
 	const str: string = 'abc'
 tstest2.ts
@@ -178,3 +178,4 @@ func('abc')`, s`MISSING: t`)
 equal(a`function func(s: string): string
 	return s + t + '.txt'
 func('abc')`, s`MISSING: t`)
+

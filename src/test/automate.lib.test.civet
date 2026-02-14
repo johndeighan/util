@@ -4,7 +4,6 @@ import {defined, isHash, isFunction} from 'datatypes'
 import {o} from 'llutils'
 import {withExt, TPathInfo, isFile} from 'fsys'
 import {DBG} from 'logger'
-import {execCmd} from 'exec'
 import {
 	TTesterFunc, TCompileStatus, TCompilerFunc, TPostProcessor,
 	TCompilerInfo, isCompilerInfo, TCompilerConfig, isCompilerConfig,
@@ -23,7 +22,7 @@ import {
 setup := (): void =>
 
 	await setDirTree """
-		./src/test/automate clear
+		./src/test/automate
 		test1.cielo
 			# test1.cielo
 

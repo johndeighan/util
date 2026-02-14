@@ -10,7 +10,7 @@ import {DBG} from 'logger'
 import {slurp, withExt} from 'fsys'
 import {ts2ast, astAsString} from 'typescript'
 import {
-	civet2tsFile, civet2ts, civet2ast,
+	a, civet2tsFile, civet2ts, civet2ast,
 	} from 'civet'
 import {
 	equal, like, succeeds, fails, truthy, falsy,
@@ -21,7 +21,7 @@ const fileName = "test-civet.civet"
 
 // ---------------------------------------------------------------------------
 
-await setDirTree(`./src/test/civet clear
+await setDirTree(`./src/test/civet
 ${fileName}
 	x := 42
 `)
@@ -40,13 +40,13 @@ equal(ast1, ast2)
 
 DBG("civet2ts(code)")
 
-equal(civet2ts('x := 42', o`nomap`), `"use strict";
+equal(civet2ts('x := 42', o`!inlineMap`), `"use strict";
 const x = 42`)
 
 DBG("civet2tsFile(path)");
 
 (() => {
-	civet2tsFile(testPath, withExt(testPath, '.ts'), o`nomap`)
+	civet2tsFile(testPath, o`!inlineMap`)
 	const code = slurp(withExt(testPath, '.ts'))
 	equal(code, `"use strict";
 const x = 42`)
@@ -63,21 +63,21 @@ DBG("astAsString(hAST)")
 equal(stripAnsiCode(astAsString(ts2ast('x := 42'))), s`kind: 308 (SourceFile)
 statements:
 	-
-	❘  kind: 257 (LabeledStatement)
-	❘  label:
-	❘     kind: 80 (Identifier)
-	❘     escapedText: x
-	❘  statement:
-	❘     kind: 245 (ExpressionStatement)
-	❘     expression:
-	❘     ❘  kind: 227 (BinaryExpression)
-	❘     ❘  left:
-	❘     ❘     kind: 80 (Identifier)
-	❘     ❘  operatorToken:
-	❘     ❘     kind: 64 (FirstAssignment)
-	❘     ❘  right:
-	❘     ❘     kind: 9 (FirstLiteralToken)
-	❘     ❘     text: \\42
+	   kind: 257 (LabeledStatement)
+	   label:
+	      kind: 80 (Identifier)
+	      escapedText: x
+	   statement:
+	      kind: 245 (ExpressionStatement)
+	      expression:
+	         kind: 227 (BinaryExpression)
+	         left:
+	            kind: 80 (Identifier)
+	         operatorToken:
+	            kind: 64 (FirstAssignment)
+	         right:
+	            kind: 9 (FirstLiteralToken)
+	            text: \\42
 endOfFileToken:
 	kind: 1 (EndOfFileToken)
 text: x˳:=˳42
@@ -89,11 +89,17 @@ identifierCount: 2
 symbolCount: 0
 parseDiagnostics:
 	-
-	❘  file: ｟ref root｠
-	❘  start: 3
-	❘  length: 1
-	❘  messageText: Expression˳expected.
-	❘  category: 1
-	❘  code: 1109`)
+	   file: ｟ref root｠
+	   start: 3
+	   length: 1
+	   messageText: Expression˳expected.
+	   category: 1
+	   code: 1109`)
 
 succeeds(() => civet2ast('x := 42'))
+
+// ---------------------------------------------------------------------------
+
+equal(a`import {defined, notdefined} from 'datatypes'`, s`IMPORTS: datatypes: defined notdefined
+EXTRA: defined notdefined`)
+

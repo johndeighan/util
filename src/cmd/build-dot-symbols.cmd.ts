@@ -65,7 +65,7 @@ const getDotSymbols = async function*(
 		hOptions: hash = {}
 		): AsyncGenerator<string, void, void> {
 
-	for (const path of allFilesMatching('**/*.lib.civet')) {
+	for (const path of allFilesMatching('src/**/*.lib.civet')) {
 		DBG(`GET symbols from: ${relpath(path)}`)
 		for await (const line of getDotSymbolsLines(path)) {
 			yield line
@@ -80,3 +80,5 @@ const lLines = await Array.fromAsync(getDotSymbols())
 const contents = lLines.join('\n')
 DBGVALUE('contents', contents)
 barf('src/.symbols', contents)
+
+

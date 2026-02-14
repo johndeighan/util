@@ -3,7 +3,7 @@
 
 import {write, writeln} from 'console-utils'
 import {isString} from 'datatypes'
-import {f} from 'llutils'
+import {f} from 'f-strings'
 import {OL, ML} from 'to-nice'
 
 let level = 0
@@ -66,7 +66,7 @@ export const DBG = (...lItems: unknown[]): void => {
 export const ERR = (...lStrings: string[]): void => {
 
 	for (const str of lStrings) {
-		LOG(`${str}{red}`)
+		console.log(f`${str}:{red}`)
 	}
 	return
 }
@@ -137,3 +137,5 @@ export const popLogLevel = (): TLogLevel => {
 		return retval
 	}
 }
+
+

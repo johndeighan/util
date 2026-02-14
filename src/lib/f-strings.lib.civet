@@ -28,7 +28,7 @@ export f := (
 		): string =>
 
 	[firstStr, mainWidth, mainEsc, mainColor] := fsplit lStrings[0]
-	lParts := Array.from(syncMapper<unknown,string> lValues, (val: unknown, i: number): TIterator<string, TMaybeCmd> ->
+	iterParts := syncMapper lValues, (val, i): TIterator<string, TMaybeCmd> ->
 		[str, width, doEsc, color] := fsplit lStrings[i+1]
 		result := switch typeof val
 			when 'string'
@@ -39,29 +39,18 @@ export f := (
 				formatStr JSON.stringify(val), width, doEsc, color, '-'
 		yield result + str
 		return
-		)
+	lParts := Array.from(iterParts)
 	mainStr := [firstStr, ...lParts].join('')
 	return formatStr mainStr, mainWidth, mainEsc, mainColor, '-'
 
 # ---------------------------------------------------------------------------
 
-export formatStr := (
+export colorize := (
 		str: string,
-		width: number,
-		doEsc: boolean,
-		color: string
-		justify: '-' | ''
+		color: string?
 		): string =>
 
-	valStr := doEsc ? esc(str) : str
-	outstr := width ? sprintf("%#{justify}#{width}s", valStr) : valStr
-	return colorize(outstr, color)
-
-# ---------------------------------------------------------------------------
-
-export colorize := (str: string, color: string) =>
-
-	if (color in hColor)
+	if color && (color in hColor)
 		switch color
 			when 'cyan' then return cyan(str)
 			when 'blue' then return blue(str)
@@ -69,9 +58,21 @@ export colorize := (str: string, color: string) =>
 			when 'red' then return red(str)
 			when 'green' then return green(str)
 			when 'magenta' then return magenta(str)
-			else return str
-	else
-		return str
+	return str
+
+# ---------------------------------------------------------------------------
+
+export formatStr := (
+		str: string,
+		width: number,
+		doEsc: boolean,
+		color: string?
+		justify: '-' | ''
+		): string =>
+
+	valStr := doEsc ? esc(str) : str
+	outstr := width ? sprintf("%#{justify}#{width}s", valStr) : valStr
+	return colorize(outstr, color)
 
 # ---------------------------------------------------------------------------
 

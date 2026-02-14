@@ -57,7 +57,7 @@ getDotSymbols := (
 		hOptions: hash = {}
 		): AsyncGenerator<string, void, void> ->
 
-	for path of allFilesMatching('**/*.lib.civet')
+	for path of allFilesMatching('src/**/*.lib.civet')
 		DBG "GET symbols from: #{relpath(path)}"
 		for await line of getDotSymbolsLines(path)
 			yield line

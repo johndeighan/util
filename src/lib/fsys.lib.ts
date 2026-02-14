@@ -141,9 +141,10 @@ export const pathToURL = (...lParts: string[]): string => {
 
 // ---------------------------------------------------------------------------
 
-export const mkpath = (...lParts: string[]): string => {
+export const mkpath = (...lParts: (string | undefined)[]): string => {
 
-	const path = resolve(...lParts)
+	const lUseParts = lParts.filter((x) => nonEmpty(x))
+	const path = lUseParts.join('/').replaceAll(/[\\\/]+/g, '/')
 	return normalizePath(path)
 }
 
@@ -155,15 +156,12 @@ export type TPathDesc = {
 	lParts: string[]
 	}
 
-export const pathSubDirs = (path: string, hOptions: hash = {}): TPathDesc => {
+export const pathSubDirs = (
+		path: string,
+		hOptions: hash = {}
+		): TPathDesc => {
 
-	type opt = {
-		relative: boolean
-		}
-	const {relative} = getOptions<opt>(hOptions, {
-		relative: false,
-	})
-	path = relative ? relpath(path) : mkpath(path)
+	path = toFullPath(path)
 	const {root, dir} = parse(path)
 	return {
 		dir,
@@ -300,22 +298,6 @@ export const clearDir = (dirPath: string): void => {
 	}
 	else {
 		mkDir(dirPath)
-	}
-	return
-}
-
-// ---------------------------------------------------------------------------
-
-// --- hOptions gets passed to allFilesMatching()
-export const removeFilesMatching = (
-		pattern: string,
-		hOptions: hash = {}
-		): void => {
-
-	assert((pattern !== '*') && (pattern !== '**'),
-			`Can't delete files matching ${OL(pattern)}`)
-	for (const path of allFilesMatching(pattern, hOptions)) {
-		Deno.removeSync(path)
 	}
 	return
 }
@@ -609,14 +591,14 @@ export const splitPatterns = (
 //          OR
 //       lPaths := Array.from(allFilesMatching(lPats))
 //
-//    NOTE: By default, searches from ./src
+//    NOTE: By default, searches from .
 //          By default, ignores anything inside a folder
 //                      named 'temp', 'hide' or 'save'
 
 export const allFilesMatching = function*(
 		lPatterns: string | (string | undefined)[],
 		hOptions: hash = {}
-		): Generator<string, void, void> {
+		): Generator<string> {
 
 	type opt = {
 		root: string
@@ -627,7 +609,7 @@ export const allFilesMatching = function*(
 
 	const {root, hMoreGlobOptions, lIgnoreDirs, includeDirs
 		} = getOptions<opt>(hOptions, {
-			root: './src',
+			root: '.',
 			hMoreGlobOptions: {},
 			lIgnoreDirs: ['temp', 'hide', 'save'],
 			includeDirs: false
@@ -642,7 +624,9 @@ export const allFilesMatching = function*(
 		}
 
 	const lMorePatterns = (
-		defined(lIgnoreDirs) ? lIgnoreDirs.map((x) => '! **/' + x + '/**') : []
+		  defined(lIgnoreDirs)
+		? lIgnoreDirs.map((x) => '! **/' + x + '/**')
+		: []
 		)
 	const [lPosPats, lNegPats] = splitPatterns(lPatterns, lMorePatterns)
 	if (lNegPats.length > 0) {
@@ -664,10 +648,26 @@ export const allFilesMatching = function*(
 				if (debugging) {
 					LOG(`PATH: ${path}`)
 				}
-				yield path
+				yield normalizePath(path)
 				setSkip.add(path)
 			}
 		}
+	}
+	return
+}
+
+// ---------------------------------------------------------------------------
+
+// --- hOptions gets passed to allFilesMatching()
+export const removeFilesMatching = (
+		pattern: string,
+		hOptions: hash = {}
+		): void => {
+
+	assert((pattern !== '*') && (pattern !== '**'),
+			`Can't delete files matching ${OL(pattern)}`)
+	for (const path of allFilesMatching(pattern, hOptions)) {
+		Deno.removeSync(path)
 	}
 	return
 }
@@ -688,8 +688,9 @@ export const findFile = (
 		lIgnoreDirs: []
 		})
 
-	const lPaths = Array.from(allFilesMatching(`**/${fileName}`, {
-		root,
+	assert(!root.endsWith('/'), `Bad root: ${root}`)
+	const pat = root ? `${root}/**/${fileName}` : `**/${fileName}`
+	const lPaths = Array.from(allFilesMatching(pat, {
 		lIgnoreDirs
 		}))
 	DBGVALUE('lPaths', lPaths)
@@ -1004,3 +1005,6 @@ export var openTextFile = (
 			}
 	}
 }
+
+
+
