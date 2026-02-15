@@ -4,7 +4,8 @@
 type AutoPromise<T> = Promise<Awaited<T>>;
 import {uni, esc} from 'unicode'
 import {
-	undef, defined, notdefined, hash, assert, croak, isEmpty,
+	undef, defined, notdefined, hash, assert, croak,
+	isEmpty, nonEmpty,
 	TStringMapper, getErrStr, TVoidFunc,
 	} from 'datatypes'
 import {
@@ -24,15 +25,18 @@ export const str2indents = (str: string): string => {
 	assert(!str.includes(uni.shiftout), "Bad input string")
 
 	resetOneIndent()
-	const lParts: string[] = []
+	let lParts: string[] = []
 	let level = 0
-	for (const line of allLinesInBlock(str)) {
-		if (isEmpty(line)) {
-			lParts.push('')
+	let i1 = 0;for (const line of allLinesInBlock(str)) {const i = i1++;
+		if (i===0) {
+			assert(!line.match(/^\s/), "Leading whitespace not allowed")
+			lParts.push(line)
+			continue
 		}
-		else {
+		if (nonEmpty(line)) {
 			const [newLevel, str] = splitLine(line)
 			if (newLevel === level) {
+				lParts.push('\n')
 				lParts.push(str)
 			}
 			else if (newLevel > level) {
@@ -45,13 +49,7 @@ export const str2indents = (str: string): string => {
 		}
 	}
 
-	// --- join parts, making sure result ends with a newline
-	const block = (
-		  (lParts.length > 0) && lParts.at(-1)?.endsWith('\n')
-		? lParts.join('\n')
-		: lParts.join('\n') + '\n'
-		)
-	return block + uni.shiftout.repeat(level)
+	return lParts.join('') + uni.shiftout.repeat(level)
 }
 
 // ---------------------------------------------------------------------------
@@ -74,56 +72,43 @@ export const doParse = async <T = unknown,>(
 		abortOnError: true
 		})
 
+	if (debug) {
+		LOG(`debug = ${debug}`)
+	}
+
 	for (const func of lTransforms) {
 		text = func(text)
 	}
-//	console.log esc(text, 'oneline')
-//	n := Math.floor(text.length / 10) + 1
-//	console.log "|         ".repeat n
 
 	// --- import things from the parser
-	let pm: CParseMatches
-	let reset: TVoidFunc
-	let parse: (str: string) => unknown
 	try {
-		({pm, reset, parse} = await import(stub))
-	}
-	catch (err) {
-		throw `Bad Parser: ${stub}: ${getErrStr(err)}`
+		const {pm, reset, parse} = await import(stub)
+		reset(text)
+		const result = parse(text) as Awaited<T>
+		if (debug) {
+			pm.dumpParseInfo()
+		}
+		return result
 	}
 
-	// --- Run the parser
-	try {
-		pm.reset()
-		reset()
-		return parse(text) as Awaited<T>
-	}
 	catch (err) {
-		console.log(`PARSE ERROR in doParse(${stub})`)
-		if (stub === 'dir-tree') {
-			// --- Here we should display the string along with
-			//     whatever matches have already been found
-			console.log(sep('-', 'matches'))
-			console.log(pm.matchesStr())
-			console.log(sep('-'))
-			console.log(sep('-', 'debug'))
-			const n = Math.floor(text.length / 10) + 1
-			console.log("|         ".repeat(n))
-			console.log(pm.debugStr(text))
-			console.log(sep('-'))
-		}
-		const errStr = getErrStr(err)
-		console.error(errStr)
-		if (abortOnError) {
-			Deno.exit(99)
+		if (err instanceof TypeError) {
+			throw `Bad Parser: ${stub}: ${getErrStr(err)}`
 		}
 		else {
-			throw err
+			ERR(`PARSE ERROR in doParse(${stub})`)
+			const {pm} = await import(stub)
+			pm.dumpParseInfo()
+
+			const errStr = getErrStr(err)
+			console.error(errStr)
+			if (abortOnError) {
+				Deno.exit(99)
+			}
+			else {
+				throw err
+			}
 		}
 	}
 }
-
-// ---------------------------------------------------------------------------
-
-
 

@@ -6,9 +6,10 @@ import {uni, esc} from 'unicode'
 import {
 	undef, defined, assert, croak, hash, hashof,
 	} from 'datatypes'
-import {range, centered} from 'llutils'
+import {range, centered, sep} from 'llutils'
 import {f} from 'f-strings'
 import {OL} from 'to-nice'
+import {LOG, DBG, ERR} from 'logger'
 import {TextTable} from 'text-table'
 
 # ---------------------------------------------------------------------------
@@ -43,19 +44,27 @@ export type TStrLoc =
 	pos: number
 	length: number
 
-export type TParseMatch = [name: string, pos: number, len: number]
+export type TParseMatch = [
+	name: string,
+	pos: number,
+	len: number
+	data: unknown
+	]
 
 # ---------------------------------------------------------------------------
 
 export class CParseMatches
 
+	str: string = ''
 	lParseMatches: TParseMatch[] = []
 
 	# ..........................................................
 
-	reset(): void
+	reset(text: string): void
 
 		@lParseMatches.length = 0
+		@str = text
+		return
 
 	# ..........................................................
 
@@ -63,20 +72,19 @@ export class CParseMatches
 
 		assert defined(@lParseMatches), "undef lParseMatches"
 		if Array.isArray(loc)
-			@lParseMatches.push [name, ...loc]
+			@lParseMatches.push [name, ...loc, undef]
 		else
-			@lParseMatches.push [name, loc.pos, loc.length]
+			@lParseMatches.push [name, loc.pos, loc.length, undef]
 		return
 
 	# ..........................................................
 
-	matchesStr(): string
+	result(data: unknown): unknown
 
-		results := []
-		for [name, pos, len] of @lParseMatches
-			results.push f"#{pos}:15 #{len}:3 #{name}:15"
-		lLines := results
-		return lLines.join '\n'
+		rec := @lParseMatches.at(-1)
+		if defined(rec)
+			rec[3] = data
+		return data
 
 	# ..........................................................
 
@@ -84,9 +92,18 @@ export class CParseMatches
 
 		results := []
 		table := new TextTable "l r%d r%d l"
-		table.labels ['Op', 'Pos', 'Len', 'Data']
-		for [name, pos, len] of @lParseMatches
-			table.data [name, pos, len, '']
+		table.title 'matches'
+		table.fullsep '-'
+		table.labels ['Op', 'Pos', 'Len', 'data']
+		table.sep()
+		for [name, pos, len, data] of @lParseMatches
+			table.data [
+				name
+				pos
+				len
+				OL(data)
+				]
+		table.fullsep '-'
 		return table.asString()
 
 	# ..........................................................
@@ -120,3 +137,19 @@ export class CParseMatches
 					linePos = pos + len
 			lLines.push line1, line2
 		return esc(str) + '\n' + lLines.join('\n')
+
+	# ..........................................................
+
+	dumpParseInfo(): void
+
+		# --- display the string along with
+		#     whatever matches have already been found
+		LOG @matchesTable()
+
+		LOG sep '-', 'debug'
+		n := Math.floor(@str.length / 10) + 1
+		LOG "|         ".repeat n
+		LOG @debugStr(@str)
+		LOG sep '-'
+		return
+

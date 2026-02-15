@@ -1,5 +1,7 @@
 to do
 
+fsys unit tests fail - perhaps due to empty lines in file content
+
 respond to issue in github civet page
 
 Run 'ttest' and figure out why all frames are being filtered

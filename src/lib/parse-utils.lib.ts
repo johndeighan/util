@@ -7,9 +7,10 @@ import {uni, esc} from 'unicode'
 import {
 	undef, defined, assert, croak, hash, hashof,
 	} from 'datatypes'
-import {range, centered} from 'llutils'
+import {range, centered, sep} from 'llutils'
 import {f} from 'f-strings'
 import {OL} from 'to-nice'
+import {LOG, DBG, ERR} from 'logger'
 import {TextTable} from 'text-table'
 
 // ---------------------------------------------------------------------------
@@ -47,19 +48,27 @@ export type TStrLoc = {
 	length: number
 }
 
-export type TParseMatch = [name: string, pos: number, len: number]
+export type TParseMatch = [
+	name: string,
+	pos: number,
+	len: number,
+	data: unknown
+	]
 
 // ---------------------------------------------------------------------------
 
 export class CParseMatches {
 
+	str: string = ''
 	lParseMatches: TParseMatch[] = []
 
 	// ..........................................................
 
-	reset(): void {
+	reset(text: string): void {
 
 		this.lParseMatches.length = 0
+		this.str = text
+		return
 	}
 
 	// ..........................................................
@@ -68,24 +77,23 @@ export class CParseMatches {
 
 		assert(defined(this.lParseMatches), "undef lParseMatches")
 		if (Array.isArray(loc)) {
-			this.lParseMatches.push([name, ...loc])
+			this.lParseMatches.push([name, ...loc, undef])
 		}
 		else {
-			this.lParseMatches.push([name, loc.pos, loc.length])
+			this.lParseMatches.push([name, loc.pos, loc.length, undef])
 		}
 		return
 	}
 
 	// ..........................................................
 
-	matchesStr(): string {
+	result(data: unknown): unknown {
 
-		const results = []
-		for (const [name, pos, len] of this.lParseMatches) {
-			results.push(f`${pos}:15 ${len}:3 ${name}:15`)
+		const rec = this.lParseMatches.at(-1)
+		if (defined(rec)) {
+			rec[3] = data
 		}
-		const lLines = results
-		return lLines.join('\n')
+		return data
 	}
 
 	// ..........................................................
@@ -94,10 +102,19 @@ export class CParseMatches {
 
 		const results = []
 		const table = new TextTable("l r%d r%d l")
-		table.labels(['Op', 'Pos', 'Len', 'Data'])
-		for (const [name, pos, len] of this.lParseMatches) {
-			table.data([name, pos, len, ''])
+		table.title('matches')
+		table.fullsep('-')
+		table.labels(['Op', 'Pos', 'Len', 'data'])
+		table.sep()
+		for (const [name, pos, len, data] of this.lParseMatches) {
+			table.data([
+				name,
+				pos,
+				len,
+				OL(data)
+				])
 		}
+		table.fullsep('-')
 		return table.asString()
 	}
 
@@ -136,5 +153,22 @@ export class CParseMatches {
 		}
 		return esc(str) + '\n' + lLines.join('\n')
 	}
+
+	// ..........................................................
+
+	dumpParseInfo(): void {
+
+		// --- display the string along with
+		//     whatever matches have already been found
+		LOG(this.matchesTable())
+
+		LOG(sep('-', 'debug'))
+		const n = Math.floor(this.str.length / 10) + 1
+		LOG("|         ".repeat(n))
+		LOG(this.debugStr(this.str))
+		LOG(sep('-'))
+		return
+	}
 }
+
 

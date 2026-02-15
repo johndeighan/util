@@ -23,9 +23,9 @@ export type TFileOp = {
 let lFileOps: TFileOp[] = [];
 let lPathParts: string[] = [];
 
-export const reset = (): void => {
+export const reset = (str): void => {
 	lFileOps.length = 0;
-	pm.reset();
+	pm.reset(str);
 	}
 
 const getPath = (fileName: string = '') => {
@@ -42,12 +42,12 @@ const getPath = (fileName: string = '') => {
 #     _ is optional whitespace
 
 FullDesc
-	Root (FileDesc / DirDesc)+ ->
+	Root NL (FileDesc / DirDesc)+ ->
 		pm.match('FullDesc', $loc);
-		return lFileOps;
+		return pm.result(lFileOps);
 
 Root
-	/\.(?:\/[A-Za-z0-9_-]+)*/ _ "clear"?  NL ->
+	/\.(?:\/[A-Za-z0-9_-]+)*/ _ "clear"? ->
 		pm.match('Root', $loc);
 		let root = $1[0];
 		lFileOps.push({
@@ -58,56 +58,27 @@ Root
 		return;
 
 FileDesc
-	FileName Contents ->
+	Name _ "compile"? INDENT Content UNDENT ->
 		pm.match('FileDesc', $loc);
-		let [fileName, doCompile] = $1;
-		let path = getPath(fileName);
+		let path = getPath($1);
 		lFileOps.push({
 			op: 'barf',
 			path,
-			contents: $2
+			contents: $5
 			});
-		if (doCompile) {
+		if (defined($3)) {
 			lFileOps.push({
 				op: 'compile',
 				path
 				});
 			}
-
-FileName
-	Name _ "compile"? NL ->
-		pm.match('FileName', $loc);
-		return [$1, defined($3)]
-
-Contents
-	IndentedBlock ->
-		pm.match('Contents', $loc);
-		return undented($1);
-
-IndentedBlock
-	INDENT Block+ UNDENT ->
-		pm.match('IndentedBlock', $loc);
-		return indented($2.join('\n'));
-
-Block
-	Line IndentedBlock? ->
-		pm.match('Block', $loc);
-		if (defined($2)) {
-			return $1 + '\n' + $2;
-			}
-		else {
-			return $1;
-			}
-Line
-	/[^\x0F\x0E\n\r]*/ NL ->
-		pm.match('Line', $loc);
-		return $1
+		return
 
 DirDesc
-	DirName NL INDENT (DirDesc / FileDesc)+ UNDENT ->
+	DirName INDENT (DirDesc / FileDesc)+ UNDENT ->
 		pm.match('DirDesc', $loc);
-		lPathParts.pop()
-		return
+		lPathParts.pop();
+		return;
 
 DirName
 	"/" Name _ "clear"? ->
@@ -117,11 +88,36 @@ DirName
 			op: defined($4) ? 'clearDir' : 'mkDir',
 			path: getPath()
 			});
+		return;
+
+Content
+	Block (NL Block)* ->
+		pm.match('Content', $loc);
+		let lParts: string[] = [$1];
+		for (let [_, str] of $2) {
+			lParts.push(str);
+			}
+		return pm.result(lParts.join('\n'));
+
+Block
+	Line IndentedBlock? ->
+		pm.match('Block', $loc);
+		return pm.result(defined($2) ? ($1+'\n'+$2) : $1);
+
+IndentedBlock
+	INDENT Content UNDENT ->
+		pm.match('IndentedBlock', $loc);
+		return pm.result(indented($2));
+
+Line
+	/[^\x0F\x0E\n\r]+/ ->
+		pm.match('Line', $loc);
+		return pm.result($0);
 
 Name
 	/[A-Za-z_.-][A-Za-z0-9_.-]*/ ->
 		pm.match('Name', $loc);
-		return $0
+		return pm.result($0);
 
 INDENT
 	/\x0F/     # ASCII shift-in

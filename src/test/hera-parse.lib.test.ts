@@ -13,13 +13,19 @@ import {
 
 equal(esc(str2indents(`file
 	abc
-	def`)), 'file↓»abc↓def↓«')
+	def`)), 'file»abc↓def«')
 
 equal(esc(str2indents(`file
 	abc
 		def
 /dir
 	file
-		xyz`)), 'file↓»abc↓»def↓««/dir↓»file↓»xyz↓««')
+		xyz`)), 'file»abc»def««/dir»file»xyz««')
 
+equal(esc(str2indents(`src/lib clear
+temp.txt
+	abc
+/sub
+	temp.civet
+		LOG "OK"`)), 'src/lib˳clear↓temp.txt»abc«/sub»temp.civet»LOG˳"OK"««')
 
