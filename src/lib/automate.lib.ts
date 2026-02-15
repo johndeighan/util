@@ -309,6 +309,7 @@ export const getCompilerConfig = (
 // --- returns a TCompilerInfo or undef
 
 export const getCompilerInfo = (ext: string): (TCompilerInfo | undefined) => {
+
 	const hConfig = getCompilerConfig()
 	const hInfo = hConfig.hCompilers[ext]
 	if (defined(hInfo)) {
@@ -323,6 +324,7 @@ export const getCompilerInfo = (ext: string): (TCompilerInfo | undefined) => {
 // ---------------------------------------------------------------------------
 
 export const getPostProcessor = (purpose: string): (TPostProcessor | undefined) => {
+
 	const hConfig = getCompilerConfig()
 	const pp = hConfig.hPostProcessors[purpose]
 	if (defined(pp)) {

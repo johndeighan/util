@@ -255,6 +255,7 @@ export getCompilerConfig := (
 # --- returns a TCompilerInfo or undef
 
 export getCompilerInfo := (ext: string): TCompilerInfo? =>
+
 	hConfig := getCompilerConfig()
 	hInfo := hConfig.hCompilers[ext]
 	if defined(hInfo)
@@ -266,6 +267,7 @@ export getCompilerInfo := (ext: string): TCompilerInfo? =>
 # ---------------------------------------------------------------------------
 
 export getPostProcessor := (purpose: string): TPostProcessor? =>
+
 	hConfig := getCompilerConfig()
 	pp := hConfig.hPostProcessors[purpose]
 	if defined(pp)

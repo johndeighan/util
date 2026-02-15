@@ -20,7 +20,7 @@ import {
 	TPathType, TPathInfo, patchFirstLine, FsEvent, toFullPath,
 	} from 'fsys'
 import {
-	equal, truthy, falsy, like, objListLike, matches,
+	equal, truthy, falsy, like, objListLike, matches, isType, notType,
 	succeeds, fails, includesAll, setDirTree, fileOpsTable,
 	} from 'unit-test'
 
@@ -105,9 +105,9 @@ falsy( isDir("./src/test/fsys/dummy.txt"))
 
 DBG("type TPathType")
 
-// isType  'TPathType', 'missing'
-// isType  'TPathType', 'file'
-// notType 'TPathType', 'xxx'
+isType( 'TPathType', 'missing')
+isType( 'TPathType', 'file')
+notType('TPathType', 'xxx')
 
 DBG("getPathType()")
 
