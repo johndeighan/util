@@ -26,13 +26,17 @@ export uni := {
 	leftshift: '«'
 	rightshift: '»'
 	poschar: '┊'
-	startchar: '｟'
-	endchar: '｠'
+	alt_lparen: '｟'
+	alt_rparen: '｠'
+	alt_lbracket:'〚'
+	alt_rbracket: '〛'
+	alt_lbrace:'《'
+	alt_rbrace: '》'
 	leftarrow: '←'
 	rightarrow: '→'
 	downarrow: '↓'
 	uparrow: '↑'
-	shiftin: '\x0F'
+	shiftin: '\x0F'  # U+000F
 	shiftout: '\x0E' # U+000E
 	}
 
@@ -90,16 +94,16 @@ export esc := (
 		len: number = 0
 		): string =>
 
-	hReplace := if (style == 'multiline') then hEscMulti else hEsc
+	hReplace := (style == 'multiline') ? hEscMulti : hEsc
 	lParts: string[] := []
 	let i1 = 0
 	for ch of str
 		i := i1++
 		if defined(pos)
 			if i == pos
-				lParts.push if (len == 0) then uni.poschar else uni.startchar
+				lParts.push (len == 0) ? uni.poschar : uni.alt_lparen
 			if (len > 0) && (i == pos + len)
-				lParts.push uni.endchar
+				lParts.push uni.alt_lparen
 		lParts.push (hReplace[ch] || ch)
 	return lParts.join ''
 
@@ -173,3 +177,4 @@ export getPrefix := (level: number, option = 'none'): string =>
 			return pre.oneIndent.repeat(level - 1) + pre.fourSpaces
 		default:
 			return pre.fourSpaces.repeat level
+

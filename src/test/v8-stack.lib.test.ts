@@ -4,7 +4,7 @@
 type AutoPromise<T> = Promise<Awaited<T>>;
 import {undef, assert, croak} from 'datatypes'
 import {o} from 'llutils'
-import {DBG} from 'logger'
+import {LOG, DBG} from 'logger'
 import {relpath} from 'fsys'
 import {
 	TStackFrame, getV8Stack, getMyCaller,
@@ -102,19 +102,19 @@ DBG("getV8Stack()");
 			type: 'function',
 			name: 'func1',
 			source: 'src/test/v8-stack.lib.test.civet',
-			line: 136
+			line: 87
 			},
 		{
 			type: 'function',
 			name: 'main',
 			source: 'src/test/v8-stack.lib.test.civet',
-			line: 132
+			line: 83
 			},
 		{
 			type: 'function',
 			name: '<anon>',
 			source: 'src/test/v8-stack.lib.test.civet',
-			line: 143
+			line: 94
 			},
 		{
 			type: 'script',
@@ -176,15 +176,15 @@ DBG("getV8StackStr()");
 
 	main()
 
-	equal(stack1Str, `[function func1    ] src/test/v8-stack.lib.test.civet:165:  2
-[function main     ] src/test/v8-stack.lib.test.civet:161:  2
-[function <anon>   ] src/test/v8-stack.lib.test.civet:172:  0
-[script            ] src/test/v8-stack.lib.test.civet:187:  0`)
+	equal(stack1Str, `[function func1    ] src/test/v8-stack.lib.test.civet:162:  2
+[function main     ] src/test/v8-stack.lib.test.civet:158:  2
+[function <anon>   ] src/test/v8-stack.lib.test.civet:169:  0
+[script            ] src/test/v8-stack.lib.test.civet:184:  0`)
 
-	equal(stack2Str, `[function func2    ] src/test/v8-stack.lib.test.civet:169:  2
-[function main     ] src/test/v8-stack.lib.test.civet:161:  9
-[function <anon>   ] src/test/v8-stack.lib.test.civet:172:  0
-[script            ] src/test/v8-stack.lib.test.civet:187:  0`)
+	equal(stack2Str, `[function func2    ] src/test/v8-stack.lib.test.civet:166:  2
+[function main     ] src/test/v8-stack.lib.test.civet:158:  9
+[function <anon>   ] src/test/v8-stack.lib.test.civet:169:  0
+[script            ] src/test/v8-stack.lib.test.civet:184:  0`)
 }
 	)()
 

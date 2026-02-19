@@ -18,9 +18,10 @@ import {
 	barf, barfTempFile, parsePath, addJsonValue, normalizePath,
 	} from 'fsys'
 import {
-	THandlerResult, execCmdSync, execCmd, CFileHandler,
+	execCmdSync, execCmd, CFileHandler, procFiles,
+	TExecResult, THandlerResult,
 	} from 'exec'
-import {ts2ast, analyze, typeCheckTsCode} from 'typescript'
+import {ts2ast, analyzeTS, typeCheckTsCode} from 'typescript'
 import {extractSourceMap, haveSourceMapFor} from 'source-map'
 
 import hCivetConfig from "civetconfig" with {type: "json"};
@@ -29,6 +30,7 @@ import hCivetConfig from "civetconfig" with {type: "json"};
 
 export type TCivetOptions = {
 	force?: boolean
+	nocheck?: boolean
 	inlineMap?: boolean
 	}
 
@@ -50,8 +52,9 @@ class CCivetCompiler extends CFileHandler
 			hOptions: hash = {}
 			): THandlerResult
 
-		{force} := getOptions<TCivetOptions> hOptions, {
+		{force, nocheck} := getOptions<TCivetOptions> hOptions, {
 			force: false
+			nocheck: false
 			}
 
 		assert (fileExt(path) == '.civet'), "Not a civet file: #{path}"
@@ -83,10 +86,11 @@ class CCivetCompiler extends CFileHandler
 				console.log hResult.output
 				croak "Compile failed"
 
-			hCheckResult := await execCmd 'deno', ['check', tsPath]
-			if not hCheckResult.success
-				console.log hCheckResult.output
-				croak "Type check failed"
+			unless nocheck
+				hCheckResult := await execCmd 'deno', ['check', tsPath]
+				if not hCheckResult.success
+					console.log hCheckResult.output
+					croak "Type check failed"
 
 			tsCode := await slurpAsync tsPath
 			[code, hSrcMap] := extractSourceMap(tsCode)
@@ -114,8 +118,9 @@ class CCivetCompiler extends CFileHandler
 			hOptions: hash = {}
 			): THandlerResult
 
-		{force} := getOptions<TCivetOptions> hOptions, {
+		{force, nocheck} := getOptions<TCivetOptions> hOptions, {
 			force: false
+			nocheck: false
 			}
 
 		assert (fileExt(path) == '.civet'), "Not a civet file: #{path}"
@@ -147,10 +152,11 @@ class CCivetCompiler extends CFileHandler
 				console.log hResult.output
 				croak "Compile failed"
 
-			hCheckResult := execCmdSync 'deno', ['check', tsPath]
-			if not hCheckResult.success
-				console.log hCheckResult.output
-				croak "Type check failed"
+			unless nocheck
+				hCheckResult := execCmdSync 'deno', ['check', tsPath]
+				if not hCheckResult.success
+					console.log hCheckResult.output
+					croak "Type check failed"
 
 			tsCode := slurp tsPath
 			[code, hSrcMap] := extractSourceMap(tsCode)
@@ -209,12 +215,24 @@ export civet2ast := (civetCode: string): Node =>
 	return ts2ast tsCode
 
 # ---------------------------------------------------------------------------
+# ASYNC
+
+export compileAllLibs := (hOptions: hash = {}): TExecResult[] =>
+
+	hOptions.quiet = true
+	return await procFiles [doCompileCivet, ['**/*.lib.civet']], hOptions
+
+# ---------------------------------------------------------------------------
 
 # --- template literals to simplify displaying
 #     the analysis of civet code
 
 export a := (lStrings: TemplateStringsArray): string =>
-	return analyze(civet2ts lStrings[0]).asString()
+	tsCode := civet2ts lStrings[0], {nocheck: true}
+	result := analyzeTS(tsCode).asString()
+	return result
 
 export A := (lStrings: TemplateStringsArray): string =>
-	return analyze(civet2ts(lStrings[0]), o'dump').asString()
+	tsCode := civet2ts lStrings[0], {nocheck: true}
+	result := analyzeTS(tsCode, {dump: true}).asString()
+	return result

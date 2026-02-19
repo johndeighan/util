@@ -27,13 +27,17 @@ export const uni = {
 	leftshift: '«',
 	rightshift: '»',
 	poschar: '┊',
-	startchar: '｟',
-	endchar: '｠',
+	alt_lparen: '｟',
+	alt_rparen: '｠',
+	alt_lbracket:'〚',
+	alt_rbracket: '〛',
+	alt_lbrace:'《',
+	alt_rbrace: '》',
 	leftarrow: '←',
 	rightarrow: '→',
 	downarrow: '↓',
 	uparrow: '↑',
-	shiftin: '\x0F',
+	shiftin: '\x0F',  // U+000F
 	shiftout: '\x0E' // U+000E
 	}
 
@@ -94,17 +98,17 @@ export const esc = (
 		len: number = 0
 		): string => {
 
-	let ref;if (style === 'multiline') { ref = hEscMulti} else ref = hEsc;const hReplace =ref
+	const hReplace = (style === 'multiline') ? hEscMulti : hEsc
 	const lParts: string[] = []
 	let i1 = 0
 	for (const ch of str) {
 		const i = i1++
 		if (defined(pos)) {
 			if (i === pos) {
-				lParts.push((len === 0? uni.poschar : uni.startchar))
+				lParts.push((len === 0) ? uni.poschar : uni.alt_lparen)
 			}
 			if ((len > 0) && (i === pos + len)) {
-				lParts.push(uni.endchar)
+				lParts.push(uni.alt_lparen)
 			}
 		}
 		lParts.push((hReplace[ch] || ch))
@@ -198,3 +202,5 @@ export const getPrefix = (level: number, option = 'none'): string => {
 			return pre.fourSpaces.repeat(level)
 	}
 }
+
+

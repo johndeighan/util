@@ -49,8 +49,8 @@ const $L2 = $L("/");
 
 
 const $R0 = $R(new RegExp("\\.(?:\\/[A-Za-z0-9_-]+)*", 'suy'));
-const $R1 = $R(new RegExp("[^\\x0F\\x0E\\n\\r]+", 'suy'));
-const $R2 = $R(new RegExp("[A-Za-z_.-][A-Za-z0-9_.-]*", 'suy'));
+const $R1 = $R(new RegExp("[^\\x0F\\x0E\\n\\r]*", 'suy'));
+const $R2 = $R(new RegExp("[A-Za-z_.-][A-Za-z0-9_.-]+", 'suy'));
 const $R3 = $R(new RegExp("\\x0F", 'suy'));
 const $R4 = $R(new RegExp("\\x0E", 'suy'));
 const $R5 = $R(new RegExp("\\r?\\n", 'suy'));
@@ -127,23 +127,19 @@ return;
 function DirName(ctx, state) { return $EVENT(ctx, state, "DirName", DirName$0) }
 
 //@ts-ignore
-const Content$0 = $TS($S(Block, $Q($S(NL, Block))), function($skip, $loc, $0, $1, $2) {
+const Content$0 = $TV($P(Block), function($skip, $loc, $0, $1) {
 
 pm.match('Content', $loc);
-let lParts: string[] = [$1];
-for (let [_, str] of $2) {
-  lParts.push(str);
-  }
-return pm.result(lParts.join('\n'));
+return pm.result($1.join('\n'));
 });
 //@ts-ignore
 function Content(ctx, state) { return $EVENT(ctx, state, "Content", Content$0) }
 
 //@ts-ignore
-const Block$0 = $TS($S(Line, $E(IndentedBlock)), function($skip, $loc, $0, $1, $2) {
+const Block$0 = $TS($S($E(NL), Line, $E(IndentedBlock)), function($skip, $loc, $0, $1, $2, $3) {
 
 pm.match('Block', $loc);
-return pm.result(defined($2) ? ($1+'\n'+$2) : $1);
+return pm.result(defined($3) ? ($2+'\n'+$3) : $2);
 });
 //@ts-ignore
 function Block(ctx, state) { return $EVENT(ctx, state, "Block", Block$0) }
@@ -158,7 +154,7 @@ return pm.result(indented($2));
 function IndentedBlock(ctx, state) { return $EVENT(ctx, state, "IndentedBlock", IndentedBlock$0) }
 
 //@ts-ignore
-const Line$0 = $TR($EXPECT($R1, "Line /[^\\x0F\\x0E\\n\\r]+/"), function($skip, $loc, $0, $1, $2, $3, $4, $5, $6, $7, $8, $9) {
+const Line$0 = $TR($EXPECT($R1, "Line /[^\\x0F\\x0E\\n\\r]*/"), function($skip, $loc, $0, $1, $2, $3, $4, $5, $6, $7, $8, $9) {
 pm.match('Line', $loc);
 return pm.result($0);
 });
@@ -166,7 +162,7 @@ return pm.result($0);
 function Line(ctx, state) { return $EVENT(ctx, state, "Line", Line$0) }
 
 //@ts-ignore
-const Name$0 = $TR($EXPECT($R2, "Name /[A-Za-z_.-][A-Za-z0-9_.-]*/"), function($skip, $loc, $0, $1, $2, $3, $4, $5, $6, $7, $8, $9) {
+const Name$0 = $TR($EXPECT($R2, "Name /[A-Za-z_.-][A-Za-z0-9_.-]+/"), function($skip, $loc, $0, $1, $2, $3, $4, $5, $6, $7, $8, $9) {
 pm.match('Name', $loc);
 return pm.result($0);
 });

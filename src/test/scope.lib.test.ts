@@ -70,7 +70,7 @@ sDefined:
 	-- gender
 sUsed: ｟emptySet｠
 parent: ｟undef｠
-lChildren:
+lChildScopes:
 	-
 		name: func
 		sDefined:
@@ -78,7 +78,7 @@ lChildren:
 			-- temp
 		sUsed: ｟emptySet｠
 		parent: ｟ref root｠
-		lChildren: []`)
+		lChildScopes: []`)
 }
 	)()
 

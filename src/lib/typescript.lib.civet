@@ -17,22 +17,25 @@ import {
 	} from 'datatypes'
 import {
 	truncStr, getOptions, spaces, o, words, hasKey,
-	CStringSetMap, keys, blockify, sep, f,
+	CStringSetMap, keys, blockify, sep,
 	} from 'llutils'
+import {f} from 'f-strings'
 import {
 	extract, TPathItem, getString, getNumber, getArray,
 	} from 'extract'
 import {TBlockDesc, Blockify} from 'indent'
 import {
-	LOG, DBG, LOGVALUE, INDENT, UNDENT, DBGVALUE,
+	LOG, DBG, ERR, LOGVALUE, INDENT, UNDENT, DBGVALUE,
+	pushLogLevel, popLogLevel,
 	} from 'logger'
 import {isFile, slurp, barf, barfTempFile, fileExt} from 'fsys'
-import {OL, toNice, TMapFunc} from 'to-nice'
+import {OL, toNice, TMapFunc, DUMP} from 'to-nice'
 import {execCmdSync} from 'exec'
 import {extractSourceMap} from 'source-map'
 import {Walker, TVisitKind} from 'walker'
 import {CMainScope, CScope} from 'scope'
 import {getNeededImportStmts} from 'symbols'
+import {MAP} from 'map'
 
 decoder := new TextDecoder "utf-8"
 
@@ -371,6 +374,7 @@ export class CAnalysis
 
 	use(name: string): void
 
+		# --- this condition should filter built-ins
 		if not hasKey(globalThis, name)
 			@curScope.use name
 		return
@@ -430,6 +434,7 @@ export class CAnalysis
 		walker := new Walker<CScope>()
 		walker.isNode = (x: unknown) =>
 			return (x instanceof CScope)
+
 		# --- Find all names that are used, but not defined
 		sNames := new Set<string>()
 		for scope of walker.walk(@mainScope)
@@ -445,6 +450,7 @@ export class CAnalysis
 		walker := new Walker<CScope>()
 		walker.isNode = (x: unknown) =>
 			return (x instanceof CScope)
+
 		# --- Find all names that are defined, but never used or exported
 		sNames := new Set<string>()
 		for scope of walker.walk(@mainScope)
@@ -492,7 +498,7 @@ export getNode := (x: unknown, dspath: string | TPathItem[]): Node =>
 
 # ---------------------------------------------------------------------------
 
-export analyze := (
+export analyzeTS := (
 		tsCode: string,
 		hOptions: hash = {}
 		): CAnalysis =>
@@ -508,13 +514,14 @@ export analyze := (
 		trace: false
 		}
 
+	debugger
 	analysis := new CAnalysis()
 	walker := new AstWalker()
+
 	hAst := ts2ast tsCode
+
 	if dump
-		LOG sep '=', 'AST'
-		LOG astAsString hAst
-		LOG sep '='
+		DUMP hAst, 'AST'
 
 	# ..........................................................
 
@@ -527,7 +534,7 @@ export analyze := (
 		if defined(dspath)
 			node = getNode(node, dspath)
 			assertIsNode node
-		if node.kind == 80
+		if (node.kind == 80)   # --- Identifier
 			name := getString node, '.escapedText'
 			analysis.use name
 		return
@@ -537,7 +544,7 @@ export analyze := (
 	for [vkind, node] of walker.walkEx(hAst)
 		{kind} := node
 		if trace
-			LOG "NODE KIND: #{kind} (#{kindStr(kind)})"
+			LOG f"NODE #{kind}:3 (#{kindStr(kind)})"
 
 		if (vkind == 'exit')
 			switch kind
@@ -551,10 +558,11 @@ export analyze := (
 
 				when 220    # ArrowFunction
 					do
-						results1 := []
-						for parm of getArray(node, '.parameters')
-							results1.push getString parm, '.name.escapedText'
-						lParms := results1
+						lParms := MAP getArray(node, '.parameters'), (x) ->
+							yield getString(x, '.name.escapedText')
+
+						if trace
+							LOG "   Arrow Func := (#{lParms.join(',')}) =>"
 						analysis.newScope undef, lParms
 
 				when 261    # VariableDeclaration
@@ -563,12 +571,14 @@ export analyze := (
 						analysis.define varName
 
 				when 263    # FunctionDeclaration
+					# --- do creates a scope, a la an IIFE
 					do
 						funcName := getString node, '.name.escapedText'
-						results2 := []
-						for parm of getArray(node, '.parameters')
-							results2.push getString parm, '.name.escapedText'
-						lParms := results2
+
+						lParms := MAP getArray(node, '.parameters'), (x) ->
+							yield getString(x, '.name.escapedText')
+						if trace
+							LOG "   function #{funcName}(#{lParms.join(',')})"
 						analysis.define funcName
 						analysis.newScope funcName, lParms
 

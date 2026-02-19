@@ -9,6 +9,8 @@ export {deepEqual}
 export type TIterator<T, U=void, V=void> = Generator<T, U, V>
 export type TAsyncIterator<T, U=void, V=void> = AsyncGenerator<T, U, V>
 
+export type TNonFunction<T> = Exclude<T, Function>
+
 // ---------------------------------------------------------------------------
 
 export const croak = (msg: string): never => {
@@ -206,18 +208,23 @@ export const isNonEmptyString = (x: unknown): x is nonEmptyString => {
 
 // ---------------------------------------------------------------------------
 
-const lPrimTypes = [
-	'number',
-	'bigint',
-	'string',
-	'boolean',
+export const lPrimTypes = [
 	'undefined',
-	'symbol'
+	'boolean',
+	'string',
+	'symbol',
+	'bigint',
+	'number',
+	'function'
 	]
 
 export const isPrimitive = (x: unknown): boolean => {
 
-	return (x === null) || lPrimTypes.includes(typeof x)
+	return (
+		   (x === null)
+		|| lPrimTypes.includes(typeof x)
+		|| (x instanceof RegExp)
+		)
 }
 
 // ---------------------------------------------------------------------------
@@ -251,6 +258,9 @@ export const isEmpty = (x: unknown): boolean => {
 	}
 	if (isArray(x)) {
 		return (x.length === 0)
+	}
+	if ((x instanceof Set) || (x instanceof Map)) {
+		return (x.size === 0)
 	}
 	if (typeof x === 'object') {
 		return (Object.keys(x).length === 0)
@@ -429,14 +439,7 @@ export const isRegExp = (item: unknown): item is regexp => {
 
 export const isHash = (x: unknown): x is hash => {
 
-	return (
-		   (x !== undef)
-		&& (x !== null)
-		&& (typeof x === 'object')
-		&& !isArray(x)
-		&& !isRegExp(x)
-		&& !isPromise(x)
-		)
+	return (jsType(x) === 'hash')
 }
 
 // ---------------------------------------------------------------------------

@@ -112,3 +112,80 @@ equal a"""
 	IMPORTS: datatypes: defined notdefined
 	EXTRA: defined notdefined
    """
+
+equal a"""
+	x := y + z + func(min)
+	""", s"""
+	MISSING: y z func min
+	EXTRA: x
+	"""
+
+equal a"""
+	import {defined, notdefined} from 'datatypes'
+	""", s"""
+	IMPORTS: datatypes: defined notdefined
+	EXTRA: defined notdefined
+   """
+
+equal a"""
+	x := y + z + func(min)
+	""", s"""
+	MISSING: y z func min
+	EXTRA: x
+	"""
+
+equal a"""
+	import {defined, notdefined} from 'datatypes'
+	""", s"""
+	IMPORTS: datatypes: defined notdefined
+	EXTRA: defined notdefined
+   """
+
+equal a"""
+	export meaning := 42
+	""", s"""
+	EXPORTS: meaning
+	"""
+
+equal a"""
+	func "Hello"
+	""", s"""
+	MISSING: func
+	"""
+
+equal a"""
+	func x, y+z
+	""", s"""
+	MISSING: func x y z
+	"""
+
+# --- imports are not needed
+
+equal a"""
+	import {func} from 'willy'
+
+	func x, y+z
+	""", s"""
+	IMPORTS: willy: func
+	MISSING: x y z
+	"""
+
+# --- Only t is needed, s is a parameter
+
+equal a"""
+	func := (s: string): string =>
+		return s + t + '.txt'
+	func('abc')
+	""", s"""
+	MISSING: t
+	"""
+
+# --- Same, only using 'function' keyword
+
+equal a"""
+	function func(s: string): string
+		return s + t + '.txt'
+	func('abc')
+	""", s"""
+	MISSING: t
+	"""

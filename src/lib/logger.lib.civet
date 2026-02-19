@@ -55,7 +55,7 @@ export DBG := (...lItems: unknown[]): void =>
 export ERR := (...lStrings: string[]): void =>
 
 	for str of lStrings
-		console.log f"#{str}:{red}"
+		console.error f"#{str}:{red}"
 	return
 
 # ---------------------------------------------------------------------------

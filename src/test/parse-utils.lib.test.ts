@@ -1,6 +1,7 @@
 "use strict";
 // parse-utils.lib.test.civet
 
+import {s} from 'llutils'
 import {CParseMatches} from 'parse-utils'
 import {equal} from 'unit-test'
 
@@ -14,7 +15,9 @@ test
 
 const pm = new CParseMatches()
 pm.match('EOL',      [ 3, 1])
+pm.result(42)
 pm.match('Root',     [ 0, 4])
+pm.result('abc')
 pm.match('Name',     [ 4, 4])
 pm.match('EOL',      [ 8, 1])
 pm.match('FileName', [ 4, 5])
@@ -30,21 +33,25 @@ pm.match('Block',    [17, 4])
 pm.match('UNDENT',   [21, 1])
 pm.match('Block',    [10, 6])
 
-equal(pm.matchesTable(), `   Op    Pos Len Data
-EOL        3   1
-Root       0   4
-Name       4   4
-EOL        8   1
-FileName   4   5
-INDENT     9   1
-EOL       12   1
-Line      10   3
-EOL       15   1
-Line      13   3
-INDENT    16   1
-EOL       20   1
-Line      17   4
-Block     17   4
-UNDENT    21   1
-Block     10   6`)
+equal(pm.matchesTable(), s`		  matches
+------------------------
+	Op    Pos Len  data
+-------- --- --- -------
+EOL        3   1 42
+Root       0   4 abc
+Name       4   4 ｟undef｠
+EOL        8   1 ｟undef｠
+FileName   4   5 ｟undef｠
+INDENT     9   1 ｟undef｠
+EOL       12   1 ｟undef｠
+Line      10   3 ｟undef｠
+EOL       15   1 ｟undef｠
+Line      13   3 ｟undef｠
+INDENT    16   1 ｟undef｠
+EOL       20   1 ｟undef｠
+Line      17   4 ｟undef｠
+Block     17   4 ｟undef｠
+UNDENT    21   1 ｟undef｠
+Block     10   6 ｟undef｠
+------------------------`)
 

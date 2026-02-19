@@ -1,6 +1,18 @@
 to do
 
-fsys unit tests fail - perhaps due to empty lines in file content
+last unit test in typescript.lib.test.civet fails !
+	- use runtemp to see why
+
+there are also failures in automate.lib.test.civet
+
+create function compileAllLibs()
+	- where to put it?
+
+Run  clear && buildlib to-nice && runtemp -I
+Output includes a single item map that should be
+	put on a new line
+
+v8-stack unit tests fail
 
 respond to issue in github civet page
 

@@ -19,6 +19,7 @@ import {
 import {
 	getOptions, pass, blockToArray, decode, encode, sep, centered,
 	} from 'llutils'
+import {f} from 'f-strings'
 import {write, writeln, resetLine } from 'console-utils'
 import {flag, debugging, inspecting} from 'cmd-args'
 import {OL, ML, DUMP} from 'to-nice'
@@ -184,8 +185,8 @@ export const execCmd = async (
 
 		const h = await child.output()
 		const {success} = h
-		const stdout = defined(h.stdout) ? outProc(decode(h.stdout)) : undef
-		const stderr = defined(h.stderr) ? outProc(decode(h.stderr)) : undef
+		const stdout = capture && defined(h.stdout) ? outProc(decode(h.stdout)) : undef
+		const stderr = capture && defined(h.stderr) ? outProc(decode(h.stderr)) : undef
 		const output = joinDefined(stdout, stderr) || ''
 		if (!success || !capture) {
 			return {success, stdout, stderr, output}
@@ -338,7 +339,9 @@ export const procFiles = async (
 		showRejResult(op, lRejPaths[i], getErrStr(reason))
 	}
 
-	showFinalResult(op, nNotNeeded, nOk, nErr, nRej, lPatterns)
+	if (!hOptions.quiet || (nOk + nErr > 0)) {
+		showFinalResult(op, nNotNeeded, nOk, nErr, nRej, lPatterns)
+	}
 	return lFulfilled
 }
 
@@ -433,7 +436,7 @@ export const procOneFile = async (
 		// --- If capture is false, output has already happened
 		if (capture) {
 			if (success) {
-				writeln(notNeeded ? " Not Needed" : " OK")
+				writeln(f`${notNeeded ? ' - not needed' : ' - OK'}:{green}`)
 				if (dumpStdOut) {
 					showOkResult(op, path, hResult)
 				}

@@ -6,13 +6,14 @@ import {
 	assertIsDefined,
 	} from 'datatypes'
 import {findFile, withExt, isFile} from 'fsys'
-import {procOneFile, doRun} from 'exec'
+import {procOneFile, doRun, TExecResult} from 'exec'
 import {stdChecks, o} from 'llutils'
 import {flag, argValue, allNonOptions, getFlags} from 'cmd-args'
 import {LOG, DBG, ERR} from 'logger'
-import {doCompileCivet} from 'civet'
+import {doCompileCivet, compileAllLibs} from 'civet'
 
-stdChecks(`runtemp [-I] [-stub=<temp_stub>] { <lib_stub> }
+stdChecks(`runtemp [-fI] [-stub=<temp_stub>] { <lib_stub> }
+	-f = force recompile
 	-I = invoke Chrome debugger
 	- if lib  <lib_stub>.lib.civet exists, compile it
 	- if file <temp_stub>.temp.civet exists, compile and run it
@@ -27,14 +28,16 @@ try {
 		})
 
 	// --- Compile any libraries
-	for (const libStub of allNonOptions()) {
-		const libPath = findFile(`${libStub}.lib.civet`)
-		if (defined(libPath)) {
-			await procOneFile(libPath, doCompileCivet, {force: true})
+	const lResults = await compileAllLibs()
+	let lFailed: string[] = []
+	for (const h of lResults) {
+		if (!h.success && defined(h.outfile)) {
+			lFailed.push(h.outfile)
 		}
-		else {
-			LOG(`Unable to find file: ${libStub}.lib.civet`)
-		}
+	}
+	if (lFailed.length > 0) {
+		LOG(`${lFailed.length} files failed to compile`)
+		Deno.exit(-1)
 	}
 
 	// --- compile temp file

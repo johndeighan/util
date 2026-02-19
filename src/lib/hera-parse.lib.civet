@@ -6,9 +6,11 @@ import {
 	isEmpty, nonEmpty,
 	TStringMapper, getErrStr, TVoidFunc,
 	} from 'datatypes'
+import {syncMapper} from 'var-free'
 import {
 	allLinesInBlock, getOptions, sep,
 	} from 'llutils'
+import {OL, ML} from 'to-nice'
 import {resetOneIndent, splitLine} from 'indent'
 import {LOG, DBG, ERR} from 'logger'
 import {CParseMatches} from 'parse-utils';
@@ -19,8 +21,8 @@ import {CParseMatches} from 'parse-utils';
 
 export str2indents := (str: string): string =>
 
-	assert not str.includes(uni.shiftin), "Bad input string"
-	assert not str.includes(uni.shiftout), "Bad input string"
+	assert not str.includes(uni.shiftin), "Bad input string, has shiftin"
+	assert not str.includes(uni.shiftout), "Bad input string, has shiftout"
 
 	resetOneIndent()
 	let lParts: string[] = []
@@ -30,7 +32,9 @@ export str2indents := (str: string): string =>
 			assert not line.match(/^\s/), "Leading whitespace not allowed"
 			lParts.push line
 			continue
-		if nonEmpty(line)
+		if isEmpty(line)
+			lParts.push '\n'
+		else
 			[newLevel, str] := splitLine line
 			if (newLevel == level)
 				lParts.push '\n'
@@ -42,6 +46,36 @@ export str2indents := (str: string): string =>
 			level = newLevel
 
 	return lParts.join('') + uni.shiftout.repeat(level)
+
+# ---------------------------------------------------------------------------
+
+export toDebugStr := (str: string): string =>
+
+	estr := str2indents(str)
+
+	pre := (level: number): string =>
+		return (level < 1) ? '' : '   '.repeat(level)
+
+	let level = 0
+	lChars := [...estr]
+	debugger
+	lParts := syncMapper lChars, (ch) ->
+		switch ch
+			when '\n'
+				yield "\n#{pre(level)}#{uni.downarrow}"
+			when uni.shiftin
+				yield "\n#{pre(level)}#{uni.rightshift}  "
+				level += 1
+			when uni.shiftout
+				level -= 1
+				yield "\n#{pre(level-1)}#{uni.leftshift}  "
+			when ' '
+				yield uni.fatdot
+			when '\t'
+				yield uni.rightarrow
+			else
+				yield ch
+	return Array.from(lParts).join('')
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -66,6 +100,7 @@ export doParse := <T = unknown>(
 	if debug
 		LOG "debug = #{debug}"
 
+	orgText := text
 	for func of lTransforms
 		text = func(text)
 
@@ -83,6 +118,8 @@ export doParse := <T = unknown>(
 			throw "Bad Parser: #{stub}: #{getErrStr(err)}"
 		else
 			ERR "PARSE ERROR in doParse(#{stub})"
+			LOG '', toDebugStr(orgText)
+
 			{pm} := await import stub
 			pm.dumpParseInfo()
 

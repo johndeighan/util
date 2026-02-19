@@ -3,8 +3,9 @@
 
 type AutoPromise<T> = Promise<Awaited<T>>;
 import {
-	undef, defined, notdefined, getErrStr,
+	undef, defined, notdefined, getErrStr, isFunction,
 	isIterator, isAsyncIterator, isPromise, assertIsDefined,
+	assert, croak, TNonFunction,
 	} from 'datatypes'
 
 export type TMaybeCmd = 'stop' | undefined | void
@@ -234,4 +235,5 @@ export const asyncRunner = async function<T>(
 		}
 	})
 }
+
 

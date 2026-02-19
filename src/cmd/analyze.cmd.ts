@@ -11,7 +11,7 @@ import {
 import {flag, nonOption, checkCmdArgs} from 'cmd-args'
 import {toNice, DUMP} from 'to-nice'
 import {findFile, slurp, fileExt} from 'fsys'
-import {ts2ast, astAsString, analyze} from 'typescript'
+import {ts2ast, astAsString, analyzeTS} from 'typescript'
 import {civet2ast, civet2ts} from 'civet'
 
 stdChecks()
@@ -47,7 +47,7 @@ const hOptions = {
 	dump: flag('d'),
 	trace: flag('t')
 	}
-const analysis = analyze(tsCode, hOptions)
+const analysis = analyzeTS(tsCode, hOptions)
 if (flag('v')) {
 	DUMP(toNice(analysis), 'ANALYSIS')
 }

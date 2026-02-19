@@ -66,7 +66,7 @@ export const DBG = (...lItems: unknown[]): void => {
 export const ERR = (...lStrings: string[]): void => {
 
 	for (const str of lStrings) {
-		console.log(f`${str}:{red}`)
+		console.error(f`${str}:{red}`)
 	}
 	return
 }

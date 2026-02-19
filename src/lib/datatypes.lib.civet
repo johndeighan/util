@@ -176,18 +176,23 @@ export isNonEmptyString := (x: unknown): x is nonEmptyString =>
 
 # ---------------------------------------------------------------------------
 
-lPrimTypes := [
-	'number',
-	'bigint',
-	'string',
-	'boolean',
-	'undefined',
+export lPrimTypes := [
+	'undefined'
+	'boolean'
+	'string'
 	'symbol'
+	'bigint'
+	'number'
+	'function'
 	]
 
 export isPrimitive := (x: unknown): boolean =>
 
-	return (x == null) || lPrimTypes.includes(typeof x)
+	return (
+		   (x == null)
+		|| lPrimTypes.includes(typeof x)
+		|| (x instanceof RegExp)
+		)
 
 # ---------------------------------------------------------------------------
 
@@ -217,6 +222,8 @@ export isEmpty := (x: unknown): boolean =>
 		return (x.match(/^\s*$/) != null)
 	if isArray(x)
 		return (x.length == 0)
+	if (x instanceof Set) || (x instanceof Map)
+		return (x.size == 0)
 	if (typeof x == 'object')
 		return (Object.keys(x).length == 0)
 	else
@@ -366,14 +373,7 @@ export isRegExp := (item: unknown): item is regexp =>
 
 export isHash := (x: unknown): x is hash =>
 
-	return (
-		   (x != undef)
-		&& (x != null)
-		&& (typeof x == 'object')
-		&& not isArray(x)
-		&& not isRegExp(x)
-		&& not isPromise(x)
-		)
+	return (jsType(x) == 'hash')
 
 # ---------------------------------------------------------------------------
 

@@ -18,22 +18,25 @@ import {
 	} from 'datatypes'
 import {
 	truncStr, getOptions, spaces, o, words, hasKey,
-	CStringSetMap, keys, blockify, sep, f,
+	CStringSetMap, keys, blockify, sep,
 	} from 'llutils'
+import {f} from 'f-strings'
 import {
 	extract, TPathItem, getString, getNumber, getArray,
 	} from 'extract'
 import {TBlockDesc, Blockify} from 'indent'
 import {
-	LOG, DBG, LOGVALUE, INDENT, UNDENT, DBGVALUE,
+	LOG, DBG, ERR, LOGVALUE, INDENT, UNDENT, DBGVALUE,
+	pushLogLevel, popLogLevel,
 	} from 'logger'
 import {isFile, slurp, barf, barfTempFile, fileExt} from 'fsys'
-import {OL, toNice, TMapFunc} from 'to-nice'
+import {OL, toNice, TMapFunc, DUMP} from 'to-nice'
 import {execCmdSync} from 'exec'
 import {extractSourceMap} from 'source-map'
 import {Walker, TVisitKind} from 'walker'
 import {CMainScope, CScope} from 'scope'
 import {getNeededImportStmts} from 'symbols'
+import {MAP} from 'map'
 
 const decoder = new TextDecoder("utf-8")
 
@@ -414,6 +417,7 @@ export class CAnalysis {
 
 	use(name: string): void {
 
+		// --- this condition should filter built-ins
 		if (!hasKey(globalThis, name)) {
 			this.curScope.use(name)
 		}
@@ -485,6 +489,7 @@ export class CAnalysis {
 		walker.isNode = (x: unknown) => {
 			return (x instanceof CScope)
 		}
+
 		// --- Find all names that are used, but not defined
 		const sNames = new Set<string>()
 		for (const scope of walker.walk(this.mainScope)) {
@@ -505,6 +510,7 @@ export class CAnalysis {
 		walker.isNode = (x: unknown) => {
 			return (x instanceof CScope)
 		}
+
 		// --- Find all names that are defined, but never used or exported
 		const sNames = new Set<string>()
 		for (const scope of walker.walk(this.mainScope)) {
@@ -564,7 +570,7 @@ export const getNode = (x: unknown, dspath: string | TPathItem[]): Node => {
 
 // ---------------------------------------------------------------------------
 
-export const analyze = (
+export const analyzeTS = (
 		tsCode: string,
 		hOptions: hash = {}
 		): CAnalysis => {
@@ -580,13 +586,14 @@ export const analyze = (
 		trace: false
 		})
 
+	debugger
 	const analysis = new CAnalysis()
 	const walker = new AstWalker()
+
 	const hAst = ts2ast(tsCode)
+
 	if (dump) {
-		LOG(sep('=', 'AST'))
-		LOG(astAsString(hAst))
-		LOG(sep('='))
+		DUMP(hAst, 'AST')
 	}
 
 	// ..........................................................
@@ -613,7 +620,7 @@ export const analyze = (
 	for (const [vkind, node] of walker.walkEx(hAst)) {
 		const {kind} = node
 		if (trace) {
-			LOG(`NODE KIND: ${kind} (${kindStr(kind)})`)
+			LOG(f`NODE ${kind}:3 (${kindStr(kind)})`)
 		}
 
 		if (vkind === 'exit') {
@@ -631,11 +638,13 @@ export const analyze = (
 
 				case 220: {    // ArrowFunction
 					{
-						const results1 = []
-						for (const parm of getArray(node, '.parameters')) {
-							results1.push(getString(parm, '.name.escapedText'))
+						const lParms = MAP(getArray(node, '.parameters'), function*(x) {
+							yield getString(x, '.name.escapedText')
+						})
+
+						if (trace) {
+							LOG(`   Arrow Func := (${lParms.join(',')}) =>`)
 						}
-						const lParms = results1
 						analysis.newScope(undef, lParms)
 					};break;
 				}
@@ -648,13 +657,16 @@ export const analyze = (
 				}
 
 				case 263: {    // FunctionDeclaration
+					// --- do creates a scope, a la an IIFE
 					{
 						const funcName = getString(node, '.name.escapedText')
-						const results2 = []
-						for (const parm of getArray(node, '.parameters')) {
-							results2.push(getString(parm, '.name.escapedText'))
+
+						const lParms = MAP(getArray(node, '.parameters'), function*(x) {
+							yield getString(x, '.name.escapedText')
+						})
+						if (trace) {
+							LOG(`   function ${funcName}(${lParms.join(',')})`)
 						}
-						const lParms = results2
 						analysis.define(funcName)
 						analysis.newScope(funcName, lParms)
 					};break;

@@ -6,7 +6,8 @@ import {o, s} from 'llutils'
 import {uni} from 'unicode'
 import {DBG} from 'logger'
 import {
-	toNiceString, toNice, OL, ML, buildPath, rotpos,
+	toOLString, toNice, OL, ML, buildPath, rotpos,
+	seq2nice, hash2nice,
 	} from 'to-nice'
 import {
 	equal, iterEqual, iterLike, like,
@@ -15,21 +16,104 @@ import {
 
 // ---------------------------------------------------------------------------
 
-equal(toNiceString(''), "｟emptyString｠")
-equal(toNiceString('abc'), 'abc')
-equal(toNiceString('\tabc\n'), '→abc↓')
-equal(toNiceString('123'), "“123")
-equal(toNiceString('123').length, 4)
-equal(toNiceString('3.14'), "“3.14")
-equal(toNiceString('-123'), "“-123")
-equal(toNiceString('-3.14'), "“-3.14")
-equal(toNiceString('134 Main St.'), '“134˳Main˳St.')
-equal(toNiceString('｟inf｠'), "｟inf｠")
-equal(toNiceString('｟text｠'), "｟text｠")
-equal(toNiceString('label: 42'), '“label:˳42')
-equal(toNiceString(' xxx '), '˳xxx˳')
-equal(toNiceString('  xxx  '), '˳˳xxx˳˳')
-equal(toNiceString('func1 = (str: string)'), 'func1˳=˳(str:˳string)')
+equal(seq2nice('array', [
+		'abc',
+		['def', 'ghi'],
+		'xyz'
+		], {compact: false}),
+	s`- abc
+-
+	- def
+	- ghi
+- xyz`)
+
+equal(seq2nice('array', [
+		'abc',
+		['def', 'ghi'],
+		'xyz'
+		], {compact: false, oneIndent: '\t'}),
+	`- abc
+-
+	- def
+	- ghi
+- xyz`)
+
+equal(seq2nice('array', [
+		'abc',
+		['def', 'ghi'],
+		'xyz'
+		], {compact: true}),
+	'[abc [def ghi] xyz]')
+
+// ---------------------------------------------------------------------------
+
+equal(seq2nice('set', [
+		'abc',
+		['def', 'ghi'],
+		'xyz'
+		], {compact: false}),
+	s`-- abc
+--
+	- def
+	- ghi
+-- xyz`)
+
+equal(seq2nice('set', [
+		'abc',
+		['def', 'ghi'],
+		'xyz'
+		], {compact: false, oneIndent: '\t'}),
+	`-- abc
+--
+	- def
+	- ghi
+-- xyz`)
+
+equal(seq2nice('set', [
+		'abc',
+		['def', 'ghi'],
+		'xyz'
+		], {compact: true}),
+	'〚abc [def ghi] xyz〛')
+
+// ---------------------------------------------------------------------------
+
+equal(hash2nice(
+		'hash',
+		{
+			fname: 'John',
+			lname: 'Deighan'
+			},
+		['fname', 'lname']
+		),
+	`fname: John
+lname: Deighan`)
+
+equal(hash2nice(
+		'map',
+		new Map([['fname','John'],['lname','Deighan']]),
+		['fname', 'lname']
+		),
+	`fname:: John
+lname:: Deighan`)
+
+// ---------------------------------------------------------------------------
+
+equal(toOLString(''), "｟emptyString｠")
+equal(toOLString('abc'), 'abc')
+equal(toOLString('\tabc\n'), '→abc↓')
+equal(toOLString('123'), "“123")
+equal(toOLString('123').length, 4)
+equal(toOLString('3.14'), "“3.14")
+equal(toOLString('-123'), "“-123")
+equal(toOLString('-3.14'), "“-3.14")
+equal(toOLString('134 Main St.'), '“134˳Main˳St.')
+equal(toOLString('｟inf｠'), "｟inf｠")
+equal(toOLString('｟text｠'), "｟text｠")
+equal(toOLString('label: 42'), '“label:˳42')
+equal(toOLString(' xxx '), '˳xxx˳')
+equal(toOLString('  xxx  '), '˳˳xxx˳˳')
+equal(toOLString('func1 = (str: string)'), 'func1˳=˳(str:˳string)')
 
 // ---------------------------------------------------------------------------
 
@@ -74,7 +158,7 @@ equal(toNice('a\nb'),     'a↓b')
 equal(toNice('｟true｠'),   "｟true｠")
 equal(toNice('｟abc｠'),     "｟abc｠")
 equal(toNice('- abc'),    "“-˳abc")
-equal(toNice('-abc'),     "“-abc")
+equal(toNice('-abc'),     "-abc")
 equal(toNice('flag: 3'),  "“flag:˳3")
 equal(toNice('123'),      "“123")
 equal(toNice('1749 Main St.'), "“1749˳Main˳St.")
@@ -304,5 +388,24 @@ equal(toNice(new Set([])), '｟emptySet｠')
 // ---------------------------------------------------------------------------
 
 equal(toNice(new Map([['a',1],['b',2]])), `a:: 1
-b:: 2`)
+b:: 2`);
+
+// ---------------------------------------------------------------------------
+
+(() => {
+	const x = {
+		mImports: new Map(),
+		mainScope: {
+			name: 'main',
+			sDefined: new Set(['func'])
+			}
+		}
+	equal(toNice(x), s`mImports: ｟emptyMap｠
+mainScope:
+   name: main
+	sDefined:
+		-- func`)
+}
+	)()
+
 

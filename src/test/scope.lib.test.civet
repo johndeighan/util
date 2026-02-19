@@ -66,7 +66,7 @@ import {
 			-- gender
 		sUsed: ｟emptySet｠
 		parent: ｟undef｠
-		lChildren:
+		lChildScopes:
 			-
 				name: func
 				sDefined:
@@ -74,7 +74,7 @@ import {
 					-- temp
 				sUsed: ｟emptySet｠
 				parent: ｟ref root｠
-				lChildren: []
+				lChildScopes: []
 		"""
 	)()
 

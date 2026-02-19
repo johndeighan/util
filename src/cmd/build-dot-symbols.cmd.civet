@@ -6,7 +6,7 @@ import {getOptions, CStringSetMap, keys} from 'llutils'
 import {OL} from 'to-nice'
 import {LOG, DBG, LOGVALUE, DBGVALUE} from 'logger'
 import {barf, allFilesMatching, relpath} from 'fsys'
-import {analyze, CAnalysis} from 'typescript'
+import {analyzeTS, CAnalysis} from 'typescript'
 
 stdChecks "build-dot-symbols"
 
@@ -30,7 +30,7 @@ getDotSymbolsLines := (
 	lSymbols: string[] := []
 	let lineLen = 0     # --- always <= maxLineLen
 	let pathYielded = false
-	analysis := analyze path
+	analysis := analyzeTS path
 	for name of analysis.getExports()
 		pos := name.indexOf '<'
 		sym := (pos == -1) ? name : name.substring(0, pos)

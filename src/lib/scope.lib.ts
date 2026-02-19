@@ -14,7 +14,7 @@ export class CScope {
 	sDefined = new Set<string>()
 	sUsed = new Set<string>()
 	parent: (CScope | undefined)
-	lChildren: CScope[]
+	lChildScopes: CScope[]
 
 	// ..........................................................
 
@@ -59,7 +59,7 @@ NAME: ${this.name || '.undef'}
 DEFINED: ${this.getDefined().join(' ')}
 USED: ${this.getUsed().join(' ')}
 PARENT: ${defined(this.parent) ? this.parent.name : '.undef'}
-CHILDREN: ${this.lChildren.length}`
+CHILDREN: ${this.lChildScopes.length}`
 	}
 
 	// ..........................................................
@@ -77,7 +77,7 @@ CHILDREN: ${this.lChildren.length}`
 		for (const name of lArgs) {
 			this.define(name)
 		}
-		this.lChildren = []
+		this.lChildScopes = []
 	}
 
 	// ..........................................................
@@ -85,7 +85,7 @@ CHILDREN: ${this.lChildren.length}`
 	newChildScope(name: (string | undefined), lArgs: string[]) {
 
 		const scope = new CScope(name, lArgs, this)
-		this.lChildren.push(scope)
+		this.lChildScopes.push(scope)
 		return scope
 	}
 
@@ -127,7 +127,7 @@ CHILDREN: ${this.lChildren.length}`
 		if (this.sUsed.has(name)) {
 			return true
 		}
-		for (const childScope of this.lChildren) {
+		for (const childScope of this.lChildScopes) {
 			if (childScope.isUsed(name)) {
 				return true
 			}

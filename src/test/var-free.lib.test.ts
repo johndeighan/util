@@ -6,6 +6,7 @@ import {sleep} from 'llutils'
 import {
 	syncMapper, syncReducer, mapper, reducer, TMaybeCmd,
 	} from 'var-free'
+import {MAP} from 'map'
 import {generateSync, generateAsync, equal} from 'unit-test';
 
 // ---------------------------------------------------------------------------
@@ -720,5 +721,30 @@ await (async () => {
 	equal(sum, 6)
 	equal(sumsq, 20)
 }
+	)();
+
+(() => {
+	// --- using MAP()
+
+	const lInts = [1, 2, 3, 4, 5]
+	const lStrings = ['abc', 'def', 'ghi']
+
+	const [lCaps, count] = MAP(lStrings, 0, function*(x, i, acc) {
+		yield x.toUpperCase()
+		return acc+1
+	})
+
+	equal(lCaps, ['ABC','DEF','GHI'])
+	equal(count, 3)
+
+	const [lDoubles, sum] = MAP(lInts, 0, function*(x, i, acc) {
+		yield 2*x
+		return acc+x
+	})
+
+	equal(lDoubles, [2, 4, 6, 8, 10])
+	equal(sum, 15)
+}
+
 	)()
 

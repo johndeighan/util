@@ -107,17 +107,12 @@ export const dumpFrame = (
 // ---------------------------------------------------------------------------
 // --- return true to keep
 
+export const reThisFile = /v8-stack\.lib\.(?:civet|ts)$/
+
 const defaultFilter: TFrameFilter = (frame) => {
 
-	const {type, source, name} = frame
-	if (
-			   (type === 'method')
-			&& !source
-			&& ['next','from'].includes(name)
-			) {
-		return false
-	}
-	return !source.includes('v8-stack.lib')
+	const {source} = frame
+	return defined(source) && !source.match(reThisFile)
 }
 
 // ---------------------------------------------------------------------------
@@ -226,9 +221,6 @@ export const allStackFrames = function*(
 		// @ts-ignore
 		Error.prepareStackTrace = oldPreparer
 
-		if (lStack.length === 0) {
-			debugger
-		}
 		for (const frame of lStack) {
 			if (filter(frame)) {
 				yield frame
@@ -249,7 +241,9 @@ export const getV8Stack = (
 		hOptions: hash = {}
 		): TStackFrame[] => {
 
-	return Array.from(allStackFrames(hOptions))
+	const iterFrames = allStackFrames(hOptions)
+	const lFrames = Array.from(iterFrames)
+	return lFrames
 }
 
 // ---------------------------------------------------------------------------

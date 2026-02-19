@@ -8,9 +8,11 @@ import {
 	isEmpty, nonEmpty,
 	TStringMapper, getErrStr, TVoidFunc,
 	} from 'datatypes'
+import {syncMapper} from 'var-free'
 import {
 	allLinesInBlock, getOptions, sep,
 	} from 'llutils'
+import {OL, ML} from 'to-nice'
 import {resetOneIndent, splitLine} from 'indent'
 import {LOG, DBG, ERR} from 'logger'
 import {CParseMatches} from 'parse-utils';
@@ -21,8 +23,8 @@ import {CParseMatches} from 'parse-utils';
 
 export const str2indents = (str: string): string => {
 
-	assert(!str.includes(uni.shiftin), "Bad input string")
-	assert(!str.includes(uni.shiftout), "Bad input string")
+	assert(!str.includes(uni.shiftin), "Bad input string, has shiftin")
+	assert(!str.includes(uni.shiftout), "Bad input string, has shiftout")
 
 	resetOneIndent()
 	let lParts: string[] = []
@@ -33,7 +35,10 @@ export const str2indents = (str: string): string => {
 			lParts.push(line)
 			continue
 		}
-		if (nonEmpty(line)) {
+		if (isEmpty(line)) {
+			lParts.push('\n')
+		}
+		else {
 			const [newLevel, str] = splitLine(line)
 			if (newLevel === level) {
 				lParts.push('\n')
@@ -50,6 +55,46 @@ export const str2indents = (str: string): string => {
 	}
 
 	return lParts.join('') + uni.shiftout.repeat(level)
+}
+
+// ---------------------------------------------------------------------------
+
+export const toDebugStr = (str: string): string => {
+
+	const estr = str2indents(str)
+
+	const pre = (level: number): string => {
+		return (level < 1) ? '' : '   '.repeat(level)
+	}
+
+	let level = 0
+	const lChars = [...estr]
+	debugger
+	const lParts = syncMapper(lChars, function*(ch) {
+		switch(ch) {
+			case '\n': {
+				yield `\n${pre(level)}${uni.downarrow}`;break;
+			}
+			case uni.shiftin: {
+				yield `\n${pre(level)}${uni.rightshift}  `
+				level += 1;break;
+			}
+			case uni.shiftout: {
+				level -= 1
+				yield `\n${pre(level-1)}${uni.leftshift}  `;break;
+			}
+			case ' ': {
+				yield uni.fatdot;break;
+			}
+			case '\t': {
+				yield uni.rightarrow;break;
+			}
+			default: {
+				yield ch
+			}
+		}
+	})
+	return Array.from(lParts).join('')
 }
 
 // ---------------------------------------------------------------------------
@@ -76,6 +121,7 @@ export const doParse = async <T = unknown,>(
 		LOG(`debug = ${debug}`)
 	}
 
+	const orgText = text
 	for (const func of lTransforms) {
 		text = func(text)
 	}
@@ -97,6 +143,8 @@ export const doParse = async <T = unknown,>(
 		}
 		else {
 			ERR(`PARSE ERROR in doParse(${stub})`)
+			LOG('', toDebugStr(orgText))
+
 			const {pm} = await import(stub)
 			pm.dumpParseInfo()
 

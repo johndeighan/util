@@ -8,7 +8,7 @@ import {
 	hash, hashof, isString, isArray, isClass, isRegExp, isObject,
 	isPrimitive, isEmpty, nonEmpty, assertIsHash, integer,
 	symbolName, className, functionName, regexpDef, jsType,
-	assertIsFunction, assertIsClass, assertIsArray,
+	assertIsFunction, assertIsClass, assertIsArray, isHash,
 	} from 'datatypes'
 import {
 	getOptions, f, o, toBlock, spaces, mapEachLine, sep, keys,
@@ -20,7 +20,7 @@ import {mapper, syncMapper} from 'var-free'
 
 export const mark = (str: string): string => {
 
-	return uni.startchar + str + uni.endchar
+	return uni.alt_lparen + str + uni.alt_rparen
 }
 
 // ---------------------------------------------------------------------------
@@ -33,10 +33,18 @@ export const alphaCompare: TCompareFunc = (a: string, b: string): number => {
 }
 
 // ---------------------------------------------------------------------------
-
 // --- any leading digit must be preceded by a curly quote char
 
-export const toNiceString = (
+export const setNeedsEsc = new Set([
+	'{',
+	'[',
+	uni.alt_lbrace,
+	uni.alt_lbracket,
+	'0','1','2','3','4',
+	'5','6','7','8','9',
+	])
+
+export const toOLString = (
 		str: string,
 		): string => {
 
@@ -50,11 +58,14 @@ export const toNiceString = (
 	// --- precede with '“' if
 	//        - starts with digit
 	//        - starts with '-'
+	//        - starts with '{' or '[' or alt version
 	//        - looks like a label
-	if (estr.match(/^[\d-]/) || estr.match(/^\.\d/)) {
-		return uni.lsmartq + estr
-	}
-	else if (estr.match(/^[^˳\s]+\:˳/)) {
+	if (
+			   setNeedsEsc.has(estr[0])
+			|| estr.match(/^[-.]\d/)         // looks like a number
+			|| estr.match(/^[^˳\s]+\:\:?˳/)  // looks like a label
+			|| estr.match(/^--?˳/)          // looks like list item
+			) {
 		return uni.lsmartq + estr
 	}
 	else {
@@ -168,23 +179,73 @@ export const hNiceDefaults = {
 
 // ---------------------------------------------------------------------------
 
-export const hash2nice = (
-		mark: string,
-		parent: unknown,
-		lKeys: string[],
-		getter: (s: string) => unknown,
+export const seq2nice = (
+		kind: string,
+		lValues: unknown[],
 		hOptions: hash = {},
-		mapVisited: Map<object, string>,
-		lPath: TPathIndex[]
+		mapVisited: Map<object, string> = new Map(),
+		lPath: TPathIndex[] = []
+		): string => {
+
+	// --- ignoreEmptyItems does not apply to arrays or sets
+	const {compact, oneIndent} = getOptions<TNiceOptions>(hOptions, hNiceDefaults)
+
+	let hasMultiLine = false
+	const iterParts = syncMapper<unknown,string>(lValues, function*(val, i) {
+		yield toNice(val, hOptions, mapVisited, [...lPath, i])
+	})
+	const lParts = Array.from(iterParts)
+
+	if (compact) {
+		if (kind === 'array') {
+			return '[' + lParts.join(' ') + ']'
+		}
+		else {
+			return uni.alt_lbracket + lParts.join(' ') + uni.alt_rbracket
+		}
+	}
+	else {
+		const prefix = (kind === 'array') ? '-' : '--'
+		const iterBlocks = syncMapper<string, string>(lParts, function*(str, i) {
+			if (str.includes('\n')) {
+				yield prefix + '\n' + indented(str, 1, {oneIndent})
+			}
+			else {
+				yield prefix + ' ' + str
+			}
+		})
+		return Array.from(iterBlocks).join('\n')
+	}
+}
+
+// ---------------------------------------------------------------------------
+
+type TGetter = (name: string) => unknown
+
+export const hash2nice = (
+		kind: string,
+		x: unknown,
+		lKeys: string[],
+		hOptions: hash = {},
+		mapVisited: Map<object, string> = new Map(),
+		lPath: TPathIndex[] = []
 		): string => {
 
 	const {compact, sortFunc, sortKeys, lInclude, lExclude, ignoreEmptyKeys,
 		displayFunc, descFunc, oneIndent, recoverable,
 		} = getOptions<TNiceOptions>(hOptions, hNiceDefaults)
 
-	// --- You can provide sortKeys or a sortFunc, but not both
-	assert(!(sortKeys && defined(sortFunc)), "Bad options")
+	const getter: TGetter = (
+		  isHash(x)          ? (name) => x[name]
+		: (x instanceof Map) ? (name) => { return x.get(name) }
+		:                      croak("Bad")
+		)
 
+	// --- You can provide sortKeys or a sortFunc, but not both
+	assert(!(sortKeys && defined(sortFunc)),
+		"Can't use both options sortKeys and sortFunc")
+
+	const mark = (kind === 'hash') ? ':' : '::'
 	if (recoverable) {
 		assert(notdefined(displayFunc), "can't use displayFunc w/recoverable")
 		assert(notdefined(descFunc), "can't use descFunc w/recoverable")
@@ -218,16 +279,16 @@ export const hash2nice = (
 		const val = getter(key)
 		if (!ignoreEmptyKeys || nonEmpty(val)) {
 			if (isPrimitive(val)) {
-				const str = displayStr(key, val, parent, displayFunc, descFunc)
+				const str = displayStr(key, val, x, displayFunc, descFunc)
 				yield `${key}${mark} ${str}`
 			}
 			else {
 				const str = toNice(val, hOptions, mapVisited, [...lPath, key])
-				if (str.includes('\n')) {
-					yield `${key}${mark}\n` + indented(str, 1, {oneIndent})
+				if (compact || isEmpty(val) || str.startsWith('｟')) {
+					yield `${key}${mark} ${str}`
 				}
 				else {
-					yield `${key}${mark} ${str}`
+					yield `${key}${mark}\n` + indented(str, 1, {oneIndent})
 				}
 			}
 		}
@@ -236,41 +297,6 @@ export const hash2nice = (
 	return (
 		  compact
 		? '{' + lParts.join(' ') + '}'
-		: lParts.join('\n')
-		)
-}
-
-// ---------------------------------------------------------------------------
-
-export const seq2nice = (
-		prefix: string,
-		lValues: unknown[],
-		hOptions: hash = {},
-		mapVisited: Map<object, string>,
-		lPath: TPathIndex[]
-		): string => {
-
-	const {compact, ignoreEmptyItems, oneIndent
-		} = getOptions<TNiceOptions>(hOptions, hNiceDefaults)
-
-	const iterParts = syncMapper(lValues, function*(val: unknown, i: number): Generator<string> {
-		if (!ignoreEmptyItems || nonEmpty(val)) {
-			const str = toNice(val, hOptions, mapVisited, [...lPath, i])
-			if (str.includes('\n')) {
-				yield `${prefix}\n` + indented(str, 1, {oneIndent})
-			}
-			else if (compact) {
-				yield str
-			}
-			else {
-				yield `${prefix} ${str}`
-			}
-		}
-	})
-	const lParts = Array.from(iterParts)
-	return (
-		  compact
-		? '[' + lParts.join(' ') + ']'
 		: lParts.join('\n')
 		)
 }
@@ -289,6 +315,8 @@ export const toNice = (
 
 	const typ = jsType(x)
 	switch(typ) {
+		// --- Primitives
+
 		case 'undef':case 'NaN':case 'inf':case 'neginf':case 'null': {
 			return mark(typ)
 		}
@@ -296,7 +324,7 @@ export const toNice = (
 			return x ? mark('true') : mark('false')
 		}
 		case 'string': {
-			return toNiceString(x as string)
+			return toOLString(x as string)
 		}
 		case 'symbol': {
 			const name = symbolName(x)
@@ -312,81 +340,9 @@ export const toNice = (
 			const desc = esc(regexpDef(x))
 			return desc ? mark(`regexp /${desc}/`) : mark("regexp")
 		}
-		case 'array': {
-			assertIsArray(x)
-			if (x.length === 0) {
-				return '[]'
-			}
-			else {
-				// --- Check if object was previously visited
-				const prevpath = mapVisited.get(x)
-				if (prevpath) {
-					return mark(`ref ${prevpath}`)
-				}
-				else {
-					mapVisited.set(x, buildPath(lPath))
-					return seq2nice('-', x, hOptions, mapVisited, lPath)
-				}
-			}
-		}
-		case 'set': {
-			assert((x instanceof Set))
-			if (x.size === 0) {
-				return mark('emptySet')
-			}
-			else {
-				// --- Check if object was previously visited
-				const prevpath = mapVisited.get(x)
-				if (prevpath) {
-					return mark(`ref ${prevpath}`)
-				}
-				else {
-					mapVisited.set(x, buildPath(lPath))
-					const lValues = Array.from(x.values())
-					return seq2nice('--', lValues, hOptions, mapVisited, lPath)
-				}
-			}
-		}
-		case 'hash': {
-			assertIsHash(x)
-			const lKeys = Object.keys(x)
-			if (lKeys.length === 0) {
-				return '{}'
-			}
-			else {
-				// --- Check if object was previously visited
-				const prevpath = mapVisited.get(x)
-				if (prevpath) {
-					return mark(`ref ${prevpath}`)
-				}
-				else {
-					mapVisited.set(x, buildPath(lPath))
-					const getter = (name: string): unknown => x[name]
-					return hash2nice(':', x, keys(x), getter, hOptions, mapVisited, lPath)
-				}
-			}
-		}
-		case 'map': {
-			assert((x instanceof Map))
-			if (x.size === 0) {
-				return mark('emptyMap')
-			}
-			else {
-				// --- Check if object was previously visited
-				const prevpath = mapVisited.get(x)
-				if (prevpath) {
-					return mark(`ref ${prevpath}`)
-				}
-				else {
-					mapVisited.set(x, buildPath(lPath))
-					const getter = (name: string): unknown => {
-						return x.get(name)
-					}
-					const lKeys = Array.from(x.keys())
-					return hash2nice('::', x, lKeys, getter, hOptions, mapVisited, lPath)
-				}
-			}
-		}
+
+		// --- Functions
+
 		case 'generator': {
 			assertIsFunction(x)
 			return mark(`generator ${functionName(x)}`)
@@ -402,6 +358,82 @@ export const toNice = (
 		case 'plainFunction': {
 			assertIsFunction(x)
 			return mark(`function ${functionName(x)}`)
+		}
+
+		// --- Complex objects
+
+		case 'array': {
+			assertIsArray(x)
+			if (isEmpty(x)) {
+				return '[]'
+			}
+			else {
+				// --- Check if object was previously visited
+				const prevpath = mapVisited.get(x)
+				if (prevpath) {
+					return mark(`ref ${prevpath}`)
+				}
+				else {
+					mapVisited.set(x, buildPath(lPath))
+					return seq2nice('array', x, hOptions, mapVisited, lPath)
+				}
+			}
+		}
+
+		case 'set': {
+			assert((x instanceof Set))
+			if (isEmpty(x)) {
+				return mark('emptySet')
+			}
+			else {
+				// --- Check if object was previously visited
+				const prevpath = mapVisited.get(x)
+				if (prevpath) {
+					return mark(`ref ${prevpath}`)
+				}
+				else {
+					mapVisited.set(x, buildPath(lPath))
+					const lValues = Array.from(x.values())
+					return seq2nice('set', lValues, hOptions, mapVisited, lPath)
+				}
+			}
+		}
+
+		case 'hash': {
+			assertIsHash(x)
+			if (isEmpty(x)) {
+				return '{}'
+			}
+			else {
+				// --- Check if object was previously visited
+				const prevpath = mapVisited.get(x)
+				if (prevpath) {
+					return mark(`ref ${prevpath}`)
+				}
+				else {
+					mapVisited.set(x, buildPath(lPath))
+					return hash2nice('hash', x, keys(x), hOptions, mapVisited, lPath)
+				}
+			}
+		}
+
+		case 'map': {
+			assert((x instanceof Map))
+			if (x.size === 0) {
+				return mark('emptyMap')
+			}
+			else {
+				// --- Check if object was previously visited
+				const prevpath = mapVisited.get(x)
+				if (prevpath) {
+					return mark(`ref ${prevpath}`)
+				}
+				else {
+					mapVisited.set(x, buildPath(lPath))
+					const lKeys = Array.from(x.keys())
+					return hash2nice('map', x, lKeys, hOptions, mapVisited, lPath)
+				}
+			}
 		}
 	}
 
@@ -476,7 +508,7 @@ export const ML = (x: unknown, hOptions = {}): string => {
 
 	type opt = {
 		label: (string | undefined)
-	}
+		}
 	const {label} = getOptions<opt>(hOptions, {
 		label: undef,
 	})

@@ -20,9 +20,10 @@ import {
 	barf, barfTempFile, parsePath, addJsonValue, normalizePath,
 	} from 'fsys'
 import {
-	THandlerResult, execCmdSync, execCmd, CFileHandler,
+	execCmdSync, execCmd, CFileHandler, procFiles,
+	TExecResult, THandlerResult,
 	} from 'exec'
-import {ts2ast, analyze, typeCheckTsCode} from 'typescript'
+import {ts2ast, analyzeTS, typeCheckTsCode} from 'typescript'
 import {extractSourceMap, haveSourceMapFor} from 'source-map'
 
 import hCivetConfig from "civetconfig" with {type: "json"};
@@ -31,6 +32,7 @@ import hCivetConfig from "civetconfig" with {type: "json"};
 
 export type TCivetOptions = {
 	force?: boolean
+	nocheck?: boolean
 	inlineMap?: boolean
 	}
 
@@ -53,8 +55,9 @@ class CCivetCompiler extends CFileHandler {
 			hOptions: hash = {}
 			): AutoPromise<THandlerResult> {
 
-		const {force} = getOptions<TCivetOptions>(hOptions, {
-			force: false
+		const {force, nocheck} = getOptions<TCivetOptions>(hOptions, {
+			force: false,
+			nocheck: false
 			})
 
 		assert((fileExt(path) === '.civet'), `Not a civet file: ${path}`)
@@ -88,10 +91,12 @@ class CCivetCompiler extends CFileHandler {
 				croak("Compile failed")
 			}
 
-			const hCheckResult = await execCmd('deno', ['check', tsPath])
-			if (!hCheckResult.success) {
-				console.log(hCheckResult.output)
-				croak("Type check failed")
+			if (!nocheck) {
+				const hCheckResult = await execCmd('deno', ['check', tsPath])
+				if (!hCheckResult.success) {
+					console.log(hCheckResult.output)
+					croak("Type check failed")
+				}
 			}
 
 			const tsCode = await slurpAsync(tsPath)
@@ -125,8 +130,9 @@ class CCivetCompiler extends CFileHandler {
 			hOptions: hash = {}
 			): THandlerResult {
 
-		const {force} = getOptions<TCivetOptions>(hOptions, {
-			force: false
+		const {force, nocheck} = getOptions<TCivetOptions>(hOptions, {
+			force: false,
+			nocheck: false
 			})
 
 		assert((fileExt(path) === '.civet'), `Not a civet file: ${path}`)
@@ -160,10 +166,12 @@ class CCivetCompiler extends CFileHandler {
 				croak("Compile failed")
 			}
 
-			const hCheckResult = execCmdSync('deno', ['check', tsPath])
-			if (!hCheckResult.success) {
-				console.log(hCheckResult.output)
-				croak("Type check failed")
+			if (!nocheck) {
+				const hCheckResult = execCmdSync('deno', ['check', tsPath])
+				if (!hCheckResult.success) {
+					console.log(hCheckResult.output)
+					croak("Type check failed")
+				}
 			}
 
 			const tsCode = slurp(tsPath)
@@ -234,14 +242,28 @@ export const civet2ast = (civetCode: string): Node => {
 }
 
 // ---------------------------------------------------------------------------
+// ASYNC
+
+export const compileAllLibs = async (hOptions: hash = {}): AutoPromise<TExecResult[]> => {
+
+	hOptions.quiet = true
+	return await procFiles([doCompileCivet, ['**/*.lib.civet']], hOptions)
+}
+
+// ---------------------------------------------------------------------------
 
 // --- template literals to simplify displaying
 //     the analysis of civet code
 
 export const a = (lStrings: TemplateStringsArray): string => {
-	return analyze(civet2ts(lStrings[0])).asString()
+	const tsCode = civet2ts(lStrings[0], {nocheck: true})
+	const result = analyzeTS(tsCode).asString()
+	return result
 }
 
 export const A = (lStrings: TemplateStringsArray): string => {
-	return analyze(civet2ts(lStrings[0]), o`dump`).asString()
+	const tsCode = civet2ts(lStrings[0], {nocheck: true})
+	const result = analyzeTS(tsCode, {dump: true}).asString()
+	return result
 }
+

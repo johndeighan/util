@@ -91,18 +91,14 @@ DirName
 		return;
 
 Content
-	Block (NL Block)* ->
+	Block+ ->
 		pm.match('Content', $loc);
-		let lParts: string[] = [$1];
-		for (let [_, str] of $2) {
-			lParts.push(str);
-			}
-		return pm.result(lParts.join('\n'));
+		return pm.result($1.join('\n'));
 
 Block
-	Line IndentedBlock? ->
+	NL? Line IndentedBlock? ->
 		pm.match('Block', $loc);
-		return pm.result(defined($2) ? ($1+'\n'+$2) : $1);
+		return pm.result(defined($3) ? ($2+'\n'+$3) : $2);
 
 IndentedBlock
 	INDENT Content UNDENT ->
@@ -110,12 +106,12 @@ IndentedBlock
 		return pm.result(indented($2));
 
 Line
-	/[^\x0F\x0E\n\r]+/ ->
+	/[^\x0F\x0E\n\r]*/ ->
 		pm.match('Line', $loc);
 		return pm.result($0);
 
 Name
-	/[A-Za-z_.-][A-Za-z0-9_.-]*/ ->
+	/[A-Za-z_.-][A-Za-z0-9_.-]+/ ->
 		pm.match('Name', $loc);
 		return pm.result($0);
 

@@ -7,7 +7,7 @@ import {getOptions, CStringSetMap, keys} from 'llutils'
 import {OL} from 'to-nice'
 import {LOG, DBG, LOGVALUE, DBGVALUE} from 'logger'
 import {barf, allFilesMatching, relpath} from 'fsys'
-import {analyze, CAnalysis} from 'typescript'
+import {analyzeTS, CAnalysis} from 'typescript'
 
 stdChecks("build-dot-symbols")
 
@@ -31,7 +31,7 @@ const getDotSymbolsLines = function*(
 	const lSymbols: string[] = []
 	let lineLen = 0     // --- always <= maxLineLen
 	let pathYielded = false
-	const analysis = analyze(path)
+	const analysis = analyzeTS(path)
 	for (const name of analysis.getExports()) {
 		const pos = name.indexOf('<')
 		const sym = (pos === -1) ? name : name.substring(0, pos)

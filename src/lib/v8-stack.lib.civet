@@ -101,16 +101,14 @@ export dumpFrame := (
 # ---------------------------------------------------------------------------
 # --- return true to keep
 
+export reThisFile := ///
+	v8-stack\.lib\.(?:civet|ts)
+	$///
+
 defaultFilter: TFrameFilter := (frame) =>
 
-	{type, source, name} := frame
-	if (
-			   (type == 'method')
-			&& not source
-			&& ['next','from'].includes(name)
-			)
-		return false
-	return not source.includes('v8-stack.lib')
+	{source} := frame
+	return defined(source) && not source.match(reThisFile)
 
 # ---------------------------------------------------------------------------
 
@@ -211,8 +209,6 @@ export allStackFrames := (
 		# @ts-ignore
 		Error.prepareStackTrace = oldPreparer
 
-		if (lStack.length == 0)
-			debugger
 		for frame of lStack
 			if filter(frame)
 				yield frame
@@ -228,7 +224,9 @@ export getV8Stack := (
 		hOptions: hash = {}
 		): TStackFrame[] =>
 
-	return Array.from(allStackFrames(hOptions))
+	iterFrames := allStackFrames(hOptions)
+	lFrames := Array.from(iterFrames)
+	return lFrames
 
 # ---------------------------------------------------------------------------
 

@@ -7,7 +7,7 @@ import {
 	hash, hashof, isString, isArray, isClass, isRegExp, isObject,
 	isPrimitive, isEmpty, nonEmpty, assertIsHash, integer,
 	symbolName, className, functionName, regexpDef, jsType,
-	assertIsFunction, assertIsClass, assertIsArray,
+	assertIsFunction, assertIsClass, assertIsArray, isHash,
 	} from 'datatypes'
 import {
 	getOptions, f, o, toBlock, spaces, mapEachLine, sep, keys,
@@ -19,7 +19,7 @@ import {mapper, syncMapper} from 'var-free'
 
 export mark := (str: string): string =>
 
-	return uni.startchar + str + uni.endchar
+	return uni.alt_lparen + str + uni.alt_rparen
 
 # ---------------------------------------------------------------------------
 
@@ -30,10 +30,18 @@ export alphaCompare: TCompareFunc := (a: string, b: string): number =>
 	return if (a < b) then -1 else if (a > b) then 1 else 0
 
 # ---------------------------------------------------------------------------
-
 # --- any leading digit must be preceded by a curly quote char
 
-export toNiceString := (
+export setNeedsEsc := new Set([
+	'{'
+	'['
+	uni.alt_lbrace
+	uni.alt_lbracket
+	'0','1','2','3','4',
+	'5','6','7','8','9',
+	])
+
+export toOLString := (
 		str: string,
 		): string =>
 
@@ -46,10 +54,14 @@ export toNiceString := (
 	# --- precede with '“' if
 	#        - starts with digit
 	#        - starts with '-'
+	#        - starts with '{' or '[' or alt version
 	#        - looks like a label
-	if estr.match(/^[\d-]/) || estr.match(/^\.\d/)
-		return uni.lsmartq + estr
-	else if estr.match(///^ [^˳\s]+ \: ˳///)
+	if (
+			   setNeedsEsc.has(estr[0])
+			|| estr.match(/^[-.]\d/)         # looks like a number
+			|| estr.match(/^[^˳\s]+\:\:?˳/)  # looks like a label
+			|| estr.match(/^--?˳/)          # looks like list item
+			)
 		return uni.lsmartq + estr
 	else
 		return estr
@@ -146,23 +158,64 @@ export hNiceDefaults := {
 
 # ---------------------------------------------------------------------------
 
-export hash2nice := (
-		mark: string
-		parent: unknown
-		lKeys: string[]
-		getter: (s: string) => unknown
+export seq2nice := (
+		kind: string
+		lValues: unknown[]
 		hOptions: hash = {}
-		mapVisited: Map<object, string>
-		lPath: TPathIndex[]
+		mapVisited: Map<object, string> = new Map()
+		lPath: TPathIndex[] = []
+		): string =>
+
+	# --- ignoreEmptyItems does not apply to arrays or sets
+	{compact, oneIndent} := getOptions<TNiceOptions> hOptions, hNiceDefaults
+
+	let hasMultiLine = false
+	iterParts := syncMapper<unknown,string> lValues, (val, i) ->
+		yield toNice(val, hOptions, mapVisited, [lPath..., i])
+	lParts := Array.from(iterParts)
+
+	if compact
+		if (kind == 'array')
+			return '[' + lParts.join(' ') + ']'
+		else
+			return uni.alt_lbracket + lParts.join(' ') + uni.alt_rbracket
+	else
+		prefix := (kind == 'array') ? '-' : '--'
+		iterBlocks := syncMapper<string, string> lParts, (str, i) ->
+			if str.includes('\n')
+				yield prefix + '\n' + indented(str, 1, {oneIndent})
+			else
+				yield prefix + ' ' + str
+		return Array.from(iterBlocks).join('\n')
+
+# ---------------------------------------------------------------------------
+
+type TGetter = (name: string) => unknown
+
+export hash2nice := (
+		kind: string
+		x: unknown
+		lKeys: string[]
+		hOptions: hash = {}
+		mapVisited: Map<object, string> = new Map()
+		lPath: TPathIndex[] = []
 		): string =>
 
 	{compact, sortFunc, sortKeys, lInclude, lExclude, ignoreEmptyKeys,
 		displayFunc, descFunc, oneIndent, recoverable,
 		} := getOptions<TNiceOptions> hOptions, hNiceDefaults
 
-	# --- You can provide sortKeys or a sortFunc, but not both
-	assert not (sortKeys && defined(sortFunc)), "Bad options"
+	getter: TGetter := (
+		  isHash(x)          ? (name) => x[name]
+		: (x instanceof Map) ? (name) => return x.get(name)
+		:                      croak "Bad"
+		)
 
+	# --- You can provide sortKeys or a sortFunc, but not both
+	assert not (sortKeys && defined(sortFunc)),
+		"Can't use both options sortKeys and sortFunc"
+
+	mark := (kind == 'hash') ? ':' : '::'
 	if recoverable
 		assert notdefined(displayFunc), "can't use displayFunc w/recoverable"
 		assert notdefined(descFunc), "can't use descFunc w/recoverable"
@@ -188,47 +241,18 @@ export hash2nice := (
 		val := getter(key)
 		if not ignoreEmptyKeys || nonEmpty(val)
 			if isPrimitive(val)
-				str := displayStr(key, val, parent, displayFunc, descFunc)
+				str := displayStr(key, val, x, displayFunc, descFunc)
 				yield "#{key}#{mark} #{str}"
 			else
 				str := toNice(val, hOptions, mapVisited, [lPath..., key])
-				if str.includes('\n')
-					yield "#{key}#{mark}\n" + indented(str, 1, {oneIndent})
-				else
+				if compact || isEmpty(val) || str.startsWith('｟')
 					yield "#{key}#{mark} #{str}"
+				else
+					yield "#{key}#{mark}\n" + indented(str, 1, {oneIndent})
 	lParts := Array.from(iterParts)
 	return (
 		  compact
 		? '{' + lParts.join(' ') + '}'
-		: lParts.join('\n')
-		)
-
-# ---------------------------------------------------------------------------
-
-export seq2nice := (
-		prefix: string
-		lValues: unknown[]
-		hOptions: hash = {}
-		mapVisited: Map<object, string>
-		lPath: TPathIndex[]
-		): string =>
-
-	{compact, ignoreEmptyItems, oneIndent
-		} := getOptions<TNiceOptions> hOptions, hNiceDefaults
-
-	iterParts := syncMapper lValues, (val: unknown, i: number): Generator<string> ->
-		if not ignoreEmptyItems || nonEmpty(val)
-			str := toNice(val, hOptions, mapVisited, [lPath..., i])
-			if str.includes('\n')
-				yield "#{prefix}\n" + indented(str, 1, {oneIndent})
-			else if compact
-				yield str
-			else
-				yield "#{prefix} #{str}"
-	lParts := Array.from(iterParts)
-	return (
-		  compact
-		? '[' + lParts.join(' ') + ']'
 		: lParts.join('\n')
 		)
 
@@ -246,12 +270,14 @@ export toNice := (
 
 	typ := jsType(x)
 	switch typ
+		# --- Primitives
+
 		when 'undef','NaN','inf','neginf','null'
 			return mark(typ)
 		when 'boolean'
 			return x ? mark('true') : mark('false')
 		when 'string'
-			return toNiceString(x as string)
+			return toOLString(x as string)
 		when 'symbol'
 			name := symbolName x
 			return name ? mark("symbol #{name}") : mark("symbol")
@@ -262,60 +288,9 @@ export toNice := (
 		when 'regexp'
 			desc := esc regexpDef x
 			return desc ? mark("regexp /#{desc}/") : mark("regexp")
-		when 'array'
-			assertIsArray(x)
-			if (x.length == 0)
-				return '[]'
-			else
-				# --- Check if object was previously visited
-				prevpath := mapVisited.get x
-				if prevpath
-					return mark("ref #{prevpath}")
-				else
-					mapVisited.set x, buildPath(lPath)
-					return seq2nice '-', x, hOptions, mapVisited, lPath
-		when 'set'
-			assert (x instanceof Set)
-			if (x.size == 0)
-				return mark('emptySet')
-			else
-				# --- Check if object was previously visited
-				prevpath := mapVisited.get x
-				if prevpath
-					return mark("ref #{prevpath}")
-				else
-					mapVisited.set x, buildPath(lPath)
-					lValues := Array.from(x.values())
-					return seq2nice '--', lValues, hOptions, mapVisited, lPath
-		when 'hash'
-			assertIsHash(x)
-			lKeys := Object.keys(x)
-			if (lKeys.length == 0)
-				return '{}'
-			else
-				# --- Check if object was previously visited
-				prevpath := mapVisited.get x
-				if prevpath
-					return mark("ref #{prevpath}")
-				else
-					mapVisited.set x, buildPath(lPath)
-					getter := (name: string): unknown => x[name]
-					return hash2nice ':', x, keys(x), getter, hOptions, mapVisited, lPath
-		when 'map'
-			assert (x instanceof Map)
-			if (x.size == 0)
-				return mark('emptyMap')
-			else
-				# --- Check if object was previously visited
-				prevpath := mapVisited.get x
-				if prevpath
-					return mark("ref #{prevpath}")
-				else
-					mapVisited.set x, buildPath(lPath)
-					getter := (name: string): unknown =>
-						return x.get(name)
-					lKeys := Array.from(x.keys())
-					return hash2nice '::', x, lKeys, getter, hOptions, mapVisited, lPath
+
+		# --- Functions
+
 		when 'generator'
 			assertIsFunction(x)
 			return mark("generator #{functionName(x)}")
@@ -328,6 +303,62 @@ export toNice := (
 		when 'plainFunction'
 			assertIsFunction(x)
 			return mark("function #{functionName(x)}")
+
+		# --- Complex objects
+
+		when 'array'
+			assertIsArray(x)
+			if isEmpty(x)
+				return '[]'
+			else
+				# --- Check if object was previously visited
+				prevpath := mapVisited.get x
+				if prevpath
+					return mark("ref #{prevpath}")
+				else
+					mapVisited.set x, buildPath(lPath)
+					return seq2nice 'array', x, hOptions, mapVisited, lPath
+
+		when 'set'
+			assert (x instanceof Set)
+			if isEmpty(x)
+				return mark('emptySet')
+			else
+				# --- Check if object was previously visited
+				prevpath := mapVisited.get x
+				if prevpath
+					return mark("ref #{prevpath}")
+				else
+					mapVisited.set x, buildPath(lPath)
+					lValues := Array.from(x.values())
+					return seq2nice 'set', lValues, hOptions, mapVisited, lPath
+
+		when 'hash'
+			assertIsHash(x)
+			if isEmpty(x)
+				return '{}'
+			else
+				# --- Check if object was previously visited
+				prevpath := mapVisited.get x
+				if prevpath
+					return mark("ref #{prevpath}")
+				else
+					mapVisited.set x, buildPath(lPath)
+					return hash2nice 'hash', x, keys(x), hOptions, mapVisited, lPath
+
+		when 'map'
+			assert (x instanceof Map)
+			if (x.size == 0)
+				return mark('emptyMap')
+			else
+				# --- Check if object was previously visited
+				prevpath := mapVisited.get x
+				if prevpath
+					return mark("ref #{prevpath}")
+				else
+					mapVisited.set x, buildPath(lPath)
+					lKeys := Array.from(x.keys())
+					return hash2nice 'map', x, lKeys, hOptions, mapVisited, lPath
 
 	return mark('unknown')
 
@@ -393,8 +424,9 @@ export OL := (
 
 export ML := (x: unknown, hOptions = {}): string =>
 
-	type opt =
+	type opt = {
 		label: string?
+		}
 	{label} := getOptions<opt> hOptions,
 		label: undef
 	if defined(label)

@@ -10,7 +10,7 @@ import {
 import {syncReducer} from 'var-free'
 import {keys, getOptions, o, spaces} from 'llutils'
 import {clearScreen} from 'console-utils'
-import {setLogLevel, LOG, DBG} from 'logger'
+import {setLogLevel, LOG, DBG, ERR} from 'logger'
 import {OL, DUMP} from 'to-nice'
 
 const hFlags: hashof<boolean> = {}
@@ -117,9 +117,11 @@ export const setCmdArgs = (
 		else {
 			for (const ch of optStr.split('')) {
 				if (ch === 'D') {
+					LOG("debug = true")
 					setLogLevel('debug')
 				}
 				else if (ch === 'S') {
+					LOG("silent = true")
 					setLogLevel('silent')
 				}
 				hFlags[ch] = true

@@ -13,7 +13,7 @@ export class CScope
 	sDefined = new Set<string>()
 	sUsed = new Set<string>()
 	parent: CScope?
-	lChildren: CScope[]
+	lChildScopes: CScope[]
 
 	# ..........................................................
 
@@ -53,7 +53,7 @@ export class CScope
 			DEFINED: #{@getDefined().join(' ')}
 			USED: #{@getUsed().join(' ')}
 			PARENT: #{defined(@parent) ? @parent.name : '.undef'}
-			CHILDREN: #{@lChildren.length}
+			CHILDREN: #{@lChildScopes.length}
 			"""
 
 	# ..........................................................
@@ -66,14 +66,14 @@ export class CScope
 
 		for name of lArgs
 			@define name
-		@lChildren = []
+		@lChildScopes = []
 
 	# ..........................................................
 
 	newChildScope(name: string?, lArgs: string[])
 
 		scope := new CScope(name, lArgs, @)
-		@lChildren.push scope
+		@lChildScopes.push scope
 		return scope
 
 	# ..........................................................
@@ -108,7 +108,7 @@ export class CScope
 
 		if @sUsed.has(name)
 			return true
-		for childScope of @lChildren
+		for childScope of @lChildScopes
 			if childScope.isUsed(name)
 				return true
 		return false
