@@ -32,7 +32,8 @@ import {
 	barf, pathStr, allFilesMatching, normalizePath, barfTempFile,
 	fileExt, withExt, slurpAsync, parsePath, relpath,
 	} from 'fsys'
-import {syncReducer, asyncRunner} from 'var-free'
+// import {reducer, syncReducer, asyncRunner} from 'var-free'
+import {MAP, AMAP, awaitAll} from 'map'
 
 // ---------------------------------------------------------------------------
 
@@ -299,14 +300,15 @@ export const procFiles = async (
 	};const lPromises =results
 
 	const [
-		lFulfilled,
+		lFulfilled,     // array of THandlerResult
 		lRejected,
 		lFulPaths,
 		lRejPaths
-		] = await asyncRunner(lPromises, lPaths)
+		] = await awaitAll(lPromises, lPaths)
 
 	const nRej = lRejected.length
-	const [nNotNeeded, nOk, nErr] = syncReducer(lFulfilled, [0,0,0], function(acc, h) {
+	const [lItems, [nNotNeeded, nOk, nErr]] = MAP(lFulfilled, [0,0,0], function*(h, i, acc) {
+		yield h
 		const [n1, n2, n3] = acc
 		if (h.success) {
 			if (h.notNeeded) {

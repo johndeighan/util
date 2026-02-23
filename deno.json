@@ -73,7 +73,6 @@
 		"automate":      "file:///C:/Users/johnd/util/src/lib/automate.lib.ts",
 		"v8-stack":      "file:///C:/Users/johnd/util/src/lib/v8-stack.lib.ts",
 		"unit-test":     "file:///C:/Users/johnd/util/src/lib/unit-test.lib.ts",
-		"var-free":      "file:///C:/Users/johnd/util/src/lib/var-free.lib.ts",
 		"map":           "file:///C:/Users/johnd/util/src/lib/map.lib.ts",
 
 		"civetconfig":   "file:///C:/Users/johnd/civetconfig.json",

@@ -40,31 +40,6 @@ const Deno = globalThis.Deno
 export type FsEvent = Deno.FsEvent
 export var statSync = Deno.statSync
 
-const lDirs: string[] = []
-
-// ---------------------------------------------------------------------------
-
-export const pushWD = (dir: string): void => {
-
-	lDirs.push(Deno.cwd())
-	Deno.chdir(dir)
-	return
-}
-
-// ---------------------------------------------------------------------------
-
-export const popWD = (): void => {
-
-	const dir = lDirs.pop()
-	if (defined(dir)) {
-		Deno.chdir(dir)
-	}
-	else {
-		croak("directory stack is empty")
-	}
-	return
-}
-
 // ---------------------------------------------------------------------------
 /**
  * returns one of:
@@ -111,20 +86,14 @@ export const touch = (path: string): void => {
 // ---------------------------------------------------------------------------
 // ASYNC GENERATOR
 
-/**
- * An async iterable - yields every line in the given file
- *
- * Usage:
- *   for await line of allLinesIn('src/lib/temp.civet')
- * 	  console.log "LINE: #{line}"
- *   console.log "DONE"
- */
-
 export const allLinesIn = async function*(path: string): AsyncGenerator<string, void, void> {
 
 	assert(isFile(path), `No such file: ${OL(path)} (allLinesIn)`)
 	const f = await Deno.open(path)
-	const readable = f.readable.pipeThrough(new TextDecoderStream()).pipeThrough(new TextLineStream())
+	const readable = (f.readable
+			.pipeThrough(new TextDecoderStream())
+			.pipeThrough(new TextLineStream())
+			)
 	for await (const line of readable) {
 		yield line
 	}

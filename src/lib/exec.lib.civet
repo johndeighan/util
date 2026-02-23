@@ -30,7 +30,8 @@ import {
 	barf, pathStr, allFilesMatching, normalizePath, barfTempFile,
 	fileExt, withExt, slurpAsync, parsePath, relpath,
 	} from 'fsys'
-import {syncReducer, asyncRunner} from 'var-free'
+# import {reducer, syncReducer, asyncRunner} from 'var-free'
+import {MAP, AMAP, awaitAll} from 'map'
 
 # ---------------------------------------------------------------------------
 
@@ -266,14 +267,15 @@ export procFiles := (
 		handler.handle path, hOptions
 
 	[
-		lFulfilled,
+		lFulfilled,     # array of THandlerResult
 		lRejected,
 		lFulPaths,
 		lRejPaths
-		] := await asyncRunner(lPromises, lPaths)
+		] := await awaitAll(lPromises, lPaths)
 
 	nRej := lRejected.length
-	[nNotNeeded, nOk, nErr] := syncReducer lFulfilled, [0,0,0], (acc, h) ->
+	[lItems, [nNotNeeded, nOk, nErr]] := MAP lFulfilled, [0,0,0], (h, i, acc) ->
+		yield h
 		[n1, n2, n3] := acc
 		if h.success
 			if h.notNeeded

@@ -4,13 +4,14 @@ import {statSync} from 'node-fs'
 import {existsSync} from '@std/fs'
 
 import {uni, esc} from 'unicode'
+import {f} from 'f-strings'
 import {
 	undef, defined, notdefined, assertIsDefined,
 	assert, croak, hash, isEmpty, nonEmpty, getErrStr,
 	} from 'datatypes'
 import {
 	allLinesInBlock, arrayToBlock, getOptions,
-	f, sep, pass, untabify,
+	sep, pass, untabify,
 	} from 'llutils'
 import {resetOneIndent, splitLine, indented} from 'indent'
 import {LOG, DBG, ERR} from 'logger'

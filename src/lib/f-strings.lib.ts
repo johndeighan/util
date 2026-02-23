@@ -7,7 +7,8 @@ import {
 	} from '@std/fmt/colors'
 
 import {esc} from 'unicode'
-import {TMaybeCmd, syncMapper} from 'var-free'
+// import {TMaybeCmd, syncMapper} from 'var-free'
+import {MAP} from 'map'
 import {TIterator, defined, nonEmpty, isInteger} from 'datatypes'
 
 // --- hash of all supported colors
@@ -29,7 +30,7 @@ export const f = (
 		): string => {
 
 	const [firstStr, mainWidth, mainEsc, mainColor] = fsplit(lStrings[0])
-	const iterParts = syncMapper(lValues, function*(val, i): TIterator<string, TMaybeCmd> {
+	const lParts = MAP(lValues, function*(val, i) {
 		const [str, width, doEsc, color] = fsplit(lStrings[i+1])
 		let ref;switch(typeof val) {
 			case 'string': {
@@ -45,7 +46,6 @@ export const f = (
 		yield result + str
 		return
 	})
-	const lParts = Array.from(iterParts)
 	const mainStr = [firstStr, ...lParts].join('')
 	return formatStr(mainStr, mainWidth, mainEsc, mainColor, '-')
 }

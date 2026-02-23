@@ -7,7 +7,7 @@ import {
 	isEmpty, isArray, isBoolean,
 	isInteger, isHash, isString,
 	} from 'datatypes'
-import {syncReducer} from 'var-free'
+import {MAP} from 'map'
 import {keys, getOptions, o, spaces} from 'llutils'
 import {clearScreen} from 'console-utils'
 import {setLogLevel, LOG, DBG, ERR} from 'logger'
@@ -42,13 +42,17 @@ export const flags = (...lChars: char[]): boolean[] => {
 
 export const getFlags = (hFlags: hashof<char>): hashof<boolean> => {
 
-	return syncReducer(keys(hFlags), {}, (acc, name) => {
+	const lKeys: string[] = keys(hFlags)
+	const acc0: hashof<boolean> = {}
+	const [lItems, h] = MAP(lKeys, acc0, function*(name, i, acc) {
+		yield name
 		const bool = flag(hFlags[name])
 		if (bool) {
 			LOG(`${name} = true`)
 		}
 		return {...acc, [name]: bool}
 	})
+	return h
 }
 
 // ---------------------------------------------------------------------------

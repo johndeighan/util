@@ -6,8 +6,9 @@ import {
 	TStringMapper, assertIsHash,
 	isEmpty, nonEmpty, isString, isHash, isArray, isFunction,
 	} from 'datatypes'
+import {f} from 'f-strings'
 import {
-	f, toBlock, isTAML, fromTAML, hasKey, hasKeys,
+	toBlock, isTAML, fromTAML, hasKey, hasKeys,
 	} from 'llutils'
 import {OL, ML} from 'to-nice'
 import {isSectionName, Section} from 'section'

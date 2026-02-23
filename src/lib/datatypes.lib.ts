@@ -8,8 +8,7 @@ export {deepEqual}
 
 export type TIterator<T, U=void, V=void> = Generator<T, U, V>
 export type TAsyncIterator<T, U=void, V=void> = AsyncGenerator<T, U, V>
-
-export type TNonFunction<T> = Exclude<T, Function>
+export type TNonFunction<T=unknown> = Exclude<T, Function>
 
 // ---------------------------------------------------------------------------
 
@@ -51,9 +50,33 @@ export const defined = (x: unknown): x is TDefined => {
 
 // ---------------------------------------------------------------------------
 
+export const anyDefined = (...lItems: unknown[]): boolean => {
+
+	for (const item of lItems) {
+		if (defined(item)) {
+			return true
+		}
+	}
+	return false
+}
+
+// ---------------------------------------------------------------------------
+
 export const notdefined = (x: unknown): x is TNotDefined => {
 
 	return (x === undef) || (x === null)
+}
+
+// ---------------------------------------------------------------------------
+
+export const anyNotDefined = (...lItems: unknown[]): boolean => {
+
+	for (const item of lItems) {
+		if (notdefined(item)) {
+			return true
+		}
+	}
+	return false
 }
 
 // ---------------------------------------------------------------------------

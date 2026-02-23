@@ -9,12 +9,12 @@ import {
 	undef, defined, notdefined, hash, assert, isString, isHash,
 	isEmpty, nonEmpty, croak, getErrStr,
 	} from 'datatypes'
-import {getOptions, o} from 'llutils'
+import {getOptions, o, rtrim} from 'llutils'
 import {OL, ML} from 'to-nice'
 import {LOG, DBG, ERR, DBGVALUE} from 'logger'
 import {flag, debugging, inspecting} from 'cmd-args'
 import {
-	isFile, fileExt, withExt, slurp, slurpAsync, pathStr,
+	isFile, fileExt, withExt, slurp, slurpAsync, pathStr, touch,
 	barf, barfTempFile, parsePath, addJsonValue, normalizePath,
 	} from 'fsys'
 import {
@@ -89,6 +89,7 @@ class CCivetCompiler extends CFileHandler
 			unless nocheck
 				hCheckResult := await execCmd 'deno', ['check', tsPath]
 				if not hCheckResult.success
+					touch path
 					console.log hCheckResult.output
 					croak "Type check failed"
 
@@ -205,7 +206,8 @@ export civet2ts := (
 
 	tempPath := barfTempFile civetCode, {ext: '.civet'}
 	tsPath := civet2tsFile tempPath, hOptions
-	return slurp tsPath
+	tsCode := slurp tsPath
+	return rtrim(tsCode)
 
 # ---------------------------------------------------------------------------
 

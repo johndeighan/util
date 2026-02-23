@@ -5,7 +5,7 @@ import {stripAnsiCode} from "@std/fmt/colors"
 import {SourceFile} from 'npm:typescript'
 
 import {defined, isHash} from 'datatypes'
-import {o, s} from 'llutils'
+import {o, s, rtrim} from 'llutils'
 import {DBG} from 'logger'
 import {slurp, withExt} from 'fsys'
 import {ts2ast, astAsString} from 'typescript'
@@ -23,8 +23,7 @@ const fileName = "test-civet.civet"
 
 await setDirTree(`./src/test/civet
 ${fileName}
-	x := 42
-`)
+	x := 42`)
 
 // ---------------------------------------------------------------------------
 
@@ -48,7 +47,7 @@ DBG("civet2tsFile(path)");
 (() => {
 	civet2tsFile(testPath, o`!inlineMap`)
 	const code = slurp(withExt(testPath, '.ts'))
-	equal(code, `"use strict";
+	equal(rtrim(code), `"use strict";
 const x = 42`)
 }
 	)()

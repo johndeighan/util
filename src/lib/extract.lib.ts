@@ -44,7 +44,7 @@ export const extract = (x: unknown, dspath: string | TPathItem[]): unknown => {
 				console.log(sep('=', `EXTRACT ERROR in ${expr}`))
 				console.log(msg)
 				console.log(sep('='))
-				console.log(toNice(x, o`ignoreEmptyValues`))
+				console.log(toNice(x, o`ignoreEmptyKeys`))
 				console.log(sep('='))
 			} catch(e) {}
 			console.log(`EXTRACT ERROR in '${expr}'`)

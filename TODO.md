@@ -1,5 +1,11 @@
 to do
 
+touch civet file if type checking fails
+
+get asyncRunAll() to work in temp.civet
+
+Remove uses of functions from var-free.lib.civet
+
 last unit test in typescript.lib.test.civet fails !
 	- use runtemp to see why
 

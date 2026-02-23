@@ -662,3 +662,29 @@ export const generateAsync = async function*<T>(
 	return
 }
 
+// ---------------------------------------------------------------------------
+
+export const goodPromise = <T,>(
+		val: T,
+		sleepFor: number = 1
+		): Promise<T> => {
+
+	return new Promise((resolve, reject) => {
+		sleep(sleepFor)
+		resolve(val)
+	})
+}
+
+// ---------------------------------------------------------------------------
+
+export const badPromise = <T,>(
+		errMsg: string,
+		sleepFor: number = 1
+		): Promise<T> => {
+
+	return new Promise((resolve, reject) => {
+		sleep(sleepFor)
+		reject(new Error(errMsg))
+	})
+}
+

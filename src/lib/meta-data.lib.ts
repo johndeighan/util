@@ -5,7 +5,8 @@ import {
 	undef, defined, notdefined, isString, assert, croak,
 	hash, hashof,
 	} from 'datatypes'
-import {f, fromTAML} from 'llutils'
+import {f} from 'f-strings'
+import {fromTAML} from 'llutils'
 
 export type TConverter = (str: string) => unknown
 

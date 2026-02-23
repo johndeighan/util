@@ -6,7 +6,8 @@ import {
 	isEmpty, nonEmpty,
 	TStringMapper, getErrStr, TVoidFunc,
 	} from 'datatypes'
-import {syncMapper} from 'var-free'
+# import {syncMapper} from 'var-free'
+import {MAP} from 'map'
 import {
 	allLinesInBlock, getOptions, sep,
 	} from 'llutils'
@@ -59,7 +60,7 @@ export toDebugStr := (str: string): string =>
 	let level = 0
 	lChars := [...estr]
 	debugger
-	lParts := syncMapper lChars, (ch) ->
+	lParts := MAP lChars, (ch) ->
 		switch ch
 			when '\n'
 				yield "\n#{pre(level)}#{uni.downarrow}"

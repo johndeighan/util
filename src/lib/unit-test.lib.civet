@@ -571,3 +571,25 @@ export generateAsync := <T>(
 		await sleep(sleepFor)
 		yield item
 	return
+
+# ---------------------------------------------------------------------------
+
+export goodPromise := <T>(
+		val: T,
+		sleepFor: number = 1
+		): Promise<T> =>
+
+	return new Promise (resolve, reject) =>
+		sleep sleepFor
+		resolve(val)
+
+# ---------------------------------------------------------------------------
+
+export badPromise := <T>(
+		errMsg: string,
+		sleepFor: number = 1
+		): Promise<T> =>
+
+	return new Promise (resolve, reject) =>
+		sleep sleepFor
+		reject(new Error(errMsg))

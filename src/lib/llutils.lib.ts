@@ -19,8 +19,6 @@ import {
 	} from 'datatypes'
 import {f, colorize} from 'f-strings'
 
-export {f}
-
 const llutilsLoadTime: integer = Date.now()
 const defWidth = 64     // ---used in sep, centered
 
@@ -230,6 +228,7 @@ export const hasKeys = hasKey
 // ---------------------------------------------------------------------------
 
 export const missingKeys = (h: hash, ...lKeys: string[]): string[] => {
+
 	if (notdefined(h)) {
 		return lKeys
 	}
@@ -246,12 +245,14 @@ export const missingKeys = (h: hash, ...lKeys: string[]): string[] => {
 // ---------------------------------------------------------------------------
 
 export const merge = (...lObjects: hash[]): hash => {
+
 	return Object.assign({}, ...lObjects)
 }
 
 // ---------------------------------------------------------------------------
 
 export const hit = (pct: number = 50): boolean => {
+
 	return (100 * Math.random() < pct)
 }
 
@@ -259,6 +260,7 @@ export const hit = (pct: number = 50): boolean => {
 // --- ASYNC !
 
 export const sleep = async (sec: number): AutoPromise<void> => {
+
 	await new Promise((r) => setTimeout(r, 1000 * sec))
 	return
 }
@@ -266,6 +268,7 @@ export const sleep = async (sec: number): AutoPromise<void> => {
 // ---------------------------------------------------------------------------
 
 export const sleepSync = (sec: number): void => {
+
 	const start = Date.now()
 	const end = Date.now() + 1000 * sec
 	while (Date.now() < end);
@@ -275,26 +278,30 @@ export const sleepSync = (sec: number): void => {
 // ---------------------------------------------------------------------------
 
 export const spaces = (n: number): string => {
-	return (n <= 0? '' : ' '.repeat(n))
+
+	return (n <= 0) ? '' : ' '.repeat(n)
 }
 
 // ---------------------------------------------------------------------------
 
 export const tabs = (n: number): string => {
-	return (n <= 0? '' : '\t'.repeat(n))
+
+	return (n <= 0) ? '' : '\t'.repeat(n)
 }
 
 // ---------------------------------------------------------------------------
 
 export const rtrim = (line: string): string => {
+
 	assert(isString(line), `not a string: ${typeof line}`)
-	const lMatches = line.match(/^(.*?)\s+$/)
-	return (lMatches === null? line : lMatches[1])
+	const lMatches = line.match(/^(.*?)\s+$/s)
+	return (lMatches === null) ? line : lMatches[1]
 }
 
 // ---------------------------------------------------------------------------
 
 export const countChars = (str: string, ch: string): number => {
+
 	let count = 0
 	let pos = -1
 	while ((pos = str.indexOf(ch, pos + 1)) !== -1) {
@@ -336,6 +343,7 @@ export const isBlockSpec = (x: unknown): x is TBlockSpec => {
 // ---------------------------------------------------------------------------
 
 export const toArray = (strOrArray: TBlockSpec): string[] => {
+
 	if (Array.isArray(strOrArray)) {
 		return strOrArray
 	}
@@ -347,6 +355,7 @@ export const toArray = (strOrArray: TBlockSpec): string[] => {
 // ---------------------------------------------------------------------------
 
 export const arrayToBlock = (lLines: string[]): string => {
+
 	assert(isArray(lLines), `lLines is not an array: ${lLines}`)
 	return lLines.filter((line) => defined(line)).join("\n")
 }
@@ -354,6 +363,7 @@ export const arrayToBlock = (lLines: string[]): string => {
 // ---------------------------------------------------------------------------
 
 export const toBlock = (strOrArray: TBlockSpec): string => {
+
 	if (isString(strOrArray)) {
 		return strOrArray
 	}
@@ -365,6 +375,7 @@ export const toBlock = (strOrArray: TBlockSpec): string => {
 // ---------------------------------------------------------------------------
 
 export const invertHash = (h: hash): hash => {
+
 	assert(isHash(h), `Not a hash: ${h}`)
 	const hResult: hash = {}
 	for (const key of keys(h)) {
@@ -379,6 +390,7 @@ export const invertHash = (h: hash): hash => {
 // ---------------------------------------------------------------------------
 
 export const wsSplit = (str: string): string[] => {
+
 	const newstr = str.trim()
 	if (newstr === '') {
 		return []
@@ -391,6 +403,7 @@ export const wsSplit = (str: string): string[] => {
 // ---------------------------------------------------------------------------
 
 export const words = (...lStrings: string[]): string[] => {
+
 	const lWords = []
 	for (const str of lStrings) {
 		for (const word of wsSplit(str)) {
@@ -403,6 +416,7 @@ export const words = (...lStrings: string[]): string[] => {
 // ---------------------------------------------------------------------------
 
 export const getNExtra = (str: string, len: number): number => {
+
 	const extra = len - str.length
 	return (extra > 0? extra : 0)
 }
@@ -410,6 +424,7 @@ export const getNExtra = (str: string, len: number): number => {
 // ---------------------------------------------------------------------------
 
 export const rpad = (str: string, len: number, ch: string = ' '): string => {
+
 	assert((ch.length === 1), "Not a char")
 	const extra = getNExtra(str, len)
 	return str + ch.repeat(extra)
@@ -418,6 +433,7 @@ export const rpad = (str: string, len: number, ch: string = ' '): string => {
 // ---------------------------------------------------------------------------
 
 export const lpad = (str: string, len: number, ch: string = ' '): string => {
+
 	assert((ch.length === 1), "Not a char")
 	const extra = getNExtra(str, len)
 	return ch.repeat(extra) + str
@@ -426,10 +442,13 @@ export const lpad = (str: string, len: number, ch: string = ' '): string => {
 // ---------------------------------------------------------------------------
 
 export type TAlignment = 'l' | 'c' | 'r' | 'left' | 'center' | 'right'
+
 export const isAlignment = (x: unknown): x is TAlignment => {
 	return ((typeof x === 'string') && ['l', 'c', 'r', 'left', 'center', 'right'].includes(x))
 }
+
 export const alignString = function(str: string, width: number, align: TAlignment): string {
+
 	switch(align) {
 		case 'left':
 		case 'l':
@@ -446,6 +465,7 @@ export const alignString = function(str: string, width: number, align: TAlignmen
 // ---------------------------------------------------------------------------
 
 export const zpad = (n: number, len: number): string => {
+
 	return lpad(n.toString(), len, '0')
 }
 
@@ -479,6 +499,7 @@ export const range = function*(n: number): Generator<number, void, void> {
 // ---------------------------------------------------------------------------
 
 export const assertSameStr = (str1: string, str2: string): void => {
+
 	if (str1 !== str2) {
 		console.log(sep('-', "Strings Differ:"))
 		console.log(sep('-', "string 1"))
@@ -494,6 +515,7 @@ export const assertSameStr = (str1: string, str2: string): void => {
 // ---------------------------------------------------------------------------
 
 export const interpolate = (
+
 		str: string,
 		hReplace: hashof<string> // --- { <tag>: <replacement>, ... }
 		): string => {
@@ -540,7 +562,9 @@ const labelGen = function*(): Generator<string, void, void> {
 // --- Create an iterator from the generator
 
 const labels = labelGen()
+
 export const randomLabel = (): string => {
+
 	const label = labels.next()
 	return label.done ? 'ERR!' : label.value
 }
@@ -552,6 +576,7 @@ export const require = createRequire(import.meta.url)
 // ---------------------------------------------------------------------------
 
 export const getLineAndColumn = (text: string, pos: number) => {
+
 	// --- Get line number by counting number of \n chars
 	//        before the current position
 	//     Get column number by finding closest previous position
@@ -567,6 +592,7 @@ export const getLineAndColumn = (text: string, pos: number) => {
 
 // later? allow passing in string[] ???
 export const widthOf = (block: string): number => {
+
 	let width = 0
 	for (const line of allLinesInBlock(block)) {
 		if (line.length > width) {
@@ -579,6 +605,7 @@ export const widthOf = (block: string): number => {
 // ---------------------------------------------------------------------------
 
 export const heightOf = (block: string): number => {
+
 	return (block === ''? 0 : block.split('\n').length)
 }
 
@@ -620,6 +647,7 @@ export const blockify = (lStrings: string[], hOptions: hash = {}): string => {
 // ---------------------------------------------------------------------------
 
 export const getOptions = <T extends hash,>(hOptions: hash = {}, hDefaults: T): T => {
+
 	return { ...hDefaults, ...hOptions }
 }
 
@@ -643,6 +671,7 @@ export const sep = (
 // ---------------------------------------------------------------------------
 
 export const tabify = (str: string, nSpaces: number = 3): string => {
+
 	return str.replaceAll(/^(\x20+)/, (match, spaces) => {
 		return '\t'.repeat(Math.floor(spaces.length / nSpaces))
 	})
@@ -651,6 +680,7 @@ export const tabify = (str: string, nSpaces: number = 3): string => {
 // ---------------------------------------------------------------------------
 
 export const untabify = (str: string, replacement: string = '   '): string => {
+
 	return str.replaceAll('\t', replacement)
 }
 
@@ -720,6 +750,7 @@ export const centered = (
 export type TPredicate<T> = (item: T) => boolean
 
 export const splitArray = <T,>(lItems: T[], predicate: TPredicate<T>): [T[], T[]] => {
+
 	const lTrue: T[] = []
 	const lFalse: T[] = []
 	for (const item of lItems) {
@@ -736,9 +767,9 @@ export const splitArray = <T,>(lItems: T[], predicate: TPredicate<T>): [T[], T[]
 // ---------------------------------------------------------------------------
 
 export class CStringSetMap<T = string> extends Map<T, Set<string>> {
-	// ..........................................................
 
 	add(key: T, value: string): void {
+
 		const aSet = super.get(key)
 		if (defined(aSet)) {
 			aSet.add(value)
@@ -754,12 +785,14 @@ export class CStringSetMap<T = string> extends Map<T, Set<string>> {
 	// ..........................................................
 
 	hasKey(key: T): boolean {
+
 		return this.has(key)
 	}
 
 	// ..........................................................
 
 	hasValue(val: string): boolean {
+
 		for (const key of this.allKeys()) {
 			const set = this.get(key)
 			if (defined(set) && set.has(val)) {
@@ -772,6 +805,7 @@ export class CStringSetMap<T = string> extends Map<T, Set<string>> {
 	// ..........................................................
 
 	*allKeys(): Generator<T, void, void> {
+
 		yield *super.keys()
 		return
 	}
@@ -779,6 +813,7 @@ export class CStringSetMap<T = string> extends Map<T, Set<string>> {
 	// ..........................................................
 
 	*allValues(key: T): Generator<string, void, void> {
+
 		const aSet = super.get(key)
 		if (defined(aSet)) {
 			yield *aSet.values()
@@ -789,6 +824,7 @@ export class CStringSetMap<T = string> extends Map<T, Set<string>> {
 	// ..........................................................
 
 	asString(): string {
+
 		const results1 = []
 		for (const key of this.allKeys()) {
 			results1.push(`${key}: ${Array.from(this.allValues(key)).join(' ')}`)

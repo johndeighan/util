@@ -2,19 +2,20 @@
 // to-nice.lib.civet
 
 import {uni, esc} from 'unicode'
+import {f} from 'f-strings'
 import {write, writeln} from 'console-utils'
 import {
-	assert, croak, undef, defined, notdefined,
+	assert, croak, undef, defined, notdefined, anyDefined,
 	hash, hashof, isString, isArray, isClass, isRegExp, isObject,
 	isPrimitive, isEmpty, nonEmpty, assertIsHash, integer,
 	symbolName, className, functionName, regexpDef, jsType,
 	assertIsFunction, assertIsClass, assertIsArray, isHash,
 	} from 'datatypes'
 import {
-	getOptions, f, o, toBlock, spaces, mapEachLine, sep, keys,
+	getOptions, o, toBlock, spaces, mapEachLine, sep, keys,
 	} from 'llutils'
 import {indented} from 'indent'
-import {mapper, syncMapper} from 'var-free'
+import {MAP} from 'map'
 
 // ---------------------------------------------------------------------------
 
@@ -191,10 +192,10 @@ export const seq2nice = (
 	const {compact, oneIndent} = getOptions<TNiceOptions>(hOptions, hNiceDefaults)
 
 	let hasMultiLine = false
-	const iterParts = syncMapper<unknown,string>(lValues, function*(val, i) {
+	const lParts = MAP(lValues, function*(val, i) {
 		yield toNice(val, hOptions, mapVisited, [...lPath, i])
+		return
 	})
-	const lParts = Array.from(iterParts)
 
 	if (compact) {
 		if (kind === 'array') {
@@ -206,7 +207,7 @@ export const seq2nice = (
 	}
 	else {
 		const prefix = (kind === 'array') ? '-' : '--'
-		const iterBlocks = syncMapper<string, string>(lParts, function*(str, i) {
+		const lBlocks = MAP(lParts, function*(str, i) {
 			if (str.includes('\n')) {
 				yield prefix + '\n' + indented(str, 1, {oneIndent})
 			}
@@ -214,7 +215,7 @@ export const seq2nice = (
 				yield prefix + ' ' + str
 			}
 		})
-		return Array.from(iterBlocks).join('\n')
+		return lBlocks.join('\n')
 	}
 }
 
@@ -275,7 +276,7 @@ export const hash2nice = (
 		return true
 	}
 	const iterKeys = (defined(func) ? lKeys.sort(func) : lKeys).filter(useKey)
-	const iterParts = syncMapper(iterKeys, function*(key: string): Generator<string> {
+	const lParts = MAP(iterKeys, function*(key: string): Generator<string> {
 		const val = getter(key)
 		if (!ignoreEmptyKeys || nonEmpty(val)) {
 			if (isPrimitive(val)) {
@@ -293,7 +294,6 @@ export const hash2nice = (
 			}
 		}
 	})
-	const lParts = Array.from(iterParts)
 	return (
 		  compact
 		? '{' + lParts.join(' ') + '}'
@@ -309,9 +309,6 @@ export const toNice = (
 	mapVisited: Map<object, string> = new Map<object, string>(),
 	lPath: TPathIndex[] = []
 	): string => {
-
-	const {compact, recoverable, oneIndent, displayFunc, descFunc
-		} = getOptions<TNiceOptions>(hOptions, hNiceDefaults)
 
 	const typ = jsType(x)
 	switch(typ) {

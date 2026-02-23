@@ -38,27 +38,6 @@ Deno := globalThis.Deno
 export type FsEvent = Deno.FsEvent
 export statSync = Deno.statSync
 
-lDirs: string[] := []
-
-# ---------------------------------------------------------------------------
-
-export pushWD := (dir: string): void =>
-
-	lDirs.push Deno.cwd()
-	Deno.chdir(dir)
-	return
-
-# ---------------------------------------------------------------------------
-
-export popWD := (): void =>
-
-	dir := lDirs.pop()
-	if defined(dir)
-		Deno.chdir(dir)
-	else
-		croak "directory stack is empty"
-	return
-
 # ---------------------------------------------------------------------------
 /**
  * returns one of:
@@ -101,20 +80,14 @@ export touch := (path: string): void =>
 # ---------------------------------------------------------------------------
 # ASYNC GENERATOR
 
-/**
- * An async iterable - yields every line in the given file
- *
- * Usage:
- *   for await line of allLinesIn('src/lib/temp.civet')
- * 	  console.log "LINE: #{line}"
- *   console.log "DONE"
- */
-
 export allLinesIn := (path: string): AsyncGenerator<string, void, void> ->
 
 	assert isFile(path), "No such file: #{OL(path)} (allLinesIn)"
 	f := await Deno.open path
-	readable := f.readable.pipeThrough(new TextDecoderStream()).pipeThrough new TextLineStream()
+	readable := (f.readable
+			.pipeThrough(new TextDecoderStream())
+			.pipeThrough(new TextLineStream())
+			)
 	for await line of readable
 		yield line
 	return

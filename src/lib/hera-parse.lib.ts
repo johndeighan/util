@@ -8,7 +8,8 @@ import {
 	isEmpty, nonEmpty,
 	TStringMapper, getErrStr, TVoidFunc,
 	} from 'datatypes'
-import {syncMapper} from 'var-free'
+// import {syncMapper} from 'var-free'
+import {MAP} from 'map'
 import {
 	allLinesInBlock, getOptions, sep,
 	} from 'llutils'
@@ -70,7 +71,7 @@ export const toDebugStr = (str: string): string => {
 	let level = 0
 	const lChars = [...estr]
 	debugger
-	const lParts = syncMapper(lChars, function*(ch) {
+	const lParts = MAP(lChars, function*(ch) {
 		switch(ch) {
 			case '\n': {
 				yield `\n${pre(level)}${uni.downarrow}`;break;

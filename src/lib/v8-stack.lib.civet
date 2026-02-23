@@ -8,7 +8,8 @@ import {
 	isEmpty, nonEmpty, hash, isString, getErrStr,
 	isNonEmptyString, isInteger, assertIsDefined,
 	} from 'datatypes'
-import {f, sep, rpad, getOptions} from 'llutils'
+import {f} from 'f-strings'
+import {sep, rpad, getOptions} from 'llutils'
 import {OL, ML, DUMP} from 'to-nice'
 import {
 	LOG, DBG, ERR, pushLogLevel, popLogLevel,

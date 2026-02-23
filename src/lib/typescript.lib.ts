@@ -94,10 +94,17 @@ export const astAsString = (
 		hOptions: hash = {}
 		): string => {
 
+	type opt = {
+		lInclude: ((string[]) | undefined)
+		}
+	const {lInclude} = getOptions<opt>(hOptions, {
+		lInclude: undef
+		})
+
 	return toNice(hAst, {
-		ignoreEmptyValues: true,
+		ignoreEmptyKeys: true,
 		descFunc,
-		lInclude: hOptions.lInclude,
+		lInclude,
 		lExclude: words(`pos end id flags modifierFlagsCache
 transformFlags hasExtendedUnicodeEscape
 numericLiteralFlags setExternalModuleIndicator
@@ -608,7 +615,7 @@ export const analyzeTS = (
 			node = getNode(node, dspath)
 			assertIsNode(node)
 		}
-		if (node.kind === 80) {
+		if (node.kind === 80) {   // --- Identifier
 			const name = getString(node, '.escapedText')
 			analysis.use(name)
 		}

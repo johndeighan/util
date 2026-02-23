@@ -89,10 +89,17 @@ export astAsString := (
 		hOptions: hash = {}
 		): string =>
 
+	type opt = {
+		lInclude: string[]?
+		}
+	{lInclude} := getOptions<opt> hOptions, {
+		lInclude: undef
+		}
+
 	return toNice hAst, {
-		ignoreEmptyValues: true
+		ignoreEmptyKeys: true
 		descFunc
-		lInclude: hOptions.lInclude
+		lInclude
 		lExclude: words("""
 			pos end id flags modifierFlagsCache
 			transformFlags hasExtendedUnicodeEscape

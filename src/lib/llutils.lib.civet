@@ -17,8 +17,6 @@ import {
 	} from 'datatypes'
 import {f, colorize} from 'f-strings'
 
-export {f}
-
 llutilsLoadTime: integer := Date.now()
 defWidth := 64     # ---used in sep, centered
 
@@ -191,6 +189,7 @@ export hasKeys := hasKey
 # ---------------------------------------------------------------------------
 
 export missingKeys := (h: hash, ...lKeys: string[]): string[] =>
+
 	if notdefined(h)
 		return lKeys
 	assert isHash(h), "h not a hash: #{h}"
@@ -203,23 +202,27 @@ export missingKeys := (h: hash, ...lKeys: string[]): string[] =>
 # ---------------------------------------------------------------------------
 
 export merge := (...lObjects: hash[]): hash =>
+
 	return Object.assign {}, ...lObjects
 
 # ---------------------------------------------------------------------------
 
 export hit := (pct: number = 50): boolean =>
+
 	return (100 * Math.random() < pct)
 
 # ---------------------------------------------------------------------------
 # --- ASYNC !
 
 export sleep := async (sec: number): void =>
+
 	await new Promise((r) => setTimeout r, 1000 * sec)
 	return
 
 # ---------------------------------------------------------------------------
 
 export sleepSync := (sec: number): void =>
+
 	start := Date.now()
 	end := Date.now() + 1000 * sec
 	while Date.now() < end
@@ -228,23 +231,27 @@ export sleepSync := (sec: number): void =>
 # ---------------------------------------------------------------------------
 
 export spaces := (n: number): string =>
-	return if (n <= 0) then '' else ' '.repeat(n)
+
+	return (n <= 0) ? '' : ' '.repeat(n)
 
 # ---------------------------------------------------------------------------
 
 export tabs := (n: number): string =>
-	return if (n <= 0) then '' else '\t'.repeat(n)
+
+	return (n <= 0) ? '' : '\t'.repeat(n)
 
 # ---------------------------------------------------------------------------
 
 export rtrim := (line: string): string =>
+
 	assert isString(line), "not a string: #{typeof line}"
-	lMatches := line.match /^(.*?)\s+$/
-	return if (lMatches == null) then line else lMatches[1]
+	lMatches := line.match /^(.*?)\s+$/s
+	return (lMatches == null) ? line : lMatches[1]
 
 # ---------------------------------------------------------------------------
 
 export countChars := (str: string, ch: string): number =>
+
 	let count = 0
 	let pos = -1
 	while (pos = str.indexOf(ch, pos + 1)) != -1
@@ -278,6 +285,7 @@ export isBlockSpec := (x: unknown): x is TBlockSpec =>
 # ---------------------------------------------------------------------------
 
 export toArray := (strOrArray: TBlockSpec): string[] =>
+
 	if Array.isArray(strOrArray)
 		return strOrArray
 	else
@@ -286,12 +294,14 @@ export toArray := (strOrArray: TBlockSpec): string[] =>
 # ---------------------------------------------------------------------------
 
 export arrayToBlock := (lLines: string[]): string =>
+
 	assert isArray(lLines), "lLines is not an array: #{lLines}"
 	return lLines.filter((line) => defined line).join "\n"
 
 # ---------------------------------------------------------------------------
 
 export toBlock := (strOrArray: TBlockSpec): string =>
+
 	if isString(strOrArray)
 		return strOrArray
 	else
@@ -300,6 +310,7 @@ export toBlock := (strOrArray: TBlockSpec): string =>
 # ---------------------------------------------------------------------------
 
 export invertHash := (h: hash): hash =>
+
 	assert isHash(h), "Not a hash: #{h}"
 	hResult: hash := {}
 	for key of keys(h)
@@ -311,6 +322,7 @@ export invertHash := (h: hash): hash =>
 # ---------------------------------------------------------------------------
 
 export wsSplit := (str: string): string[] =>
+
 	newstr := str.trim()
 	if newstr == ''
 		return []
@@ -320,6 +332,7 @@ export wsSplit := (str: string): string[] =>
 # ---------------------------------------------------------------------------
 
 export words := (...lStrings: string[]): string[] =>
+
 	lWords := []
 	for str of lStrings
 		for word of wsSplit(str)
@@ -329,12 +342,14 @@ export words := (...lStrings: string[]): string[] =>
 # ---------------------------------------------------------------------------
 
 export getNExtra := (str: string, len: number): number =>
+
 	extra := len - str.length
 	return if (extra > 0) then extra else 0
 
 # ---------------------------------------------------------------------------
 
 export rpad := (str: string, len: number, ch: string = ' '): string =>
+
 	assert (ch.length == 1), "Not a char"
 	extra := getNExtra str, len
 	return str + ch.repeat(extra)
@@ -342,6 +357,7 @@ export rpad := (str: string, len: number, ch: string = ' '): string =>
 # ---------------------------------------------------------------------------
 
 export lpad := (str: string, len: number, ch: string = ' '): string =>
+
 	assert (ch.length == 1), "Not a char"
 	extra := getNExtra str, len
 	return ch.repeat(extra) + str
@@ -349,9 +365,12 @@ export lpad := (str: string, len: number, ch: string = ' '): string =>
 # ---------------------------------------------------------------------------
 
 export type TAlignment = 'l' | 'c' | 'r' | 'left' | 'center' | 'right'
+
 export isAlignment := (x: unknown): x is TAlignment =>
 	return ((typeof x == 'string') && ['l', 'c', 'r', 'left', 'center', 'right'].includes(x))
+
 export alignString := function(str: string, width: number, align: TAlignment): string
+
 	switch align
 		case 'left':
 		case 'l':
@@ -366,6 +385,7 @@ export alignString := function(str: string, width: number, align: TAlignment): s
 # ---------------------------------------------------------------------------
 
 export zpad := (n: number, len: number): string =>
+
 	return lpad n.toString(), len, '0'
 
 # ---------------------------------------------------------------------------
@@ -394,6 +414,7 @@ export range := (n: number): Generator<number, void, void> ->
 # ---------------------------------------------------------------------------
 
 export assertSameStr := (str1: string, str2: string): void =>
+
 	if str1 != str2
 		console.log sep '-', "Strings Differ:"
 		console.log sep '-', "string 1"
@@ -407,6 +428,7 @@ export assertSameStr := (str1: string, str2: string): void =>
 # ---------------------------------------------------------------------------
 
 export interpolate := (
+
 		str: string,
 		hReplace: hashof<string> # --- { <tag>: <replacement>, ... }
 		): string =>
@@ -443,7 +465,9 @@ labelGen := (): Generator<string, void, void> ->
 # --- Create an iterator from the generator
 
 labels := labelGen()
+
 export randomLabel := (): string =>
+
 	label := labels.next()
 	return label.done ? 'ERR!' : label.value
 
@@ -454,6 +478,7 @@ export require := createRequire import.meta.url
 # ---------------------------------------------------------------------------
 
 export getLineAndColumn := (text: string, pos: number) =>
+
 	# --- Get line number by counting number of \n chars
 	#        before the current position
 	#     Get column number by finding closest previous position
@@ -468,6 +493,7 @@ export getLineAndColumn := (text: string, pos: number) =>
 
 # later? allow passing in string[] ???
 export widthOf := (block: string): number =>
+
 	let width = 0
 	for line of allLinesInBlock(block)
 		if line.length > width
@@ -477,6 +503,7 @@ export widthOf := (block: string): number =>
 # ---------------------------------------------------------------------------
 
 export heightOf := (block: string): number =>
+
 	return if (block == '') then 0 else block.split('\n').length
 
 # ---------------------------------------------------------------------------
@@ -513,6 +540,7 @@ export blockify := (lStrings: string[], hOptions: hash = {}): string =>
 # ---------------------------------------------------------------------------
 
 export getOptions := <T extends hash>(hOptions: hash = {}, hDefaults: T): T =>
+
 	return { ...hDefaults, ...hOptions }
 
 # ---------------------------------------------------------------------------
@@ -532,12 +560,14 @@ export sep := (
 # ---------------------------------------------------------------------------
 
 export tabify := (str: string, nSpaces: number = 3): string =>
+
 	return str.replaceAll /^(\x20+)/, (match, spaces) =>
 		return '\t'.repeat Math.floor spaces.length / nSpaces
 
 # ---------------------------------------------------------------------------
 
 export untabify := (str: string, replacement: string = '   '): string =>
+
 	return str.replaceAll '\t', replacement
 
 # ---------------------------------------------------------------------------
@@ -600,6 +630,7 @@ export centered := (
 export type TPredicate<T> = (item: T) => boolean
 
 export splitArray := <T>(lItems: T[], predicate: TPredicate<T>): [T[], T[]] =>
+
 	lTrue: T[] := []
 	lFalse: T[] := []
 	for item of lItems
@@ -612,9 +643,9 @@ export splitArray := <T>(lItems: T[], predicate: TPredicate<T>): [T[], T[]] =>
 # ---------------------------------------------------------------------------
 
 export class CStringSetMap<T = string> < Map<T, Set<string>>
-	# ..........................................................
 
 	add(key: T, value: string): void
+
 		aSet := super.get key
 		if defined(aSet)
 			aSet.add value
@@ -627,11 +658,13 @@ export class CStringSetMap<T = string> < Map<T, Set<string>>
 	# ..........................................................
 
 	hasKey(key: T): boolean
+
 		return @has key
 
 	# ..........................................................
 
 	hasValue(val: string): boolean
+
 		for key of @allKeys()
 			set := @get key
 			if defined(set) && set.has(val)
@@ -641,12 +674,14 @@ export class CStringSetMap<T = string> < Map<T, Set<string>>
 	# ..........................................................
 
 	*allKeys(): Generator<T, void, void>
+
 		yield *super.keys()
 		return
 
 	# ..........................................................
 
 	*allValues(key: T): Generator<string, void, void>
+
 		aSet := super.get key
 		if defined(aSet)
 			yield *aSet.values()
@@ -655,6 +690,7 @@ export class CStringSetMap<T = string> < Map<T, Set<string>>
 	# ..........................................................
 
 	asString(): string
+
 		results1 := []
 		for key of @allKeys()
 			results1.push "#{key}: #{Array.from(@allValues key).join(' ')}"

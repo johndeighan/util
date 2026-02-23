@@ -1,19 +1,20 @@
 # to-nice.lib.civet
 
 import {uni, esc} from 'unicode'
+import {f} from 'f-strings'
 import {write, writeln} from 'console-utils'
 import {
-	assert, croak, undef, defined, notdefined,
+	assert, croak, undef, defined, notdefined, anyDefined,
 	hash, hashof, isString, isArray, isClass, isRegExp, isObject,
 	isPrimitive, isEmpty, nonEmpty, assertIsHash, integer,
 	symbolName, className, functionName, regexpDef, jsType,
 	assertIsFunction, assertIsClass, assertIsArray, isHash,
 	} from 'datatypes'
 import {
-	getOptions, f, o, toBlock, spaces, mapEachLine, sep, keys,
+	getOptions, o, toBlock, spaces, mapEachLine, sep, keys,
 	} from 'llutils'
 import {indented} from 'indent'
-import {mapper, syncMapper} from 'var-free'
+import {MAP} from 'map'
 
 # ---------------------------------------------------------------------------
 
@@ -170,9 +171,9 @@ export seq2nice := (
 	{compact, oneIndent} := getOptions<TNiceOptions> hOptions, hNiceDefaults
 
 	let hasMultiLine = false
-	iterParts := syncMapper<unknown,string> lValues, (val, i) ->
+	lParts := MAP lValues, (val, i) ->
 		yield toNice(val, hOptions, mapVisited, [lPath..., i])
-	lParts := Array.from(iterParts)
+		return
 
 	if compact
 		if (kind == 'array')
@@ -181,12 +182,12 @@ export seq2nice := (
 			return uni.alt_lbracket + lParts.join(' ') + uni.alt_rbracket
 	else
 		prefix := (kind == 'array') ? '-' : '--'
-		iterBlocks := syncMapper<string, string> lParts, (str, i) ->
+		lBlocks := MAP lParts, (str, i) ->
 			if str.includes('\n')
 				yield prefix + '\n' + indented(str, 1, {oneIndent})
 			else
 				yield prefix + ' ' + str
-		return Array.from(iterBlocks).join('\n')
+		return lBlocks.join('\n')
 
 # ---------------------------------------------------------------------------
 
@@ -237,7 +238,7 @@ export hash2nice := (
 			return false
 		return true
 	iterKeys := (defined(func) ? lKeys.sort(func) : lKeys).filter(useKey)
-	iterParts := syncMapper iterKeys, (key: string): Generator<string> ->
+	lParts := MAP iterKeys, (key: string): Generator<string> ->
 		val := getter(key)
 		if not ignoreEmptyKeys || nonEmpty(val)
 			if isPrimitive(val)
@@ -249,7 +250,6 @@ export hash2nice := (
 					yield "#{key}#{mark} #{str}"
 				else
 					yield "#{key}#{mark}\n" + indented(str, 1, {oneIndent})
-	lParts := Array.from(iterParts)
 	return (
 		  compact
 		? '{' + lParts.join(' ') + '}'
@@ -264,9 +264,6 @@ export toNice := (
 	mapVisited: Map<object, string> = new Map<object, string>(),
 	lPath: TPathIndex[] = []
 	): string =>
-
-	{compact, recoverable, oneIndent, displayFunc, descFunc
-		} := getOptions<TNiceOptions> hOptions, hNiceDefaults
 
 	typ := jsType(x)
 	switch typ
