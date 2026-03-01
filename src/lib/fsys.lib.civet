@@ -20,7 +20,7 @@ import {
 	isHash, isRegExp, integer, hash, hashof, TVoidFunc,
 	} from 'datatypes'
 import {
-	getOptions, removeEmptyKeys, pass, encode, spaces,
+	getOptions, pass, encode, spaces,
 	sinceLoadStr, sleep, arrayToBlock,
 	} from 'llutils'
 import {isMetaDataStart, convertMetaData} from 'meta-data'

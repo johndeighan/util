@@ -2,7 +2,7 @@
 
 import {stdChecks} from 'llutils'
 import {
-	undef, defined, notdefined, assert, assertIsDefined, croak,
+	undef, defined, notdefined, assert, croak,
 	} from 'datatypes'
 import {
 	pushLogLevel, popLogLevel, LOG, DBG, DBGVALUE,
@@ -28,7 +28,7 @@ checkCmdArgs {
 pushLogLevel 'info'     # --- temp disable debugging
 fileName := nonOption(0) || 'ast.civet'
 path := fileName.match(/[\\\/]/) ? fileName : findFile(fileName)
-assertIsDefined path
+assert defined path
 LOG "-----  ANALYZE #{path}  -----"
 popLogLevel()
 tsCode := switch fileExt(path)

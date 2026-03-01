@@ -118,14 +118,13 @@ export doParse := <T = unknown>(
 		if (err instanceof TypeError)
 			throw "Bad Parser: #{stub}: #{getErrStr(err)}"
 		else
-			ERR "PARSE ERROR in doParse(#{stub})"
+			ERR "in doParse(#{stub})", 'PARSE ERROR'
 			LOG '', toDebugStr(orgText)
 
 			{pm} := await import stub
 			pm.dumpParseInfo()
 
-			errStr := getErrStr err
-			console.error errStr
+			ERR err
 			if abortOnError
 				Deno.exit 99
 			else

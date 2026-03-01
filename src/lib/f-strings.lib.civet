@@ -8,7 +8,9 @@ import {
 import {esc} from 'unicode'
 # import {TMaybeCmd, syncMapper} from 'var-free'
 import {MAP} from 'map'
-import {TIterator, defined, nonEmpty, isInteger} from 'datatypes'
+import {
+	TIterator, defined, nonEmpty, isInteger, hashof,
+	} from 'datatypes'
 
 # --- hash of all supported colors
 hColor := {
@@ -58,6 +60,14 @@ export colorize := (
 			when 'red' then return red(str)
 			when 'green' then return green(str)
 			when 'magenta' then return magenta(str)
+	return str
+
+# ---------------------------------------------------------------------------
+
+export withColors := (str: string, hColors: hashof<string>) =>
+
+	for word of Object.keys(hColors)
+		str = str.replace(word, colorize(word, hColors[word]))
 	return str
 
 # ---------------------------------------------------------------------------

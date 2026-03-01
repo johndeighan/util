@@ -8,7 +8,7 @@ import {
 	nonEmptyString, isNonEmptyString,
 	hash, hashof, isHash, integer,
 	} from 'datatypes'
-import {words, allMatches, o, keys, getOptions} from 'llutils'
+import {words, o, keys, getOptions} from 'llutils'
 import {OL} from 'to-nice'
 import {
 	LOG, LOGVALUE, DBG, DBGVALUE, INDENT, UNDENT,

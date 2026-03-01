@@ -92,7 +92,7 @@ matches( "abcdef", "abc")
 
 DBG("like()")
 
-like(    {a:1, b:2, c:3}, {a:1, c:3})
+like({a:1, b:2, c:3}, {a:1, c:3})
 
 DBG("strListLike()")
 
@@ -175,9 +175,13 @@ truthy(allTrue(['emptyStr', 'str'],
 truthy(allFalse(['genFunc', 'regularFunc', 'lambdaFunc'],
 	(x) => (typeof x !== 'function')))
 
-equal(await Array.fromAsync(generateAsync([1, 2, 3, 4, 5])), [1, 2, 3, 4, 5]);
+equal(await Array.fromAsync(generateAsync([1, 2, 3, 4, 5])), [1, 2, 3, 4, 5])
 
 // ---------------------------------------------------------------------------
+
+const xequal = (x1: unknown, x2: unknown): void => {
+	return
+};
 
 (async () => {
 	const lFileOps = await getFileOps(`./src/test/automate clear
@@ -186,12 +190,13 @@ test1.ts
 /subdir
 	test1.cielo
 		LOG "Hello, World!"`)
+	console.dir(lFileOps, {depth: null})
 	equal(lFileOps, [
 		{ op: "clearDir", path: "./src/test/automate" },
 		{
 			op: "barf",
 			path: "./src/test/automate/test1.ts",
-			contents: 'LOG("Hello, World!");\n'
+			contents: 'LOG("Hello, World!");'
 			},
 		{ op: "mkDir", path: "./src/test/automate/subdir" },
 		{

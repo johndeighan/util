@@ -3,7 +3,7 @@
 
 import {stdChecks} from 'llutils'
 import {
-	undef, defined, notdefined, assert, assertIsDefined, croak,
+	undef, defined, notdefined, assert, croak,
 	} from 'datatypes'
 import {
 	pushLogLevel, popLogLevel, LOG, DBG, DBGVALUE,
@@ -30,7 +30,7 @@ checkCmdArgs({
 pushLogLevel('info')     // --- temp disable debugging
 const fileName = nonOption(0) || 'ast.civet'
 const path = fileName.match(/[\\\/]/) ? fileName : findFile(fileName)
-assertIsDefined(path)
+assert(defined(path))
 LOG(`-----  ANALYZE ${path}  -----`)
 popLogLevel()
 let ref;switch(fileExt(path)) {

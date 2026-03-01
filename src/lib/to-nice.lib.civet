@@ -5,13 +5,13 @@ import {f} from 'f-strings'
 import {write, writeln} from 'console-utils'
 import {
 	assert, croak, undef, defined, notdefined, anyDefined,
-	hash, hashof, isString, isArray, isClass, isRegExp, isObject,
-	isPrimitive, isEmpty, nonEmpty, assertIsHash, integer,
-	symbolName, className, functionName, regexpDef, jsType,
-	assertIsFunction, assertIsClass, assertIsArray, isHash,
+	hash, hashof, isString, isArray, isClass,
+	isRegExp, isObject, isFunction,
+	isEmpty, nonEmpty, integer,
+	symbolName, className, functionName, regexpDef, jsType, isHash,
 	} from 'datatypes'
 import {
-	getOptions, o, toBlock, spaces, mapEachLine, sep, keys,
+	getOptions, o, toBlock, spaces, sep, keys,
 	} from 'llutils'
 import {indented} from 'indent'
 import {MAP} from 'map'
@@ -241,15 +241,15 @@ export hash2nice := (
 	lParts := MAP iterKeys, (key: string): Generator<string> ->
 		val := getter(key)
 		if not ignoreEmptyKeys || nonEmpty(val)
-			if isPrimitive(val)
-				str := displayStr(key, val, x, displayFunc, descFunc)
-				yield "#{key}#{mark} #{str}"
-			else
+			if ['array','hash','set','map'].includes(typeof val)
 				str := toNice(val, hOptions, mapVisited, [lPath..., key])
 				if compact || isEmpty(val) || str.startsWith('｟')
 					yield "#{key}#{mark} #{str}"
 				else
 					yield "#{key}#{mark}\n" + indented(str, 1, {oneIndent})
+			else
+				str := displayStr(key, val, x, displayFunc, descFunc)
+				yield "#{key}#{mark} #{str}"
 	return (
 		  compact
 		? '{' + lParts.join(' ') + '}'
@@ -289,22 +289,22 @@ export toNice := (
 		# --- Functions
 
 		when 'generator'
-			assertIsFunction(x)
+			assert isFunction(x)
 			return mark("generator #{functionName(x)}")
 		when 'asyncGenerator'
-			assertIsFunction(x)
+			assert isFunction(x)
 			return mark("asyncGenerator #{functionName(x)}")
 		when 'class'
-			assertIsClass(x)
+			assert isClass(x)
 			return mark("class #{className(x)}")
 		when 'plainFunction'
-			assertIsFunction(x)
+			assert isFunction(x)
 			return mark("function #{functionName(x)}")
 
 		# --- Complex objects
 
 		when 'array'
-			assertIsArray(x)
+			assert isArray(x)
 			if isEmpty(x)
 				return '[]'
 			else
@@ -331,7 +331,7 @@ export toNice := (
 					return seq2nice 'set', lValues, hOptions, mapVisited, lPath
 
 		when 'hash'
-			assertIsHash(x)
+			assert isHash(x)
 			if isEmpty(x)
 				return '{}'
 			else
@@ -370,7 +370,7 @@ export displayStr := (
 		descFunc: TMapFunc?
 		): string =>
 
-	assert isPrimitive(val), "Not a primitive: #{val}"
+	assert not ['array','hash','set','map'].includes(typeof val)
 	str := (
 		  defined(displayFunc)
 		? displayFunc(key, val, parent)
@@ -416,6 +416,24 @@ export OL := (
 		].join ''
 	else
 		return text
+
+# ---------------------------------------------------------------------------
+
+export OLS := (
+		lObjects: unknown[],
+		hOptions: hash = {}
+		) =>
+
+	type opt = {
+		sep: string
+		}
+	{sep} := getOptions<opt> hOptions, {
+		sep: ','
+		}
+
+	lParts := for obj in lObjects
+		OL(obj, {...hOptions, compact: true})
+	return lParts.join(sep)
 
 # ---------------------------------------------------------------------------
 

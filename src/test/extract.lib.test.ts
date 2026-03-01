@@ -6,7 +6,7 @@ import {
 	} from 'extract'
 
 import {
-	equal, truthy, falsy, succeeds, fails, codeLike,
+	equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test'
 
 // ---------------------------------------------------------------------------

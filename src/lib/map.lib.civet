@@ -1,11 +1,9 @@
 # map.lib.civet
 
 import {
-	undef, defined, notdefined, assert, croak,
+	assert, croak,
 	isFunction, TNonFunction, getErrStr,
 	} from 'datatypes'
-import {LOG, DBG, ERR} from 'logger'
-import {OL} from 'to-nice'
 
 # ---------------------------------------------------------------------------
 
@@ -68,7 +66,6 @@ export function IMAP<TIn, TOut, T extends TNonFunction>(
 		mapper: TMapper<TIn, TOut> := arg2
 
 		for item,i of lItems
-			DBG "IMAP: #{i}: #{OL(item)}"
 			iter := mapper item, i
 			loop
 				{done, value} := iter.next()
@@ -85,7 +82,6 @@ export function IMAP<TIn, TOut, T extends TNonFunction>(
 		mapper: TMapperWithAccum<TIn, TOut, T> := arg3
 
 		for item,i of lItems
-			DBG "IMAP: #{i}: #{OL(item)}"
 			iter := mapper item, i, runningAcc
 			loop
 				{done, value} := iter.next()
@@ -168,7 +164,6 @@ export function AIMAP<TIn, TOut, T extends TNonFunction>(
 		mapper: TMapper<TIn, TOut> := arg2
 
 		for await item,i of lItems
-			DBG "AIMAP: #{i}: #{OL(item)}"
 			iter := mapper item, i
 			loop
 				{done, value} := await iter.next()
@@ -185,7 +180,6 @@ export function AIMAP<TIn, TOut, T extends TNonFunction>(
 		mapper: TMapperWithAccum<TIn, TOut, T> := arg3
 
 		for await item,i of lItems
-			DBG "AIMAP: #{i}: #{OL(item)}"
 			iter := mapper item, i, runningAcc
 			loop
 				{done, value} := await iter.next()

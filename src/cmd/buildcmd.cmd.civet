@@ -1,6 +1,6 @@
 # buildcmd.cmd.civet
 
-import {assert, defined, getErrStr} from 'datatypes'
+import {assert, defined} from 'datatypes'
 import {stdChecks, centered} from 'llutils'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {ERR} from 'logger'
@@ -56,4 +56,4 @@ try
 			if doInstall
 				await procOneFile tsPath, doInstallCmd
 catch err
-	ERR getErrStr(err)
+	ERR err

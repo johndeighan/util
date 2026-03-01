@@ -6,7 +6,7 @@ import {s} from 'llutils'
 import {toNice} from 'to-nice'
 import {CMainScope, CScope} from 'scope'
 import {
-	equal, truthy, falsy, succeeds, fails, codeLike,
+	equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test';
 
 // ---------------------------------------------------------------------------
@@ -20,15 +20,13 @@ import {
 	truthy(mainScope.isDefined('gender'))
 	falsy( mainScope.isDefined('dummy'))
 
-	succeeds(() => {
-		const scope = mainScope.newChildScope('func', ['age'])
-		truthy(scope.isDefined('age'))
-		truthy(scope.isDefined('name'))
-		truthy(scope.isDefined('gender'))
-		falsy( scope.isDefined('dummy'))
+	const scope = mainScope.newChildScope('func', ['age'])
+	truthy(scope.isDefined('age'))
+	truthy(scope.isDefined('name'))
+	truthy(scope.isDefined('gender'))
+	falsy( scope.isDefined('dummy'))
 
-		falsy( mainScope.isDefined('age'))
-	})
+	falsy( mainScope.isDefined('age'))
 }
 	)();
 
@@ -44,15 +42,13 @@ import {
 	truthy(mainScope.isDefined('gender'))
 	falsy( mainScope.isDefined('dummy'))
 
-	succeeds(() => {
-		const scope = mainScope.newChildScope('func', ['age'])
-		truthy(scope.isDefined('age'))
-		truthy(scope.isDefined('name'))
-		truthy(scope.isDefined('gender'))
-		falsy( scope.isDefined('dummy'))
+	const scope = mainScope.newChildScope('func', ['age'])
+	truthy(scope.isDefined('age'))
+	truthy(scope.isDefined('name'))
+	truthy(scope.isDefined('gender'))
+	falsy( scope.isDefined('dummy'))
 
-		falsy( mainScope.isDefined('age'))
-	})
+	falsy( mainScope.isDefined('age'))
 }
 	)();
 

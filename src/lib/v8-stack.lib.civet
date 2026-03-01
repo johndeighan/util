@@ -5,14 +5,14 @@ import {CallSite} from 'npm-@types/node'
 
 import {
 	undef, defined, notdefined, assert, croak,
-	isEmpty, nonEmpty, hash, isString, getErrStr,
-	isNonEmptyString, isInteger, assertIsDefined,
+	isEmpty, nonEmpty, hash, isString,
+	isNonEmptyString, isInteger,
 	} from 'datatypes'
 import {f} from 'f-strings'
 import {sep, rpad, getOptions} from 'llutils'
 import {OL, ML, DUMP} from 'to-nice'
 import {
-	LOG, DBG, ERR, pushLogLevel, popLogLevel,
+	LOG, DBG, WARN, ERR, pushLogLevel, popLogLevel,
 	} from 'logger'
 import {
 	isFile, fileExt, withExt, normalizePath, relpath,
@@ -56,11 +56,23 @@ export type TStackFrame = {
 export type TFrameFilter = (frame: TStackFrame) => boolean
 
 # ---------------------------------------------------------------------------
+# --- return true to keep
+
+export reThisFile := ///
+	v8-stack\.lib\.(?:civet|ts)
+	$///
+
+defaultFilter: TFrameFilter := (frame) =>
+
+	{source} := frame
+	return defined(source) && not source.match(reThisFile)
+
+# ---------------------------------------------------------------------------
 
 export dumpFrame := (
 		frame: TStackFrame,
 		i: number,
-		filter: TFrameFilter
+		filter: TFrameFilter = defaultFilter
 		): void =>
 
 	{type, source, line, col, name, org_source, org_line, org_col,
@@ -100,18 +112,6 @@ export dumpFrame := (
 	return
 
 # ---------------------------------------------------------------------------
-# --- return true to keep
-
-export reThisFile := ///
-	v8-stack\.lib\.(?:civet|ts)
-	$///
-
-defaultFilter: TFrameFilter := (frame) =>
-
-	{source} := frame
-	return defined(source) && not source.match(reThisFile)
-
-# ---------------------------------------------------------------------------
 
 # --- by default, ignores any stack frames from this module
 #     files will be mapped to original source files
@@ -147,10 +147,14 @@ export allStackFrames := (
 
 			lFrames: TStackFrame[] := for orgFrame,i of lOrgFrames
 				fileName := orgFrame.getFileName()
+				let source = normalizePath(fileName)
+				if source.match(/src\/temp\/src\/temp\//)
+					WARN "BUG: #{source} patched"
+					source = source.replace('src/temp/src/temp/', 'src/temp/')
+
 				functionName := orgFrame.getFunctionName()
 				methodName := orgFrame.getMethodName()
 				name := functionName || methodName || ''
-				source := fileName
 				frame: TStackFrame := {
 					type:          undef
 					source
@@ -215,8 +219,8 @@ export allStackFrames := (
 				yield frame
 		return
 
-	catch e
-		LOG getErrStr e
+	catch err
+		ERR err
 		return
 
 # ---------------------------------------------------------------------------
@@ -274,12 +278,13 @@ export getMyOutsideCaller := (
 	let source: string = ''
 	lFrames := Array.from(allStackFrames({filter}))
 	for frame,i of lFrames
-		if not source
-			if frame.source && not frame.source.includes('v8-stack')
-				source = frame.source
-		else
+		if source
 			if (frame.source != source)
 				return frame
+		else
+#			if frame.source && not frame.source.includes('v8-stack.lib.civet')
+			if frame.source && (frame.source.match(/v8-stack\.lib\.(?:civet|ts)/) == null)
+				source = frame.source
 
 	ERR "NO OUTSIDE CALLER FOUND"
 	DUMP lFrames, 'STACK'

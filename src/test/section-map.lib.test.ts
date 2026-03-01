@@ -4,7 +4,7 @@
 import {
 	undef, defined, notdefined,
 	} from 'datatypes'
-import {keys, numKeys} from 'llutils'
+import {keys} from 'llutils'
 import {Section} from 'section'
 import {
 	isSetName, TSectionTree, isSectionTree,
@@ -42,8 +42,8 @@ truthy(isSectionTree(hTree));
 		lChildren: ['top', 'middle', 'bottom']
 		}
 	const smap = new SectionMap(hTree)
-	equal(numKeys(smap.hSections), 3)
-	equal(numKeys(smap.hSets), 1)
+	equal(keys(smap.hSections).length, 3)
+	equal(keys(smap.hSets).length, 1)
 	truthy((smap.hTree.lChildren[1] instanceof Section))
 
 	smap.add('middle', 'abc')

@@ -1,5 +1,7 @@
 # logger.lib.civet
 
+import {red, cyan} from '@std/fmt/colors'
+
 import {write, writeln} from 'console-utils'
 import {isString} from 'datatypes'
 import {f} from 'f-strings'
@@ -52,10 +54,28 @@ export DBG := (...lItems: unknown[]): void =>
 
 # ---------------------------------------------------------------------------
 
-export ERR := (...lStrings: string[]): void =>
+export WARN := (
+		msg: string
+		label: string = 'WARNING'
+		): void =>
 
-	for str of lStrings
-		console.error f"#{str}:{red}"
+	if (curLogLevel() != 'silent')
+		console.error cyan(label) + ': ' + msg
+	return
+
+# ---------------------------------------------------------------------------
+
+export ERR := (
+		err: unknown
+		label: string = 'ERROR'
+		): void =>
+
+	errMsg := (
+		  (typeof err == 'string') ? err
+		: (err instanceof Error)   ? err.message
+		:                            "Unknown Error"
+		)
+	console.error red(label) + ': ' + errMsg
 	return
 
 # ---------------------------------------------------------------------------

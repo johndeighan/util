@@ -18,8 +18,7 @@ import {
 	barf, barfTempFile, parsePath, addJsonValue, normalizePath,
 	} from 'fsys'
 import {
-	execCmdSync, execCmd, CFileHandler, procFiles,
-	TExecResult, THandlerResult,
+	execCmdSync, execCmd, CFileHandler, procFiles, TExecResult,
 	} from 'exec'
 import {ts2ast, analyzeTS, typeCheckTsCode} from 'typescript'
 import {extractSourceMap, haveSourceMapFor} from 'source-map'
@@ -50,7 +49,7 @@ class CCivetCompiler extends CFileHandler
 	override handle(
 			path: string,
 			hOptions: hash = {}
-			): THandlerResult
+			): TExecResult
 
 		{force, nocheck} := getOptions<TCivetOptions> hOptions, {
 			force: false
@@ -117,7 +116,7 @@ class CCivetCompiler extends CFileHandler
 	handleSync(
 			path: string,
 			hOptions: hash = {}
-			): THandlerResult
+			): TExecResult
 
 		{force, nocheck} := getOptions<TCivetOptions> hOptions, {
 			force: false
@@ -187,7 +186,7 @@ export civet2tsFile := (
 		hOptions: hash = {}
 		): string =>
 
-	hResult: THandlerResult := doCompileCivet.handleSync(civetPath, hOptions)
+	hResult: TExecResult := doCompileCivet.handleSync(civetPath, hOptions)
 	{success, output} := hResult
 	if success
 		return withExt(civetPath, '.ts')
@@ -219,10 +218,15 @@ export civet2ast := (civetCode: string): Node =>
 # ---------------------------------------------------------------------------
 # ASYNC
 
-export compileAllLibs := (hOptions: hash = {}): TExecResult[] =>
+export compileAllLibs := (
+		hOptions: hash = {}
+		): TExecResult[] =>
 
-	hOptions.quiet = true
-	return await procFiles [doCompileCivet, ['**/*.lib.civet']], hOptions
+	# --- with 'quiet' option, still reports errors
+	return await procFiles [doCompileCivet, ['**/*.lib.civet']], {
+		...hOptions
+		quiet: true
+		}
 
 # ---------------------------------------------------------------------------
 

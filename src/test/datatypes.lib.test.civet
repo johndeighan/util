@@ -1,10 +1,8 @@
 # datatypes.lib.test.civet
 
 import {
-	deepEqual, undef, defined, notdefined,
-	croak, assert,
-	addFunctionNames, removeFunctionNames,
-	normalizeCode, normalizeExpr,
+	deepEqual, undef, defined, notdefined, croak, assert,
+	anyDefined, anyNotDefined,
 	array, arrayof, isArray,
 	hash, hashof, isHash,
 	TVoidFunc, nonEmptyString,
@@ -15,14 +13,14 @@ import {
 	isEmpty, nonEmpty,
 	isClass, className, isPromise, isClassInstance,
 	isSymbol, symbolName, functionName, functionDef,
-	classDef, regexpDef, hashLike,
+	classDef, regexpDef,
 	isObject, isGenerator, isAsyncGenerator,
 	isIterator, isAsyncIterator, jsType,
 	} from 'datatypes'
 import {DBG} from 'logger'
 import {
-	equal, truthy, falsy, fails, succeeds, isType, notType,
-	sampleVal,
+	equal, truthy, falsy, fails, succeeds,
+	isType, notType, sampleVal,
 	} from 'unit-test'
 
 # ---------------------------------------------------------------------------
@@ -36,10 +34,6 @@ fails () => croak "Bad"
 
 # ---------------------------------------------------------------------------
 
-nonsense := (): boolean =>
-	return false
-fails () => assert nonsense()
-
 # ---------------------------------------------------------------------------
 
 truthy defined(42)
@@ -47,9 +41,256 @@ falsy  defined(undef)
 falsy  notdefined(42)
 truthy notdefined(undef)
 
+succeeds () =>
+	assert (2+2 == 4)
+	assert defined(42)
+	assert notdefined(undef)
+	assert notdefined(null)
+
+nonsense := (): boolean =>
+	return false
+fails () => assert nonsense()
+
+# ---------------------------------------------------------------------------
+
+truthy anyDefined(undef, 42, undef)
+falsy  anyDefined(undef, undef)
+
+truthy anyNotDefined('abc', undef, 42)
+falsy  anyNotDefined('abc', 42, 'xyz')
+
+# ---------------------------------------------------------------------------
+
+equal jsType(undef),       'undef'
+equal jsType(true),        'boolean'
+equal jsType(false),       'boolean'
+equal jsType(''),          'string'
+equal jsType('abc'),       'string'
+equal jsType(Symbol('x')), 'symbol'
+equal jsType(Symbol()),    'symbol'
+equal jsType(12345n),      'bigint'
+equal jsType(42),          'integer'
+equal jsType(3.14),        'float'
+equal jsType(Number.NaN),  'NaN'
+equal jsType(Infinity),    'inf'
+equal jsType(-Infinity),   'neginf'
+equal jsType(null),        'null'
+equal jsType(/^ab*/),      'regexp'
+equal jsType(new Set()),   'set'
+equal jsType(new Map()),   'map'
+equal jsType([]),          'array'
+equal jsType([1,2,3]),     'array'
+equal jsType({}),          'hash'
+equal jsType({a:1, b:2}),  'hash'
+equal jsType(class MyClass), 'class'
+equal jsType(() -> 42),      'plainFunction'
+
+equal jsType(sampleVal.undef), 'undef'
+equal jsType(sampleVal.null), 'null'
+equal jsType(sampleVal.emptyStr), 'string'
+equal jsType(sampleVal.str), 'string'
+equal jsType(sampleVal.i), 'integer'
+equal jsType(sampleVal.inf), 'inf'
+equal jsType(sampleVal.neginf), 'neginf'
+equal jsType(sampleVal.f), 'float'
+equal jsType(sampleVal.b), 'boolean'
+equal jsType(sampleVal.genFunc), 'generator'
+equal jsType(sampleVal.asyncGenFunc), 'asyncGenerator'
+equal jsType(sampleVal.regularFunc), 'plainFunction'
+equal jsType(sampleVal.lambdaFunc), 'plainFunction'
+equal jsType(sampleVal.emptyHash), 'hash'
+equal jsType(sampleVal.fullHash), 'hash'
+equal jsType(sampleVal.emptyList), 'array'
+equal jsType(sampleVal.fullList), 'array'
+
 # ---------------------------------------------------------------------------
 
 isType 'number', 42
+isType 'hash', {a:1, b:2}
+notType 'hashof<number>', {a:'a'}
+isType 'array', ['a', 2, undef]
+notType 'arrayof<number>', ['a']
+
+# ---------------------------------------------------------------------------
+
+truthy isString('abc')
+truthy isString('')
+truthy isString(new String('abc'))
+falsy  isString(42)
+falsy  isString(undef)
+falsy  isString(null)
+
+truthy isChar('a')
+falsy  isChar('abc')
+falsy  isChar(42)
+falsy  isChar(undef)
+falsy  isChar(null)
+falsy  isChar('')
+
+truthy isBoolean(true)
+truthy isBoolean(false)
+truthy isBoolean(new Boolean(true))
+falsy  isBoolean('abc')
+falsy  isBoolean(42)
+falsy  isBoolean(undef)
+falsy  isBoolean(null)
+falsy  isBoolean('')
+
+truthy isNumber(42)
+truthy isNumber(3.14159)
+truthy isNumber(new Number(42))
+truthy isNumber(new Number(3.14))
+falsy  isNumber('abc')
+falsy  isNumber(undef)
+falsy  isNumber(null)
+falsy  isNumber('')
+
+truthy isInteger(42)
+truthy isInteger(0)
+truthy isInteger(new Number(42))
+falsy  isInteger(new Number(3.14))
+falsy  isInteger(3.14159)
+falsy  isInteger('abc')
+falsy  isInteger(undef)
+falsy  isInteger(null)
+falsy  isInteger('')
+
+truthy isRegExp(/^abc/)
+falsy  isRegExp(42)
+equal regexpDef(/^abc/), '^abc'
+fails () => regexpDef(42)
+
+truthy isHash({a: 1})
+falsy  isHash(42)
+
+truthy isArray(['a', 1])
+falsy  isArray(42)
+
+truthy isSymbol(Symbol('xxx'))
+equal symbolName(Symbol('xxx')), 'xxx'
+fails () => symbolName(42)
+
+truthy isObject({a: 1})
+falsy  isObject(42)
+
+function fs(a: string, b: string): boolean
+	return a == b
+
+truthy isFunction((c: string) => 42)
+truthy isFunction(fs)
+falsy  isFunction(42)
+
+equal functionName(fs), 'fs'
+equal functionDef(fs),
+	'function fs(a,b){return a===b}'
+
+class MyClass
+	fname: string
+	constructor()
+		@fname = 'John'
+
+truthy isClass(MyClass)
+equal className(MyClass), 'MyClass'
+equal classDef(MyClass),
+	'class MyClass{fname;constructor(){this.fname="John"}}'
+fails () => className(42)
+fails () => classDef(42)
+
+truthy isClassInstance(new MyClass())
+
+# ---------------------------------------------------------------------------
+
+function func(): string
+	return 'ok'
+
+equal functionName(func), 'func'
+
+# ---------------------------------------------------------------------------
+
+truthy isNonEmptyString('abc')
+falsy  isNonEmptyString(42)
+falsy  isNonEmptyString('')
+falsy  isNonEmptyString('   ')
+
+truthy isPrimitive(null)
+truthy isPrimitive(undef)
+truthy isPrimitive(true)
+truthy isPrimitive('abc')
+truthy isPrimitive(Symbol())
+truthy isPrimitive(12345n)
+truthy isPrimitive(42)
+truthy isPrimitive(3.14)
+truthy isPrimitive((x: string): string => 'abc')
+truthy isPrimitive(/^abc$/)
+falsy  isPrimitive([1,2,3])
+falsy  isPrimitive({a:1, b:2})
+
+truthy isNonPrimitive([1,2,3])
+truthy isNonPrimitive({a:1, b:2})
+falsy  isNonPrimitive(null)
+falsy  isNonPrimitive(undef)
+falsy  isNonPrimitive(true)
+falsy  isNonPrimitive('abc')
+falsy  isNonPrimitive(Symbol())
+falsy  isNonPrimitive(12345n)
+falsy  isNonPrimitive(42)
+falsy  isNonPrimitive(3.14)
+falsy  isNonPrimitive((x: string): string => 'abc')
+falsy  isNonPrimitive(/^abc$/)
+
+truthy isEmpty(undef)
+truthy isEmpty(null)
+truthy isEmpty('')
+truthy isEmpty('   ')
+truthy isEmpty([])
+truthy isEmpty(new Set())
+truthy isEmpty(new Map())
+truthy isEmpty({})
+falsy  isEmpty('abc')
+falsy  isEmpty(['x'])
+falsy  isEmpty(new Set(['a','b']))
+falsy  isEmpty(new Map([['a',1], ['b',2]]))
+falsy  isEmpty({a:1, b:2})
+
+truthy nonEmpty('abc')
+truthy nonEmpty(['x'])
+truthy nonEmpty(new Set(['a','b']))
+truthy nonEmpty(new Map([['a',1], ['b',2]]))
+truthy nonEmpty({a:1, b:2})
+
+falsy  nonEmpty(undef)
+falsy  nonEmpty(null)
+falsy  nonEmpty('')
+falsy  nonEmpty('   ')
+falsy  nonEmpty([])
+falsy  nonEmpty(new Set())
+falsy  nonEmpty(new Map())
+falsy  nonEmpty({})
+
+truthy isArrayOfStrings(['abc', 'def'])
+truthy isArrayOfStrings([])
+falsy  isArrayOfStrings(42)
+falsy  isArrayOfStrings('abc')
+
+truthy isArrayOfIntegers([1,2,3])
+truthy isArrayOfIntegers([])
+falsy  isArrayOfIntegers(42)
+falsy  isArrayOfIntegers('abc')
+
+prom := new Promise<string>((resolve, reject) =>
+	setTimeout(() =>
+		let success = true
+		if success
+			resolve("Hello, world!")
+		else
+			reject(new Error("Failed to generate greeting"))
+    , 1000)
+    )
+
+truthy isPromise(prom)
+falsy  isPromise(42)
+falsy  isPromise(undef)
+falsy  isPromise(null)
 
 # ---------------------------------------------------------------------------
 
@@ -67,20 +308,3 @@ falsy  isIterator(sampleVal.genFunc)
 falsy  isIterator(sampleVal.regularFunc)
 falsy  isIterator(sampleVal.lambdaFunc)
 
-# ---------------------------------------------------------------------------
-
-equal jsType(sampleVal.undef), 'undef'
-equal jsType(sampleVal.null), 'null'
-equal jsType(sampleVal.emptyStr), 'string'
-equal jsType(sampleVal.str), 'string'
-equal jsType(sampleVal.i), 'integer'
-equal jsType(sampleVal.f), 'float'
-equal jsType(sampleVal.b), 'boolean'
-equal jsType(sampleVal.genFunc), 'generator'
-equal jsType(sampleVal.asyncGenFunc), 'asyncGenerator'
-equal jsType(sampleVal.regularFunc), 'plainFunction'
-equal jsType(sampleVal.lambdaFunc), 'plainFunction'
-equal jsType(sampleVal.emptyHash), 'hash'
-equal jsType(sampleVal.fullHash), 'hash'
-equal jsType(sampleVal.emptyList), 'array'
-equal jsType(sampleVal.fullList), 'array'

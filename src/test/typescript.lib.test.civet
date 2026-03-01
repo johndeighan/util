@@ -4,7 +4,7 @@ import {stripAnsiCode} from "@std/fmt/colors"
 import {SourceFile} from 'npm:typescript'
 
 import {
-	undef, isHash, isEmpty, nonEmpty, normalizeCode,
+	undef, isHash, isEmpty, nonEmpty,
 	} from 'datatypes'
 import {pass, o, s, t} from 'llutils'
 import {DBG} from 'logger'

@@ -1,10 +1,17 @@
 to do
 
-touch civet file if type checking fails
+unit test for to-nice.lib fails
 
-get asyncRunAll() to work in temp.civet
+continue work on call-stack.lib.civet
+	- currently a problem with returnFrom()
 
-Remove uses of functions from var-free.lib.civet
+to-nice unit tests fail
+
+unit-test lib tests fail
+
+get isType, notType tests working
+
+cover all & document datatypes.lib.civet
 
 last unit test in typescript.lib.test.civet fails !
 	- use runtemp to see why

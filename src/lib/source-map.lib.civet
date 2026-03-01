@@ -5,19 +5,17 @@ import {existsSync} from '@std/fs'
 import {SourceMapConsumer} from 'npm-source-map'
 
 import {
-	undef, assert, defined, notdefined, hash, croak,
-	assertIsDefined, assertIsString, getErrStr,
+	undef, assert, defined, notdefined, hash, croak, getErrStr,
 	} from 'datatypes'
-import {
-	getOptions, THashEntry, TEntryFilter, filterHash,
-	} from 'llutils'
+import {getOptions} from 'llutils'
 import {OL, DUMP} from 'to-nice'
-import {LOG, DBG, ERR} from 'logger'
+import {LOG, DBG, WARN, ERR} from 'logger'
 import {TextTable} from 'text-table'
 import {
 	fromJsonFile, parsePath, mkpath, normalizePath, relpath,
 	toFullPath, isFile, fileExt,
 	} from 'fsys'
+import {allStackFrames, dumpFrame, getV8Stack} from 'v8-stack'
 
 # --- Get info about all known source maps
 sourceMapPath := "C:/Users/johnd/util/sourcemaps.json"
@@ -170,7 +168,7 @@ export orgPos := (
 		return [orgFile, orgLine, orgCol]
 	else
 		last := lMappings.at(-1)
-		assertIsDefined last
+		assert defined(last)
 		[genLine, genCol, orgFile, orgLine, orgCol] := last
 		return [orgFile, orgLine, orgCol]
 
@@ -199,13 +197,16 @@ export mapSourcePos := (
 		{source, line, col} := h
 
 		assert source, "EMPTY source in mapSourcePos"
-		assert existsSync(source), "No such file: #{source}"
+		assert existsSync(source), "No such source file: #{source}"
 
 		path := toFullPath(source)
 		DBG "Search for key #{path} in sourcemap.json"
 
 		hSrcMap: RawSourceMap := hSourceMaps[path] as RawSourceMap
-		assert defined(hSrcMap), "Not found in source map: #{path}"
+		if notdefined(hSrcMap)
+			WARN "Not found in source map: #{path}"
+			return undef
+#		assert defined(hSrcMap), "Not found in source map: #{path}"
 		# @ts-ignore
 		{version, sources, mappings, names} := hSrcMap as RawSourceMap
 		assert (version == 3), "Bad version: #{version}"
@@ -219,7 +220,7 @@ export mapSourcePos := (
 			col: srcCol
 			}
 	catch err
-		DBG "ERROR: #{getErrStr(err)}"
+		ERR getErrStr(err)
 		return undef
 
 # ---------------------------------------------------------------------------

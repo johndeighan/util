@@ -1,6 +1,6 @@
 # parsestr.cmd.civet
 
-import {croak, assertIsDefined} from 'datatypes'
+import {croak, defined, assert} from 'datatypes'
 import {findFile} from 'fsys'
 import {allNonOptions} from 'cmd-args'
 
@@ -27,7 +27,7 @@ path := findFile fileName
 
 # console.log "path = #{path}"
 
-assertIsDefined path, "No such file: #{fileName}"
+assert defined(path), "No such file: #{fileName}"
 {parser} := await import "file:///#{path}"
 
 # console.log "parser found"

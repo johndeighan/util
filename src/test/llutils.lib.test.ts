@@ -8,20 +8,16 @@ import {
 import {
 	sinceLoad, sinceLoadStr, throwsError, pass, truncStr,
 	o, s, t, strToHash, getOptions,
-	removeEmptyKeys, keys, hasKey, hasKeys, missingKeys,
-	merge, hit, sleep, spaces, tabs,
-	rtrim, countChars, wsSplit, words,
-	blockToArray, allLinesInBlock, mapEachLine, toArray,
-	arrayToBlock, toBlock,
-	getNExtra, rpad, lpad,
+	keys, hasKey, hasKeys, sleep, spaces, tabs,
+	rtrim, countChars, words, getLineAndColumn,
+	blockToArray, allLinesInBlock, toArray,
+	arrayToBlock, toBlock, rpad, lpad,
 	TAlignment, isAlignment, alignString, zpad,
-	TBlockSpec, isBlockSpec, allMatches,
-	range, getLineAndColumn, assertSameStr, interpolate,
-	widthOf, heightOf, blockify, CStringSetMap,
-	fromTAML,
+	TBlockSpec, isBlockSpec, allMatches, range,
+	widthOf, heightOf, CStringSetMap, fromTAML,
 	} from 'llutils'
 import {
-	equal, truthy, falsy, succeeds, fails, codeLike,
+	equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test'
 
 // ---------------------------------------------------------------------------
@@ -118,10 +114,6 @@ DBG("getOptions()");
 }
 	)()
 
-DBG("removeEmptyKeys()")
-
-equal(removeEmptyKeys({a: 1, b: undef}), {a: 1})
-
 DBG("keys()")
 
 equal(keys({a:1, b:2, c:3}), ['a','b','c'])
@@ -132,25 +124,6 @@ truthy(hasKey({a:1, b:2}, 'a'))
 truthy(hasKeys({a:1, b:2}, 'a', 'b'))
 falsy( hasKey({a:1, b:2}, 'x'))
 falsy( hasKeys({a:1, b:2}, 'a', 'x'))
-
-DBG("missingKeys()");
-
-(() => {
-	const h = {a:1, b:2}
-	equal(missingKeys(h, 'a','b','c','d'), ['c','d'])
-}
-	)()
-
-DBG("merge()")
-
-equal(merge({a:1}, {b:2}), {a:1, b:2})
-equal(merge({a:1, b:2}, {b:3, c:4}), {a:1, b:3, c:4})
-
-DBG("hit()")
-
-succeeds(() => hit(25))
-truthy(hit(100))
-falsy( hit(0))
 
 DBG("sleep()")
 
@@ -193,13 +166,6 @@ equal(Array.from(allLinesInBlock("a\nb\n")), [
 	'b'
 	])
 
-DBG("mapEachLine()")
-
-equal(mapEachLine(`this is
-something`, (line) => `- ${line}`
-	), `- this is
-- something`)
-
 DBG("type TBlockSpec", "isBlockSpec()")
 
 truthy(isBlockSpec('vvv'))
@@ -220,15 +186,6 @@ DBG("toBlock(strOrArray)")
 equal(toBlock(['a','b']), 'a\nb')
 equal(toBlock("bbb\ndef"), "bbb\ndef")
 
-DBG("wsSplit()")
-
-equal(wsSplit("abc def"), ["abc", "def"])
-equal(wsSplit("abc"), ["abc"])
-equal(wsSplit(""), [])
-equal(wsSplit("  "), [])
-equal(wsSplit("\t"), [])
-equal(wsSplit("  abc  def\t\t"), ["abc", "def"])
-
 DBG("words()")
 
 equal(words("abc def"), ["abc", "def"])
@@ -243,11 +200,6 @@ equal(words(" abc  def", "ghi j "), [
 	"ghi",
 	"j"
 	])
-
-DBG("getNExtra()")
-
-equal(getNExtra('abcd', 10), 6)
-equal(getNExtra('abcd', 2), 0)
 
 DBG("rpad()")
 
@@ -314,28 +266,6 @@ DBG("range()")
 equal(Array.from(range(3)), [0, 1, 2])
 equal(Array.from(range(5)), [0, 1, 2, 3, 4])
 
-DBG("interpolate()")
-
-equal(interpolate("time: $time", {'$time': '3pm'}),
-	"time: 3pm");
-
-(() => {
-	const hReplace = {
-		'$time': '3pm',
-		'$name': 'John',
-		'$age' : '72'
-		}
-	const result = interpolate(
-		'$name is $age years old at $time',
-		hReplace
-		)
-	equal(result, 'John is 72 years old at 3pm')
-}
-	)()
-
-// --- all keys must begin with '$'
-fails(() => interpolate("abc", {'abc': 'def'}))
-
 DBG("getLineAndColumn(str, pos)")
 
 equal(getLineAndColumn('abc\ndef\nghi', 5), [2, 2])
@@ -367,21 +297,6 @@ def
 xx`), 3)
 
 equal(heightOf(''), 0)
-
-DBG("blockify(lStrings, hOptions)");
-(() => {
-	const lWords = ['abc','def','ghi','jkl']
-	equal(blockify(lWords, {width: 10}), `abc def
-ghi jkl`)
-	equal(blockify(lWords, {width: 5}), `abc
-def
-ghi
-jkl`)
-	equal(blockify(lWords, {width: 12}), `abc def ghi
-jkl`)
-	equal(blockify(lWords, {width: 64}), `abc def ghi jkl`)
-}
-	)()
 
 // ---------------------------------------------------------------------------
 

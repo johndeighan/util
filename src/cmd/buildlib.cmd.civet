@@ -1,7 +1,8 @@
 # buildlib.cmd.civet
 
-import {assert, defined, getErrStr} from 'datatypes'
+import {assert, defined, notdefined} from 'datatypes'
 import {stdChecks, o, centered} from 'llutils'
+import {MAP} from 'map'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {LOG, ERR} from 'logger'
 import {withExt, findFile, relpath} from 'fsys'
@@ -16,7 +17,7 @@ stdChecks """
 	   -J = use Chrome debugger for unit test
 	"""
 
-// ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 hStyle  := {char: '=', color: 'cyan'}
 try
@@ -52,10 +53,11 @@ try
 					tsPath := withExt(testPath, '.ts')
 					LOG centered("RUN TEST #{relpath(tsPath)}", hStyle)
 					hResult := await procOneFile tsPath, doUnitTest, {
-						capture: false
+						capture: true
 						inspect: inspectTest
+						dumpOutput: true
 						}
 				else
 					LOG "No unit test exists for #{stub}.lib"
 catch err
-	ERR getErrStr(err)
+	ERR err

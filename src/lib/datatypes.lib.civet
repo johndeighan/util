@@ -69,28 +69,43 @@ export anyNotDefined := (...lItems: unknown[]): boolean =>
 
 # ---------------------------------------------------------------------------
 
-export function assertIsDefined(
-		value: unknown,
-		name: string = ''
-		): asserts value is TDefined
+GenFunc := (function* () {}).constructor
+AsyncGenFunc := (async function* () {}).constructor
 
-	(): void =>
+export jsType := (x: unknown): string =>
 
-		if notdefined(value)
-			throw new Error("value #{name} is not defined")
-		return
-
-# ---------------------------------------------------------------------------
-
-export function assertNotDefined(
-		value: unknown,
-		name: string = ''
-		): asserts value is TNotDefined
-
-	(): void =>
-		if defined(value)
-			throw new Error("value #{name} is defined")
-		return
+	switch typeof x
+		when 'undefined'
+			return 'undef'
+		when 'boolean', 'string', 'symbol', 'bigint'
+			return typeof x
+		when 'number'
+			if Number.isFinite(x)
+				return Number.isInteger(x) ? 'integer' : 'float'
+			else
+				return (
+					  Number.isNaN(x)  ? 'NaN'
+					: (x == -Infinity) ? 'neginf'
+					:                    'inf'
+					)
+		when 'object'
+			return (
+				  (x == null)           ? 'null'
+				: (x instanceof RegExp) ? 'regexp'
+				: (x instanceof Set)    ? 'set'
+				: (x instanceof Map)    ? 'map'
+				: Array.isArray(x)      ? 'array'
+				: isIterator(x)         ? 'iterator'
+				: isAsyncIterator(x)    ? 'asyncIterator'
+				:                         'hash'
+				)
+		when 'function'
+			return (
+				  x.toString().startsWith('class ') ? 'class'
+				: (x instanceof GenFunc)            ? 'generator'
+				: (x instanceof AsyncGenFunc)       ? 'asyncGenerator'
+				:                                     'plainFunction'
+				)
 
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
@@ -101,251 +116,6 @@ export type hash = hashof<unknown>
 
 export type arrayof<T> = T[]
 export type array = arrayof<unknown>
-
-# ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
-
-export type TVoidFunc = () => void
-export type TVoidIterator<T=unknown> = () => TIterator<T>
-export type TUnaryFunc<TIn, TOut> = (item: TIn) => TOut
-export type TFilterFunc = (item: unknown) => boolean
-export type TStringifier = (item: unknown) => string
-export type TStringMapper = (str: string) => string
-
-# ---------------------------------------------------------------------------
-
-export symbolName := (x: unknown): string =>
-
-	if (typeof x == 'symbol')
-		return x.description || ''
-	throw new Error("Not a symbol: #{x}")
-
-# ---------------------------------------------------------------------------
-
-export functionName := (x: Function): string =>
-
-	return x.name || '<anonymous>'
-
-# ---------------------------------------------------------------------------
-
-export functionDef := (x: Function): string =>
-
-	return normalizeExpr x.toString()
-
-# ---------------------------------------------------------------------------
-
-export regexpDef := (x: unknown): string =>
-
-	if (typeof x == 'object') && (x instanceof RegExp)
-		return x.source
-	croak "Not a RegExp"
-	return ''
-# --- TypeScript bug
-
-# ---------------------------------------------------------------------------
-
-export classDef := (x: unknown): string =>
-
-	if (typeof x == 'function') && x.toString().startsWith('class')
-		return normalizeCode x.toString()
-	croak "Not a class"
-	return ''     # --- TypeScript bug
-
-# ---------------------------------------------------------------------------
-
-export className := (x: unknown): string =>
-
-	# --- item can be a class or an object
-	if (typeof x == 'function') && x.toString().startsWith('class')
-		return x.name || '<unknown>'
-	if (typeof x == 'object') && (x != null)
-		return x.constructor.name || '<none>'
-	croak "Not a class"
-	return ''    # --- TypeScript bug
-
-# ---------------------------------------------------------------------------
-
-export type THashCompareFunc = (h1: hash, h2: hash) => number
-export type THashLikeFunc = (h: hash, hPat: hash) => boolean
-export type THashToStringFunc = (h: hash) => string
-
-export hashLike := (h: hash, hPat: hash): boolean =>
-
-	lHashKeys := Object.keys h
-	for key of Object.keys(hPat)
-		if lHashKeys.includes(key)
-			patVal := hPat[key]
-			if defined(patVal) && not deepEqual(h[key], patVal)
-				return false
-		else
-			return false
-	return true
-
-# ---------------------------------------------------------------------------
-
-export type char = string
-
-# ---------------------------------------------------------------------------
-
-export type nonEmptyString = string
-export isNonEmptyString := (x: unknown): x is nonEmptyString =>
-
-	# --- must contain non-whitespace character
-	return isString(x) && defined(x.match /\S/)
-
-# ---------------------------------------------------------------------------
-
-export lPrimTypes := [
-	'undefined'
-	'boolean'
-	'string'
-	'symbol'
-	'bigint'
-	'number'
-	'function'
-	]
-
-export isPrimitive := (x: unknown): boolean =>
-
-	return (
-		   (x == null)
-		|| lPrimTypes.includes(typeof x)
-		|| (x instanceof RegExp)
-		)
-
-# ---------------------------------------------------------------------------
-
-export isNonPrimitive := (x: unknown): boolean =>
-
-	return not isPrimitive(x)
-
-# ---------------------------------------------------------------------------
-
-export type integer = number
-
-# ---------------------------------------------------------------------------
-
-export type TIntArray = integer[]
-
-# ---------------------------------------------------------------------------
-
-export type regexp = RegExp
-
-# ---------------------------------------------------------------------------
-
-export isEmpty := (x: unknown): boolean =>
-
-	if (x == undef) || (x == null)
-		return true
-	if isString(x)
-		return (x.match(/^\s*$/) != null)
-	if isArray(x)
-		return (x.length == 0)
-	if (x instanceof Set) || (x instanceof Map)
-		return (x.size == 0)
-	if (typeof x == 'object')
-		return (Object.keys(x).length == 0)
-	else
-		return false
-
-# ---------------------------------------------------------------------------
-
-export nonEmpty := (x: unknown): boolean =>
-
-	return not isEmpty(x)
-
-# ---------------------------------------------------------------------------
-
-# --- Functions to normalize JavaScript code & expressions
-
-# ---------------------------------------------------------------------------
-
-export uniqInt := (start: number = 1): Generator<number, void, void> ->
-	for i of [start..1000000]
-		yield i
-
-export addFunctionNames := (code: string): string =>
-	# --- The names we add will look like: '__dummy99' where
-	#     '99' can be any sequence of digits
-	#     to make it trivial to remove them later
-
-	gen := uniqInt()     # create an iterator
-
-	# --- Args to replacer function are:
-	#    function replacer(match, p1, p2, /* …, */ pN, offset, string, groups) {
-	#       return replacement;
-	#	     }
-
-	replaceFunc := (match: string, aster: string?) =>
-		return "function#{aster} __dummy#{gen.next().value}("
-	return code.replaceAll /function\s*(\*)?\s*\(/g, replaceFunc
-
-# ---------------------------------------------------------------------------
-
-export removeFunctionNames := (code: string): string =>
-
-	return code.replaceAll /__dummy\d+/g, ''
-
-# ---------------------------------------------------------------------------
-
-export normalizeCode := (code: string): string =>
-
-	# --- Due to a bug in JavaScript, we have to make sure
-	#     that all function names (even in generators)
-	#     have a name, which we must remove after minimization
-	newCode := addFunctionNames code
-
-	# --- Remove extra whitespace
-	#     Remove extra parens from '(str)=>return'
-	#     Remove comments
-
-	hOptions := {
-		annotations: false
-		mangle: false
-		compress: undefined
-		keep_fargs: true
-		keep_fnames: true
-		warnings: true
-		}
-
-	hResult := minify newCode, hOptions
-	if hResult.error
-		throw new Error(hResult.error.message)
-	else if hResult.code
-		return removeFunctionNames hResult.code
-	else
-		throw new Error("Unknown error in normalizeCode()")
-
-# ---------------------------------------------------------------------------
-
-export normalizeExpr := (code: string): string =>
-
-	str := normalizeCode code
-	len := str.length
-	if str[len - 1] == ';'
-		return str.substring 0, len - 1
-	else
-		return str
-
-# ---------------------------------------------------------------------------
-
-export assertIsString: (x: unknown) => asserts x is string := (x: unknown): asserts x is string =>
-	assert isString(x), "Not a string: #{typeof x}"
-
-export assertIsNumber: (x: unknown) => asserts x is number := (x: unknown): asserts x is number =>
-	assert isNumber(x), "Not a number: #{typeof x}"
-
-export assertIsArray: (x: unknown) => asserts x is array := (x: unknown): asserts x is array =>
-	assert isArray(x), "Not an array: #{typeof x}"
-
-export assertIsHash: (x: unknown) => asserts x is hash := (x: unknown): asserts x is hash =>
-	assert isHash(x), "Not a hash: #{typeof x}"
-
-export assertIsFunction: (x: unknown) => asserts x is Function := (x: unknown): asserts x is Function =>
-	assert isFunction(x), "Not a function: #{typeof x}"
-
-export assertIsClass: (x: unknown) => asserts x is Function := (x: unknown): asserts x is Function =>
-	assert isClass(x), "Not a class: #{typeof x}"
 
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
@@ -390,6 +160,16 @@ export isRegExp := (item: unknown): item is regexp =>
 
 # ---------------------------------------------------------------------------
 
+export regexpDef := (x: unknown): string =>
+
+	if (typeof x == 'object') && (x instanceof RegExp)
+		return x.source
+	croak "Not a RegExp"
+	return ''
+# --- TypeScript bug
+
+# ---------------------------------------------------------------------------
+
 export isHash := (x: unknown): x is hash =>
 
 	return (jsType(x) == 'hash')
@@ -408,6 +188,14 @@ export isSymbol := (x: unknown): x is symbol =>
 
 # ---------------------------------------------------------------------------
 
+export symbolName := (x: unknown): string =>
+
+	if (typeof x == 'symbol')
+		return x.description || ''
+	throw new Error("Not a symbol: #{x}")
+
+# ---------------------------------------------------------------------------
+
 export isObject := (x: unknown): x is object =>
 
 	return (typeof x == 'object') && (x != null)
@@ -420,20 +208,225 @@ export isFunction := (item: unknown): item is Function =>
 
 # ---------------------------------------------------------------------------
 
-asStringIs := (x: unknown, str: string): boolean =>
+export functionName := (x: Function): string =>
 
-	return (Object.prototype.toString.call(x) == str)
+	return x.name || '<anonymous>'
 
 # ---------------------------------------------------------------------------
 
-export isArrayOfIntegers := (x: unknown): x is TIntArray =>
+export functionDef := (x: Function): string =>
 
-	if not Array.isArray(x)
+	return normalizeExpr x.toString()
+
+# ---------------------------------------------------------------------------
+
+export isClass := (x: unknown): boolean =>
+
+	return (typeof x == 'function') && x.toString().startsWith('class ')
+
+# ---------------------------------------------------------------------------
+
+export className := (x: unknown): string =>
+
+	# --- item can be a class or an object
+	if (typeof x == 'function') && x.toString().startsWith('class')
+		return x.name || '<unknown>'
+
+	if (typeof x == 'object') && (x != null)
+		return x.constructor.name || '<none>'
+
+	croak "Not a class"
+	return ''    # --- TypeScript bug
+
+# ---------------------------------------------------------------------------
+
+export classDef := (x: unknown): string =>
+
+	if (typeof x == 'function') && x.toString().startsWith('class')
+		return normalizeCode x.toString()
+	croak "Not a class"
+	return ''     # --- TypeScript bug
+
+# ---------------------------------------------------------------------------
+# --- NOTE: An '&' preceding a key name indicates
+#           that it should be a function
+
+export isClassInstance := (
+		x: unknown,
+		lReqKeys: string[] = []
+		): boolean =>
+
+	if (typeof x != 'object') || isArray(x) || isPromise(x)
 		return false
-	for item of x
-		if not isInteger(item)
-			return false
+	if notdefined(x?.constructor?.name)
+		return false
+	if isHash(x) && (x != null)
+		for reqKey of lReqKeys
+			lMatches := reqKey.match /^(\&)(.*)$/
+			assert defined(lMatches)
+			[_, type, key] := lMatches
+			if (key in x)
+				item: unknown := x[key]
+				if nonEmpty(item)
+					if (type == '&') && (typeof item != 'function')
+						return false
+				else
+					return false
+			else
+				return false
 	return true
+
+# ---------------------------------------------------------------------------
+
+export type char = string
+export type integer = number
+export type nonEmptyString = string
+export type regexp = RegExp
+export type TIntArray = integer[]
+
+export type TVoidFunc = () => void
+export type TVoidIterator<T=unknown> = () => TIterator<T>
+export type TUnaryFunc<TIn, TOut> = (item: TIn) => TOut
+export type TFilterFunc = (item: unknown) => boolean
+export type TStringifier = (item: unknown) => string
+export type TStringMapper = (str: string) => string
+
+# ---------------------------------------------------------------------------
+
+export isNonEmptyString := (x: unknown): x is nonEmptyString =>
+
+	# --- must contain non-whitespace character
+	return isString(x) && defined(x.match /\S/)
+
+# ---------------------------------------------------------------------------
+
+export lPrimTypes := [
+	'undefined'
+	'boolean'
+	'string'
+	'symbol'
+	'bigint'
+	'number'
+	'function'
+	]
+
+export isPrimitive := (x: unknown): boolean =>
+
+	return (
+		   (x == null)
+		|| lPrimTypes.includes(typeof x)
+		|| (x instanceof RegExp)
+		)
+
+# ---------------------------------------------------------------------------
+
+export isNonPrimitive := (x: unknown): boolean =>
+
+	return not isPrimitive(x)
+
+# ---------------------------------------------------------------------------
+
+export isEmpty := (x: unknown): boolean =>
+
+	if (x == undef) || (x == null)
+		return true
+	if isString(x)
+		return (x.match(/^\s*$/) != null)
+	if isArray(x)
+		return (x.length == 0)
+	if (x instanceof Set) || (x instanceof Map)
+		return (x.size == 0)
+	if (typeof x == 'object')
+		return (Object.keys(x).length == 0)
+	else
+		return false
+
+# ---------------------------------------------------------------------------
+
+export nonEmpty := (x: unknown): boolean =>
+
+	return not isEmpty(x)
+
+# ---------------------------------------------------------------------------
+
+# --- Functions to normalize JavaScript code & expressions
+#     Only used internally in functionDef() and classDef()
+
+# ---------------------------------------------------------------------------
+
+uniqInt := (start: number = 1): Generator<number> ->
+	for i of [start..1000000]
+		yield i
+
+addFunctionNames := (code: string): string =>
+	# --- The names we add will look like: '__dummy99' where
+	#     '99' can be any sequence of digits
+	#     to make it trivial to remove them later
+
+	gen := uniqInt()     # create an iterator
+
+	# --- Args to replacer function are:
+	#    function replacer(match, p1, p2, /* …, */ pN, offset, string, groups) {
+	#       return replacement;
+	#	     }
+
+	replaceFunc := (match: string, aster: string?) =>
+		return "function#{aster} __dummy#{gen.next().value}("
+	return code.replaceAll /function\s*(\*)?\s*\(/g, replaceFunc
+
+# ---------------------------------------------------------------------------
+
+removeFunctionNames := (code: string): string =>
+
+	return code.replaceAll /__dummy\d+/g, ''
+
+# ---------------------------------------------------------------------------
+
+normalizeCode := (code: string): string =>
+
+	# --- Due to a bug in JavaScript, we have to make sure
+	#     that all function names (even in generators)
+	#     have a name, which we must remove after minimization
+	newCode := addFunctionNames code
+
+	# --- Remove extra whitespace
+	#     Remove extra parens from '(str)=>return'
+	#     Remove comments
+
+	hOptions := {
+		annotations: false
+		mangle: false
+		compress: undefined
+		keep_fargs: true
+		keep_fnames: true
+		warnings: true
+		}
+
+	hResult := minify newCode, hOptions
+	if hResult.error
+		throw new Error(hResult.error.message)
+	else if hResult.code
+		return removeFunctionNames hResult.code
+	else
+		throw new Error("Unknown error in normalizeCode()")
+
+# ---------------------------------------------------------------------------
+
+normalizeExpr := (code: string): string =>
+
+	str := normalizeCode code
+	len := str.length
+	if str[len - 1] == ';'
+		return str.substring 0, len - 1
+	else
+		return str
+
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
+asStringIs := (x: unknown, str: string): boolean =>
+
+	return (Object.prototype.toString.call(x) == str)
 
 # ---------------------------------------------------------------------------
 
@@ -448,9 +441,14 @@ export isArrayOfStrings := (x: unknown): x is string[] =>
 
 # ---------------------------------------------------------------------------
 
-export isClass := (x: unknown): boolean =>
+export isArrayOfIntegers := (x: unknown): x is TIntArray =>
 
-	return (typeof x == 'function') && x.toString().startsWith('class ')
+	if not Array.isArray(x)
+		return false
+	for item of x
+		if not isInteger(item)
+			return false
+	return true
 
 # ---------------------------------------------------------------------------
 
@@ -462,37 +460,6 @@ export isPromise := <T>(x: unknown): x is Promise<T> =>
 		&& ('then' in x)
 		&& (typeof x.then == 'function')
 		)
-
-# ---------------------------------------------------------------------------
-
-export type TMatchResult = (RegExpMatchArray | null)?
-
-# --- NOTE: An '&' preceding a key name indicates
-#           that it should be a function
-export isClassInstance := (
-		x: unknown,
-		lReqKeys: string[] = []
-		): boolean =>
-
-	if (typeof x != 'object') || isArray(x) || isPromise(x)
-		return false
-	if notdefined(x?.constructor?.name)
-		return false
-	if isHash(x) && (x != null)
-		for reqKey of lReqKeys
-			lMatches: TMatchResult := reqKey.match /^(\&)(.*)$/
-			assertIsDefined lMatches
-			[_, type, key] := lMatches
-			if (key in x)
-				item: unknown := x[key]
-				if nonEmpty(item)
-					if (type == '&') && (typeof item != 'function')
-						return false
-				else
-					return false
-			else
-				return false
-	return true
 
 # ---------------------------------------------------------------------------
 
@@ -511,8 +478,8 @@ export isAsyncGenerator := (x: unknown): x is GeneratorFunction =>
 export isIterator := <T>(x: unknown): x is IterableIterator<T> =>
 
 	if (
-			   notdefined(x)
-			|| (typeof x != 'object')
+			   (typeof x != 'object')
+			|| (x == null)
 			|| ('next' not in x)
 			|| (typeof x.next != 'function')
 			|| (Symbol.iterator not in x)
@@ -526,8 +493,8 @@ export isIterator := <T>(x: unknown): x is IterableIterator<T> =>
 export isAsyncIterator := <T>(x: unknown): x is AsyncIterableIterator<T> =>
 
 	if (
-			   notdefined(x)
-			|| (typeof x != 'object')
+ 			   (typeof x != 'object')
+ 			|| (x == null)
 			|| ('next' not in x)
 			|| (typeof x.next != 'function')
 			|| (Symbol.asyncIterator not in x)
@@ -535,46 +502,6 @@ export isAsyncIterator := <T>(x: unknown): x is AsyncIterableIterator<T> =>
 		return false
 	iter := x[Symbol.asyncIterator]
 	return (typeof iter == 'function') && (iter.call(x) == x)
-
-# ---------------------------------------------------------------------------
-
-GenFunc := (function* () {}).constructor
-AsyncGenFunc := (async function* () {}).constructor
-
-export jsType := (x: unknown): string =>
-
-	switch typeof x
-		when 'undefined'
-			return 'undef'
-		when 'boolean', 'string', 'symbol', 'bigint'
-			return typeof x
-		when 'number'
-			if Number.isFinite(x)
-				return Number.isInteger(x) ? 'integer' : 'float'
-			else
-				return (
-					  Number.isNaN(x)  ? 'NaN'
-					: (x == -Infinity) ? 'neginf'
-					:                    'inf'
-					)
-		when 'object'
-			return (
-				  (x == null)           ? 'null'
-				: (x instanceof RegExp) ? 'regexp'
-				: (x instanceof Set)    ? 'set'
-				: (x instanceof Map)    ? 'map'
-				: Array.isArray(x)      ? 'array'
-				: isIterator(x)         ? 'iterator'
-				: isAsyncIterator(x)    ? 'asyncIterator'
-				:                         'hash'
-				)
-		when 'function'
-			return (
-				  x.toString().startsWith('class ') ? 'class'
-				: (x instanceof GenFunc)            ? 'generator'
-				: (x instanceof AsyncGenFunc)       ? 'asyncGenerator'
-				:                                     'plainFunction'
-				)
 
 # ---------------------------------------------------------------------------
 
@@ -586,4 +513,3 @@ export getErrStr := (err: unknown): string =>
 		return err.message
 	else
 		return "Serious Error"
-

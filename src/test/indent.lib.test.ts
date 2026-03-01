@@ -10,7 +10,7 @@ import {
 	} from 'llutils'
 import {
 	oneIndent, resetOneIndent, indentLevel, splitLine,
-	indented, undented, Blockify,
+	indented, undented, blockify, Blockify,
 	} from 'indent'
 import {
 	equal, truthy, falsy, like, succeeds, fails,
@@ -276,6 +276,24 @@ ${spaces(9)}def
 ${spaces(12)}ghi`), `abc
 ${spaces(3)}def
 ${spaces(6)}ghi`)
+
+// ---------------------------------------------------------------------------
+
+DBG("blockify(lStrings, hOptions)");
+
+(() => {
+	const lWords = ['abc','def','ghi','jkl']
+	equal(blockify(lWords, {width: 10}), `abc def
+ghi jkl`)
+	equal(blockify(lWords, {width: 5}), `abc
+def
+ghi
+jkl`)
+	equal(blockify(lWords, {width: 12}), `abc def ghi
+jkl`)
+	equal(blockify(lWords, {width: 64}), `abc def ghi jkl`)
+}
+	)()
 
 // ---------------------------------------------------------------------------
 

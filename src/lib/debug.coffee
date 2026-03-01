@@ -1,4 +1,4 @@
-# debug.coffee
+# debug.lib.civet
 
 import {
 	pass, undef, defined, notdefined, OL, OLS,

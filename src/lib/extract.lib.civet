@@ -1,9 +1,8 @@
 # extract.lib.civet
 
 import {
-	undef, defined, notdefined, isString, isArray,
+	undef, defined, notdefined, isString, isArray, isNumber,
 	isEmpty, nonEmpty, integer, assert,
-	assertIsString, assertIsNumber, assertIsArray,
 	} from 'datatypes'
 import {o, sep} from 'llutils'
 import {toNice} from 'to-nice'
@@ -56,7 +55,7 @@ export getString := (
 		): string =>
 
 	val := extract x, dspath
-	assertIsString val
+	assert isString(val)
 	if value
 		assert (val == value), "Expected #{value}, got #{val}"
 	return val
@@ -70,7 +69,7 @@ export getNumber := (
 		): number =>
 
 	val := extract x, dspath
-	assertIsNumber val
+	assert isNumber(val)
 	if value
 		assert (val == value), "Expected #{value}, got #{val}"
 	return val
@@ -85,7 +84,7 @@ export getArray := (
 
 	assert defined(x), "getArray(): x not defined"
 	val := extract x, dspath
-	assertIsArray val
+	assert isArray(val)
 	if len
 		assert (val.length == len), "Expected #{len} len array, got #{val}"
 	return val

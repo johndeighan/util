@@ -16,8 +16,8 @@ import {
 	assert, croak, isFunction, functionDef, isClass, classDef,
 	} from 'datatypes'
 import {
-	truncStr, getOptions, spaces, o, words, hasKey,
-	CStringSetMap, keys, blockify, sep,
+	getOptions, spaces, o, words, hasKey,
+	CStringSetMap, keys, sep,
 	} from 'llutils'
 import {f} from 'f-strings'
 import {

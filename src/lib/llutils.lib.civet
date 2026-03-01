@@ -9,10 +9,10 @@ import {parse: parseYAML} from "@std/yaml"
 
 import {
 	undef, defined, notdefined, assert, char, deepEqual,
-	assertIsDefined, isHash, isArray, isNonEmptyString,
+	isHash, isArray, isNonEmptyString,
 	isArrayOfStrings, isEmpty, nonEmpty, isString, isInteger,
 	integer, hash, hashof, array, arrayof, TVoidFunc, isNonPrimitive,
-	functionDef, croak, assertIsString, assertIsNumber,
+	functionDef, croak,
 	TStringMapper,
 	} from 'datatypes'
 import {f, colorize} from 'f-strings'
@@ -141,37 +141,7 @@ export t := (lStrings: TemplateStringsArray): string =>
 
 # ---------------------------------------------------------------------------
 
-export type THashEntry = [key: string, val: unknown]
-
-export type TEntryFilter = (
-		entry: THashEntry
-		) => boolean
-
-export filterHash := (h: Object, func: TEntryFilter): hash =>
-
-	return Object.fromEntries(
-		Object.entries(h).filter(func)
-		)
-
-# ---------------------------------------------------------------------------
-
-export removeEmptyKeys := (h: hash): hash =>
-
-	func := (entry: THashEntry) =>
-		[key, val] := entry
-		return defined(val)
-	return filterHash(h, func)
-
-# ---------------------------------------------------------------------------
-
 export keys = Object.keys
-export hasOwn := Object.hasOwn
-
-# ---------------------------------------------------------------------------
-
-export numKeys := (h: hash): number =>
-
-	return keys(h).length
 
 # ---------------------------------------------------------------------------
 
@@ -187,31 +157,6 @@ export hasKey := (obj: unknown, ...lKeys: string[]) =>
 export hasKeys := hasKey
 
 # ---------------------------------------------------------------------------
-
-export missingKeys := (h: hash, ...lKeys: string[]): string[] =>
-
-	if notdefined(h)
-		return lKeys
-	assert isHash(h), "h not a hash: #{h}"
-	lMissing: string[] := []
-	for key of lKeys
-		if not h.hasOwnProperty(key)
-			lMissing.push key
-	return lMissing
-
-# ---------------------------------------------------------------------------
-
-export merge := (...lObjects: hash[]): hash =>
-
-	return Object.assign {}, ...lObjects
-
-# ---------------------------------------------------------------------------
-
-export hit := (pct: number = 50): boolean =>
-
-	return (100 * Math.random() < pct)
-
-# ---------------------------------------------------------------------------
 # --- ASYNC !
 
 export sleep := async (sec: number): void =>
@@ -225,7 +170,7 @@ export sleepSync := (sec: number): void =>
 
 	start := Date.now()
 	end := Date.now() + 1000 * sec
-	while Date.now() < end
+	while (Date.now() < end)
 	return
 
 # ---------------------------------------------------------------------------
@@ -261,20 +206,11 @@ export countChars := (str: string, ch: string): number =>
 # ---------------------------------------------------------------------------
 
 export blockToArray := (block: string): string[] =>
+
 	if isEmpty(block)
 		return []
 	else
 		return block.split /\r?\n/
-
-# ---------------------------------------------------------------------------
-
-export mapEachLine := (block: string, strMapper: TStringMapper) =>
-
-	results := []
-	for line of allLinesInBlock(block)
-		results.push strMapper(line)
-	lLines := results
-	return lLines.join '\n'
 
 # ---------------------------------------------------------------------------
 
@@ -309,25 +245,10 @@ export toBlock := (strOrArray: TBlockSpec): string =>
 
 # ---------------------------------------------------------------------------
 
-export invertHash := (h: hash): hash =>
-
-	assert isHash(h), "Not a hash: #{h}"
-	hResult: hash := {}
-	for key of keys(h)
-		value := h[key]
-		if isString(value)
-			hResult[value] = key
-	return hResult
-
-# ---------------------------------------------------------------------------
-
-export wsSplit := (str: string): string[] =>
+wsSplit := (str: string): string[] =>
 
 	newstr := str.trim()
-	if newstr == ''
-		return []
-	else
-		return newstr.split /\s+/
+	return (newstr == '') ? [] : newstr.split(/\s+/)
 
 # ---------------------------------------------------------------------------
 
@@ -341,7 +262,7 @@ export words := (...lStrings: string[]): string[] =>
 
 # ---------------------------------------------------------------------------
 
-export getNExtra := (str: string, len: number): number =>
+getNExtra := (str: string, len: number): number =>
 
 	extra := len - str.length
 	return if (extra > 0) then extra else 0
@@ -397,7 +318,7 @@ export allMatches := (
 		): Generator<string[], void, void> ->
 
 	# --- Ensure the regex has the global flag (g) set
-	newre := new RegExp(re, re.flags + (if re.flags.includes('g') then '' else 'g'))
+	newre := new RegExp(re, re.flags + (re.flags.includes('g') ? '' : 'g'))
 	let lMatches: string[] | null = null
 	while defined(lMatches = newre.exec(str))
 		yield lMatches
@@ -410,66 +331,6 @@ export range := (n: number): Generator<number, void, void> ->
 	for i of [0...n]
 		yield i
 	return
-
-# ---------------------------------------------------------------------------
-
-export assertSameStr := (str1: string, str2: string): void =>
-
-	if str1 != str2
-		console.log sep '-', "Strings Differ:"
-		console.log sep '-', "string 1"
-		console.log str1
-		console.log sep '-', "string 2"
-		console.log str2
-		console.log '-'.repeat 64
-	assert (str1 == str2), "strings differ"
-	return
-
-# ---------------------------------------------------------------------------
-
-export interpolate := (
-
-		str: string,
-		hReplace: hashof<string> # --- { <tag>: <replacement>, ... }
-		): string =>
-
-	for key of keys(hReplace)
-		assert (key[0] == '$'), "all keys must start with '$'"
-	re := /\$(?:[A-Za-z][A-Za-z0-9]*)/g
-	return str.replaceAll re, (match: string) =>
-		return hReplace[match] || match
-
-# ---------------------------------------------------------------------------
-# --- generate random labels
-
-labelGen := (): Generator<string, void, void> ->
-
-	for i of [65..90]
-		ch := String.fromCharCode i
-		yield ch
-	for i of [65..90]
-		ch := String.fromCharCode i
-		for j of [65..90]
-			ch2 := String.fromCharCode j
-			yield ch + ch2
-	for i of [65..90]
-		ch := String.fromCharCode i
-		for j of [65..90]
-			ch2 := String.fromCharCode j
-			for k of [65..90]
-				ch3 := String.fromCharCode k
-				yield ch + ch2 + ch3
-	return
-
-# ---------------------------------------------------------------------------
-# --- Create an iterator from the generator
-
-labels := labelGen()
-
-export randomLabel := (): string =>
-
-	label := labels.next()
-	return label.done ? 'ERR!' : label.value
 
 # ---------------------------------------------------------------------------
 
@@ -508,37 +369,6 @@ export heightOf := (block: string): number =>
 
 # ---------------------------------------------------------------------------
 
-export blockify := (lStrings: string[], hOptions: hash = {}): string =>
-
-	type opt = {
-		sep: string
-		endsep: string
-		width: number
-		}
-	{sep, endsep, width} := getOptions<opt> hOptions, {
-		sep: ' '
-		endsep: ''
-		width: 64
-		}
-
-	lLines: string[] := []
-	lWords: string[] := []
-	let lineLen = endsep.length
-	for str of lStrings
-		# --- If adding the string makes the line too long,
-		#     output the line and clear the array of words
-		if lineLen + str.length + sep.length > width
-			lLines.push lWords.join sep
-			lWords.length = 0
-			lineLen = 0
-		lWords.push str
-		lineLen += str.length + sep.length
-	if lWords.length > 0
-		lLines.push lWords.join sep
-	return lLines.join '\n'
-
-# ---------------------------------------------------------------------------
-
 export getOptions := <T extends hash>(hOptions: hash = {}, hDefaults: T): T =>
 
 	return { ...hDefaults, ...hOptions }
@@ -559,14 +389,20 @@ export sep := (
 
 # ---------------------------------------------------------------------------
 
-export tabify := (str: string, nSpaces: number = 3): string =>
+export tabify := (
+		str: string,
+		nSpaces: number = 3
+		): string =>
 
 	return str.replaceAll /^(\x20+)/, (match, spaces) =>
 		return '\t'.repeat Math.floor spaces.length / nSpaces
 
 # ---------------------------------------------------------------------------
 
-export untabify := (str: string, replacement: string = '   '): string =>
+export untabify := (
+		str: string,
+		replacement: string = '   '
+		): string =>
 
 	return str.replaceAll '\t', replacement
 
@@ -624,21 +460,6 @@ export centered := (
 			left + buf + colorize(label, color) + buf + right
 		)
 	return text
-
-# ---------------------------------------------------------------------------
-
-export type TPredicate<T> = (item: T) => boolean
-
-export splitArray := <T>(lItems: T[], predicate: TPredicate<T>): [T[], T[]] =>
-
-	lTrue: T[] := []
-	lFalse: T[] := []
-	for item of lItems
-		if predicate(item)
-			lTrue.push item
-		else
-			lFalse.push item
-	return [lTrue, lFalse]
 
 # ---------------------------------------------------------------------------
 

@@ -1,8 +1,9 @@
 "use strict";
 // buildlib.cmd.civet
 
-import {assert, defined, getErrStr} from 'datatypes'
+import {assert, defined, notdefined} from 'datatypes'
 import {stdChecks, o, centered} from 'llutils'
+import {MAP} from 'map'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {LOG, ERR} from 'logger'
 import {withExt, findFile, relpath} from 'fsys'
@@ -53,8 +54,9 @@ try {
 					const tsPath = withExt(testPath, '.ts')
 					LOG(centered(`RUN TEST ${relpath(tsPath)}`, hStyle))
 					const hResult = await procOneFile(tsPath, doUnitTest, {
-						capture: false,
-						inspect: inspectTest
+						capture: true,
+						inspect: inspectTest,
+						dumpOutput: true
 						})
 				}
 				else {
@@ -65,6 +67,5 @@ try {
 	}
 }
 catch (err) {
-	ERR(getErrStr(err))
+	ERR(err)
 }
-

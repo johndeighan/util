@@ -6,7 +6,7 @@ import {existsSync} from '@std/fs'
 import {uni, esc} from 'unicode'
 import {f} from 'f-strings'
 import {
-	undef, defined, notdefined, assertIsDefined,
+	undef, defined, notdefined,
 	assert, croak, hash, isEmpty, nonEmpty, getErrStr,
 	} from 'datatypes'
 import {
@@ -19,7 +19,7 @@ import {debugging} from 'cmd-args'
 import {ML} from 'to-nice'
 import {fileExt, withExt, isValidStub, pathStr} from 'fsys'
 import {
-	execCmd, CFileHandler, THandlerResult,
+	execCmd, CFileHandler, TExecResult,
 	} from 'exec'
 
 # ---------------------------------------------------------------------------
@@ -32,7 +32,7 @@ export class CHeraCompiler extends CFileHandler
 	override handle(
 			path: string,
 			hOptions: hash = {}
-			): THandlerResult
+			): TExecResult
 
 		assert (fileExt(path) == '.hera'), "Not a hera file"
 		destPath := withExt path, '.ts'

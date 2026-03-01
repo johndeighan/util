@@ -1,7 +1,7 @@
 "use strict";
 // parsestr.cmd.civet
 
-import {croak, assertIsDefined} from 'datatypes'
+import {croak, defined, assert} from 'datatypes'
 import {findFile} from 'fsys'
 import {allNonOptions} from 'cmd-args'
 
@@ -29,7 +29,7 @@ const path = findFile(fileName)
 
 // console.log "path = #{path}"
 
-assertIsDefined(path, `No such file: ${fileName}`)
+assert(defined(path), `No such file: ${fileName}`)
 const {parser} = await import(`file:///${path}`)
 
 // console.log "parser found"

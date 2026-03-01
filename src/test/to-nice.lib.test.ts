@@ -1,8 +1,8 @@
 "use strict";
 // to-nice.lib.test.civet
 
-import {undef, isPrimitive} from 'datatypes'
-import {o, s} from 'llutils'
+import {undef} from 'datatypes'
+import {s} from 'llutils'
 import {uni} from 'unicode'
 import {DBG} from 'logger'
 import {

@@ -3,7 +3,6 @@
 import {
 	undef, defined, notdefined, assert, croak, hash,
 	} from 'datatypes'
-import {hasKey} from 'llutils'
 import {LOG} from 'logger'
 
 # ---------------------------------------------------------------------------

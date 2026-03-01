@@ -8,11 +8,45 @@ import {
 	} from 'datatypes'
 import {
 	rtrim, countChars, getOptions, blockToArray, arrayToBlock,
-	toArray, toBlock, widthOf, heightOf, blockify, keys,
+	toArray, toBlock, widthOf, heightOf, keys,
 	} from 'llutils'
 import {OL} from 'to-nice'
 
 export let oneIndent: string? = undef
+
+# ---------------------------------------------------------------------------
+
+export blockify := (
+		lStrings: string[],
+		hOptions: hash = {}
+		): string =>
+
+	type opt = {
+		sep: string
+		endsep: string
+		width: number
+		}
+	{sep, endsep, width} := getOptions<opt> hOptions, {
+		sep: ' '
+		endsep: ''
+		width: 64
+		}
+
+	lLines: string[] := []
+	lWords: string[] := []
+	let lineLen = endsep.length
+	for str of lStrings
+		# --- If adding the string makes the line too long,
+		#     output the line and clear the array of words
+		if lineLen + str.length + sep.length > width
+			lLines.push lWords.join sep
+			lWords.length = 0
+			lineLen = 0
+		lWords.push str
+		lineLen += str.length + sep.length
+	if lWords.length > 0
+		lLines.push lWords.join sep
+	return lLines.join '\n'
 
 # ---------------------------------------------------------------------------
 

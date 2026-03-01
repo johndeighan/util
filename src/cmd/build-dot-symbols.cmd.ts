@@ -3,7 +3,7 @@
 
 import {stdChecks} from 'llutils'
 import {undef, assert, hash, isEmpty, nonEmpty} from 'datatypes'
-import {getOptions, CStringSetMap, keys} from 'llutils'
+import {getOptions, keys} from 'llutils'
 import {OL} from 'to-nice'
 import {LOG, DBG, LOGVALUE, DBGVALUE} from 'logger'
 import {barf, allFilesMatching, relpath} from 'fsys'

@@ -1,60 +1,62 @@
 "use strict";
 // utest.cmd.civet
 
-import {writeln} from 'console-utils'
-import {undef, defined, assert, croak, getErrStr} from 'datatypes'
-import {findFile, parsePath, withExt, isFile} from 'fsys'
-import {DUMP} from 'to-nice'
 import {
-	procOneFile, doRun,
-	} from 'exec'
-import {splitArray, sep, stdChecks} from 'llutils'
-import {flag, argValue, allNonOptions} from 'cmd-args'
-import {LOG, DBG} from 'logger'
-import {doCompileCivet} from 'civet'
+	undef, defined, notdefined, assert, croak, isString,
+	} from 'datatypes'
+import {stdChecks, centered} from 'llutils'
+import {getFlags, nonOption, allNonOptions, argValue} from 'cmd-args'
+import {LOG, DBG, ERR} from 'logger'
+import {isFile, withExt, findFile} from 'fsys'
+import {execCmd, procFiles, procOneFile, doUnitTest} from 'exec'
+import {compileAllLibs, doCompileCivet} from 'civet'
 
-stdChecks(`runtemp [-d] [-name=<temp_stub> { <lib_stub> }
-	- if lib  <lib_stub>.lib.civet   exists, compile it
-	- if file <temp_stub>.temp.civet  exists, compile and run it
-	- default <temp_stub>, if none provided, is 'temp'`)
+stdChecks(`utest [-I] [-line=<n>] {<stub>}
+	- run unit test with give stub
+	-I = run with chrome debugger
+	-line=<n>  - run just this one test`)
 
 // ---------------------------------------------------------------------------
 // --- Compile any libraries
 
-for (const libStub of allNonOptions()) {
-	const libPath = findFile(`${libStub}.lib.civet`)
-	if (defined(libPath)) {
-		await procOneFile(libPath, doCompileCivet)
-	}
-	else {
-		LOG(`No such file: ${libStub}.lib.civet`)
-	}
-}
+await compileAllLibs({abortOnError: true})
 
-// --- Compile temp file
-const stub = argValue('name') || 'temp'
-const path = findFile(`${stub}.civet`, {root: './src/temp'})
-if (defined(path)) {
-	await procOneFile(path, doCompileCivet)
-}
-else {
-	LOG(`No such file: ${stub}.civet}`)
-	Deno.exit(99)
-}
-
-// --- Run the temp file
+const hStyle  = {char: '=', color: 'cyan'}
 try {
-	const tsPath = withExt(path, '.ts')
-	assert(isFile(tsPath), `No such file: ${tsPath}`)
-	const h = await procOneFile(tsPath, doRun)
-	if (defined(h.output)) {
-		DUMP(h.output, 'OUTPUT')
+	// --- echoes if flag is set
+	const {force, inspect} = getFlags({
+		force: 'f',
+		inspect: 'I'
+		})
+	const lineNum = argValue('line')
+
+	if (nonOption(0) === 'all') {
+		assert(notdefined(lineNum), "Can't use -line with 'all'")
+		LOG(centered("UNIT TEST ALL LIBS", hStyle))
+		await procFiles([doCompileCivet, ['**/*.lib.test.civet']], {force})
+		await procFiles([doUnitTest, ['**/*.lib.test.ts']], {
+			inspect,
+			capture: false
+			})
 	}
 	else {
-		LOG("No output!")
+		for (const stub of allNonOptions()) {
+			const fileName = `${stub}.lib.test.civet`
+			const path = findFile(fileName)
+			assert(isString(path), `No such file: ${fileName}`)
+			LOG(centered(`UNIT TEST LIB ${stub}.lib.civet`, hStyle))
+			await procOneFile(path, doCompileCivet, {force})
+			await procOneFile(withExt(path, '.ts'), doUnitTest, {
+				lineNum,
+				inspect,
+				capture: false
+				})
+		}
 	}
+	await execCmd('deno', ['coverage', '--html'], {capture: false})
 }
+
 catch (err) {
-	console.log("TEMP FILE ERRORS:")
-	console.log(getErrStr(err))
+	ERR(err)
 }
+

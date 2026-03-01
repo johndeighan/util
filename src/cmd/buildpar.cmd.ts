@@ -1,7 +1,7 @@
 "use strict";
 // buildpar.cmd.civet
 
-import {assert, defined, getErrStr} from 'datatypes'
+import {assert, defined} from 'datatypes'
 import {stdChecks, centered} from 'llutils'
 import {flag, nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {LOG, DBG, ERR} from 'logger'
@@ -62,7 +62,7 @@ try {
 	}
 }
 catch (err) {
-	ERR(getErrStr(err))
+	ERR(err)
 }
 
 

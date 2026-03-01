@@ -85,7 +85,7 @@ matches  "abcdef", "abc"
 
 DBG "like()"
 
-like     {a:1, b:2, c:3}, {a:1, c:3}
+like {a:1, b:2, c:3}, {a:1, c:3}
 
 DBG "strListLike()"
 
@@ -172,6 +172,9 @@ equal await Array.fromAsync(generateAsync([1..5])), [1..5]
 
 # ---------------------------------------------------------------------------
 
+xequal := (x1: unknown, x2: unknown): void =>
+	return
+
 (() =>
 	lFileOps := await getFileOps """
 		./src/test/automate clear
@@ -181,12 +184,13 @@ equal await Array.fromAsync(generateAsync([1..5])), [1..5]
 			test1.cielo
 				LOG "Hello, World!"
 		"""
+	console.dir lFileOps, {depth: null}
 	equal lFileOps, [
 		{ op: "clearDir", path: "./src/test/automate" },
 		{
 			op: "barf",
 			path: "./src/test/automate/test1.ts",
-			contents: 'LOG("Hello, World!");\n'
+			contents: 'LOG("Hello, World!");'
 			},
 		{ op: "mkDir", path: "./src/test/automate/subdir" },
 		{

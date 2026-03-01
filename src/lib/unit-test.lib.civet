@@ -10,22 +10,21 @@ import {esc, mesc} from 'unicode'
 import {
 	undef, defined, notdefined, isEmpty, nonEmpty,
 	array, arrayof, isArray, isHash, isString, hash, hashof,
-	deepEqual, hashLike, integer, THashCompareFunc,
-	THashLikeFunc, THashToStringFunc, TFilterFunc,
-	normalizeCode, isFunction, isClass, functionDef, classDef,
+	deepEqual, integer, TFilterFunc,
+	isFunction, isClass, functionDef, classDef,
 	TVoidFunc, TVoidIterator, getErrStr,
-	croak, assertIsDefined, isGenerator, isIterator,
+	croak, isGenerator, isIterator,
 	} from 'datatypes'
 import {
 	pass, o, keys, getOptions, spaces, blockToArray,
-	allLinesInBlock, truncStr, sleep,
+	truncStr, sleep,
 	} from 'llutils'
 import {splitLine, indented} from 'indent'
 import {OL, ML, DUMP} from 'to-nice'
 import {TextTable} from 'text-table'
 import {
 	pushLogLevel, popLogLevel,
-	DBG, LOG, LOGVALUE, DBGVALUE,
+	DBG, LOG, ERR, LOGVALUE, DBGVALUE,
 	INDENT, UNDENT,
 	} from 'logger'
 import {flag} from 'cmd-args'
@@ -58,17 +57,6 @@ getTestName := (): string =>
 		return "Unknown line"
 
 # ---------------------------------------------------------------------------
-
-procValue := (x: unknown): unknown =>
-
-	return (
-		  Array.isArray(x) ? x
-		: isGenerator(x)   ? Array.from(x())
-		: isIterator(x)    ? Array.from(x)
-		:                    x
-		)
-
-# ---------------------------------------------------------------------------
 #      In a unit test, checks if  value is deeply equal to
 #         the expected value.
 #      Reports line number of the test.
@@ -77,18 +65,17 @@ procValue := (x: unknown): unknown =>
 #      e.g.
 #      	equal 2+2, 4
 
-export equal := (value: unknown, expected: unknown): boolean =>
+export equal := (
+		value: unknown,
+		expected: unknown
+		testName: string? = undef
+		): void =>
 
-	name := getTestName()
-	newVal := procValue value
-	newExpect := procValue expected
-	DBG "equal ?, #{stringify(newExpect)} (#{name})"
-	Deno.test name, () => assertEquals newVal, newExpect
-	try
-		assertEquals newVal, newExpect
-		return true
-	catch err
-		return false
+	if notdefined(testName)
+		testName = getTestName()
+	DBG "equal ?, #{stringify(expected)} (#{testName})"
+	Deno.test testName, () => assertEquals(value, expected)
+	return
 
 # ---------------------------------------------------------------------------
 
@@ -144,10 +131,8 @@ export succeeds := (func: TVoidFunc): void =>
 		try
 			func()
 		catch err
-			errMsg := getErrStr err
-			console.log errMsg
-			fullErrMsg := "FAIL - func throws (#{errMsg})"
-			console.log fullErrMsg
+			fullErrMsg := "FAIL - func throws (#{getErrStr(err)})"
+			ERR fullErrMsg
 			throw new Error(fullErrMsg)
 	return
 
@@ -210,16 +195,6 @@ export like := (value: object?, expected: hash): void =>
 
 # ---------------------------------------------------------------------------
 
-export codeLike := (value: string, expected: string): void =>
-
-	name := getTestName()
-	DBG "codeLike ?, #{stringify(expected)} (#{name})"
-	Deno.test name, : void =>
-		assertEquals normalizeCode(value), normalizeCode(expected)
-	return
-
-# ---------------------------------------------------------------------------
-
 export strListLike := (
 		value: string[],
 		expected: string[]
@@ -242,6 +217,24 @@ export strListLike := (
 	return
 
 # ---------------------------------------------------------------------------
+
+export hashLike := (h: hash, hPat: hash): boolean =>
+
+	lHashKeys := Object.keys h
+	for key of Object.keys(hPat)
+		if lHashKeys.includes(key)
+			patVal := hPat[key]
+			if defined(patVal) && not deepEqual(h[key], patVal)
+				return false
+		else
+			return false
+	return true
+
+# ---------------------------------------------------------------------------
+
+export type THashCompareFunc = (h1: hash, h2: hash) => number
+export type THashLikeFunc = (h: hash, hPat: hash) => boolean
+export type THashToStringFunc = (h: hash) => string
 
 export objListLike := (
 		value: hash[],
@@ -318,17 +311,14 @@ export checkType := (
 		:                     JSON.stringify(value)
 		)
 	tsCode := getTsCode typeStr, valueStr
-	DUMP tsCode, 'tsCode'
 
 	# --- check if we need to import the type
 	importCode := getImportCode typeStr
-	DUMP importCode, 'importCode'
 
 	code := """
 		#{importCode}
 		#{tsCode}
 		"""
-	DUMP code, 'code'
 
 	errMsg := typeCheckTsCode code
 	if errMsg
@@ -353,7 +343,7 @@ export isType := (
 		try
 			checkType typeStr, value, true
 		catch err
-			console.log "TYPE ERROR: #{getErrStr(err)}"
+			ERR err, 'TYPE ERROR'
 			errMsg = getErrStr(err)
 		DBG UNDENT
 		Deno.test name, () => assert isEmpty(errMsg)
@@ -476,15 +466,27 @@ export fileOpsTable := (
 
 # ---------------------------------------------------------------------------
 # --- Create some values for testing
+#     There should be at least one for each jsType
 
-export sampleVal: hashof<unknown> := {
+class MyClass
+	fname: string
+	lname: string
+	constructor(@fname: string, @lname: string)
+	fullname()
+		return "#{@fname} #{@lname}"
+
+export sampleVal: hash := {
 	undef: undefined
 	null: null
 	emptyStr: ''
 	str: 'abc'
 	i: 42
 	f: 3.14159
+	inf: Infinity
+	neginf: -Infinity
+	NaN: Number.NaN
 	b: true
+	sym: Symbol('xxx')
 	genFunc: () ->
 		yield 42
 		return
@@ -492,14 +494,15 @@ export sampleVal: hashof<unknown> := {
 		await sleep(1)
 		yield 42
 		return
-	regularFunc: () ->
-		return 42
-	lambdaFunc: () =>
-		return 42
+	regularFunc:    (): number -> return 42
+	lambdaFunc:     (): number => return 42
+	falsePredicate: () => return false
+	truePredicate:  () => return true
 	emptyHash: {}
 	fullHash: {a: 42}
 	emptyList: []
 	fullList: [42]
+	MyClass
 	}
 
 # ---------------------------------------------------------------------------
