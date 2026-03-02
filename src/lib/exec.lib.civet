@@ -71,13 +71,12 @@ export type TStreamType = 'piped' | 'inherit'
 export type TExecResult =
 	success: boolean
 	notNeeded?: true
-	stdout?: string
-	stderr?: string
+	stdout: string     # always present, but may be ''
+	stderr: string     # always present, but may be ''
 	infile?: string
 	outfile?: string
 	debug?: string
 	path?: string
-	output?: string
 
 type TFileProcessor = (input: string) => string
 
@@ -89,24 +88,19 @@ export execCmdSync := (
 
 	type opt = {
 		capture: boolean
-		infile: string?
-		inProc: TFileProcessor
 		outfile: string?
 		outProc: TFileProcessor
 		}
 
-	{
-			capture, infile, inProc, outfile, outProc,
+	{capture, outfile, outProc,
 			} := getOptions<opt> hOptions, {
 		capture: true
-		infile: undef
-		inProc: (str) => return str
 		outfile: undef
 		outProc: (str) => return str
 		}
 
 	streamType: TStreamType := capture ? 'piped' : 'inherit'
-	if defined(infile) || defined(outfile)
+	if defined(outfile)
 		assert (streamType == 'piped'),
 			"When specifying infile or outfile, capture must be true"
 	DBGVALUE "EXEC SYNC", "#{OL(getCmdLine cmdName, lArgs)}"
@@ -114,29 +108,24 @@ export execCmdSync := (
 	try
 		cmd := new Deno.Command cmdName, {
 			args: lArgs
-			env: DEFAULT_LOGGER: curLogLevel()
+			env: {DEFAULT_LOGGER: curLogLevel()}
 			stdin: streamType
 			stdout: streamType
 			stderr: streamType
 			}
-		child := cmd.spawn()
-		if defined(infile)
-			text := inProc Deno.readTextFileSync(infile)
-			# --- Write the data to the stdin of the child process
-			child.stdin.writeSync(text)
 
 		{
 			success,
 			stdout: rawStdOut
 			stderr: rawStdErr
-			} := child.outputSync()
+			} := cmd.outputSync()
 		DBG UNDENT
 		if success && capture && defined(outfile)
 			Deno.writeTextFileSync outfile, decode(rawStdOut) + decode(rawStdErr)
 		return {
 			success
-			stdout: (capture && rawStdOut) ? outProc(decode(rawStdOut)) : undef
-			stderr: (capture && rawStdErr) ? outProc(decode(rawStdErr)) : undef
+			stdout: (capture && rawStdOut) ? outProc(decode(rawStdOut)) : ''
+			stderr: (capture && rawStdErr) ? outProc(decode(rawStdErr)) : ''
 			outfile
 			}
 	catch err
@@ -144,7 +133,7 @@ export execCmdSync := (
 			ERR err
 		return {
 			success: false
-			stdout: undef
+			stdout: ''
 			stderr: getErrStr(err)
 			}
 
@@ -165,8 +154,7 @@ export execCmd := (
 		outProc: TFileProcessor
 		}
 
-	{
-			capture, infile, inProc, outfile, outProc,
+	{capture, infile, inProc, outfile, outProc,
 			} := getOptions<opt> hOptions, {
 		capture: true
 		infile: undef
@@ -184,7 +172,7 @@ export execCmd := (
 	try
 		cmd := new Deno.Command cmdName, {
 			args: lArgs
-			env: DEFAULT_LOGGER: curLogLevel()
+			env: {DEFAULT_LOGGER: curLogLevel()}
 			stdin: streamType
 			stdout: streamType
 			stderr: streamType
@@ -204,11 +192,11 @@ export execCmd := (
 			} := await child.output()
 		DBG UNDENT
 		if success && capture && defined(outfile)
-			Deno.writeTextFileSync outfile, output
+			Deno.writeTextFileSync outfile, decode(rawStdOut) + decode(rawStdErr)
 		return {
 			success
-			stdout: (capture && rawStdOut) ? outProc(decode(rawStdOut)) : undef
-			stderr: (capture && rawStdErr) ? outProc(decode(rawStdErr)) : undef
+			stdout: (capture && rawStdOut) ? outProc(decode(rawStdOut)) : ''
+			stderr: (capture && rawStdErr) ? outProc(decode(rawStdErr)) : ''
 			outfile
 			}
 	catch err
@@ -216,7 +204,7 @@ export execCmd := (
 			ERR err
 		return {
 			success: false
-			stdout: undef
+			stdout: ''
 			stderr: getErrStr(err)
 			}
 
@@ -263,10 +251,16 @@ export abstract class CFileHandler
 
 	abstract get op(): string
 
+	# ..........................................................
+	# ASYNC
+
 	abstract handle(
 			path: string,
 			hOptions: hash
 			): Promise<TExecResult>
+
+	# ..........................................................
+	# SYNC
 
 	getOutput(hResult: TExecResult)
 
@@ -313,7 +307,6 @@ export procFiles := (
 	[lAllResults, [nNotNeeded, nOk, nErr]] := MAP lFulfilled, [0,0,0], (h, i, acc) ->
 		yield Object.assign(h, {
 			path: lPaths[i]
-			output: handler.getOutput(h)
 			})
 		[n1, n2, n3] := acc
 		if h.success
@@ -330,12 +323,12 @@ export procFiles := (
 		{path, success} := hResult
 		if success
 			if flag('v')
-				showOkResult op, path, hResult, hOptions
+				showOkResult handler, path, hResult, hOptions
 		else
-			showErrResult op, path, hResult, hOptions
+			showErrResult handler, path, hResult, hOptions
 
 	for reason,i of lRejected
-		showRejResult op, lRejPaths[i], getErrStr(reason), hOptions
+		showRejResult handler, lRejPaths[i], getErrStr(reason), hOptions
 
 	if not quiet || (nOk + nErr > 0)
 		showFinalResult op, nNotNeeded, nOk, nErr, nRej, lPatterns
@@ -392,7 +385,7 @@ export procOneFile := (
 		hOptions: hash = {}
 		): TExecResult =>
 
-	assert existsSync(path), "No such file: #{path}"
+	assert defined(path) && existsSync(path), "No such file: #{path}"
 	type opt = {
 		capture: boolean
 		dumpOutput: boolean
@@ -424,7 +417,6 @@ export procOneFile := (
 	try
 		hResult := await handler.handle path, hOptions
 		hResult.path = path
-		hResult.output = await handler.getOutput(hResult)
 		{success, notNeeded} := hResult
 
 		# --- If capture is false, output has already happened
@@ -432,10 +424,10 @@ export procOneFile := (
 			if success
 				writeln f"#{notNeeded ? ' - not needed' : ' - OK'}:{green}"
 				if dumpOutput
-					showOkResult op, path, hResult, hOptions
+					showOkResult handler, path, hResult, hOptions
 			else
 				writeln " #{colorize('FAILED', 'red')}"
-				showErrResult op, path, hResult, hOptions
+				showErrResult handler, path, hResult, hOptions
 				if abortOnError
 					Deno.exit 99
 		hResult.path = path
@@ -443,15 +435,20 @@ export procOneFile := (
 
 	catch err
 		if capture
-			showRejResult op, path, err, hOptions
+			showRejResult handler, path, err, hOptions
 		if abortOnError
 			Deno.exit 99
-		return {success: false, path}
+		return {
+			success: false,
+			path
+			stdout: ''
+			stderr: ''
+			}
 
 # ---------------------------------------------------------------------------
 
 showOkResult := (
-		op: string
+		handler: CFileHandler
 		path: string
 		hResult: TExecResult
 		hOptions: hash = {}
@@ -460,7 +457,8 @@ showOkResult := (
 	if hResult.notNeeded
 		LOG "NOT NEEDED"
 		return
-	{output} := hResult
+	{op} := handler
+	output := handler.getOutput(hResult)
 	if defined(output) && nonEmpty(output)
 		DUMP output, 'OUTPUT'
 	return
@@ -468,31 +466,22 @@ showOkResult := (
 # ---------------------------------------------------------------------------
 
 showErrResult := (
-		op: string
+		handler: CFileHandler
 		path: string
 		hResult: TExecResult
 		hOptions: hash = {}
 		): void =>
 
-	type opt = {
-		procOutput: TStringMapper?
-		}
-	{procOutput} := getOptions<opt> hOptions, {
-		procOutput: undef
-		}
-
-	{output} := hResult
-	if defined(output)
-		if defined(procOutput)
-			DUMP procOutput(output), 'OUTPUT'
-		else
-			DUMP output, 'OUTPUT'
+	{op} := handler
+	output := handler.getOutput(hResult)
+	if output
+		DUMP output, 'OUTPUT'
 	return
 
 # ---------------------------------------------------------------------------
 
 showRejResult := (
-		op: string
+		handler: CFileHandler
 		path: string
 		reason: unknown
 		hOptions: hash = {}
@@ -517,7 +506,12 @@ class CFileRemover extends CFileHandler
 
 		if existsSync(path)
 			await Deno.remove path
-		return {path, success: true}
+		return {
+			path,
+			success: true
+			stdout: ''
+			stderr: ''
+			}
 
 export doRemoveFile := new CFileRemover()
 
@@ -534,7 +528,12 @@ class CFileEchoer extends CFileHandler
 			): TExecResult
 
 		LOG await exists(path) ? "#{path}" : "#{path} - #{'does not exist'}:{red}"
-		return {path, success: true}
+		return {
+			path,
+			success: true
+			stdout: ''
+			stderr: ''
+			}
 
 export doEchoFile := new CFileEchoer()
 
@@ -554,9 +553,20 @@ class CTsFileRemover extends CFileHandler
 		civetPath := withExt path, '.civet'
 		if await exists(civetPath)
 			await Deno.remove path
-			return {path, success: true}
+			return {
+				path,
+				success: true
+				stdout: ''
+				stderr: ''
+				}
 		else
-			return {path, success: true, notNeeded: true}
+			return {
+				path
+				success: true
+				stdout: ''
+				stderr: ''
+				notNeeded: true
+				}
 
 export doRemoveTsFile := new CTsFileRemover()
 

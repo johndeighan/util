@@ -194,9 +194,11 @@ export mapSourcePos := (
 		): TStrictFilePos? =>
 
 	try
-		{source, line, col} := h
+		let {source, line, col} = h
 
 		assert source, "EMPTY source in mapSourcePos"
+		if source.includes('src/lib/src/lib/')
+			source = source.replace('src/lib/src/lib/', 'src/lib/')
 		assert existsSync(source), "No such source file: #{source}"
 
 		path := toFullPath(source)
@@ -206,7 +208,6 @@ export mapSourcePos := (
 		if notdefined(hSrcMap)
 			WARN "Not found in source map: #{path}"
 			return undef
-#		assert defined(hSrcMap), "Not found in source map: #{path}"
 		# @ts-ignore
 		{version, sources, mappings, names} := hSrcMap as RawSourceMap
 		assert (version == 3), "Bad version: #{version}"

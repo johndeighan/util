@@ -70,6 +70,8 @@ class CCivetCompiler extends CFileHandler
 				path
 				success: true
 				notNeeded: true
+				stdout: ''
+				stderr: ''
 				}
 
 		try
@@ -82,14 +84,14 @@ class CCivetCompiler extends CFileHandler
 				'-c', path
 				]
 			if not hResult.success
-				console.log hResult.output
+				console.log @getOutput(hResult)
 				croak "Compile failed"
 
 			unless nocheck
 				hCheckResult := await execCmd 'deno', ['check', tsPath]
 				if not hCheckResult.success
 					touch path
-					console.log hCheckResult.output
+					console.log @getOutput(hCheckResult)
 					croak "Type check failed"
 
 			tsCode := await slurpAsync tsPath
@@ -97,7 +99,12 @@ class CCivetCompiler extends CFileHandler
 			if defined(hSrcMap)
 				addJsonValue 'sourcemaps.json', normalizePath(tsPath), hSrcMap
 			await Deno.writeTextFile tsPath, code
-			return {path, success: true}
+			return {
+				path,
+				success: true
+				stdout: ''
+				stderr: ''
+				}
 
 		catch err
 			if debugging
@@ -106,8 +113,8 @@ class CCivetCompiler extends CFileHandler
 			return {
 				path
 				success: false
+				stdout: ''
 				stderr: errMsg
-				output: errMsg
 				}
 
 	# ..........................................................
@@ -137,6 +144,8 @@ class CCivetCompiler extends CFileHandler
 				path
 				success: true
 				notNeeded: true
+				stdout: ''
+				stderr: ''
 				}
 
 		try
@@ -149,13 +158,13 @@ class CCivetCompiler extends CFileHandler
 				'-c', path
 				]
 			if not hResult.success
-				console.log hResult.output
+				console.log @getOutput(hResult)
 				croak "Compile failed"
 
 			unless nocheck
 				hCheckResult := execCmdSync 'deno', ['check', tsPath]
 				if not hCheckResult.success
-					console.log hCheckResult.output
+					console.log @getOutput(hCheckResult)
 					croak "Type check failed"
 
 			tsCode := slurp tsPath
@@ -163,7 +172,12 @@ class CCivetCompiler extends CFileHandler
 			if defined(hSrcMap)
 				addJsonValue 'sourcemaps.json', normalizePath(tsPath), hSrcMap
 			Deno.writeTextFileSync tsPath, code
-			return {path, success: true}
+			return {
+				path
+				success: true
+				stdout: ''
+				stderr: ''
+				}
 
 		catch err
 			if debugging
@@ -172,8 +186,8 @@ class CCivetCompiler extends CFileHandler
 			return {
 				path
 				success: false
+				stdout: ''
 				stderr: errMsg
-				output: errMsg
 				}
 
 export doCompileCivet := new CCivetCompiler()
@@ -187,10 +201,11 @@ export civet2tsFile := (
 		): string =>
 
 	hResult: TExecResult := doCompileCivet.handleSync(civetPath, hOptions)
-	{success, output} := hResult
+	{success} := hResult
 	if success
 		return withExt(civetPath, '.ts')
 	else
+		output := hResult.stdout + '\n' + hResult.stderr
 		errMsg := "compile of #{civetPath} failed\n#{output}"
 		ERR errMsg
 		throw errMsg

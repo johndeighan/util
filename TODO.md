@@ -1,5 +1,7 @@
 to do
 
+last unit test in exec.lib.test.civet fails
+
 unit test for to-nice.lib fails
 
 continue work on call-stack.lib.civet

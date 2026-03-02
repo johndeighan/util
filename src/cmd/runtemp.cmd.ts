@@ -37,7 +37,7 @@ try {
 
 	// --- run or debug the temp file
 	assert(defined(path))
-	await procOneFile(path, doCompileCivet)
+	await procOneFile(path, doCompileCivet, {inspect})
 
 	// --- Run the temp file
 	const tsPath = withExt(path, '.ts')
