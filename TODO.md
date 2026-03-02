@@ -1,8 +1,16 @@
 to do
 
-last unit test in exec.lib.test.civet fails
+dir-tree unit tests fail
+also, they don't even run with 'utest dir-tree'
 
-unit test for to-nice.lib fails
+using 'utest symbols', results are not summarized, coverage is printed
+
+'buildlib -t v8-stack' - some unit tests fail
+
+'buildlib -t unit-test' - says running 40 unit tests,
+	but none pass, none fail ???
+
+write function unify() and unit test unifies()
 
 continue work on call-stack.lib.civet
 	- currently a problem with returnFrom()

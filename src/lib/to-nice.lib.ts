@@ -279,18 +279,20 @@ export const hash2nice = (
 	const lParts = MAP(iterKeys, function*(key: string): Generator<string> {
 		const val = getter(key)
 		if (!ignoreEmptyKeys || nonEmpty(val)) {
-			if (['array','hash','set','map'].includes(typeof val)) {
-				const str = toNice(val, hOptions, mapVisited, [...lPath, key])
-				if (compact || isEmpty(val) || str.startsWith('｟')) {
+			switch(jsType(val)) {
+				case 'array':case 'hash':case 'set':case 'map': {
+					const str = toNice(val, hOptions, mapVisited, [...lPath, key])
+					if (compact || isEmpty(val) || str.startsWith('｟')) {
+						yield `${key}${mark} ${str}`
+					}
+					else {
+						yield `${key}${mark}\n` + indented(str, 1, {oneIndent})
+					};break;
+				}
+				default: {
+					const str = displayStr(key, val, x, displayFunc, descFunc)
 					yield `${key}${mark} ${str}`
 				}
-				else {
-					yield `${key}${mark}\n` + indented(str, 1, {oneIndent})
-				}
-			}
-			else {
-				const str = displayStr(key, val, x, displayFunc, descFunc)
-				yield `${key}${mark} ${str}`
 			}
 		}
 	})
@@ -448,7 +450,8 @@ export const displayStr = (
 		descFunc: (TMapFunc | undefined)
 		): string => {
 
-	assert(!['array','hash','set','map'].includes(typeof val))
+	assert(!['array','hash','set','map'].includes(jsType(val)),
+		`val is not a primitive: ${typeof val}, ${jsType(val)}`)
 	const str = (
 		  defined(displayFunc)
 		? displayFunc(key, val, parent)

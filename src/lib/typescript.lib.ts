@@ -123,7 +123,7 @@ export const typeCheckTsFile = (path: string): string => {
 		return ''
 	}
 	else {
-		return stderr ? stderr : 'Unknown error'
+		return stderr || 'Unknown error'
 	}
 }
 

@@ -67,7 +67,6 @@ class CCivetCompiler extends CFileHandler
 				&& haveSourceMapFor(tsPath)
 				)
 			return {
-				path
 				success: true
 				notNeeded: true
 				stdout: ''
@@ -100,7 +99,6 @@ class CCivetCompiler extends CFileHandler
 				addJsonValue 'sourcemaps.json', normalizePath(tsPath), hSrcMap
 			await Deno.writeTextFile tsPath, code
 			return {
-				path,
 				success: true
 				stdout: ''
 				stderr: ''
@@ -111,7 +109,6 @@ class CCivetCompiler extends CFileHandler
 				LOG getErrStr(err)
 			errMsg := "COMPILE FAILED: #{pathStr(path)} - #{getErrStr(err)}"
 			return {
-				path
 				success: false
 				stdout: ''
 				stderr: errMsg
@@ -141,7 +138,6 @@ class CCivetCompiler extends CFileHandler
 				&& haveSourceMapFor(tsPath)
 				)
 			return {
-				path
 				success: true
 				notNeeded: true
 				stdout: ''
@@ -173,7 +169,6 @@ class CCivetCompiler extends CFileHandler
 				addJsonValue 'sourcemaps.json', normalizePath(tsPath), hSrcMap
 			Deno.writeTextFileSync tsPath, code
 			return {
-				path
 				success: true
 				stdout: ''
 				stderr: ''
@@ -184,7 +179,6 @@ class CCivetCompiler extends CFileHandler
 				LOG getErrStr(err)
 			errMsg := "COMPILE FAILED: #{pathStr(path)} - #{getErrStr(err)}"
 			return {
-				path
 				success: false
 				stdout: ''
 				stderr: errMsg

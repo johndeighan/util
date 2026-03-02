@@ -241,15 +241,16 @@ export hash2nice := (
 	lParts := MAP iterKeys, (key: string): Generator<string> ->
 		val := getter(key)
 		if not ignoreEmptyKeys || nonEmpty(val)
-			if ['array','hash','set','map'].includes(typeof val)
-				str := toNice(val, hOptions, mapVisited, [lPath..., key])
-				if compact || isEmpty(val) || str.startsWith('｟')
-					yield "#{key}#{mark} #{str}"
+			switch jsType(val)
+				when 'array', 'hash', 'set', 'map'
+					str := toNice(val, hOptions, mapVisited, [lPath..., key])
+					if compact || isEmpty(val) || str.startsWith('｟')
+						yield "#{key}#{mark} #{str}"
+					else
+						yield "#{key}#{mark}\n" + indented(str, 1, {oneIndent})
 				else
-					yield "#{key}#{mark}\n" + indented(str, 1, {oneIndent})
-			else
-				str := displayStr(key, val, x, displayFunc, descFunc)
-				yield "#{key}#{mark} #{str}"
+					str := displayStr(key, val, x, displayFunc, descFunc)
+					yield "#{key}#{mark} #{str}"
 	return (
 		  compact
 		? '{' + lParts.join(' ') + '}'
@@ -370,7 +371,8 @@ export displayStr := (
 		descFunc: TMapFunc?
 		): string =>
 
-	assert not ['array','hash','set','map'].includes(typeof val)
+	assert not ['array','hash','set','map'].includes(jsType(val)),
+		"val is not a primitive: #{typeof val}, #{jsType(val)}"
 	str := (
 		  defined(displayFunc)
 		? displayFunc(key, val, parent)

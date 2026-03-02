@@ -7,7 +7,6 @@ import {o} from 'llutils'
 import {DBG} from 'logger'
 import {
 	mkstr, getCmdLine, execCmd, execCmdSync, TExecResult,
-	joinNonEmpty,
 	} from 'exec'
 import {
 	equal, like, succeeds, fails, truthy, falsy, setDirTree,
@@ -29,13 +28,6 @@ bad.civet
 await setup()
 
 // ---------------------------------------------------------------------------
-
-DBG("joinNonEmpty(...lParts)")
-
-equal(joinNonEmpty('abc'), 'abc')
-equal(joinNonEmpty('abc', undef), 'abc')
-equal(joinNonEmpty('abc', ''), 'abc')
-equal(joinNonEmpty('abc', '   '), 'abc')
 
 DBG("mkstr(x)")
 

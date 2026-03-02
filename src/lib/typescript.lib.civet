@@ -118,7 +118,7 @@ export typeCheckTsFile := (path: string): string =>
 	if success
 		return ''
 	else
-		return stderr ? stderr : 'Unknown error'
+		return stderr || 'Unknown error'
 
 # ---------------------------------------------------------------------------
 # --- We must place the TypeScript file at the project root

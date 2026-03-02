@@ -45,7 +45,6 @@ export class CHeraCompiler extends CFileHandler {
 				&& (statSync(destPath).mtimeMs > statSync(path).mtimeMs)
 				) {
 			return {
-				path,
 				success: true,
 				stdout: '',
 				stderr: ''
@@ -73,14 +72,13 @@ export class CHeraCompiler extends CFileHandler {
 				outfile: destPath,
 				outProc
 				})
-			return {...hResult, path}
+			return hResult
 		}
 
 		catch (err) {
 			const errMsg = `HERA COMPILE FAILED: ${pathStr(path)} - ${getErrStr(err)}`
 			return {
 				success: false,
-				path,
 				stdout: '',
 				stderr: errMsg
 				}

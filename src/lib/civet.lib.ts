@@ -70,7 +70,6 @@ class CCivetCompiler extends CFileHandler {
 				&& haveSourceMapFor(tsPath)
 				) {
 			return {
-				path,
 				success: true,
 				notNeeded: true,
 				stdout: '',
@@ -108,7 +107,6 @@ class CCivetCompiler extends CFileHandler {
 			}
 			await Deno.writeTextFile(tsPath, code)
 			return {
-				path,
 				success: true,
 				stdout: '',
 				stderr: ''
@@ -121,7 +119,6 @@ class CCivetCompiler extends CFileHandler {
 			}
 			const errMsg = `COMPILE FAILED: ${pathStr(path)} - ${getErrStr(err)}`
 			return {
-				path,
 				success: false,
 				stdout: '',
 				stderr: errMsg
@@ -153,7 +150,6 @@ class CCivetCompiler extends CFileHandler {
 				&& haveSourceMapFor(tsPath)
 				) {
 			return {
-				path,
 				success: true,
 				notNeeded: true,
 				stdout: '',
@@ -190,7 +186,6 @@ class CCivetCompiler extends CFileHandler {
 			}
 			Deno.writeTextFileSync(tsPath, code)
 			return {
-				path,
 				success: true,
 				stdout: '',
 				stderr: ''
@@ -203,7 +198,6 @@ class CCivetCompiler extends CFileHandler {
 			}
 			const errMsg = `COMPILE FAILED: ${pathStr(path)} - ${getErrStr(err)}`
 			return {
-				path,
 				success: false,
 				stdout: '',
 				stderr: errMsg

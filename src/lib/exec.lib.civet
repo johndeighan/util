@@ -50,12 +50,6 @@ export mkstr := (
 
 # ---------------------------------------------------------------------------
 
-export joinNonEmpty := (...lStrings: string?[]): string =>
-
-	return lStrings.filter((s) => nonEmpty(s)).join('\n')
-
-# ---------------------------------------------------------------------------
-
 export getCmdLine := (cmdName: string, lArgs: string[]): string =>
 
 	assert isString(cmdName), "cmdName not a string: #{OL(cmdName)}"
@@ -76,7 +70,6 @@ export type TExecResult =
 	infile?: string
 	outfile?: string
 	debug?: string
-	path?: string
 
 type TFileProcessor = (input: string) => string
 
@@ -109,7 +102,7 @@ export execCmdSync := (
 		cmd := new Deno.Command cmdName, {
 			args: lArgs
 			env: {DEFAULT_LOGGER: curLogLevel()}
-			stdin: streamType
+			stdin: 'inherit'
 			stdout: streamType
 			stderr: streamType
 			}
@@ -210,24 +203,6 @@ export execCmd := (
 
 # ---------------------------------------------------------------------------
 
-type TStringGen = string | Uint8Array<ArrayBuffer>
-type TStringSrc = undefined | TStringGen | TStringGen?[]
-
-export joinDefined := (...lParts: TStringSrc[]): string? =>
-
-	lStrings: string[] := []
-	for src of lParts
-		if (typeof src == 'string')
-			lStrings.push decode src
-		else if Array.isArray(src)
-			for str of src
-				if not defined(str)
-					continue
-				lStrings.push decode str
-	return if (lStrings.length == 0) then undef else lStrings.join('\n')
-
-# ---------------------------------------------------------------------------
-
 export class CTimer
 
 	t0 = Date.now()
@@ -262,7 +237,7 @@ export abstract class CFileHandler
 	# ..........................................................
 	# SYNC
 
-	getOutput(hResult: TExecResult)
+	getOutput(hResult: TExecResult): string
 
 		return (hResult?.stdout || '') + (hResult?.stderr || '')
 
@@ -305,9 +280,7 @@ export procFiles := (
 
 	nRej := lRejected.length
 	[lAllResults, [nNotNeeded, nOk, nErr]] := MAP lFulfilled, [0,0,0], (h, i, acc) ->
-		yield Object.assign(h, {
-			path: lPaths[i]
-			})
+		yield h
 		[n1, n2, n3] := acc
 		if h.success
 			if h.notNeeded
@@ -319,8 +292,9 @@ export procFiles := (
 
 	# --- Write results to the console
 
-	for hResult of lAllResults
-		{path, success} := hResult
+	for hResult,i of lAllResults
+		path := lPaths[i]
+		{success} := hResult
 		if success
 			if flag('v')
 				showOkResult handler, path, hResult, hOptions
@@ -416,7 +390,6 @@ export procOneFile := (
 
 	try
 		hResult := await handler.handle path, hOptions
-		hResult.path = path
 		{success, notNeeded} := hResult
 
 		# --- If capture is false, output has already happened
@@ -430,7 +403,6 @@ export procOneFile := (
 				showErrResult handler, path, hResult, hOptions
 				if abortOnError
 					Deno.exit 99
-		hResult.path = path
 		return hResult
 
 	catch err
@@ -440,7 +412,6 @@ export procOneFile := (
 			Deno.exit 99
 		return {
 			success: false,
-			path
 			stdout: ''
 			stderr: ''
 			}
@@ -507,7 +478,6 @@ class CFileRemover extends CFileHandler
 		if existsSync(path)
 			await Deno.remove path
 		return {
-			path,
 			success: true
 			stdout: ''
 			stderr: ''
@@ -529,7 +499,6 @@ class CFileEchoer extends CFileHandler
 
 		LOG await exists(path) ? "#{path}" : "#{path} - #{'does not exist'}:{red}"
 		return {
-			path,
 			success: true
 			stdout: ''
 			stderr: ''
@@ -554,14 +523,12 @@ class CTsFileRemover extends CFileHandler
 		if await exists(civetPath)
 			await Deno.remove path
 			return {
-				path,
 				success: true
 				stdout: ''
 				stderr: ''
 				}
 		else
 			return {
-				path
 				success: true
 				stdout: ''
 				stderr: ''
@@ -569,40 +536,6 @@ class CTsFileRemover extends CFileHandler
 				}
 
 export doRemoveTsFile := new CTsFileRemover()
-
-# ---------------------------------------------------------------------------
-
-export procUTOutput := (output: string): string =>
-
-	lLines := MAP allLinesInBlock(decolorize(output)), (line) ->
-		if line.startsWith('running')
-			yield line
-			yield ''
-		else if line.startsWith('line')
-			if not line.includes(' ok ')
-				yield withColors line, {
-					failed: 'red'
-					FAILED: 'red'
-					ok: 'green'
-					OK: 'green'
-					}
-		else if line.includes('passed') && line.includes('failed')
-			if line.includes(' 0 failed ')
-				yield withColors line, {
-					ok: 'green'
-					passed: 'green'
-					}
-			else
-				yield withColors line, {
-					ok: 'green'
-					passed: 'green'
-					failed: 'red'
-					FAILED: 'red'
-					}
-			yield ''
-		else if line.includes('Lcov coverage')
-			yield 'coverage report generated'
-	return lLines.join('\n')
 
 # ---------------------------------------------------------------------------
 
@@ -642,6 +575,39 @@ class CUnitTester extends CFileHandler
 				], {capture}
 		return hResult
 
+	override getOutput(hResult: TExecResult): string
+
+		output := hResult.stdout + hResult.stderr
+		lLines := MAP allLinesInBlock(decolorize(output)), (line) ->
+			if line.startsWith('running')
+				yield line
+				yield ''
+			else if line.startsWith('line')
+				if not line.includes(' ok ')
+					yield withColors line, {
+						failed: 'red'
+						FAILED: 'red'
+						ok: 'green'
+						OK: 'green'
+						}
+			else if line.includes('passed') && line.includes('failed')
+				if line.includes(' 0 failed ')
+					yield withColors line, {
+						ok: 'green'
+						passed: 'green'
+						}
+				else
+					yield withColors line, {
+						ok: 'green'
+						passed: 'green'
+						failed: 'red'
+						FAILED: 'red'
+						}
+				yield ''
+			else if line.includes('Lcov coverage')
+				yield 'coverage report generated'
+		return lLines.join('\n')
+
 export doUnitTest := new CUnitTester()
 
 # ---------------------------------------------------------------------------
@@ -667,7 +633,7 @@ class CCmdInstaller extends CFileHandler
 			'--name', name
 			path
 			]
-		return {...hResult, path}
+		return hResult
 
 export doInstallCmd := new CCmdInstaller()
 
@@ -690,7 +656,7 @@ class CCmdUninstaller extends CFileHandler
 			name
 			path
 			]
-		return {...hResult, path}
+		return hResult
 
 export doUninstallCmd := new CCmdUninstaller()
 
@@ -735,6 +701,6 @@ class CFileRunner extends CFileHandler
 				], hOptions
 		if label && not capture
 			LOG sep('-')
-		return {...hResult, path}
+		return hResult
 
 export doRun := new CFileRunner()

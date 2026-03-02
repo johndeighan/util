@@ -57,13 +57,6 @@ export const mkstr = (
 
 // ---------------------------------------------------------------------------
 
-export const joinNonEmpty = (...lStrings: (string | undefined)[]): string => {
-
-	return lStrings.filter((s) => nonEmpty(s)).join('\n')
-}
-
-// ---------------------------------------------------------------------------
-
 export const getCmdLine = (cmdName: string, lArgs: string[]): string => {
 
 	assert(isString(cmdName), `cmdName not a string: ${OL(cmdName)}`)
@@ -85,7 +78,6 @@ export type TExecResult = {
 	infile?: string
 	outfile?: string
 	debug?: string
-	path?: string
 }
 
 type TFileProcessor = (input: string) => string
@@ -120,7 +112,7 @@ export const execCmdSync = (
 		const cmd = new Deno.Command(cmdName, {
 			args: lArgs,
 			env: {DEFAULT_LOGGER: curLogLevel()},
-			stdin: streamType,
+			stdin: 'inherit',
 			stdout: streamType,
 			stderr: streamType
 			})
@@ -233,30 +225,6 @@ export const execCmd = async (
 
 // ---------------------------------------------------------------------------
 
-type TStringGen = string | Uint8Array<ArrayBuffer>
-type TStringSrc = undefined | TStringGen | (TStringGen | undefined)[]
-
-export const joinDefined = (...lParts: TStringSrc[]): (string | undefined) => {
-
-	const lStrings: string[] = []
-	for (const src of lParts) {
-		if (typeof src === 'string') {
-			lStrings.push(decode(src))
-		}
-		else if (Array.isArray(src)) {
-			for (const str of src) {
-				if (!defined(str)) {
-					continue
-				}
-				lStrings.push(decode(str))
-			}
-		}
-	}
-	return (lStrings.length === 0? undef : lStrings.join('\n'))
-}
-
-// ---------------------------------------------------------------------------
-
 export class CTimer {
 
 	t0 = Date.now()
@@ -294,7 +262,7 @@ export abstract class CFileHandler {
 	// ..........................................................
 	// SYNC
 
-	getOutput(hResult: TExecResult) {
+	getOutput(hResult: TExecResult): string {
 
 		return (hResult?.stdout || '') + (hResult?.stderr || '')
 	}
@@ -341,9 +309,7 @@ export const procFiles = async (
 
 	const nRej = lRejected.length
 	const [lAllResults, [nNotNeeded, nOk, nErr]] = MAP(lFulfilled, [0,0,0], function*(h, i, acc) {
-		yield Object.assign(h, {
-			path: lPaths[i]
-			})
+		yield h
 		const [n1, n2, n3] = acc
 		if (h.success) {
 			if (h.notNeeded) {
@@ -360,8 +326,9 @@ export const procFiles = async (
 
 	// --- Write results to the console
 
-	for (const hResult of lAllResults) {
-		const {path, success} = hResult
+	let i1 = 0;for (const hResult of lAllResults) {const i = i1++;
+		const path = lPaths[i]
+		const {success} = hResult
 		if (success) {
 			if (flag('v')) {
 				showOkResult(handler, path, hResult, hOptions)
@@ -372,7 +339,7 @@ export const procFiles = async (
 		}
 	}
 
-	let i1 = 0;for (const reason of lRejected) {const i = i1++;
+	let i2 = 0;for (const reason of lRejected) {const i = i2++;
 		showRejResult(handler, lRejPaths[i], getErrStr(reason), hOptions)
 	}
 
@@ -471,7 +438,6 @@ export const procOneFile = async (
 
 	try {
 		const hResult = await handler.handle(path, hOptions)
-		hResult.path = path
 		const {success, notNeeded} = hResult
 
 		// --- If capture is false, output has already happened
@@ -490,7 +456,6 @@ export const procOneFile = async (
 				}
 			}
 		}
-		hResult.path = path
 		return hResult
 	}
 
@@ -503,7 +468,6 @@ export const procOneFile = async (
 		}
 		return {
 			success: false,
-			path,
 			stdout: '',
 			stderr: ''
 			}
@@ -580,7 +544,6 @@ class CFileRemover extends CFileHandler {
 			await Deno.remove(path)
 		}
 		return {
-			path,
 			success: true,
 			stdout: '',
 			stderr: ''
@@ -605,7 +568,6 @@ class CFileEchoer extends CFileHandler {
 
 		LOG(await exists(path) ? `${path}` : `${path} - ${'does not exist'}:{red}`)
 		return {
-			path,
 			success: true,
 			stdout: '',
 			stderr: ''
@@ -633,7 +595,6 @@ class CTsFileRemover extends CFileHandler {
 		if (await exists(civetPath)) {
 			await Deno.remove(path)
 			return {
-				path,
 				success: true,
 				stdout: '',
 				stderr: ''
@@ -641,7 +602,6 @@ class CTsFileRemover extends CFileHandler {
 		}
 		else {
 			return {
-				path,
 				success: true,
 				stdout: '',
 				stderr: '',
@@ -652,49 +612,6 @@ class CTsFileRemover extends CFileHandler {
 }
 
 export const doRemoveTsFile = new CTsFileRemover()
-
-// ---------------------------------------------------------------------------
-
-export const procUTOutput = (output: string): string => {
-
-	const lLines = MAP(allLinesInBlock(decolorize(output)), function*(line) {
-		if (line.startsWith('running')) {
-			yield line
-			yield ''
-		}
-		else if (line.startsWith('line')) {
-			if (!line.includes(' ok ')) {
-				yield withColors(line, {
-					failed: 'red',
-					FAILED: 'red',
-					ok: 'green',
-					OK: 'green'
-					})
-			}
-		}
-		else if (line.includes('passed') && line.includes('failed')) {
-			if (line.includes(' 0 failed ')) {
-				yield withColors(line, {
-					ok: 'green',
-					passed: 'green'
-					})
-			}
-			else {
-				yield withColors(line, {
-					ok: 'green',
-					passed: 'green',
-					failed: 'red',
-					FAILED: 'red'
-					})
-			}
-			yield ''
-		}
-		else if (line.includes('Lcov coverage')) {
-			yield 'coverage report generated'
-		}
-	})
-	return lLines.join('\n')
-}
 
 // ---------------------------------------------------------------------------
 
@@ -735,6 +652,48 @@ class CUnitTester extends CFileHandler {
 				], {capture})
 		return hResult
 	}
+
+	override getOutput(hResult: TExecResult): string {
+
+		const output = hResult.stdout + hResult.stderr
+		const lLines = MAP(allLinesInBlock(decolorize(output)), function*(line) {
+			if (line.startsWith('running')) {
+				yield line
+				yield ''
+			}
+			else if (line.startsWith('line')) {
+				if (!line.includes(' ok ')) {
+					yield withColors(line, {
+						failed: 'red',
+						FAILED: 'red',
+						ok: 'green',
+						OK: 'green'
+						})
+				}
+			}
+			else if (line.includes('passed') && line.includes('failed')) {
+				if (line.includes(' 0 failed ')) {
+					yield withColors(line, {
+						ok: 'green',
+						passed: 'green'
+						})
+				}
+				else {
+					yield withColors(line, {
+						ok: 'green',
+						passed: 'green',
+						failed: 'red',
+						FAILED: 'red'
+						})
+				}
+				yield ''
+			}
+			else if (line.includes('Lcov coverage')) {
+				yield 'coverage report generated'
+			}
+		})
+		return lLines.join('\n')
+	}
 }
 
 export const doUnitTest = new CUnitTester()
@@ -763,7 +722,7 @@ class CCmdInstaller extends CFileHandler {
 			'--name', name,
 			path
 			])
-		return {...hResult, path}
+		return hResult
 	}
 }
 
@@ -789,7 +748,7 @@ class CCmdUninstaller extends CFileHandler {
 			name,
 			path
 			])
-		return {...hResult, path}
+		return hResult
 	}
 }
 
@@ -841,7 +800,7 @@ class CFileRunner extends CFileHandler {
 		if (label && !capture) {
 			LOG(sep('-'))
 		}
-		return {...hResult, path}
+		return hResult
 	}
 }
 
