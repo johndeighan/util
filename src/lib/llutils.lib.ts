@@ -549,6 +549,13 @@ export const centered = (
 
 // ---------------------------------------------------------------------------
 
+export const cmdTitle = (title: string): string => {
+
+	return centered(title, {char: '=', color: 'cyan'})
+}
+
+// ---------------------------------------------------------------------------
+
 export class CStringSetMap<T = string> extends Map<T, Set<string>> {
 
 	add(key: T, value: string): void {

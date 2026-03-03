@@ -21,16 +21,17 @@ stdChecks(`runtemp [-fI] [-stub=<temp_stub>] { <lib_stub> }
 
 // ---------------------------------------------------------------------------
 
+debugger
 try {
 	const {inspect} = getFlags({inspect: 'I'})
 
 	// --- Compile any changed libraries
-	const lResults = await compileAllLibs({abortOnError: true})
+	await compileAllLibs({abortOnError: true})
 
 	// --- compile temp file
 	const stub = argValue('stub') || 'temp'
 	const root = './src/temp'
-	const path = findFile(`${stub}.civet`, {root})
+	const path = findFile(`${stub}.civet`, {root, lIgnoreDirs: []})
 	if (notdefined(path) || !isFile(path)) {
 		croak(`Unable to find file: ${stub}.civet in ${root}`)
 	}

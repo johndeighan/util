@@ -22,16 +22,19 @@ stdChecks """
 
 # ---------------------------------------------------------------------------
 
+debugger
 try
 	{inspect} := getFlags {inspect: 'I'}
 
 	# --- Compile any changed libraries
-	lResults := await compileAllLibs({abortOnError: true})
+	await compileAllLibs({abortOnError: true})
 
 	# --- compile temp file
 	stub := argValue('stub') || 'temp'
 	root := './src/temp'
-	path := findFile "#{stub}.civet", {root}
+
+	# --- Make sure the 'temp' folder is NOT ignored
+	path := findFile "#{stub}.civet", {root, lIgnoreDirs: []}
 	if notdefined(path) || not isFile(path)
 		croak "Unable to find file: #{stub}.civet in #{root}"
 

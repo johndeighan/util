@@ -72,13 +72,10 @@ const getTestName = (): string => {
 
 export const equal = (
 		value: unknown,
-		expected: unknown,
-		testName: (string | undefined) = undef
+		expected: unknown
 		): void => {
 
-	if (notdefined(testName)) {
-		testName = getTestName()
-	}
+	const testName = getTestName()
 	DBG(`equal ?, ${stringify(expected)} (${testName})`)
 	Deno.test(testName, () => assertEquals(value, expected))
 	return

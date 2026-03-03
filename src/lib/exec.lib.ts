@@ -420,6 +420,7 @@ export const procOneFile = async (
 			inspect: false
 			})
 
+	assert(capture || !dumpOutput, "Can't dumpOutput without capture")
 	if (inspect) {
 		LOG("procOneFile(): inspect is set")
 	}
@@ -443,7 +444,13 @@ export const procOneFile = async (
 		// --- If capture is false, output has already happened
 		if (capture) {
 			if (success) {
-				writeln(f`${notNeeded ? ' - not needed' : ' - OK'}:{green}`)
+//				writeln f"#{notNeeded ? ' - not needed' : ' - OK'}:{green}"
+				if (notNeeded) {
+					writeln(f`${' - not needed'}:{yellow}`)
+				}
+				else {
+					writeln(f`${' - OK'}:{green}`)
+				}
 				if (dumpOutput) {
 					showOkResult(handler, path, hResult, hOptions)
 				}
@@ -621,6 +628,8 @@ class CUnitTester extends CFileHandler {
 		return 'doUnitTest'
 	}
 
+	// ..........................................................
+
 	override async handle(
 			path: string,
 			hOptions: hash = {}
@@ -630,7 +639,7 @@ class CUnitTester extends CFileHandler {
 		type opt = {
 			capture: boolean
 			inspect: boolean
-			lineNum: ((number | string) | undefined)
+			lineNum: (string | undefined)
 			}
 		const {capture, inspect, lineNum} = getOptions<opt>(hOptions, {
 			capture: true,
@@ -638,24 +647,24 @@ class CUnitTester extends CFileHandler {
 			lineNum: undef
 			})
 
-		const strLineNum = (
-			  notdefined(lineNum)          ? undef
-			: (typeof lineNum === 'string') ? lineNum
-			:                                lineNum.toString()
-			)
 		const hResult = await execCmd('deno', [
 				'test',
 				'-A',
 				...(inspect ? ['--inspect-brk'] : ['--coverage=./coverage']),
-				...(defined(strLineNum) ? ['--filter', strLineNum] : []),
+				...(defined(lineNum) ? ['--filter', `/^line ${lineNum}$/`] : []),
 				path
 				], {capture})
 		return hResult
 	}
 
+	// ..........................................................
+
 	override getOutput(hResult: TExecResult): string {
 
 		const output = hResult.stdout + hResult.stderr
+		if (!hResult.success) {
+			return output
+		}
 		const lLines = MAP(allLinesInBlock(decolorize(output)), function*(line) {
 			if (line.startsWith('running')) {
 				yield line
@@ -782,21 +791,13 @@ class CFileRunner extends CFileHandler {
 		if (label && !capture) {
 			LOG(sep('-', label))
 		}
-		let ref;if (inspect) {
-			ref = await execCmd('deno', [
-				'run',
-				'-A',
-				'--inspect-brk',
-				path
-				], hOptions)
-		}
-		else {
-			ref = await execCmd('deno', [
-				'run',
-				'-A',
-				path
-				], hOptions)
-		};const hResult =ref
+
+		const hResult = await execCmd('deno', [
+			'run',
+			'-A',
+			...(inspect ? ['--inspect-brk'] : []),
+			path
+			], hOptions)
 		if (label && !capture) {
 			LOG(sep('-'))
 		}

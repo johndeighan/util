@@ -1,5 +1,9 @@
 to do
 
+running 'reBuild lib' fails
+	deno run -A src/cmd/buildlib.cmd.ts -f all
+
+
 dir-tree unit tests fail
 also, they don't even run with 'utest dir-tree'
 

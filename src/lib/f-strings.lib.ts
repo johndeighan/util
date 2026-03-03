@@ -3,7 +3,8 @@
 
 import {sprintf} from '@std/fmt/printf'
 import {
-	cyan, blue, black, red, green, magenta, stripAnsiCode,
+	cyan, blue, black, red, green, magenta, yellow,
+	stripAnsiCode,
 	} from '@std/fmt/colors'
 
 import {esc} from 'unicode'
@@ -20,7 +21,8 @@ const hColor = {
 	black,
 	red,
 	green,
-	magenta
+	magenta,
+	yellow
 	} as const
 
 // ---------------------------------------------------------------------------
@@ -72,6 +74,8 @@ export const colorize = (
 			case 'green': { return green(str)
 			}
 			case 'magenta': { return magenta(str)
+			}
+			case 'yellow': { return yellow(str)
 			}
 		}
 	}

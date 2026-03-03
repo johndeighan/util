@@ -1,7 +1,7 @@
 # buildcmd.cmd.civet
 
 import {assert, defined} from 'datatypes'
-import {stdChecks, centered} from 'llutils'
+import {stdChecks, cmdTitle} from 'llutils'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {ERR} from 'logger'
 import {withExt, findFile, isFile} from 'fsys'
@@ -11,7 +11,8 @@ import {
 import {doCompileCivet} from 'civet'
 
 stdChecks """
-	buildcmd -itI (all | <stub>+)
+	buildcmd -fitI (all | <stub>+)
+		-f = force re-compile
 	   -i = install the command
 	   -t = run unit test
 	   -I = use Chrome debugger
@@ -19,18 +20,18 @@ stdChecks """
 
 # ---------------------------------------------------------------------------
 
-hStyle  := {char: '=', color: 'cyan'}
 try
 	# --- echoes if flag is set
-	{doInstall, doTest, inspect} := getFlags {
+	{doInstall, doTest, inspect, force} := getFlags {
 		doInstall: 'i'
 		doTest: 't'
 		inspect: 'I'
+		force: 'f'
 		}
 
 	if (nonOption(0) == 'all')
-		console.log centered("BUILD ALL CMDS", hStyle)
-		await procFiles [doCompileCivet, ['src/**/*.cmd.civet']]
+		console.log cmdTitle("BUILD ALL CMDS")
+		await procFiles [doCompileCivet, ['src/**/*.cmd.civet']], {force}
 		if doTest
 			await procFiles [doCompileCivet, ['src/**/*.cmd.test.civet']]
 			await procFiles [doUnitTest,     ['src/**/*.cmd.test.ts']]
@@ -38,11 +39,11 @@ try
 			await procFiles [doInstallCmd, ['src/**/*.cmd.ts']]
 	else
 		for stub of allNonOptions()
-			console.log centered("BUILD CMD #{stub}", hStyle)
+			console.log cmdTitle("BUILD CMD #{stub}")
 			fileName := "#{stub}.cmd.civet"
 			path := findFile fileName
 			assert defined(path), "Unable to find file: #{fileName}"
-			await procOneFile path, doCompileCivet, {inspect}
+			await procOneFile path, doCompileCivet, {inspect, force}
 			tsPath := withExt path, '.ts'
 			assert isFile(tsPath), "File #{tsPath} not created"
 

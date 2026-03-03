@@ -5,10 +5,10 @@ type AutoPromise<T> = Promise<Awaited<T>>;
 import {uni, esc} from 'unicode'
 import {
 	undef, defined, notdefined, hash, assert, croak,
-	isEmpty, nonEmpty,
+	isEmpty, nonEmpty, deepCopy,
 	TStringMapper, getErrStr, TVoidFunc,
 	} from 'datatypes'
-// import {syncMapper} from 'var-free'
+import {isFile, findFile} from 'fsys'
 import {MAP} from 'map'
 import {
 	allLinesInBlock, getOptions, sep,
@@ -122,6 +122,7 @@ export const doParse = async <T = unknown,>(
 		LOG(`debug = ${debug}`)
 	}
 
+	// --- Save original text, then apply transforms to text
 	const orgText = text
 	for (const func of lTransforms) {
 		text = func(text)
@@ -129,13 +130,18 @@ export const doParse = async <T = unknown,>(
 
 	// --- import things from the parser
 	try {
+		const fileName = `${stub}.parse.ts`
+		const path = findFile(fileName)
+		assert(isFile(path))
 		const {pm, reset, parse} = await import(stub)
 		reset(text)
 		const result = parse(text) as Awaited<T>
 		if (debug) {
 			pm.dumpParseInfo()
 		}
-		return result
+
+		// --- Return a deep copy of the result
+		return deepCopy(result)
 	}
 
 	catch (err) {

@@ -68,11 +68,9 @@ getTestName := (): string =>
 export equal := (
 		value: unknown,
 		expected: unknown
-		testName: string? = undef
 		): void =>
 
-	if notdefined(testName)
-		testName = getTestName()
+	testName := getTestName()
 	DBG "equal ?, #{stringify(expected)} (#{testName})"
 	Deno.test testName, () => assertEquals(value, expected)
 	return

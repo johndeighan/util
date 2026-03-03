@@ -375,6 +375,7 @@ export procOneFile := (
 			inspect: false
 			}
 
+	assert capture || not dumpOutput, "Can't dumpOutput without capture"
 	if inspect
 		LOG "procOneFile(): inspect is set"
 
@@ -395,7 +396,11 @@ export procOneFile := (
 		# --- If capture is false, output has already happened
 		if capture
 			if success
-				writeln f"#{notNeeded ? ' - not needed' : ' - OK'}:{green}"
+#				writeln f"#{notNeeded ? ' - not needed' : ' - OK'}:{green}"
+				if notNeeded
+					writeln f"#{' - not needed'}:{yellow}"
+				else
+					writeln f"#{' - OK'}:{green}"
 				if dumpOutput
 					showOkResult handler, path, hResult, hOptions
 			else
@@ -544,6 +549,8 @@ class CUnitTester extends CFileHandler
 	get op()
 		return 'doUnitTest'
 
+	# ..........................................................
+
 	override handle(
 			path: string,
 			hOptions: hash = {}
@@ -553,7 +560,7 @@ class CUnitTester extends CFileHandler
 		type opt = {
 			capture: boolean
 			inspect: boolean
-			lineNum: (number | string)?
+			lineNum: string?
 			}
 		{capture, inspect, lineNum} := getOptions<opt> hOptions, {
 			capture: true
@@ -561,23 +568,22 @@ class CUnitTester extends CFileHandler
 			lineNum: undef
 			}
 
-		strLineNum := (
-			  notdefined(lineNum)          ? undef
-			: (typeof lineNum == 'string') ? lineNum
-			:                                lineNum.toString()
-			)
 		hResult := await execCmd 'deno', [
 				'test'
 				'-A'
 				...(inspect ? ['--inspect-brk'] : ['--coverage=./coverage'])
-				...(defined(strLineNum) ? ['--filter', strLineNum] : [])
+				...(defined(lineNum) ? ['--filter', "/^line #{lineNum}$/"] : [])
 				path
 				], {capture}
 		return hResult
 
+	# ..........................................................
+
 	override getOutput(hResult: TExecResult): string
 
 		output := hResult.stdout + hResult.stderr
+		if not hResult.success
+			return output
 		lLines := MAP allLinesInBlock(decolorize(output)), (line) ->
 			if line.startsWith('running')
 				yield line
@@ -686,19 +692,13 @@ class CFileRunner extends CFileHandler
 		assert (fileExt(path) == '.ts'), "Not a TypeScript file"
 		if label && not capture
 			LOG sep('-', label)
-		hResult := if inspect
-			await execCmd 'deno', [
-				'run'
-				'-A'
-				'--inspect-brk'
-				path
-				], hOptions
-		else
-			await execCmd 'deno', [
-				'run'
-				'-A'
-				path
-				], hOptions
+
+		hResult := await execCmd 'deno', [
+			'run'
+			'-A'
+			...(inspect ? ['--inspect-brk'] : [])
+			path
+			], hOptions
 		if label && not capture
 			LOG sep('-')
 		return hResult

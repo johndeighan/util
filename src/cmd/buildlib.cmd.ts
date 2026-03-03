@@ -2,12 +2,12 @@
 // buildlib.cmd.civet
 
 import {assert, defined, notdefined} from 'datatypes'
-import {stdChecks, o, centered} from 'llutils'
+import {stdChecks, o, cmdTitle} from 'llutils'
 import {MAP} from 'map'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {LOG, ERR} from 'logger'
 import {withExt, findFile, relpath} from 'fsys'
-import {procFiles, procOneFile, doUnitTest} from 'exec'
+import {execCmd, procFiles, procOneFile, doUnitTest} from 'exec'
 import {doCompileCivet} from 'civet'
 
 stdChecks(`buildlib -ftI (all | <stub>*)
@@ -18,7 +18,6 @@ stdChecks(`buildlib -ftI (all | <stub>*)
 
 // ---------------------------------------------------------------------------
 
-const hStyle  = {char: '=', color: 'cyan'}
 try {
 	// --- echoes if flag is set
 	const {force, doTest, inspect, inspectTest} = getFlags({
@@ -29,11 +28,14 @@ try {
 		})
 
 	if (nonOption(0) === 'all') {
-		LOG(centered("BUILD ALL LIBS", hStyle))
+		LOG(cmdTitle("BUILD ALL LIBS"))
 		await procFiles([doCompileCivet, ['**/*.lib.civet']], {force})
 		if (doTest) {
 			await procFiles([doCompileCivet, ['**/*.lib.test.civet']], {force})
 			await procFiles([doUnitTest, ['**/*.lib.test.ts']], {capture: false})
+
+			// --- Create HTML coverage file
+			await execCmd('deno', ['coverage', '--html'], {capture: false})
 		}
 	}
 	else {
@@ -41,7 +43,7 @@ try {
 			const fileName = `${stub}.lib.civet`
 			const path = findFile(fileName)
 			assert(defined(path), `No such file: ${fileName}`)
-			LOG(centered(`BUILD LIB ${relpath(path)}`, hStyle))
+			LOG(cmdTitle(`BUILD LIB ${relpath(path)}`))
 			await procOneFile(path, doCompileCivet, {force, inspect})
 
 			if (doTest) {
@@ -49,10 +51,10 @@ try {
 				const testFileName = `${stub}.lib.test.civet`
 				const testPath = findFile(testFileName)
 				if (defined(testPath)) {
-					LOG(centered(`COMPILE TEST ${relpath(testPath)}`, hStyle))
+					LOG(cmdTitle(`COMPILE TEST ${relpath(testPath)}`))
 					await procOneFile(testPath, doCompileCivet, {force})
 					const tsPath = withExt(testPath, '.ts')
-					LOG(centered(`RUN TEST ${relpath(tsPath)}`, hStyle))
+					LOG(cmdTitle(`RUN TEST ${relpath(tsPath)}`))
 					const hResult = await procOneFile(tsPath, doUnitTest, {
 						capture: true,
 						inspect: inspectTest,
@@ -66,6 +68,7 @@ try {
 		}
 	}
 }
+
 catch (err) {
 	ERR(err)
 }

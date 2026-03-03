@@ -654,7 +654,7 @@ export const findFile = (
 		}
 	const {root, lIgnoreDirs} = getOptions<opt>(hOptions, {
 		root: './src',
-		lIgnoreDirs: []
+		lIgnoreDirs: ['temp']
 		})
 
 	assert(!root.endsWith('/'), `Bad root: ${root}`)

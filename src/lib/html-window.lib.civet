@@ -1,0 +1,15 @@
+# html-window.lib.civet
+
+import {Webview} from '@webview/webview'
+
+# ---------------------------------------------------------------------------
+
+export class HtmlWindow
+
+	view: Webview := new Webview()
+	html: string = ''
+
+	display(@html: string): void
+		@view.navigate("data:text/html,#{encodeURIComponent(@html)}")
+		@view.run()
+		return

@@ -10,6 +10,8 @@ export type TIterator<T, U=void, V=void> = Generator<T, U, V>
 export type TAsyncIterator<T, U=void, V=void> = AsyncGenerator<T, U, V>
 export type TNonFunction<T=unknown> = Exclude<T, Function>
 
+export var deepCopy = structuredClone
+
 // ---------------------------------------------------------------------------
 
 export const croak = (msg: string): never => {

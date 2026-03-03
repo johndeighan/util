@@ -2,7 +2,8 @@
 
 import {sprintf} from '@std/fmt/printf'
 import {
-	cyan, blue, black, red, green, magenta, stripAnsiCode,
+	cyan, blue, black, red, green, magenta, yellow,
+	stripAnsiCode,
 	} from '@std/fmt/colors'
 
 import {esc} from 'unicode'
@@ -20,6 +21,7 @@ hColor := {
 	red
 	green
 	magenta
+	yellow
 	} as const
 
 # ---------------------------------------------------------------------------
@@ -60,6 +62,7 @@ export colorize := (
 			when 'red' then return red(str)
 			when 'green' then return green(str)
 			when 'magenta' then return magenta(str)
+			when 'yellow' then return yellow(str)
 	return str
 
 # ---------------------------------------------------------------------------

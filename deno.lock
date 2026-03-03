@@ -4,22 +4,30 @@
     "jsr:@deno/cache-dir@0.13.2": "0.13.2",
     "jsr:@deno/emit@*": "0.46.0",
     "jsr:@deno/graph@~0.73.1": "0.73.1",
+    "jsr:@denosaurs/plug@1": "1.1.0",
     "jsr:@std/assert@*": "0.223.0",
     "jsr:@std/assert@0.223": "0.223.0",
     "jsr:@std/async@*": "1.0.16",
     "jsr:@std/bytes@0.223": "0.223.0",
     "jsr:@std/bytes@^1.0.6": "1.0.6",
+    "jsr:@std/encoding@1": "1.0.10",
     "jsr:@std/fmt@*": "0.223.0",
     "jsr:@std/fmt@0.223": "0.223.0",
+    "jsr:@std/fmt@1": "1.0.9",
     "jsr:@std/fs@*": "0.223.0",
     "jsr:@std/fs@0.223": "0.223.0",
+    "jsr:@std/fs@1": "1.0.23",
+    "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@std/io@0.223": "0.223.0",
     "jsr:@std/json@^1.0.2": "1.0.2",
     "jsr:@std/jsonc@*": "1.0.2",
     "jsr:@std/path@*": "0.223.0",
     "jsr:@std/path@0.223": "0.223.0",
+    "jsr:@std/path@1": "1.1.4",
+    "jsr:@std/path@^1.1.4": "1.1.4",
     "jsr:@std/streams@*": "1.0.16",
     "jsr:@std/yaml@*": "1.0.10",
+    "jsr:@webview/webview@*": "0.9.0",
     "npm:@danielx/civet@latest": "0.11.2_typescript@5.9.3",
     "npm:@danielx/civet@~0.11.1": "0.11.2_typescript@5.9.3",
     "npm:@danielx/hera@*": "0.8.18",
@@ -62,6 +70,15 @@
     "@deno/graph@0.73.1": {
       "integrity": "cd69639d2709d479037d5ce191a422eabe8d71bb68b0098344f6b07411c84d41"
     },
+    "@denosaurs/plug@1.1.0": {
+      "integrity": "eb2f0b7546c7bca2000d8b0282c54d50d91cf6d75cb26a80df25a6de8c4bc044",
+      "dependencies": [
+        "jsr:@std/encoding",
+        "jsr:@std/fmt@1",
+        "jsr:@std/fs@1",
+        "jsr:@std/path@1"
+      ]
+    },
     "@std/assert@0.223.0": {
       "integrity": "eb8d6d879d76e1cc431205bd346ed4d88dc051c6366365b1af47034b0670be24",
       "dependencies": [
@@ -77,8 +94,14 @@
     "@std/bytes@1.0.6": {
       "integrity": "f6ac6adbd8ccd99314045f5703e23af0a68d7f7e58364b47d2c7f408aeb5820a"
     },
+    "@std/encoding@1.0.10": {
+      "integrity": "8783c6384a2d13abd5e9e87a7ae0520a30e9f56aeeaa3bdf910a3eaaf5c811a1"
+    },
     "@std/fmt@0.223.0": {
       "integrity": "6deb37794127dfc7d7bded2586b9fc6f5d50e62a8134846608baf71ffc1a5208"
+    },
+    "@std/fmt@1.0.9": {
+      "integrity": "2487343e8899fb2be5d0e3d35013e54477ada198854e52dd05ed0422eddcabe0"
     },
     "@std/fs@0.223.0": {
       "integrity": "3b4b0550b2c524cbaaa5a9170c90e96cbb7354e837ad1bdaf15fc9df1ae9c31c",
@@ -86,6 +109,16 @@
         "jsr:@std/assert@0.223",
         "jsr:@std/path@0.223"
       ]
+    },
+    "@std/fs@1.0.23": {
+      "integrity": "3ecbae4ce4fee03b180fa710caff36bb5adb66631c46a6460aaad49515565a37",
+      "dependencies": [
+        "jsr:@std/internal",
+        "jsr:@std/path@^1.1.4"
+      ]
+    },
+    "@std/internal@1.0.12": {
+      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
     },
     "@std/io@0.223.0": {
       "integrity": "2d8c3c2ab3a515619b90da2c6ff5ea7b75a94383259ef4d02116b228393f84f1",
@@ -109,6 +142,12 @@
         "jsr:@std/assert@0.223"
       ]
     },
+    "@std/path@1.1.4": {
+      "integrity": "1d2d43f39efb1b42f0b1882a25486647cb851481862dc7313390b2bb044314b5",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
     "@std/streams@1.0.16": {
       "integrity": "85030627befb1767c60d4f65cb30fa2f94af1d6ee6e5b2515b76157a542e89c4",
       "dependencies": [
@@ -117,6 +156,12 @@
     },
     "@std/yaml@1.0.10": {
       "integrity": "245706ea3511cc50c8c6d00339c23ea2ffa27bd2c7ea5445338f8feff31fa58e"
+    },
+    "@webview/webview@0.9.0": {
+      "integrity": "a7c4d787aafa43258ff287f71a16679d5ca3d9b65e5d232c60c3985f9ab3e0ce",
+      "dependencies": [
+        "jsr:@denosaurs/plug"
+      ]
     }
   },
   "npm": {
@@ -409,6 +454,43 @@
       "integrity": "sha512-B58NGBEoc8Y9MWWCQGl/gq9xBCe4IiKM0a2x7GZdQKOW5Exr8S1W24J6OgM1njK8xCRGvAJIL/MxXHf6SkmQKQ=="
     }
   },
+  "remote": {
+    "https://deno.land/std@0.184.0/_util/asserts.ts": "178dfc49a464aee693a7e285567b3d0b555dc805ff490505a8aae34f9cfb1462",
+    "https://deno.land/std@0.184.0/_util/os.ts": "d932f56d41e4f6a6093d56044e29ce637f8dcc43c5a90af43504a889cf1775e3",
+    "https://deno.land/std@0.184.0/encoding/hex.ts": "b4b1a7cb678745b0bf181ed8cf2498c7be00d121a7de244b752fbf9c7d9c48cd",
+    "https://deno.land/std@0.184.0/fmt/colors.ts": "d67e3cd9f472535241a8e410d33423980bec45047e343577554d3356e1f0ef4e",
+    "https://deno.land/std@0.184.0/fs/_util.ts": "579038bebc3bd35c43a6a7766f7d91fbacdf44bc03468e9d3134297bb99ed4f9",
+    "https://deno.land/std@0.184.0/fs/copy.ts": "14214efd94fc3aa6db1e4af2b4b9578e50f7362b7f3725d5a14ad259a5df26c8",
+    "https://deno.land/std@0.184.0/fs/empty_dir.ts": "c3d2da4c7352fab1cf144a1ecfef58090769e8af633678e0f3fabaef98594688",
+    "https://deno.land/std@0.184.0/fs/ensure_dir.ts": "dc64c4c75c64721d4e3fb681f1382f803ff3d2868f08563ff923fdd20d071c40",
+    "https://deno.land/std@0.184.0/fs/ensure_file.ts": "c38602670bfaf259d86ca824a94e6cb9e5eb73757fefa4ebf43a90dd017d53d9",
+    "https://deno.land/std@0.184.0/fs/ensure_link.ts": "c0f5b2f0ec094ed52b9128eccb1ee23362a617457aa0f699b145d4883f5b2fb4",
+    "https://deno.land/std@0.184.0/fs/ensure_symlink.ts": "5006ab2f458159c56d689b53b1e48d57e05eeb1eaf64e677f7f76a30bc4fdba1",
+    "https://deno.land/std@0.184.0/fs/eol.ts": "f1f2eb348a750c34500741987b21d65607f352cf7205f48f4319d417fff42842",
+    "https://deno.land/std@0.184.0/fs/exists.ts": "29c26bca8584a22876be7cb8844f1b6c8fc35e9af514576b78f5c6884d7ed02d",
+    "https://deno.land/std@0.184.0/fs/expand_glob.ts": "e4f56259a0a70fe23f05215b00de3ac5e6ba46646ab2a06ebbe9b010f81c972a",
+    "https://deno.land/std@0.184.0/fs/mod.ts": "bc3d0acd488cc7b42627044caf47d72019846d459279544e1934418955ba4898",
+    "https://deno.land/std@0.184.0/fs/move.ts": "b4f8f46730b40c32ea3c0bc8eb0fd0e8139249a698883c7b3756424cf19785c9",
+    "https://deno.land/std@0.184.0/fs/walk.ts": "920be35a7376db6c0b5b1caf1486fb962925e38c9825f90367f8f26b5e5d0897",
+    "https://deno.land/std@0.184.0/path/_constants.ts": "e49961f6f4f48039c0dfed3c3f93e963ca3d92791c9d478ac5b43183413136e0",
+    "https://deno.land/std@0.184.0/path/_interface.ts": "6471159dfbbc357e03882c2266d21ef9afdb1e4aa771b0545e90db58a0ba314b",
+    "https://deno.land/std@0.184.0/path/_util.ts": "d7abb1e0dea065f427b89156e28cdeb32b045870acdf865833ba808a73b576d0",
+    "https://deno.land/std@0.184.0/path/common.ts": "ee7505ab01fd22de3963b64e46cff31f40de34f9f8de1fff6a1bd2fe79380000",
+    "https://deno.land/std@0.184.0/path/glob.ts": "d479e0a695621c94d3fd7fe7abd4f9499caf32a8de13f25073451c6ef420a4e1",
+    "https://deno.land/std@0.184.0/path/mod.ts": "bf718f19a4fdd545aee1b06409ca0805bd1b68ecf876605ce632e932fe54510c",
+    "https://deno.land/std@0.184.0/path/posix.ts": "8b7c67ac338714b30c816079303d0285dd24af6b284f7ad63da5b27372a2c94d",
+    "https://deno.land/std@0.184.0/path/separator.ts": "0fb679739d0d1d7bf45b68dacfb4ec7563597a902edbaf3c59b50d5bcadd93b1",
+    "https://deno.land/std@0.184.0/path/win32.ts": "d186344e5583bcbf8b18af416d13d82b35a317116e6460a5a3953508c3de5bba",
+    "https://deno.land/x/plug@1.0.2/deps.ts": "36846a478fafaa1d8ca18aafd91584a748aa58de47ad0f45f008881dad82f374",
+    "https://deno.land/x/plug@1.0.2/download.ts": "b92bc1c1ae35fdb75828847f1ebfc7e51bf462f339729740e1cffe78384e1509",
+    "https://deno.land/x/plug@1.0.2/mod.ts": "32e0006ed6142e7becdb4103c2aa4e1e9ef28459d7243d6cb404a028f7c4eb7e",
+    "https://deno.land/x/plug@1.0.2/types.ts": "0490359117c53783138f2b6692a34f85bca9237314ba8cdef8ad682d81218d21",
+    "https://deno.land/x/plug@1.0.2/util.ts": "ded3db6e9bb16b8003899d9073fb310e13231ca617b35d6b7dfd53f38762cc76",
+    "https://deno.land/x/webview@0.7.6/deps.ts": "952f155c6e78a032288e25356bebdede04dd982f32457de541ff47e2aefff685",
+    "https://deno.land/x/webview@0.7.6/mod.ts": "c63ad9bffdf37742d84aa3637e1a4e7e3cad7303a80bbe87ce3048b27d2f3d89",
+    "https://deno.land/x/webview@0.7.6/src/ffi.ts": "b86e4bc26e31d78e4fed1e19551c412654fbccf29066ea6f68edeb7821bb8032",
+    "https://deno.land/x/webview@0.7.6/src/webview.ts": "063a64685c2d3946ef29722a7e9c1dac475c1a029fb713fc6abe3c950fe208f6"
+  },
   "workspace": {
     "dependencies": [
       "jsr:@deno/emit@*",
@@ -421,6 +503,7 @@
       "jsr:@std/path@*",
       "jsr:@std/streams@*",
       "jsr:@std/yaml@*",
+      "jsr:@webview/webview@*",
       "npm:@danielx/civet@latest",
       "npm:@danielx/hera@latest",
       "npm:@types/node@*",

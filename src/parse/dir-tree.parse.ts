@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   $C,
   $E,
@@ -20,7 +19,7 @@ import {
   $Y,
   ParseError,
   Validator,
-} from "npm:@danielx/hera/lib"
+} from "@danielx/hera/lib"
 
 
 const grammar = {
@@ -61,7 +60,7 @@ const $R6 = $R(new RegExp("\\x20*", 'suy'));
 const FullDesc$0 = $TS($S(Root, NL, $P($C(FileDesc, DirDesc))), function($skip, $loc, $0, $1, $2, $3) {
 
 pm.match('FullDesc', $loc);
-return pm.result(lFileOps);
+return pm.resultIs(lFileOps);
 });
 //@ts-ignore
 function FullDesc(ctx, state) { return $EVENT(ctx, state, "FullDesc", FullDesc$0) }
@@ -255,12 +254,14 @@ export type TFileOp = {
     contents: string
     };
 
+// --- These must be cleared before each parse
 let lFileOps: TFileOp[] = [];
 let lPathParts: string[] = [];
 
-export const reset = (str): void => {
-  lFileOps.length = 0;
-  pm.reset(str);
+export const reset = (text: string): void => {
+  lFileOps = [];
+  lPathParts = [];
+  pm.reset(text);
   }
 
 const getPath = (fileName: string = '') => {
@@ -271,6 +272,3 @@ const getPath = (fileName: string = '') => {
     return [...lPathParts].join('/');
     }
   };
-
-
-// @ts-nocheck

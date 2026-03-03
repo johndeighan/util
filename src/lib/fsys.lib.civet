@@ -567,7 +567,7 @@ export findFile := (
 		}
 	{root, lIgnoreDirs} := getOptions<opt> hOptions, {
 		root: './src'
-		lIgnoreDirs: []
+		lIgnoreDirs: ['temp']
 		}
 
 	assert not root.endsWith('/'), "Bad root: #{root}"

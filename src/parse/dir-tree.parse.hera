@@ -3,6 +3,7 @@
 # --- Every hera parser must export symbols:
 #        pm    - a CParseMatches object
 #        reset - a function called before each parse
+
 ```
 import {CParseMatches} from 'parse-utils';
 export let pm = new CParseMatches();
@@ -20,12 +21,14 @@ export type TFileOp = {
 		contents: string
 		};
 
+// --- These must be cleared before each parse
 let lFileOps: TFileOp[] = [];
 let lPathParts: string[] = [];
 
-export const reset = (str): void => {
-	lFileOps.length = 0;
-	pm.reset(str);
+export const reset = (text: string): void => {
+	lFileOps = [];
+	lPathParts = [];
+	pm.reset(text);
 	}
 
 const getPath = (fileName: string = '') => {
@@ -36,15 +39,15 @@ const getPath = (fileName: string = '') => {
 		return [...lPathParts].join('/');
 		}
 	};
-
 ```
+
 # --- comments allowed
 #     _ is optional whitespace
 
 FullDesc
 	Root NL (FileDesc / DirDesc)+ ->
 		pm.match('FullDesc', $loc);
-		return pm.result(lFileOps);
+		return pm.resultIs(lFileOps);
 
 Root
 	/\.(?:\/[A-Za-z0-9_-]+)*/ _ "clear"? ->
