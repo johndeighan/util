@@ -6,6 +6,7 @@ import {
 	} from 'datatypes'
 
 # ---------------------------------------------------------------------------
+# ASYNC
 
 export fromIterator := <T,R>(
 		iter: Generator<T,R> | AsyncGenerator<T,R>

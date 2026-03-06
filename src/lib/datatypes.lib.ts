@@ -14,6 +14,22 @@ export var deepCopy = structuredClone
 
 // ---------------------------------------------------------------------------
 
+export type char = string
+export type integer = number
+export type nonEmptyString = string
+export type regexp = RegExp
+export type TIntArray = integer[]
+
+export type TVoidFunc = () => void
+export type TVoidIterator<T=unknown> = () => TIterator<T>
+export type TUnaryFunc<TIn, TOut> = (item: TIn) => TOut
+export type TFilterFunc = (item: unknown) => boolean
+export type TStringifier = (item: unknown) => string
+export type TStringMapper = (str: string) => string
+export type TStringFilterFunc = (str: string) => boolean
+
+// ---------------------------------------------------------------------------
+
 export const croak = (msg: string): never => {
 
 	throw new Error(msg)
@@ -332,21 +348,6 @@ export const isClassInstance = (
 	}
 	return true
 }
-
-// ---------------------------------------------------------------------------
-
-export type char = string
-export type integer = number
-export type nonEmptyString = string
-export type regexp = RegExp
-export type TIntArray = integer[]
-
-export type TVoidFunc = () => void
-export type TVoidIterator<T=unknown> = () => TIterator<T>
-export type TUnaryFunc<TIn, TOut> = (item: TIn) => TOut
-export type TFilterFunc = (item: unknown) => boolean
-export type TStringifier = (item: unknown) => string
-export type TStringMapper = (str: string) => string
 
 // ---------------------------------------------------------------------------
 

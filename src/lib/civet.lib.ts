@@ -95,7 +95,7 @@ class CCivetCompiler extends CFileHandler {
 				const hCheckResult = await execCmd('deno', ['check', tsPath])
 				if (!hCheckResult.success) {
 					touch(path)
-					console.log(this.getOutput(hCheckResult))
+					console.log(hCheckResult.stderr)
 					croak("Type check failed")
 				}
 			}

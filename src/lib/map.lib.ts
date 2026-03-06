@@ -8,6 +8,7 @@ import {
 	} from 'datatypes'
 
 // ---------------------------------------------------------------------------
+// ASYNC
 
 export const fromIterator = async function<T,R>(
 		iter: Generator<T,R> | AsyncGenerator<T,R>

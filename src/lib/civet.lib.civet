@@ -90,7 +90,7 @@ class CCivetCompiler extends CFileHandler
 				hCheckResult := await execCmd 'deno', ['check', tsPath]
 				if not hCheckResult.success
 					touch path
-					console.log @getOutput(hCheckResult)
+					console.log hCheckResult.stderr
 					croak "Type check failed"
 
 			tsCode := await slurpAsync tsPath

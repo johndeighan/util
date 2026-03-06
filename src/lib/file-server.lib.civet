@@ -1,0 +1,52 @@
+# file-server.lib.civet
+
+import {serveFile, serveDir} from '@std/http/file-server'
+
+import {hash, TStringFilterFunc} from 'datatypes'
+import {getOptions} from 'llutils'
+import {LOG, DBG, ERR} from 'logger'
+import {mkpath, relpath} from 'fsys'
+
+defPort := 8000
+
+# ---------------------------------------------------------------------------
+
+export class CFileServer
+	port: number
+	root: string
+	server: Deno.HttpServer
+
+	constructor(@root: string, hOptions: hash = {})
+
+		type opt = {
+			port: number
+			verbose: boolean
+			allow: TStringFilterFunc
+			}
+		{@port, verbose, allow} := getOptions<opt> hOptions, {
+			port: defPort
+			verbose: true
+			allow: (s) => true
+			}
+
+		onListen := () =>
+			if verbose
+				LOG "Listening on port #{@port}"
+
+		@server = Deno.serve {onListen}, (req: Request) =>
+
+			if not allow(req.url)
+				return new Response("403: Forbidden", {status: 403})
+
+			LOG "Starting file server"
+			return serveDir req, {
+				fsRoot: @root
+				showDirListing: true
+				showIndex: false
+				enableCors: true
+				quiet: not verbose
+				}
+
+	[Symbol.dispose](): void
+		LOG "stopping file server"
+		return

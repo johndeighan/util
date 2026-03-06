@@ -21,6 +21,7 @@ import {
 	isBoolean, isNumber, isInteger, isArray, isArrayOfStrings,
 	isHash, isRegExp, integer, hash, hashof, TVoidFunc,
 	} from 'datatypes'
+import {MAP} from 'map'
 import {
 	getOptions, pass, encode, spaces,
 	sinceLoadStr, sleep, arrayToBlock,
@@ -112,9 +113,17 @@ export const pathToURL = (...lParts: string[]): string => {
 
 export const mkpath = (...lParts: (string | undefined)[]): string => {
 
-	const lUseParts = lParts.filter((x) => nonEmpty(x))
-	const path = lUseParts.join('/').replaceAll(/[\\\/]+/g, '/')
-	return normalizePath(path)
+	const lUseParts = MAP(lParts, function*(x) {
+		if (nonEmpty(x)) {
+			assert(defined(x))
+			const lMatches = x.match(/^\.?[\\\/]*(.*?)[\\\/]*$/)
+			if (defined(lMatches)) {
+				yield lMatches[1]
+			}
+		}
+	})
+
+	return normalizePath(lUseParts.join('/'))
 }
 
 // ---------------------------------------------------------------------------

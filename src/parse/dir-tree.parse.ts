@@ -60,7 +60,7 @@ const $R6 = $R(new RegExp("\\x20*", 'suy'));
 const FullDesc$0 = $TS($S(Root, NL, $P($C(FileDesc, DirDesc))), function($skip, $loc, $0, $1, $2, $3) {
 
 pm.match('FullDesc', $loc);
-return pm.resultIs(lFileOps);
+return pm.result(lFileOps);
 });
 //@ts-ignore
 function FullDesc(ctx, state) { return $EVENT(ctx, state, "FullDesc", FullDesc$0) }

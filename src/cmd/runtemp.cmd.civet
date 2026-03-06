@@ -11,8 +11,9 @@ import {LOG, DBG, ERR} from 'logger'
 import {doCompileCivet, compileAllLibs} from 'civet'
 
 stdChecks """
-	runtemp [-fI] [-stub=<temp_stub>] { <lib_stub> }
+	runtemp [-fnI] [-stub=<temp_stub>] { <lib_stub> }
 		-f = force recompile
+		-n = don't attempt to recompile changed libs
 		-I = invoke Chrome debugger
 		- if lib  <lib_stub>.lib.civet exists, compile it
    	- if file <temp_stub>.temp.civet exists, compile and run it
@@ -24,10 +25,15 @@ stdChecks """
 
 debugger
 try
-	{inspect} := getFlags {inspect: 'I'}
+	{inspect, force, noCompile} := getFlags {
+		inspect: 'I'
+		force: 'f'
+		noCompile: 'n'
+		}
 
-	# --- Compile any changed libraries
-	await compileAllLibs({abortOnError: true})
+	if not noCompile
+		# --- Compile any changed libraries
+		await compileAllLibs({abortOnError: true})
 
 	# --- compile temp file
 	stub := argValue('stub') || 'temp'
@@ -40,7 +46,7 @@ try
 
 	# --- run or debug the temp file
 	assert defined path
-	await procOneFile path, doCompileCivet, {inspect}
+	await procOneFile path, doCompileCivet, {inspect, force}
 
 	# --- Run the temp file
 	tsPath := withExt path, '.ts'

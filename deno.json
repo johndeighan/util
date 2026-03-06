@@ -19,6 +19,9 @@
 		"@std/path": "jsr:@std/path",
 		"@std/streams": "jsr:@std/streams",
 		"@webview/webview": "jsr:@webview/webview",
+		"@webui": "jsr:@webui/deno-webui"
+		"@std/http/file-server": "jsr:@std/http/file-server",
+		"@mwid/better-sse": "jsr:@mwid/better-sse",
 
 		"@deno/emit": "jsr:@deno/emit",
 		"@danielx/civet": "npm:@danielx/civet@latest",
@@ -76,6 +79,7 @@
 		"unit-test":     "file:///C:/Users/johnd/util/src/lib/unit-test.lib.ts",
 		"map":           "file:///C:/Users/johnd/util/src/lib/map.lib.ts",
 		"call-stack":    "file:///C:/Users/johnd/util/src/lib/call-stack.lib.ts",
+		"file-server":   "file:///C:/Users/johnd/util/src/lib/file-server.lib.ts",
 		"html-window":   "file:///C:/Users/johnd/util/src/lib/html-window.lib.ts",
 
 		"civetconfig":   "file:///C:/Users/johnd/civetconfig.json",

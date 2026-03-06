@@ -1,5 +1,9 @@
 to do
 
+IDEA: name hidden folders with a leading period
+IDEA: in logger, always log tagged with a given level
+	then allow getting log for a particular level and below
+
 running 'reBuild lib' fails
 	deno run -A src/cmd/buildlib.cmd.ts -f all
 
