@@ -8,14 +8,13 @@ import {
 	assertArrayIncludes,
 	} from '@std/assert'
 
+import {TPredicate, anyOf, allOf} from 'predicates'
 import {esc, mesc} from 'unicode'
 import {
 	undef, defined, notdefined, isEmpty, nonEmpty,
 	array, arrayof, isArray, isHash, isString, hash, hashof,
-	deepEqual, integer, TFilterFunc,
-	isFunction, isClass, functionDef, classDef,
-	TVoidFunc, TVoidIterator, getErrStr,
-	croak, isGenerator, isIterator,
+	deepEqual, integer, isFunction, isClass, functionDef, classDef,
+	TVoidFunc, TVoidIterator, getErrStr, croak, isGenerator, isIterator,
 	} from 'datatypes'
 import {
 	pass, o, keys, getOptions, spaces, blockToArray,
@@ -41,6 +40,7 @@ import {civet2tsFile} from 'civet'
 import {sourceLib, getNeededImportStmts} from 'symbols'
 import {getTsCode, getImportCode, typeCheckTsCode} from 'typescript'
 import {getMyOutsideCaller} from 'v8-stack'
+import {compileFile} from 'automate'
 
 const stringify = JSON.stringify
 
@@ -451,7 +451,7 @@ export const execFileOps = (
 				clearDir(h.path);break;
 			}
 			case 'compile': {
-				civet2tsFile(h.path);break;
+				compileFile(h.path);break;
 			}
 			case 'barf': {
 				barf(h.path, h.contents);break;
@@ -580,39 +580,6 @@ export const sampleVal: hash = {
 	fullList: [42],
 	MyClass
 	}
-
-// ---------------------------------------------------------------------------
-// --- Returns true only if all the named values return true
-//     AND all the not named values return false
-
-export const allTrue = (
-		lNames: string[],
-		pred: TFilterFunc
-		): boolean => {
-
-	for (const name of lNames) {
-		if (!pred(sampleVal[name])) {
-			return false
-		}
-	}
-	return true
-}
-
-// ---------------------------------------------------------------------------
-// --- Returns true only if all the named values return true
-
-export const allFalse = (
-		lNames: string[],
-		pred: TFilterFunc
-		): boolean => {
-
-	for (const name of lNames) {
-		if (pred(sampleVal[name])) {
-			return false
-		}
-	}
-	return true
-}
 
 // ---------------------------------------------------------------------------
 

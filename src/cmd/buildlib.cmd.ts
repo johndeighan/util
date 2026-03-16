@@ -7,7 +7,8 @@ import {MAP} from 'map'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {LOG, ERR} from 'logger'
 import {withExt, findFile, relpath} from 'fsys'
-import {execCmd, procFiles, procOneFile, doUnitTest} from 'exec'
+import {execCmd, procFiles, procOneFile} from 'exec'
+import {doUnitTest} from 'typescript'
 import {doCompileCivet} from 'civet'
 
 stdChecks(`buildlib -ftI (all | <stub>*)
@@ -28,8 +29,8 @@ try {
 		})
 
 	if (nonOption(0) === 'all') {
-		LOG(cmdTitle("BUILD ALL LIBS"))
-		await procFiles([doCompileCivet, ['**/*.lib.civet']], {force})
+		LOG(cmdTitle("BUILD ALL LIBS serially"))
+		await procFiles([doCompileCivet, ['**/*.lib.civet']], {force, serial: true})
 		if (doTest) {
 			await procFiles([doCompileCivet, ['**/*.lib.test.civet']], {force})
 			await procFiles([doUnitTest, ['**/*.lib.test.ts']], {capture: false})
@@ -39,10 +40,12 @@ try {
 		}
 	}
 	else {
+		const lNonOptions = Array.from(allNonOptions())
 		for (const stub of allNonOptions()) {
 			const fileName = `${stub}.lib.civet`
 			const path = findFile(fileName)
 			assert(defined(path), `No such file: ${fileName}`)
+
 			LOG(cmdTitle(`BUILD LIB ${relpath(path)}`))
 			await procOneFile(path, doCompileCivet, {force, inspect})
 

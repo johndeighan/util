@@ -2,7 +2,6 @@
 // hera-compile.lib.civet
 
 type AutoPromise<T> = Promise<Awaited<T>>;
-import {statSync} from 'node-fs'
 import {existsSync} from '@std/fs'
 
 import {uni, esc} from 'unicode'
@@ -19,7 +18,9 @@ import {resetOneIndent, splitLine, indented} from 'indent'
 import {LOG, DBG, ERR} from 'logger'
 import {debugging} from 'cmd-args'
 import {ML} from 'to-nice'
-import {fileExt, withExt, isValidStub, pathStr} from 'fsys'
+import {
+	fileExt, withExt, isValidStub, pathStr, newerDestFileExists,
+	} from 'fsys'
 import {
 	execCmd, CFileHandler, TExecResult,
 	} from 'exec'
@@ -42,7 +43,7 @@ export class CHeraCompiler extends CFileHandler {
 		if (
 				   !hOptions.force
 				&& existsSync(destPath)
-				&& (statSync(destPath).mtimeMs > statSync(path).mtimeMs)
+				&& newerDestFileExists(path, destPath)
 				) {
 			return {
 				success: true,

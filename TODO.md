@@ -1,5 +1,19 @@
 to do
 
+??? instead of compiling serially, do it in dependency order
+
+work on temp.civet, getting SSE to work
+
+test function compileFile(), add to unit tests for automate lib
+
+test compiling of .cielo files
+   - use temp.civet, it currently names final file as *.temp.ts, which is wrong
+
+use automate's doCompileFile in the file compile.cmd.civet
+
+in unit test for automate.lib.civet, test1.cielo isn't compiled to test1.ts
+setDirTree() can't compile cielo files!
+
 IDEA: name hidden folders with a leading period
 IDEA: in logger, always log tagged with a given level
 	then allow getting log for a particular level and below

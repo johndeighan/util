@@ -1,6 +1,7 @@
 "use strict";
 // unit-test.lib.test.civet
 
+import {allOf} from 'predicates'
 import {undef, assert, hash} from 'datatypes'
 import {DBG} from 'logger'
 import {range, o, spaces} from 'llutils'
@@ -10,7 +11,7 @@ import {
 	like, strListLike, objListLike,
 	matches, includes, includesAll,
 	TFileOp, setDirTree, getFileOps, fileOpsTable,
-	sampleVal, allTrue, allFalse, generateSync, generateAsync,
+	sampleVal, generateSync, generateAsync,
 	} from 'unit-test'
 
 // ---------------------------------------------------------------------------
@@ -123,7 +124,7 @@ const dump = () => {
 // isType '() => void', () => return
 // isType '() => void', dump
 // isType 'TVoidFunc', dump
-// isType 'TFilterFunc', (x: unknown) => return true
+// isType 'TPredicate', (x: unknown) => return true
 
 DBG("# notType()")
 
@@ -169,11 +170,11 @@ barf  /usr/bin/temp.txt    abc↓def
 
 // ---------------------------------------------------------------------------
 
-truthy(allTrue(['emptyStr', 'str'],
-	(x) => (typeof x === 'string')))
+truthy(allOf(['emptyStr', 'str'],
+	(x) => (typeof sampleVal[x] === 'string')))
 
-truthy(allFalse(['genFunc', 'regularFunc', 'lambdaFunc'],
-	(x) => (typeof x !== 'function')))
+truthy(allOf(['genFunc', 'regularFunc', 'lambdaFunc'],
+	(x) => (typeof sampleVal[x] === 'function')))
 
 equal(await Array.fromAsync(generateAsync([1, 2, 3, 4, 5])), [1, 2, 3, 4, 5])
 

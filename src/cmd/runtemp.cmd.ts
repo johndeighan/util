@@ -22,7 +22,6 @@ stdChecks(`runtemp [-fnI] [-stub=<temp_stub>] { <lib_stub> }
 
 // ---------------------------------------------------------------------------
 
-debugger
 try {
 	const {inspect, force, noCompile} = getFlags({
 		inspect: 'I',
@@ -32,7 +31,7 @@ try {
 
 	if (!noCompile) {
 		// --- Compile any changed libraries
-		await compileAllLibs({abortOnError: true})
+		await compileAllLibs()
 	}
 
 	// --- compile temp file

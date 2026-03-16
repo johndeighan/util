@@ -7,6 +7,7 @@ import {parse as parseJSONC, JsonValue} from '@std/jsonc'
 import {debounce} from '@std/async/debounce'
 import {existsSync, emptyDirSync, ensureDirSync} from '@std/fs'
 import {appendFileSync, openSync, closeSync} from 'node-fs'
+import {pathToFileURL} from 'node-url'
 import {EventEmitter} from 'node-events'
 import NReadLines from 'npm-n-readlines'
 import {expandGlobSync} from '@std/fs/expand-glob'
@@ -16,7 +17,7 @@ import {
 	} from '@std/path'
 
 import {
-	undef, defined, notdefined, assert, croak,
+	undef, defined, notdefined, assert, obviously, croak,
 	isEmpty, nonEmpty, isString, isNonEmptyString,
 	isBoolean, isNumber, isInteger, isArray, isArrayOfStrings,
 	isHash, isRegExp, integer, hash, hashof, TVoidFunc,
@@ -30,7 +31,7 @@ import {isMetaDataStart, convertMetaData} from 'meta-data'
 import {debugging} from 'cmd-args'
 import {OL, ML} from 'to-nice'
 import {
-	pushLogLevel, popLogLevel, LOG, DBG,
+	pushLogLevel, popLogLevel, LOG, DBG, WARN, ERR,
 	INDENT, UNDENT, DBGVALUE,
 	} from 'logger'
 
@@ -38,8 +39,46 @@ import {
 //     importing ESM modules
 
 const Deno = globalThis.Deno
-export type FsEvent = Deno.FsEvent
-export var statSync = Deno.statSync
+type FsEvent = Deno.FsEvent
+
+// ---------------------------------------------------------------------------
+// Deno.FileInfo has:
+//    isFile (boolean): True if it's a regular file.
+//    isDirectory (boolean): True if it's a directory.
+//    isSymlink (boolean): True if it's a symlink.
+//    size (number): File size in bytes.
+//    mtime (Date | null): Modification time.
+//    atime (Date | null): Last access time.
+//    birthtime (Date | null): Creation time (not available on all platforms).
+//    mode (number | null): Permissions (POSIX only).
+//    uid / gid (number | null): Owner/group ID (POSIX only)
+// ---------------------------------------------------------------------------
+
+export type TFileStats = {
+	isFile: boolean
+	isDirectory: boolean
+	isSymlink: boolean
+	mtime: (Date | undefined)
+	}
+
+export const getFileStats = (path: string): TFileStats => {
+
+	if (path === 'ext:core/01_core.js') {
+		return {
+			isFile: false,
+			isDirectory: false,
+			isSymlink: false,
+			mtime: undef
+			}
+	}
+	const hStats = Deno.statSync(path)
+	return {
+		isFile: hStats.isFile,
+		isDirectory: hStats.isDirectory,
+		isSymlink: hStats.isSymlink,
+		mtime: hStats.mtime || undef
+		}
+}
 
 // ---------------------------------------------------------------------------
 /**
@@ -59,7 +98,7 @@ export const getPathType = (path: string): TPathType => {
 	if (!existsSync(path)) {
 		return 'missing'
 	}
-	const h = statSync(path)
+	const h = getFileStats(path)
 	return (
 		  h.isFile         ? 'file'
 		: h.isDirectory    ? 'dir'
@@ -87,7 +126,9 @@ export const touch = (path: string): void => {
 // ---------------------------------------------------------------------------
 // ASYNC GENERATOR
 
-export const allLinesIn = async function*(path: string): AsyncGenerator<string, void, void> {
+export const allLinesIn = async function*(
+		path: string
+		): AsyncGenerator<string> {
 
 	assert(isFile(path), `No such file: ${OL(path)} (allLinesIn)`)
 	const f = await Deno.open(path)
@@ -111,12 +152,31 @@ export const pathToURL = (...lParts: string[]): string => {
 
 // ---------------------------------------------------------------------------
 
+export const normalizePath = (path: string): string => {
+
+	if (isEmpty(path)) {
+		return ''
+	}
+
+	const npath = path.replaceAll('\\', '/')
+	if (npath.charAt(1) === ':') {
+		return npath.charAt(0).toUpperCase() + npath.substring(1)
+	}
+	else {
+		return npath
+	}
+}
+
+// ---------------------------------------------------------------------------
+
 export const mkpath = (...lParts: (string | undefined)[]): string => {
 
 	const lUseParts = MAP(lParts, function*(x) {
 		if (nonEmpty(x)) {
-			assert(defined(x))
-			const lMatches = x.match(/^\.?[\\\/]*(.*?)[\\\/]*$/)
+			obviously(defined(x))
+			// --- Remove any leading or trailing slashes,
+			//     even if leading slash is preceded by '.'
+			const lMatches = x.match(/^(?:\.?[\\\/])?(.*?)[\\\/]?$/)
 			if (defined(lMatches)) {
 				yield lMatches[1]
 			}
@@ -224,9 +284,9 @@ export const newerDestFileExists = (
 
 	try {
 		assert(existsSync(destPath))
-		const destms = statSync(destPath).mtime
+		const destms = getFileStats(destPath).mtime
 		assert(defined(destms))
-		const srcms  = statSync(srcPath).mtime
+		const srcms  = getFileStats(srcPath).mtime
 		assert(defined(srcms))
 		return (destms > srcms)
 	}
@@ -446,23 +506,31 @@ export const addJsonValue = (
 // ---------------------------------------------------------------------------
 
 export const fileExt = (path: string): string => {
-	let ref
-	if (ref = path.match(/\.[^\.]+$/)) {
-		const lMatches = ref
-		return lMatches[0]
-	}
-	else {
-		return ''
-	}
+
+	const lMatches = path.match(/\.[^\.]+$/)
+	return lMatches ? lMatches[0] : ''
 }
 
 // ---------------------------------------------------------------------------
 
 export const withExt = (path: string, ext: string): string => {
+
 	assert(ext.startsWith('.'), `Bad file extension: ${ext}`)
 	const pos = path.lastIndexOf('.')
 	assert((pos >= 0), `path contains no period: ${path}`)
-	return path.substring(0, pos) + ext
+	return normalizePath(path.substring(0, pos) + ext)
+}
+
+// ---------------------------------------------------------------------------
+
+export const inSameDir = (
+		path: string,
+		fileName: string
+		): string => {
+
+	const {dir} = parsePath(path)
+	const newpath = mkpath(dir, fileName)
+	return normalizePath(newpath)
 }
 
 // ---------------------------------------------------------------------------
@@ -486,23 +554,6 @@ export const slurpAsync = async (path: string): AutoPromise<string> => {
 
 	const data = await Deno.readTextFile(path)
 	return defined(data) ? removeCR(data) : ''
-}
-
-// ---------------------------------------------------------------------------
-
-export const normalizePath = (path: string): string => {
-
-	if (notdefined(path)) {
-		return ''
-	}
-
-	const npath = path.replaceAll('\\', '/')
-	if (npath.charAt(1) === ':') {
-		return npath.charAt(0).toUpperCase() + npath.substring(1)
-	}
-	else {
-		return npath
-	}
 }
 
 // ---------------------------------------------------------------------------
@@ -621,7 +672,8 @@ export const allFilesMatching = function*(
 	}
 	const setSkip = new Set<string>()
 	for (const pat of lPosPats) {
-		for (const {path} of expandGlobSync(pat, hGlobOptions)) {
+		for (const entry of expandGlobSync(pat, hGlobOptions)) {
+			const {path} = entry
 			if (!setSkip.has(path)) {
 				if (debugging) {
 					LOG(`PATH: ${path}`)
@@ -726,7 +778,7 @@ export const allDirsMatching = function*(
 	const setSkip = new Set<string>()
 	for (const pat of lPosPats) {
 		for (const {path} of expandGlobSync(pat, hGlobOptions)) {
-			if (!setSkip.has(path) && statSync(path).isDirectory) {
+			if (!setSkip.has(path) && getFileStats(path).isDirectory) {
 				if (debugging) {
 					LOG(`DIR: ${path}`)
 				}
@@ -806,7 +858,7 @@ export const isFile = (path: (string | undefined)): boolean => {
 		return false
 	}
 	try {
-		const stats = statSync(path)
+		const stats = getFileStats(path)
 		return stats.isFile
 	}
 	catch (err) {
@@ -827,7 +879,7 @@ export const isDir = (path: (string | undefined)): boolean => {
 		return false
 	}
 	try {
-		const stats = statSync(path)
+		const stats = getFileStats(path)
 		return stats.isDirectory
 	}
 	catch (err) {
@@ -984,5 +1036,19 @@ export var openTextFile = (
 	}
 }
 
+// ---------------------------------------------------------------------------
+// ASYNC
 
+export const configFromFile = async (fileName: string): AutoPromise<hash> => {
+
+	const path = findFile(fileName)
+	assert(defined(path), `No such file: ${OL(fileName)}`)
+	const {purpose, ext} = parsePath(path)
+	assert((purpose === 'config'), `Not a config file: ${OL(path)}`)
+	assert((ext === '.ts'), `Config file not TypeScript: ${OL(path)}`)
+	DBG(`Import config from ${OL(path)}`)
+	const url = pathToFileURL(path)
+	DBGVALUE('url', url)
+	return await import(url)
+}
 

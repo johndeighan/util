@@ -3,7 +3,6 @@
 
 type AutoPromise<T> = Promise<Awaited<T>>;
 import {exists, existsSync} from '@std/fs'
-import {statSync} from 'node-fs'
 import {stripAnsiCode} from '@std/fmt/colors'
 import {
 	CompilerOptions, ScriptTarget, ModuleKind, CompilerHost,
@@ -16,6 +15,7 @@ import {
 	undef, defined, notdefined, assert, croak, hash, getErrStr,
 	isString, isArray, isArrayOfStrings, isEmpty, nonEmpty, TStringMapper,
 	} from 'datatypes'
+import {MAP, AMAP, awaitAll, Accumulate} from 'map'
 import {
 	getOptions, pass, blockToArray, decode, encode, sep, centered,
 	allLinesInBlock,
@@ -32,8 +32,6 @@ import {
 	barf, pathStr, allFilesMatching, normalizePath, barfTempFile,
 	fileExt, withExt, slurpAsync, parsePath, relpath,
 	} from 'fsys'
-// import {reducer, syncReducer, asyncRunner} from 'var-free'
-import {MAP, AMAP, awaitAll} from 'map'
 
 // ---------------------------------------------------------------------------
 
@@ -73,8 +71,8 @@ export type TStreamType = 'piped' | 'inherit'
 export type TExecResult = {
 	success: boolean
 	notNeeded?: true
-	stdout: string     // always present, but may be ''
-	stderr: string     // always present, but may be ''
+	stdout?: string
+	stderr?: string
 	infile?: string
 	outfile?: string
 	debug?: string
@@ -139,7 +137,6 @@ export const execCmdSync = (
 		}
 		return {
 			success: false,
-			stdout: '',
 			stderr: getErrStr(err)
 			}
 	}
@@ -217,7 +214,6 @@ export const execCmd = async (
 		}
 		return {
 			success: false,
-			stdout: '',
 			stderr: getErrStr(err)
 			}
 	}
@@ -269,6 +265,44 @@ export abstract class CFileHandler {
 }
 
 // ---------------------------------------------------------------------------
+
+export const prelog = (
+		op: string,
+		path: string,
+		capture: boolean
+		): void => {
+
+	if (capture) {
+		write(`${op} ${relpath(path)}`)
+	}
+	else {
+		writeln(`${op} ${relpath(path)} (no capture)`)
+	}
+	return
+}
+
+// ---------------------------------------------------------------------------
+// --- only call if capture was true
+
+export const postlog = (
+		success: boolean,
+		notNeeded: (boolean | undefined)
+		): void => {
+	if (success) {
+		if (notNeeded) {
+			writeln(f`${' - not needed'}:{yellow}`)
+		}
+		else {
+			writeln(f`${' - OK'}:{green}`)
+		}
+	}
+	else {
+		writeln(` ${colorize('FAILED', 'red')}`)
+	}
+	return
+}
+
+// ---------------------------------------------------------------------------
 // ASYNC
 
 // --- Later, I want to allow passing multiple TProcSpecs
@@ -283,10 +317,14 @@ export const procFiles = async (
 	type opt = {
 		quiet: boolean
 		abortOnError: boolean
+		serial: boolean
+		capture: boolean
 		}
-	const {quiet, abortOnError} = getOptions<opt>(hOptions, {
+	const {quiet, abortOnError, serial, capture} = getOptions<opt>(hOptions, {
 		quiet: false,
-		abortOnError: false
+		abortOnError: false,
+		serial: false,
+		capture: true
 		})
 
 	const [handler, lPatterns] = procSpec
@@ -296,16 +334,42 @@ export const procFiles = async (
 	}
 
 	const lPaths: string[] = Array.from(allFilesMatching(lPatterns))
-	const results=[];for (const path of lPaths) {
-		results.push(handler.handle(path, hOptions))
-	};const lPromises =results
 
-	const [
-		lFulfilled,     // array of TExecResult
-		lRejected,
-		lFulPaths,
-		lRejPaths
-		] = await awaitAll(lPromises, lPaths)
+	type TAccum = [
+		TExecResult[],  // --- non-error result of execution
+		string[],       //     array of error messages
+		string[],       //     array of paths corresponding to non-error exec
+		string[]       //     array of paths corresponding to errors
+		]
+
+	const lFinalResult = (
+		(await (async ()=>{if (serial) {
+			const mapFunc = async function(path: string, i: number, acc: TAccum): AutoPromise<TAccum> {
+				// --- must return a TAccum
+				prelog(op, path, capture)
+				try {
+					const xres: TExecResult = await handler.handle(path, hOptions)
+					if (capture) {
+						postlog(xres.success, xres.notNeeded)
+					}
+					return [[...acc[0], xres], acc[1], [...acc[2], path], acc[3]]
+				}
+				catch (err) {
+					return [acc[0], [...acc[1], getErrStr(err)], acc[2], [...acc[3], path]]
+				}
+			}
+
+			return await Accumulate<string,TAccum>(lPaths, [[],[],[],[]], mapFunc)
+		}
+		else {
+			const results=[];for (const path of lPaths) {
+				results.push(handler.handle(path, hOptions))
+			};const lPromises =results
+			return await awaitAll(lPromises, lPaths)
+		}})())
+		)
+
+	const [lFulfilled, lRejected, lFulPaths, lRejPaths] = lFinalResult
 
 	const nRej = lRejected.length
 	const [lAllResults, [nNotNeeded, nOk, nErr]] = MAP(lFulfilled, [0,0,0], function*(h, i, acc) {
@@ -347,6 +411,7 @@ export const procFiles = async (
 		showFinalResult(op, nNotNeeded, nOk, nErr, nRej, lPatterns)
 	}
 	if (abortOnError && (nErr > 0)) {
+		LOG("Aborting...")
 		Deno.exit(-1)
 	}
 	return lFulfilled
@@ -430,12 +495,7 @@ export const procOneFile = async (
 	//           output will be produced
 
 	const op = handler.op
-	if (capture) {
-		write(`${op} ${relpath(path)}`)
-	}
-	else {
-		writeln(`${op} ${relpath(path)} (no capture)`)
-	}
+	prelog(op, path, capture)
 
 	try {
 		const hResult = await handler.handle(path, hOptions)
@@ -443,20 +503,13 @@ export const procOneFile = async (
 
 		// --- If capture is false, output has already happened
 		if (capture) {
+			postlog(success, notNeeded)
 			if (success) {
-//				writeln f"#{notNeeded ? ' - not needed' : ' - OK'}:{green}"
-				if (notNeeded) {
-					writeln(f`${' - not needed'}:{yellow}`)
-				}
-				else {
-					writeln(f`${' - OK'}:{green}`)
-				}
 				if (dumpOutput) {
 					showOkResult(handler, path, hResult, hOptions)
 				}
 			}
 			else {
-				writeln(` ${colorize('FAILED', 'red')}`)
 				showErrResult(handler, path, hResult, hOptions)
 				if (abortOnError) {
 					Deno.exit(99)
@@ -475,8 +528,6 @@ export const procOneFile = async (
 		}
 		return {
 			success: false,
-			stdout: '',
-			stderr: ''
 			}
 	}
 }
@@ -551,9 +602,7 @@ class CFileRemover extends CFileHandler {
 			await Deno.remove(path)
 		}
 		return {
-			success: true,
-			stdout: '',
-			stderr: ''
+			success: true
 			}
 	}
 }
@@ -575,9 +624,7 @@ class CFileEchoer extends CFileHandler {
 
 		LOG(await exists(path) ? `${path}` : `${path} - ${'does not exist'}:{red}`)
 		return {
-			success: true,
-			stdout: '',
-			stderr: ''
+			success: true
 			}
 	}
 }
@@ -602,16 +649,12 @@ class CTsFileRemover extends CFileHandler {
 		if (await exists(civetPath)) {
 			await Deno.remove(path)
 			return {
-				success: true,
-				stdout: '',
-				stderr: ''
+				success: true
 				}
 		}
 		else {
 			return {
 				success: true,
-				stdout: '',
-				stderr: '',
 				notNeeded: true
 				}
 		}
@@ -619,93 +662,6 @@ class CTsFileRemover extends CFileHandler {
 }
 
 export const doRemoveTsFile = new CTsFileRemover()
-
-// ---------------------------------------------------------------------------
-
-class CUnitTester extends CFileHandler {
-
-	get op() {
-		return 'doUnitTest'
-	}
-
-	// ..........................................................
-
-	override async handle(
-			path: string,
-			hOptions: hash = {}
-			): AutoPromise<TExecResult> {
-
-		assert(path.endsWith('.test.ts'), "Not a unit test file")
-		type opt = {
-			capture: boolean
-			inspect: boolean
-			lineNum: (string | undefined)
-			}
-		const {capture, inspect, lineNum} = getOptions<opt>(hOptions, {
-			capture: true,
-			inspect: false,
-			lineNum: undef
-			})
-
-		const hResult = await execCmd('deno', [
-				'test',
-				'-A',
-				...(inspect ? ['--inspect-brk'] : ['--coverage=./coverage']),
-				...(defined(lineNum) ? ['--filter', `/^line ${lineNum}$/`] : []),
-				path
-				], {capture})
-		return hResult
-	}
-
-	// ..........................................................
-
-	override getOutput(hResult: TExecResult): string {
-
-		const output = hResult.stdout + hResult.stderr
-		if (!hResult.success) {
-			return output
-		}
-		const lLines = MAP(allLinesInBlock(decolorize(output)), function*(line) {
-			if (line.startsWith('running')) {
-				yield line
-				yield ''
-			}
-			else if (line.startsWith('line')) {
-				if (!line.includes(' ok ')) {
-					yield withColors(line, {
-						failed: 'red',
-						FAILED: 'red',
-						ok: 'green',
-						OK: 'green'
-						})
-				}
-			}
-			else if (line.includes('passed') && line.includes('failed')) {
-				if (line.includes(' 0 failed ')) {
-					yield withColors(line, {
-						ok: 'green',
-						passed: 'green'
-						})
-				}
-				else {
-					yield withColors(line, {
-						ok: 'green',
-						passed: 'green',
-						failed: 'red',
-						FAILED: 'red'
-						})
-				}
-				yield ''
-			}
-			else if (line.includes('Lcov coverage')) {
-				yield 'coverage report generated'
-			}
-		})
-		return lLines.join('\n')
-	}
-}
-
-export const doUnitTest = new CUnitTester()
 
 // ---------------------------------------------------------------------------
 

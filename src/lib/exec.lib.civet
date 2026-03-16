@@ -1,7 +1,6 @@
 # exec.lib.civet
 
 import {exists, existsSync} from '@std/fs'
-import {statSync} from 'node-fs'
 import {stripAnsiCode} from '@std/fmt/colors'
 import {
 	CompilerOptions, ScriptTarget, ModuleKind, CompilerHost,
@@ -14,6 +13,7 @@ import {
 	undef, defined, notdefined, assert, croak, hash, getErrStr,
 	isString, isArray, isArrayOfStrings, isEmpty, nonEmpty, TStringMapper,
 	} from 'datatypes'
+import {MAP, AMAP, awaitAll, Accumulate} from 'map'
 import {
 	getOptions, pass, blockToArray, decode, encode, sep, centered,
 	allLinesInBlock,
@@ -30,8 +30,6 @@ import {
 	barf, pathStr, allFilesMatching, normalizePath, barfTempFile,
 	fileExt, withExt, slurpAsync, parsePath, relpath,
 	} from 'fsys'
-# import {reducer, syncReducer, asyncRunner} from 'var-free'
-import {MAP, AMAP, awaitAll} from 'map'
 
 # ---------------------------------------------------------------------------
 
@@ -65,8 +63,8 @@ export type TStreamType = 'piped' | 'inherit'
 export type TExecResult =
 	success: boolean
 	notNeeded?: true
-	stdout: string     # always present, but may be ''
-	stderr: string     # always present, but may be ''
+	stdout?: string
+	stderr?: string
 	infile?: string
 	outfile?: string
 	debug?: string
@@ -126,7 +124,6 @@ export execCmdSync := (
 			ERR err
 		return {
 			success: false
-			stdout: ''
 			stderr: getErrStr(err)
 			}
 
@@ -197,7 +194,6 @@ export execCmd := (
 			ERR err
 		return {
 			success: false
-			stdout: ''
 			stderr: getErrStr(err)
 			}
 
@@ -242,6 +238,36 @@ export abstract class CFileHandler
 		return (hResult?.stdout || '') + (hResult?.stderr || '')
 
 # ---------------------------------------------------------------------------
+
+export prelog := (
+		op: string,
+		path: string,
+		capture: boolean
+		): void =>
+
+	if capture
+		write "#{op} #{relpath(path)}"
+	else
+		writeln "#{op} #{relpath(path)} (no capture)"
+	return
+
+# ---------------------------------------------------------------------------
+# --- only call if capture was true
+
+export postlog := (
+		success: boolean
+		notNeeded: boolean?
+		): void =>
+	if success
+		if notNeeded
+			writeln f"#{' - not needed'}:{yellow}"
+		else
+			writeln f"#{' - OK'}:{green}"
+	else
+		writeln " #{colorize('FAILED', 'red')}"
+	return
+
+# ---------------------------------------------------------------------------
 # ASYNC
 
 # --- Later, I want to allow passing multiple TProcSpecs
@@ -256,10 +282,14 @@ export procFiles := (
 	type opt = {
 		quiet: boolean
 		abortOnError: boolean
+		serial: boolean
+		capture: boolean
 		}
-	{quiet, abortOnError} := getOptions<opt> hOptions, {
+	{quiet, abortOnError, serial, capture} := getOptions<opt> hOptions, {
 		quiet: false
 		abortOnError: false
+		serial: false
+		capture: true
 		}
 
 	[handler, lPatterns] := procSpec
@@ -268,15 +298,35 @@ export procFiles := (
 		writeln "(#{op})"
 
 	lPaths: string[] := Array.from allFilesMatching(lPatterns)
-	lPromises := for path of lPaths
-		handler.handle path, hOptions
 
-	[
-		lFulfilled,     # array of TExecResult
-		lRejected,
-		lFulPaths,
-		lRejPaths
-		] := await awaitAll(lPromises, lPaths)
+	type TAccum = [
+		TExecResult[]  # --- non-error result of execution
+		string[]       #     array of error messages
+		string[]       #     array of paths corresponding to non-error exec
+		string[]       #     array of paths corresponding to errors
+		]
+
+	lFinalResult := (
+		if serial
+			mapFunc := (path: string, i: number, acc: TAccum): TAccum ->
+				# --- must return a TAccum
+				prelog op, path, capture
+				try
+					xres: TExecResult := await handler.handle path, hOptions
+					if capture
+						postlog xres.success, xres.notNeeded
+					return [[...acc[0], xres], acc[1], [...acc[2], path], acc[3]]
+				catch err
+					return [acc[0], [...acc[1], getErrStr(err)], acc[2], [...acc[3], path]]
+
+			await Accumulate<string,TAccum> lPaths, [[],[],[],[]], mapFunc
+		else
+			lPromises := for path of lPaths
+				handler.handle path, hOptions
+			await awaitAll(lPromises, lPaths)
+		)
+
+	[lFulfilled, lRejected, lFulPaths, lRejPaths] := lFinalResult
 
 	nRej := lRejected.length
 	[lAllResults, [nNotNeeded, nOk, nErr]] := MAP lFulfilled, [0,0,0], (h, i, acc) ->
@@ -307,6 +357,7 @@ export procFiles := (
 	if not quiet || (nOk + nErr > 0)
 		showFinalResult op, nNotNeeded, nOk, nErr, nRej, lPatterns
 	if abortOnError && (nErr > 0)
+		LOG "Aborting..."
 		Deno.exit -1
 	return lFulfilled
 
@@ -384,10 +435,7 @@ export procOneFile := (
 	#           output will be produced
 
 	op := handler.op
-	if capture
-		write "#{op} #{relpath(path)}"
-	else
-		writeln "#{op} #{relpath(path)} (no capture)"
+	prelog(op, path, capture)
 
 	try
 		hResult := await handler.handle path, hOptions
@@ -395,16 +443,11 @@ export procOneFile := (
 
 		# --- If capture is false, output has already happened
 		if capture
+			postlog success, notNeeded
 			if success
-#				writeln f"#{notNeeded ? ' - not needed' : ' - OK'}:{green}"
-				if notNeeded
-					writeln f"#{' - not needed'}:{yellow}"
-				else
-					writeln f"#{' - OK'}:{green}"
 				if dumpOutput
 					showOkResult handler, path, hResult, hOptions
 			else
-				writeln " #{colorize('FAILED', 'red')}"
 				showErrResult handler, path, hResult, hOptions
 				if abortOnError
 					Deno.exit 99
@@ -417,8 +460,6 @@ export procOneFile := (
 			Deno.exit 99
 		return {
 			success: false,
-			stdout: ''
-			stderr: ''
 			}
 
 # ---------------------------------------------------------------------------
@@ -484,8 +525,6 @@ class CFileRemover extends CFileHandler
 			await Deno.remove path
 		return {
 			success: true
-			stdout: ''
-			stderr: ''
 			}
 
 export doRemoveFile := new CFileRemover()
@@ -505,8 +544,6 @@ class CFileEchoer extends CFileHandler
 		LOG await exists(path) ? "#{path}" : "#{path} - #{'does not exist'}:{red}"
 		return {
 			success: true
-			stdout: ''
-			stderr: ''
 			}
 
 export doEchoFile := new CFileEchoer()
@@ -529,92 +566,14 @@ class CTsFileRemover extends CFileHandler
 			await Deno.remove path
 			return {
 				success: true
-				stdout: ''
-				stderr: ''
 				}
 		else
 			return {
 				success: true
-				stdout: ''
-				stderr: ''
 				notNeeded: true
 				}
 
 export doRemoveTsFile := new CTsFileRemover()
-
-# ---------------------------------------------------------------------------
-
-class CUnitTester extends CFileHandler
-
-	get op()
-		return 'doUnitTest'
-
-	# ..........................................................
-
-	override handle(
-			path: string,
-			hOptions: hash = {}
-			): TExecResult
-
-		assert path.endsWith('.test.ts'), "Not a unit test file"
-		type opt = {
-			capture: boolean
-			inspect: boolean
-			lineNum: string?
-			}
-		{capture, inspect, lineNum} := getOptions<opt> hOptions, {
-			capture: true
-			inspect: false
-			lineNum: undef
-			}
-
-		hResult := await execCmd 'deno', [
-				'test'
-				'-A'
-				...(inspect ? ['--inspect-brk'] : ['--coverage=./coverage'])
-				...(defined(lineNum) ? ['--filter', "/^line #{lineNum}$/"] : [])
-				path
-				], {capture}
-		return hResult
-
-	# ..........................................................
-
-	override getOutput(hResult: TExecResult): string
-
-		output := hResult.stdout + hResult.stderr
-		if not hResult.success
-			return output
-		lLines := MAP allLinesInBlock(decolorize(output)), (line) ->
-			if line.startsWith('running')
-				yield line
-				yield ''
-			else if line.startsWith('line')
-				if not line.includes(' ok ')
-					yield withColors line, {
-						failed: 'red'
-						FAILED: 'red'
-						ok: 'green'
-						OK: 'green'
-						}
-			else if line.includes('passed') && line.includes('failed')
-				if line.includes(' 0 failed ')
-					yield withColors line, {
-						ok: 'green'
-						passed: 'green'
-						}
-				else
-					yield withColors line, {
-						ok: 'green'
-						passed: 'green'
-						failed: 'red'
-						FAILED: 'red'
-						}
-				yield ''
-			else if line.includes('Lcov coverage')
-				yield 'coverage report generated'
-		return lLines.join('\n')
-
-export doUnitTest := new CUnitTester()
 
 # ---------------------------------------------------------------------------
 

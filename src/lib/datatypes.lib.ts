@@ -23,7 +23,6 @@ export type TIntArray = integer[]
 export type TVoidFunc = () => void
 export type TVoidIterator<T=unknown> = () => TIterator<T>
 export type TUnaryFunc<TIn, TOut> = (item: TIn) => TOut
-export type TFilterFunc = (item: unknown) => boolean
 export type TStringifier = (item: unknown) => string
 export type TStringMapper = (str: string) => string
 export type TStringFilterFunc = (str: string) => boolean
@@ -49,6 +48,16 @@ export const assert: TAssertFunc = (
 
 	if (!cond) {
 		croak(msg)
+	}
+	return
+}
+
+export const obviously: TAssertFunc = (
+		cond: unknown
+		): asserts cond => {
+
+	if (!cond) {
+		croak("obviously not")
 	}
 	return
 }

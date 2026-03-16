@@ -76,6 +76,17 @@ lChildScopes:
 		parent: ｟ref root｠
 		lChildScopes: []`)
 }
-	)()
+	)();
 
+// --- Test if when a function is entered with parameter s
+//     s will be considered as defined
+
+(() => {
+	const mainScope = new CMainScope()
+
+	const scope = mainScope.newChildScope('func', ['age'])
+	truthy(scope.isDefined('age'))
+	falsy( mainScope.isDefined('age'))
+}
+	)()
 

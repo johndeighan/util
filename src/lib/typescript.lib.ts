@@ -1,8 +1,8 @@
 "use strict";
 // typescript.lib.civet
 
-import {existsSync} from '@std/fs'
-import {statSync} from 'node-fs'
+type AutoPromise<T> = Promise<Awaited<T>>;
+import {exists, existsSync} from '@std/fs'
 import {
 	SourceFile, Node, ScriptTarget, SyntaxKind, ModuleKind,
 	NewLineKind, EmitHint, CompilerOptions, ModuleResolutionKind,
@@ -13,14 +13,15 @@ import {
 
 import {
 	undef, defined, notdefined, integer, hash, hashof,
-	isHash, TFilterFunc, isString, isEmpty, nonEmpty, isNumber,
+	isHash, isString, isEmpty, nonEmpty, isNumber, getErrStr,
 	assert, croak, isFunction, functionDef, isClass, classDef,
 	} from 'datatypes'
 import {
 	getOptions, spaces, o, words, hasKey,
-	CStringSetMap, keys, sep,
+	CStringSetMap, keys, sep, allLinesInBlock,
 	} from 'llutils'
-import {f} from 'f-strings'
+import {f, withColors, decolorize} from 'f-strings'
+import {debugging} from 'cmd-args'
 import {
 	extract, TPathItem, getString, getNumber, getArray,
 	} from 'extract'
@@ -29,9 +30,15 @@ import {
 	LOG, DBG, ERR, LOGVALUE, INDENT, UNDENT, DBGVALUE,
 	pushLogLevel, popLogLevel,
 	} from 'logger'
-import {isFile, slurp, barf, barfTempFile, fileExt} from 'fsys'
+import {
+	isFile, slurp, barf, barfTempFile, fileExt, withExt,
+	pathStr, mkpath, newerDestFileExists,
+	} from 'fsys'
 import {OL, toNice, TMapFunc, DUMP} from 'to-nice'
-import {execCmdSync} from 'exec'
+import {
+	execCmd, execCmdSync, CFileHandler, TProcSpec, TExecResult,
+	procOneFile, procFiles,
+	} from 'exec'
 import {extractSourceMap} from 'source-map'
 import {Walker, TVisitKind} from 'walker'
 import {CMainScope, CScope} from 'scope'
@@ -90,7 +97,7 @@ export const descFunc: TMapFunc = (
 // ---------------------------------------------------------------------------
 
 export const astAsString = (
-		hAst: Node,
+		hAst: object,
 		hOptions: hash = {}
 		): string => {
 
@@ -103,7 +110,7 @@ export const astAsString = (
 
 	return toNice(hAst, {
 		ignoreEmptyKeys: true,
-		descFunc,
+//		descFunc
 		lInclude,
 		lExclude: words(`pos end id flags modifierFlagsCache
 transformFlags hasExtendedUnicodeEscape
@@ -399,15 +406,20 @@ export class AstWalker extends Walker<Node> {
 // ---------------------------------------------------------------------------
 
 export class CAnalysis {
-	mImports: CStringSetMap = new CStringSetMap()
-	mExports: Map<string, string> = new Map<string, string>()
-	mainScope: CMainScope = new CMainScope()
+
+	trace = false
+	mImports = new CStringSetMap()
+	mExports = new Map<string, string>()
+	sMissing = new Set<string>()
+	mainScope = new CMainScope()
 	curScope: CScope
-	finished: boolean = false
+	finished = false
 
 	// ..........................................................
 
-	constructor() {
+	constructor(trace1 = false) {
+
+		this.trace = trace1;
 
 		this.curScope = this.mainScope
 	}
@@ -416,6 +428,9 @@ export class CAnalysis {
 
 	define(name: string): void {
 
+		if (this.trace) {
+			LOG(`   define ${name}`)
+		}
 		this.curScope.define(name)
 		return
 	}
@@ -426,6 +441,15 @@ export class CAnalysis {
 
 		// --- this condition should filter built-ins
 		if (!hasKey(globalThis, name)) {
+			if (this.trace) {
+				LOG(`   use ${name}`)
+			}
+			if (!this.curScope.isDefined(name)) {
+				if (this.trace) {
+					LOG(`   missing ${name}`)
+				}
+				this.sMissing.add(name)
+			}
 			this.curScope.use(name)
 		}
 		return
@@ -435,6 +459,9 @@ export class CAnalysis {
 
 	addImport(lib: string, name: string): void {
 
+		if (this.trace) {
+			LOG(`   import '${name}' in '${lib}'`)
+		}
 		this.mImports.add(lib, name)
 		this.define(name)
 		return
@@ -444,10 +471,42 @@ export class CAnalysis {
 
 	addExport(name: string, type: string): void {
 
+		if (this.trace) {
+			LOG(`   export '${name}': '${type}'`)
+		}
 		this.mExports.set(name, type)
 		return
 	}
 
+	// ..........................................................
+
+	newScope(name: (string | undefined), lArgs: string[]): void {
+
+		if (this.trace) {
+			LOG(`   new scope ${name || '<anon>'}(${lArgs.join(',')})`)
+		}
+		this.curScope = this.mainScope.newScope(name, lArgs)
+		return
+	}
+
+	// ..........................................................
+
+	endScope(): void {
+
+		if (this.trace) {
+			LOG("   end scope")
+		}
+		const scope = this.mainScope.endScope(this.curScope)
+		if (defined(scope)) {
+			this.curScope = scope
+		}
+		else {
+			this.finished = true
+		}
+		return
+	}
+
+	// ..........................................................
 	// ..........................................................
 
 	getImports(): TBlockDesc {
@@ -468,45 +527,9 @@ export class CAnalysis {
 
 	// ..........................................................
 
-	newScope(name: (string | undefined), lArgs: string[]): void {
-
-		this.curScope = this.mainScope.newScope(name, lArgs)
-		return
-	}
-
-	// ..........................................................
-
-	endScope(): void {
-
-		const scope = this.mainScope.endScope(this.curScope)
-		if (defined(scope)) {
-			this.curScope = scope
-		}
-		else {
-			this.finished = true
-		}
-		return
-	}
-
-	// ..........................................................
-
 	getMissing(): string[] {
 
-		const walker = new Walker<CScope>()
-		walker.isNode = (x: unknown) => {
-			return (x instanceof CScope)
-		}
-
-		// --- Find all names that are used, but not defined
-		const sNames = new Set<string>()
-		for (const scope of walker.walk(this.mainScope)) {
-			for (const name of scope.allUsed()) {
-				if (!scope.isDefined(name)) {
-					sNames.add(name)
-				}
-			}
-		}
-		return Array.from(sNames.values())
+		return Array.from(this.sMissing.values())
 	}
 
 	// ..........................................................
@@ -584,23 +607,22 @@ export const analyzeTS = (
 
 	type opt = {
 		fileName: (string | undefined)
-		dump: boolean
+		dumpAST: boolean
 		trace: boolean
 		}
-	const {fileName, dump, trace} = getOptions<opt>(hOptions, {
+	const {fileName, dumpAST, trace} = getOptions<opt>(hOptions, {
 		fileName: undef,
-		dump: false,
+		dumpAST: false,
 		trace: false
 		})
 
-	debugger
-	const analysis = new CAnalysis()
+	const analysis = new CAnalysis(trace)
 	const walker = new AstWalker()
 
 	const hAst = ts2ast(tsCode)
 
-	if (dump) {
-		DUMP(hAst, 'AST')
+	if (dumpAST) {
+		DUMP(astAsString(hAst), 'AST')
 	}
 
 	// ..........................................................
@@ -624,10 +646,24 @@ export const analyzeTS = (
 
 	// ..........................................................
 
+	const sym = (vkind: TVisitKind): string => {
+		switch(vkind) {
+			case 'enter': { return '->'
+			}
+			case 'exit': { return '<-'
+			}
+			default: {              return '::' }
+		}
+	}
+
+	// ..........................................................
+	// vkind is one of 'enter', 'exit', 'ref'
+
+	const lTraceKind = [80, 95, 170, 214, 220, 227, 254, 261, 263, 273, 280, 308]
 	for (const [vkind, node] of walker.walkEx(hAst)) {
 		const {kind} = node
-		if (trace) {
-			LOG(f`NODE ${kind}:3 (${kindStr(kind)})`)
+		if (trace && lTraceKind.includes(kind)) {
+			LOG(f`${sym(vkind)} NODE ${kind}:3 (${kindStr(kind)}:{cyan})`)
 		}
 
 		if (vkind === 'exit') {
@@ -648,10 +684,6 @@ export const analyzeTS = (
 						const lParms = MAP(getArray(node, '.parameters'), function*(x) {
 							yield getString(x, '.name.escapedText')
 						})
-
-						if (trace) {
-							LOG(`   Arrow Func := (${lParms.join(',')}) =>`)
-						}
 						analysis.newScope(undef, lParms)
 					};break;
 				}
@@ -671,9 +703,6 @@ export const analyzeTS = (
 						const lParms = MAP(getArray(node, '.parameters'), function*(x) {
 							yield getString(x, '.name.escapedText')
 						})
-						if (trace) {
-							LOG(`   function ${funcName}(${lParms.join(',')})`)
-						}
 						analysis.define(funcName)
 						analysis.newScope(funcName, lParms)
 					};break;
@@ -695,9 +724,6 @@ export const analyzeTS = (
 					const lib = getString(node, '.moduleSpecifier.text')
 					for (const h of getArray(node, '.importClause.namedBindings.elements')) {
 						const name = getString(h, '.name.escapedText')
-						if (trace) {
-							console.log(`NAME: '${name}' in '${lib}'`)
-						}
 						analysis.addImport(lib, name)
 					};break;
 				}
@@ -758,13 +784,181 @@ export const analyzeTS = (
 							croak(`Unexpected subtype of 95: ${parent.kind}`)
 					};break;
 				}
-				default:
-					if (trace) {
-						LOG("   ...ignored")
-					}
 			}
 		}
 	}
 	return analysis
 }
+
+// ---------------------------------------------------------------------------
+
+class CTypescriptCompiler extends CFileHandler {
+
+	get op() {
+		return 'doCompileTS'
+	}
+
+	// ..........................................................
+
+	override async handle(
+			path: string,
+			hOptions: hash = {}
+			): AutoPromise<TExecResult> {
+
+		type opt = {
+			force: boolean
+			}
+		const {force} = getOptions<opt>(hOptions, {
+			force: false
+			})
+
+		assert((fileExt(path) === '.ts'), `Not a typescript file: ${path}`)
+		const jsPath = withExt(path, '.js')
+
+		// --- Check if a newer compiled version already exists
+		if (
+				   !force
+				&& await exists(jsPath)
+				&& newerDestFileExists(path, jsPath)
+				) {
+			return {
+				success: true,
+				notNeeded: true
+				}
+		}
+
+		try {
+			const hResult = await execCmd('deno', [
+				'bundle',
+				'--minify',
+				path,
+				jsPath
+				])
+			if (!hResult.success) {
+				console.log(this.getOutput(hResult))
+				croak("Compile failed")
+			}
+			return hResult
+		}
+
+		catch (err) {
+			if (debugging) {
+				LOG(getErrStr(err))
+			}
+			const errMsg = `COMPILE FAILED: ${pathStr(path)} - ${getErrStr(err)}`
+			return {
+				success: false,
+				stderr: errMsg
+				}
+		}
+	}
+}
+
+export const doCompileTS = new CTypescriptCompiler()
+
+// ---------------------------------------------------------------------------
+// ASYNC
+
+export const compileAllTS = async (
+		root = '.',
+		hOptions: hash = {}
+		): AutoPromise<TExecResult[]> => {
+
+	// --- with 'quiet' option, still reports errors
+	const spec: TProcSpec = [doCompileTS, [mkpath(root, '**/*.lib.ts')]]
+	return await procFiles(spec, {
+		...hOptions,
+		quiet: true,
+		abortOnError: true
+		})
+}
+
+// ---------------------------------------------------------------------------
+
+class CUnitTester extends CFileHandler {
+
+	get op() {
+		return 'doUnitTest'
+	}
+
+	// ..........................................................
+
+	override async handle(
+			path: string,
+			hOptions: hash = {}
+			): AutoPromise<TExecResult> {
+
+		assert(path.endsWith('.test.ts'), "Not a unit test file")
+		type opt = {
+			capture: boolean
+			inspect: boolean
+			lineNum: (string | undefined)
+			}
+		const {capture, inspect, lineNum} = getOptions<opt>(hOptions, {
+			capture: true,
+			inspect: false,
+			lineNum: undef
+			})
+
+		const hResult = await execCmd('deno', [
+				'test',
+				'-A',
+				...(inspect ? ['--inspect-brk'] : ['--coverage=./coverage']),
+				...(defined(lineNum) ? ['--filter', `/^line ${lineNum}$/`] : []),
+				path
+				], {capture})
+		return hResult
+	}
+
+	// ..........................................................
+
+	override getOutput(hResult: TExecResult): string {
+
+		const {stdout, stderr} = hResult
+		const output = [stdout, stderr].join()
+		if (!hResult.success) {
+			return output
+		}
+
+		const lLines = MAP(allLinesInBlock(decolorize(output)), function*(line) {
+			if (line.startsWith('running')) {
+				yield line
+				yield ''
+			}
+			else if (line.startsWith('line')) {
+				if (!line.includes(' ok ')) {
+					yield withColors(line, {
+						failed: 'red',
+						FAILED: 'red',
+						ok: 'green',
+						OK: 'green'
+						})
+				}
+			}
+			else if (line.includes('passed') && line.includes('failed')) {
+				if (line.includes(' 0 failed ')) {
+					yield withColors(line, {
+						ok: 'green',
+						passed: 'green'
+						})
+				}
+				else {
+					yield withColors(line, {
+						ok: 'green',
+						passed: 'green',
+						failed: 'red',
+						FAILED: 'red'
+						})
+				}
+				yield ''
+			}
+			else if (line.includes('Lcov coverage')) {
+				yield 'coverage report generated'
+			}
+		})
+		return lLines.join('\n')
+	}
+}
+
+export const doUnitTest = new CUnitTester()
 

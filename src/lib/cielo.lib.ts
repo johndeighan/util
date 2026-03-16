@@ -1,6 +1,7 @@
 "use strict";
 // cielo.lib.civet
 
+type AutoPromise<T> = Promise<Awaited<T>>;
 import {pathToFileURL} from 'node-url'
 
 import {
@@ -14,7 +15,8 @@ import {
 import {
 	isFile, fileExt, withExt, slurp, barf, barfTempFile, parsePath,
 	} from 'fsys'
-import {civet2ts, civet2tsFile} from 'civet'
+import {CFileHandler, TExecResult} from 'exec'
+import {civet2ts, civet2tsFile, doCompileCivet} from 'civet'
 
 // ---------------------------------------------------------------------------
 
@@ -32,7 +34,11 @@ export const cielo2ts = (code: string): string => {
 
 // ---------------------------------------------------------------------------
 
-export const cielo2civetFile = (cieloPath: string, civetPath: string = withExt(cieloPath, '.civet')): string => {
+export const cielo2civetFile = (
+		cieloPath: string,
+		civetPath: string = withExt(cieloPath, '.civet'),
+		hOptions: hash = {}
+		): string => {
 
 	assert(isFile(cieloPath), `No such file: ${OL(cieloPath)} (cielo2civet)`)
 	assert((fileExt(cieloPath) === '.cielo'), `Not a cielo file: ${OL(cieloPath)}`)
@@ -58,23 +64,42 @@ export const cielo2tsFile = (cieloPath: string, tsPath: string = withExt(cieloPa
 
 // ---------------------------------------------------------------------------
 
-export const configFromFile = (path: string): hash => {
+class CCieloCompiler extends CFileHandler {
 
-	const {purpose, ext} = parsePath(path)
-	assert((purpose === 'config'), `Not a config file: ${OL(path)}`)
-	DBGVALUE("path", path)
-	const srcPath = (ext === '.civet') ? civet2tsFile(path) : path
-	assert((fileExt(srcPath) === '.ts'), `config not a .ts or .civet file: ${OL(path)}`)
-	DBGVALUE('srcPath', srcPath)
-	const url = pathToFileURL(srcPath)
-	DBGVALUE('url', url)
-	const hImported = require(srcPath)
-	DBGVALUE('hImported', hImported)
-	const hResult = hImported?.default || hImported
-	DBGVALUE("hResult", hResult)
-	assert(isHash(hResult), `Default import in ${OL(srcPath)} not a hash: ${ML(hResult)}`)
-	return hResult
+	get op() {
+		return 'doCompileCielo'
+	}
+
+	// ..........................................................
+	// ASYNC
+
+	override async handle(
+			path: string,
+			hOptions: hash = {}
+			): AutoPromise<TExecResult> {
+
+		assert((fileExt(path) === '.cielo'), `Not a cielo file: ${path}`)
+		const civetPath = withExt(path, '.temp.civet')
+		cielo2civetFile(path, civetPath, hOptions)
+		return await doCompileCivet.handle(civetPath, hOptions)
+	}
+
+	// ..........................................................
+	// SYNC
+
+	handleSync(
+			path: string,
+			hOptions: hash = {}
+			): TExecResult {
+
+		assert((fileExt(path) === '.cielo'), `Not a cielo file: ${path}`)
+		const civetPath = withExt(path, '.temp.civet')
+		cielo2civetFile(path, civetPath, hOptions)
+		return doCompileCivet.handleSync(civetPath, hOptions)
+	}
 }
+
+export const doCompileCielo = new CCieloCompiler()
 
 // ---------------------------------------------------------------------------
 

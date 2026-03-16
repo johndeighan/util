@@ -45,6 +45,7 @@
 		"npm-blessed": "npm:@unblessed/node",
 
 		"datatypes":     "file:///C:/Users/johnd/util/src/lib/datatypes.lib.ts",
+		"predicates":    "file:///C:/Users/johnd/util/src/lib/predicates.lib.ts",
 		"source-map":    "file:///C:/Users/johnd/util/src/lib/source-map.lib.ts",
 		"f-strings":     "file:///C:/Users/johnd/util/src/lib/f-strings.lib.ts",
 		"llutils":       "file:///C:/Users/johnd/util/src/lib/llutils.lib.ts",

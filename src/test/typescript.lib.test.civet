@@ -78,8 +78,8 @@ equal splitFuncStr("(a: string, b)=>true"), [
 DBG "getTsCode(typeStr, valueStr)"
 
 equal getTsCode('integer', '42'), 'const x: integer = 42'
-equal getTsCode('TFilterFunc', '(x) => true'),
-	'const x: TFilterFunc = (x: unknown) => true'
+equal getTsCode('TPredicate', '(x) => true'),
+	'const x: TPredicate = (x: unknown) => true'
 
 DBG "analyzeTS(tsCode, hOptions)"
 
@@ -153,9 +153,44 @@ equal analyzeTS("""
 # --- Same, only using 'function' keyword
 
 equal analyzeTS("""
-	function func(s: string): string
+	function func(s: string): string {
 		return s + t + '.txt';
+		}
 	func('abc');
 	""").asString(), s"""
 	MISSING: t
+	"""
+
+# ---------------------------------------------------------------------------
+# test astAsString()
+
+DBG "astAsString(hAST)"
+
+equal stripAnsiCode(astAsString(ts2ast('const x = 42;'))), s"""
+	kind: 308
+	statements:
+		-
+			kind: 244
+			declarationList:
+				kind: 262
+				declarations:
+					-
+						kind: 261
+						name:
+							kind: 80
+							escapedText: x
+						initializer:
+							kind: 9
+							text: “42
+	endOfFileToken:
+		kind: 1
+	text: const˳x˳=˳42;
+	fileName: temp.ts
+	scriptKind: 3
+	isDeclarationFile: ｟false｠
+	nodeCount: 7
+	identifierCount: 1
+	symbolCount: 0
+	identifiers:
+		x:: x
 	"""

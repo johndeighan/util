@@ -1,7 +1,6 @@
 # civet.lib.civet
 
 import {exists, existsSync} from '@std/fs'
-import {stat, statSync} from 'node-fs'
 import {Node, SourceFile} from 'npm-typescript'
 import {RawSourceMap} from 'npm-source-map'
 
@@ -14,11 +13,12 @@ import {OL, ML} from 'to-nice'
 import {LOG, DBG, ERR, DBGVALUE} from 'logger'
 import {flag, debugging, inspecting} from 'cmd-args'
 import {
-	isFile, fileExt, withExt, slurp, slurpAsync, pathStr, touch,
-	barf, barfTempFile, parsePath, addJsonValue, normalizePath,
+	isFile, fileExt, withExt, slurp, slurpAsync, pathStr,
+	touch, mkpath, barf, barfTempFile, parsePath, addJsonValue,
+	normalizePath, inSameDir, newerDestFileExists,
 	} from 'fsys'
 import {
-	execCmdSync, execCmd, CFileHandler, procFiles, TExecResult,
+	execCmdSync, execCmd, CFileHandler, procFiles, TProcSpec, TExecResult,
 	} from 'exec'
 import {ts2ast, analyzeTS, typeCheckTsCode} from 'typescript'
 import {extractSourceMap, haveSourceMapFor} from 'source-map'
@@ -31,6 +31,7 @@ export type TCivetOptions = {
 	force?: boolean
 	nocheck?: boolean
 	inlineMap?: boolean
+	output?: string       # --- passed after -o option
 	}
 
 # ---------------------------------------------------------------------------
@@ -44,6 +45,23 @@ class CCivetCompiler extends CFileHandler
 		return 'doCompileCivet'
 
 	# ..........................................................
+
+	getOutPath(
+			path: string
+			output: string   # --- '.ts' or actual file name
+			): string
+
+		assert (fileExt(path) == '.civet'), "Not a civet file"
+		if (output == '.ts')
+			return withExt(path, '.ts')
+		else if output.match(/[\\\/]/)
+			croak "output can't be a full path"
+		else
+			assert (fileExt(output) == '.ts'), "output must have .ts ext"
+			return inSameDir(path, output)
+		return ''
+
+	# ..........................................................
 	# ASYNC
 
 	override handle(
@@ -51,9 +69,10 @@ class CCivetCompiler extends CFileHandler
 			hOptions: hash = {}
 			): TExecResult
 
-		{force, nocheck} := getOptions<TCivetOptions> hOptions, {
+		{force, nocheck, output} := getOptions<TCivetOptions> hOptions, {
 			force: false
 			nocheck: false
+			output: '.ts'
 			}
 
 		assert (fileExt(path) == '.civet'), "Not a civet file: #{path}"
@@ -63,14 +82,12 @@ class CCivetCompiler extends CFileHandler
 		if (
 				   not force
 				&& await exists(tsPath)
-				&& (statSync(tsPath).mtimeMs > statSync(path).mtimeMs)
+				&& newerDestFileExists(path, tsPath)
 				&& haveSourceMapFor(tsPath)
 				)
 			return {
 				success: true
 				notNeeded: true
-				stdout: ''
-				stderr: ''
 				}
 
 		try
@@ -98,11 +115,7 @@ class CCivetCompiler extends CFileHandler
 			if defined(hSrcMap)
 				addJsonValue 'sourcemaps.json', normalizePath(tsPath), hSrcMap
 			await Deno.writeTextFile tsPath, code
-			return {
-				success: true
-				stdout: ''
-				stderr: ''
-				}
+			return hResult
 
 		catch err
 			if debugging
@@ -110,7 +123,6 @@ class CCivetCompiler extends CFileHandler
 			errMsg := "COMPILE FAILED: #{pathStr(path)} - #{getErrStr(err)}"
 			return {
 				success: false
-				stdout: ''
 				stderr: errMsg
 				}
 
@@ -122,9 +134,10 @@ class CCivetCompiler extends CFileHandler
 			hOptions: hash = {}
 			): TExecResult
 
-		{force, nocheck} := getOptions<TCivetOptions> hOptions, {
+		{force, nocheck, output} := getOptions<TCivetOptions> hOptions, {
 			force: false
 			nocheck: false
+			output: '.ts'
 			}
 
 		assert (fileExt(path) == '.civet'), "Not a civet file: #{path}"
@@ -134,7 +147,7 @@ class CCivetCompiler extends CFileHandler
 		if (
 				   not force
 				&& existsSync(tsPath)
-				&& (statSync(tsPath).mtimeMs > statSync(path).mtimeMs)
+				&& newerDestFileExists(path, tsPath)
 				&& haveSourceMapFor(tsPath)
 				)
 			return {
@@ -190,7 +203,8 @@ export doCompileCivet := new CCivetCompiler()
 # SYNC
 
 export civet2tsFile := (
-		civetPath: string,
+		civetPath: string
+		tsPath: string = withExt(civetPath, '.ts')
 		hOptions: hash = {}
 		): string =>
 
@@ -213,7 +227,7 @@ export civet2ts := (
 		): string =>
 
 	tempPath := barfTempFile civetCode, {ext: '.civet'}
-	tsPath := civet2tsFile tempPath, hOptions
+	tsPath := civet2tsFile tempPath, withExt(tempPath, '.ts'), hOptions
 	tsCode := slurp tsPath
 	return rtrim(tsCode)
 
@@ -228,13 +242,16 @@ export civet2ast := (civetCode: string): Node =>
 # ASYNC
 
 export compileAllLibs := (
+		root: string = '.'
 		hOptions: hash = {}
 		): TExecResult[] =>
 
 	# --- with 'quiet' option, still reports errors
-	return await procFiles [doCompileCivet, ['**/*.lib.civet']], {
+	spec: TProcSpec := [doCompileCivet, [mkpath(root, '**/*.lib.civet')]]
+	return await procFiles spec, {
 		...hOptions
 		quiet: true
+		abortOnError: true
 		}
 
 # ---------------------------------------------------------------------------

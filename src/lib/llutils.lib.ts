@@ -6,7 +6,6 @@ import {createRequire} from 'node-module'
 import {sprintf} from '@std/fmt/printf'
 import {relative} from '@std/path'
 import {existsSync} from '@std/fs'
-import {statSync} from 'node-fs'
 import {parse as parseYAML} from "@std/yaml"
 
 import {

@@ -16,7 +16,19 @@ export class CScope
 
 	# ..........................................................
 
-	allDefined(): Generator<string, void, void>
+	constructor(
+			@name: string?,
+			lArgs: string[],
+			@parent: CScope? = undef
+			)
+
+		for name of lArgs
+			@define name
+		@lChildScopes = []
+
+	# ..........................................................
+
+	allDefined(): Generator<string>
 
 		for name of @sDefined.values()
 			yield name
@@ -30,7 +42,7 @@ export class CScope
 
 	# ..........................................................
 
-	allUsed(): Generator<string, void, void>
+	allUsed(): Generator<string>
 
 		for name of @sUsed.values()
 			yield name
@@ -57,23 +69,11 @@ export class CScope
 
 	# ..........................................................
 
-	constructor(
-			@name: string?,
-			lArgs: string[],
-			@parent: CScope? = undef
-			)
-
-		for name of lArgs
-			@define name
-		@lChildScopes = []
-
-	# ..........................................................
-
 	newChildScope(name: string?, lArgs: string[])
 
-		scope := new CScope(name, lArgs, @)
-		@lChildScopes.push scope
-		return scope
+		childScope := new CScope(name, lArgs, @)
+		@lChildScopes.push childScope
+		return childScope
 
 	# ..........................................................
 

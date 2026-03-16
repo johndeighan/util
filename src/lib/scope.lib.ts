@@ -17,7 +17,25 @@ export class CScope {
 
 	// ..........................................................
 
-	*allDefined(): Generator<string, void, void> {
+	constructor(
+			name1: (string | undefined),
+			lArgs: string[],
+			parent1: (CScope | undefined) = undef
+			) {
+
+		this.name = name1;
+
+		this.parent = parent1;
+
+		for (const name of lArgs) {
+			this.define(name)
+		}
+		this.lChildScopes = []
+	}
+
+	// ..........................................................
+
+	*allDefined(): Generator<string> {
 
 		for (const name of this.sDefined.values()) {
 			yield name
@@ -34,7 +52,7 @@ export class CScope {
 
 	// ..........................................................
 
-	*allUsed(): Generator<string, void, void> {
+	*allUsed(): Generator<string> {
 
 		for (const name of this.sUsed.values()) {
 			yield name
@@ -63,29 +81,11 @@ CHILDREN: ${this.lChildScopes.length}`
 
 	// ..........................................................
 
-	constructor(
-			name1: (string | undefined),
-			lArgs: string[],
-			parent1: (CScope | undefined) = undef
-			) {
-
-		this.name = name1;
-
-		this.parent = parent1;
-
-		for (const name of lArgs) {
-			this.define(name)
-		}
-		this.lChildScopes = []
-	}
-
-	// ..........................................................
-
 	newChildScope(name: (string | undefined), lArgs: string[]) {
 
-		const scope = new CScope(name, lArgs, this)
-		this.lChildScopes.push(scope)
-		return scope
+		const childScope = new CScope(name, lArgs, this)
+		this.lChildScopes.push(childScope)
+		return childScope
 	}
 
 	// ..........................................................

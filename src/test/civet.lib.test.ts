@@ -4,7 +4,7 @@
 import {stripAnsiCode} from "@std/fmt/colors"
 import {SourceFile} from 'npm:typescript'
 
-import {defined, isHash} from 'datatypes'
+import {undef, defined, isHash} from 'datatypes'
 import {o, s, rtrim} from 'llutils'
 import {DBG} from 'logger'
 import {slurp, withExt} from 'fsys'
@@ -45,7 +45,7 @@ const x = 42`)
 DBG("civet2tsFile(path)");
 
 (() => {
-	civet2tsFile(testPath, o`!inlineMap`)
+	civet2tsFile(testPath, undef, o`!inlineMap`)
 	const code = slurp(withExt(testPath, '.ts'))
 	equal(rtrim(code), `"use strict";
 const x = 42`)
@@ -57,43 +57,6 @@ DBG("civet2ast(code)")
 // isType 'SourceFile', ast1
 // isType 'SourceFile', ast2
 
-DBG("astAsString(hAST)")
-
-equal(stripAnsiCode(astAsString(ts2ast('x := 42'))), s`kind: 308 (SourceFile)
-statements:
-	-
-	   kind: 257 (LabeledStatement)
-	   label:
-	      kind: 80 (Identifier)
-	      escapedText: x
-	   statement:
-	      kind: 245 (ExpressionStatement)
-	      expression:
-	         kind: 227 (BinaryExpression)
-	         left:
-	            kind: 80 (Identifier)
-	         operatorToken:
-	            kind: 64 (FirstAssignment)
-	         right:
-	            kind: 9 (FirstLiteralToken)
-	            text: \\42
-endOfFileToken:
-	kind: 1 (EndOfFileToken)
-text: x˳:=˳42
-fileName: temp.ts
-scriptKind: 3
-isDeclarationFile: ｟false｠
-nodeCount: 9
-identifierCount: 2
-symbolCount: 0
-parseDiagnostics:
-	-
-	   file: ｟ref root｠
-	   start: 3
-	   length: 1
-	   messageText: Expression˳expected.
-	   category: 1
-	   code: 1109`)
 
 succeeds(() => civet2ast('x := 42'))
 

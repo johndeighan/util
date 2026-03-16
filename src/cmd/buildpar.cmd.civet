@@ -7,9 +7,8 @@ import {LOG, DBG, ERR} from 'logger'
 import {
 	withExt, findFile, parsePath,
 	} from 'fsys'
-import {
-	doUnitTest, doInstallCmd, procFiles, procOneFile,
-	} from 'exec'
+import {doInstallCmd, procFiles, procOneFile} from 'exec'
+import {doUnitTest} from 'typescript'
 import {doCompileCivet} from 'civet'
 import {doCompileHera} from 'hera-compile'
 

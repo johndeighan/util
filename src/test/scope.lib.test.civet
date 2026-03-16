@@ -76,3 +76,13 @@ import {
 		"""
 	)()
 
+# --- Test if when a function is entered with parameter s
+#     s will be considered as defined
+
+(() =>
+	mainScope := new CMainScope()
+
+	scope := mainScope.newChildScope('func', ['age'])
+	truthy scope.isDefined('age')
+	falsy  mainScope.isDefined('age')
+	)()

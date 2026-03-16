@@ -14,25 +14,24 @@ import {getOptions, sleep} from 'llutils'
 import {LOG, DBG, WARN, ERR} from 'logger'
 import {mkpath, slurp, isFile, isDir} from 'fsys'
 import {execCmd} from 'exec'
-import {CFileServer} from 'file-server'
 
 // ---------------------------------------------------------------------------
 // uses deno-webui
 
 export class CHtmlWindow {
 
-	webui = new WebUI()
+	window = new WebUI()
 
 	constructor() {
 
-		this.webui.setPublic(true)
+		this.window.setPublic(true)
 	}
 
 	// ..........................................................
 
 	defineFunc(funcName: string, func: TVoidFunc): void {
 
-		this.webui.bind(funcName, func)
+		this.window.bind(funcName, func)
 		return
 	}
 
@@ -71,19 +70,19 @@ GOT source = ${source}`)
 				}
 			}})()
 			)
-		this.webui.setSize(width, height)
+		this.window.setSize(width, height)
 
 		// --- Bind a backend function to a frontend element
-		this.webui.bind("exit", () => {
+		this.window.bind("exit", () => {
 			// --- Closes all windows and exits the Deno process
 			WebUI.exit();
 		})
 
-		await this.webui.showBrowser(html, WebUI.Browser.Chrome)
+		await this.window.showBrowser(html, WebUI.Browser.Chrome)
 		return
 	}
 
-	// ..........................................................
+	// ..........................................................run
 
 	sendEvent(evtName: string, data: unknown): void {
 
@@ -93,12 +92,12 @@ GOT source = ${source}`)
 
 	// ..........................................................
 
-	async [Symbol.dispose](): AutoPromise<never> {
+	async [Symbol.dispose](): AutoPromise<void> {
 
 		console.log("disposing HTML window")
-		await WebUI.wait()
 		await WebUI.exit()
-		Deno.exit()
+		console.log("cleaning up HTML window")
+		await WebUI.clean()
 	}
 }
 

@@ -12,17 +12,17 @@ let numCompiled = 0
 
 # ---------------------------------------------------------------------------
 
-logResult := (hResult: TCompileResult): void =>
+logResult := (
+		hResult: TCompileResult
+		path: string
+		): void =>
 
-	{path, status} := hResult
-	switch status
-		when 'compiled'
+	if hResult.success
+		if not hResult.notNeeded
 			LOG "COMPILED: #{OL(path)}"
 			numCompiled += 1
-		when 'exists'
-			pass()
-		default:
-			LOG "NOT COMPILED: #{OL(path)}"
+	else
+		LOG "NOT COMPILED: #{OL(path)}"
 	return
 
 # ---------------------------------------------------------------------------
@@ -30,8 +30,8 @@ logResult := (hResult: TCompileResult): void =>
 if (numNonOptions() == 0)
 	DBG "=====  Compiling all files  ====="
 	for path of allFilesMatching('src/**/*.{lib,cmd}.civet')
-		hResult := compileFile path
-		logResult hResult
+		hResult := await compileFile path
+		logResult hResult, path
 else
 	# --- Files can be specified as:
 	#        - <stub>.(lib|cmd)
@@ -47,16 +47,16 @@ else
 				pat := 'src/**/' + stub + '.' + purpose + '.*'
 				for path of allFilesMatching(pat)
 					DBG "compile file #{OL(path)}"
-					logResult compileFile path
+					logResult await compileFile(path), path
 			else if (lMatches2 := str.match(/^([A-Za-z0-9_-]+)\.(lib|cmd)\.test$/))
 				[_, stub, purpose] := lMatches2
 				pat := 'src/**/' + stub + '.' + purpose + '.test.*'
 				for path of allFilesMatching(pat)
 					DBG "compile file #{OL(path)}"
-					logResult compileFile(path)
+					logResult await compileFile(path), path
 			else
 				DBG "compile file #{OL(str)}"
-				logResult compileFile(str)
+				logResult await compileFile(str), str
 LOG "(#{numCompiled} files compiled)"
 if flag('w')
 	watchFiles Deno.cwd(), (kind, path) =>

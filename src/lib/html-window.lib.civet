@@ -12,24 +12,23 @@ import {getOptions, sleep} from 'llutils'
 import {LOG, DBG, WARN, ERR} from 'logger'
 import {mkpath, slurp, isFile, isDir} from 'fsys'
 import {execCmd} from 'exec'
-import {CFileServer} from 'file-server'
 
 # ---------------------------------------------------------------------------
 # uses deno-webui
 
 export class CHtmlWindow
 
-	webui = new WebUI()
+	window = new WebUI()
 
 	constructor()
 
-		@webui.setPublic true
+		@window.setPublic true
 
 	# ..........................................................
 
 	defineFunc(funcName: string, func: TVoidFunc): void
 
-		@webui.bind funcName, func
+		@window.bind funcName, func
 		return
 
 	# ..........................................................
@@ -65,17 +64,17 @@ export class CHtmlWindow
 						GOT source = #{source}
 						"""
 			)
-		@webui.setSize(width, height)
+		@window.setSize(width, height)
 
 		# --- Bind a backend function to a frontend element
-		@webui.bind "exit", () =>
+		@window.bind "exit", () =>
 			# --- Closes all windows and exits the Deno process
 			WebUI.exit();
 
-		await @webui.showBrowser html, WebUI.Browser.Chrome
+		await @window.showBrowser html, WebUI.Browser.Chrome
 		return
 
-	# ..........................................................
+	# ..........................................................run
 
 	sendEvent(evtName: string, data: unknown): void
 
@@ -84,9 +83,9 @@ export class CHtmlWindow
 
 	# ..........................................................
 
-	[Symbol.dispose](): never
+	[Symbol.dispose](): void
 
 		console.log "disposing HTML window"
-		await WebUI.wait()   # will wait until user closes window
 		await WebUI.exit()
-		Deno.exit()
+		console.log "cleaning up HTML window"
+		await WebUI.clean()

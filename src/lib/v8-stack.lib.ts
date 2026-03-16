@@ -63,8 +63,12 @@ export const reThisFile = /v8-stack\.lib\.(?:civet|ts)$/
 
 const defaultFilter: TFrameFilter = (frame) => {
 
-	const {source} = frame
-	return defined(source) && !source.match(reThisFile)
+	const {source, type, name} = frame
+	return (
+		   defined(source)
+		&& !source.match(reThisFile)
+		&& ((type !== 'method') || ((name !== 'next') && (name !== 'from')))
+		)
 }
 
 // ---------------------------------------------------------------------------
@@ -153,6 +157,10 @@ export const allStackFrames = function*(
 			const results=[];let i1 = 0;for (const orgFrame of lOrgFrames) {const i = i1++;
 				const fileName = orgFrame.getFileName()
 				let source = normalizePath(fileName)
+
+				// --- A real hack, but I don't know where paths
+				//     containing src/temp/src/temp are coming from!
+
 				if (source.match(/src\/temp\/src\/temp\//)) {
 					WARN(`BUG: ${source} patched`)
 					source = source.replace('src/temp/src/temp/', 'src/temp/')
@@ -310,7 +318,6 @@ export const getMyOutsideCaller = (
 			}
 		}
 		else {
-//			if frame.source && not frame.source.includes('v8-stack.lib.civet')
 			if (frame.source && (frame.source.match(/v8-stack\.lib\.(?:civet|ts)/) === null)) {
 				source = frame.source
 			}

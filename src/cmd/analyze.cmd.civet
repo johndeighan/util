@@ -1,36 +1,33 @@
 # analyze.cmd.civet
 
-import {stdChecks} from 'llutils'
+import {TNoArgPredicate} from 'predicates'
 import {
 	undef, defined, notdefined, assert, croak,
 	} from 'datatypes'
-import {
-	pushLogLevel, popLogLevel, LOG, DBG, DBGVALUE,
-	} from 'logger'
-import {flag, nonOption, checkCmdArgs} from 'cmd-args'
-import {toNice, DUMP} from 'to-nice'
-import {findFile, slurp, fileExt} from 'fsys'
-import {ts2ast, astAsString, analyzeTS} from 'typescript'
-import {civet2ast, civet2ts} from 'civet'
+import {stdChecks} from 'llutils'
+import {LOG, DBG, ERR} from 'logger'
+import {flag, nonOption} from 'cmd-args'
+import {DUMP} from 'to-nice'
+import {findFile, slurp, fileExt, relpath} from 'fsys'
+import {analyzeTS} from 'typescript'
+import {civet2ts} from 'civet'
 
-stdChecks()
-checkCmdArgs {
-	_:
-		desc: "name of file to analyze"
-		range: [0, 1]
-	t: 'debug walk of AST'
-	d: 'dump AST'
-	v: 'dump verbose analysis'
-	}
+stdChecks """
+	analyze [-v] <filename>
+		-v - dump analysis data structure
+	"""
 
 # ---------------------------------------------------------------------------
 
-pushLogLevel 'info'     # --- temp disable debugging
-fileName := nonOption(0) || 'ast.civet'
-path := fileName.match(/[\\\/]/) ? fileName : findFile(fileName)
-assert defined path
-LOG "-----  ANALYZE #{path}  -----"
-popLogLevel()
+fileName := nonOption(0)
+assert defined(fileName), "No file name provided"
+path := (
+	  fileName.match(/[\\\/]/)
+	? fileName
+	: findFile(fileName, {lIgnoreDirs: []})
+	)
+assert defined(path), "No such file: #{fileName}"
+LOG "-----  ANALYZE #{relpath(path)}  -----"
 tsCode := switch fileExt(path)
 	when '.ts'
 		slurp(path)
@@ -38,12 +35,11 @@ tsCode := switch fileExt(path)
 		civet2ts(slurp path)
 	default:
 		croak("Bad path: #{path}")
-hOptions := {
-	dump: flag('d')
-	trace: flag('t')
-	}
-analysis := analyzeTS tsCode, hOptions
+
+analysis := analyzeTS tsCode, {dumpAST: true, trace: true}
+DUMP analysis
+
 if flag('v')
-	DUMP toNice(analysis), 'ANALYSIS'
+	DUMP analysis, 'ANALYSIS'
 else
 	DUMP analysis.asString(), 'ANALYSIS'

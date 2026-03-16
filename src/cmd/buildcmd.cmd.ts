@@ -4,11 +4,10 @@
 import {assert, defined} from 'datatypes'
 import {stdChecks, cmdTitle} from 'llutils'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
-import {ERR} from 'logger'
+import {LOG, DBG, WARN, ERR} from 'logger'
 import {withExt, findFile, isFile} from 'fsys'
-import {
-	procFiles, procOneFile, doUnitTest, doInstallCmd,
-	} from 'exec'
+import {procFiles, procOneFile, doInstallCmd} from 'exec'
+import {doUnitTest} from 'typescript'
 import {doCompileCivet} from 'civet'
 
 stdChecks(`buildcmd -fitI (all | <stub>+)
@@ -29,7 +28,7 @@ try {
 		})
 
 	if (nonOption(0) === 'all') {
-		console.log(cmdTitle("BUILD ALL CMDS"))
+		LOG(cmdTitle("BUILD ALL CMDS"))
 		await procFiles([doCompileCivet, ['src/**/*.cmd.civet']], {force})
 		if (doTest) {
 			await procFiles([doCompileCivet, ['src/**/*.cmd.test.civet']])
@@ -41,7 +40,7 @@ try {
 	}
 	else {
 		for (const stub of allNonOptions()) {
-			console.log(cmdTitle(`BUILD CMD ${stub}`))
+			LOG(cmdTitle(`BUILD CMD ${stub}`))
 			const fileName = `${stub}.cmd.civet`
 			const path = findFile(fileName)
 			assert(defined(path), `Unable to find file: ${fileName}`)
@@ -56,11 +55,14 @@ try {
 					await procOneFile(withExt(path, '.test.ts'), doUnitTest)
 				}
 				else {
-					console.log(`No unit test named ${testPath}`)
+					LOG(`No unit test named ${testPath}`)
 				}
 			}
 			if (doInstall) {
 				await procOneFile(tsPath, doInstallCmd)
+			}
+			else {
+				LOG("not installed (use -i to install)")
 			}
 		}
 	}

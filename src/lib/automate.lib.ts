@@ -6,45 +6,43 @@ import {compile as compileSvelte} from 'npm-svelte/compiler'
 
 import {
 	undef, defined, notdefined, assert, croak,
-	TAssertFunc, isEmpty, nonEmpty, isInteger,
-	nonEmptyString, isNonEmptyString,
-	hash, hashof, isHash, integer,
+	nonEmptyString, hash, hashof, getErrStr,
 	} from 'datatypes'
-import {words, o, keys, getOptions} from 'llutils'
+import {TNoArgPredicate, allOf} from 'predicates'
+import {keys, getOptions} from 'llutils'
 import {OL} from 'to-nice'
 import {
-	LOG, LOGVALUE, DBG, DBGVALUE, INDENT, UNDENT,
+	LOG, DBG, WARN, ERR, DBGVALUE, INDENT, UNDENT,
 	pushLogLevel, popLogLevel
 	} from 'logger'
-import {TextTable} from 'text-table'
 import {
-	TPathInfo, slurp, barf, patchFirstLine, parsePath,
-	isFile, isDir, rmFile, findFile, relpath, withExt,
-	newerDestFileExists, allFilesMatching,
+	slurp, barf, patchFirstLine, parsePath, configFromFile,
+	isFile, rmFile, findFile, relpath, withExt, fileExt,
+	newerDestFileExists, allFilesMatching, inSameDir,
 	} from 'fsys'
-import {execCmd, execCmdSync} from 'exec'
-import {cielo2civetFile, configFromFile} from 'cielo'
+import {
+	execCmd, CFileHandler, TExecResult,
+	} from 'exec'
+import {cielo2civetFile} from 'cielo'
 import {civet2tsFile} from 'civet'
 
 // ---------------------------------------------------------------------------
 // Please, no dependencies on the directory structure!
 // ---------------------------------------------------------------------------
 
-export type TTesterFunc = ()=> boolean
-export type TCompileStatus = 'temp' |
-	'nocompiler' |
-	'exists' |
-	'failed' |
-	'compiled'        // compiling succeeded, output file exists
+export type TCompileResult = TExecResult & {
+	lOutPaths?: string[]
+	postProcStatus?: string    // --- was successful if not present
+	}
 
-export type TCompilerFunc = (path: string) => TCompileStatus
+export type TCompilerFunc = (path: string) => TCompileResult
 export type TPostProcessor = (path: string) => void
 
 export type TCompilerInfo = {
-	tester: TTesterFunc
+	tester: () => TExecResult
 	compiler: TCompilerFunc
 	getOutPaths: (path: string) => string[]
-}
+	}
 
 export const isCompilerInfo = (x: unknown): x is TCompilerInfo => {
 	if ((typeof x === 'object') && (x !== null)) {
@@ -69,248 +67,165 @@ export const isCompilerConfig = (x: unknown): x is TCompilerConfig => {
 	}
 }
 
-export type TCompileResult = {
-	status: TCompileStatus
-	path: string
-	lOutPaths?: string[]
-	postProcStatus?: unknown
-}
-
-export type TUnitTestResult = {
-	stub: string
-	success: boolean
-	msg?: string
-	code?: number
-}
-
 // ---------------------------------------------------------------------------
+// ASYNC
 
-export const build = (
-		name: string = '*',
-		purp: string = '{lib,cmd}',
-		hOptions: hash = {}
-		): void => {
-
-	type opt = {
-		nopp: boolean
-		}
-	const {nopp} = getOptions<opt>(hOptions, {
-		nopp: false
-		})
-	// --- Even though it's a constant, we can still
-	//     append strings to it!
-	const lUnitTests: string[] = []
-	const pat = `src/**/${name}.${purp}.civet`
-	for (const path of allFilesMatching(pat)) {
-		const {fileName, purpose, stub} = parsePath(path)
-		assert(isNonEmptyString(stub), "Empty stub")
-		LOG(`${relpath(path)} (${purpose})`)
-		if (newerDestFileExists(path, '.ts')) {
-			LOG("   EXISTS")
-		}
-		else {
-			// --- Compile civet file to TypeScript
-			const {success} = execCmdSync('civet', [
-				'--inline-map',
-				'-o',
-				'.ts',
-				'-c',
-				relpath(path)
-				])
-			if (success) {
-				LOG("   BUILD OK")
-				// --- type check the TypeScript file
-				const hResult = execCmdSync('deno', [
-					'check',
-					'-q',
-					withExt(path, '.ts')
-					])
-				if (hResult.success) {
-					LOG("   CHECK OK")
-				}
-				else {
-					LOG("   CHECK FAILED")
-					continue
-				}
-			}
-			else {
-				LOG("   BUILD FAILED")
-				continue
-			}
-		}
-		// don't install if a command
-		switch(purpose) {
-			case 'cmd': {
-				const {success} = execCmdSync('deno', [
-					'install',
-					'-fgA',
-					'-n',
-					stub || 'unknown',
-					'--no-config',
-					withExt(path, '.ts')
-					])
-				LOG(`   INSTALL ${(success? 'OK' : 'FAILED')}`);break;
-			}
-			case 'lib': {
-				if (defined(stub) && !nopp) {
-					lUnitTests.push(stub)
-				};break;
-			}
-		}
-	}
-	LOGVALUE('lUnitTests', lUnitTests)
-	return
-}
-
-// ---------------------------------------------------------------------------
-// --- What an ugly syntax, but it works! (i.e. type narrows)
-
-const assertIsCompilerConfig: (
-		val: unknown
-		) => asserts val is TCompilerConfig = function(val: unknown): asserts val is TCompilerConfig {
-	assert(isCompilerConfig(val), "Not a compiler config")
-}
-
-// ---------------------------------------------------------------------------
-
-export const getCompilerConfig = (
+export const getCompilerConfig = async (
 		fileName: string = 'compile.config.civet'
-		): TCompilerConfig => {
+		): AutoPromise<TCompilerConfig> => {
 
-	const path = findFile(fileName)
-	if (defined(path)) {
-		DBG(`load compiler config from ${OL(path)}`)
-		const hConfig = configFromFile(path)
-		assertIsCompilerConfig(hConfig)
-		DBGVALUE('hConfig', hConfig)
-		// --- Remove any compilers for which the
-		//     compiler software has not been installed
-		const {hCompilers} = hConfig
-		for (const ext of keys(hCompilers)) {
-			const {tester} = hCompilers[ext]
-			pushLogLevel('silent')
-			const works = tester()
-			popLogLevel()
-			if (!works) {
-				DBG(`Deleting compiler for ext ${OL(ext)}`)
-				delete hCompilers[ext]
-			}
+	const hConfig = (
+		(await (async ()=>{try {
+			return await configFromFile(fileName)
 		}
-		return hConfig
-	}
-	else {
-		return {
-			hCompilers: {
-				// --- keys are file extensions
-				//     NOTE: compilers must be synchronous!!!
-				'.svelte': {
-					getOutPaths: (path: string) => {
-						return [withExt(path, '.js')]
-					},
-					tester: () => {
-						return true
-					},
-					compiler: (path: string) => {
-						const jsPath = withExt(path, '.js')
-						rmFile(jsPath)
-						const {js, warnings} = compileSvelte(slurp(path), {
-							customElement: true,
-							runes: true,
-						})
-						const {code, map} = js
-						barf(jsPath, code)
-						return 'compiled'
-					},
-				},
-				'.dot': {
-					getOutPaths: (path: string) => {
-						return [withExt(path, '.svg')]
-					},
-					tester: () => {
-						return execCmdSync('dot', ['--version']).success
-					},
-					compiler: (path: string) => {
-						const svgPath = withExt(path, '.svg')
-						rmFile(svgPath)
-						execCmdSync('dot', ['-Tsvg', path])
-						return 'compiled'
-					},
-				},
-				'.cielo': {
-					// --- We produce an intermediate .civet file,
-					//     but give it a purpose of 'temp'
-					//     so it won't get compiled by the compile script
-					getOutPaths: (path: string) => [withExt(path, '.ts')],
-					tester: () => {
-						// --- we need civet to be installed
-						return execCmdSync('civet', ['--version']).success
-					},
-					compiler: (path: string) => {
-						// --- start with a *.cielo file
-						const civetPath = withExt(path, '.temp.civet')
-						const tsPath = withExt(path, '.ts')
-						rmFile(civetPath) // --- needed?
-						rmFile(tsPath) // --- needed?
-						cielo2civetFile(path, civetPath)
-						civet2tsFile(civetPath)
-						const {fileName} = parsePath(path)
-						patchFirstLine(civetPath, fileName, withExt(fileName, '.temp.civet'))
-						patchFirstLine(tsPath, fileName, withExt(fileName, '.ts'))
-						return 'compiled'
-					},
-				},
-				'.civet': {
-					getOutPaths: (path: string) => {
-						return [withExt(path, '.ts')]
-					},
-					tester: () => {
-						return execCmdSync('civet', ['--version']).success
-					},
-					compiler: (path: string) => {
-						const {purpose, fileName} = parsePath(path)
-						if (defined(purpose) && ['temp', 'debug'].includes(purpose)) {
-							return 'temp'
+
+		catch (err) {
+			return ({
+				hCompilers: {
+
+					// --- keys are file extensions
+					'.svelte': {
+
+						tester: () => {
+							return {success: true}
+						},
+
+						getOutPaths: (path: string) => {
+							return [withExt(path, '.js')]
+						},
+
+						compiler: (path: string) => {
+							const jsPath = withExt(path, '.js')
+							rmFile(jsPath)
+							const {js, warnings} = compileSvelte(slurp(path), {
+								customElement: true,
+								runes: true,
+							})
+							const {code, map} = js
+							barf(jsPath, code)
+							return 'compiled'
 						}
-						const tsPath = withExt(path, '.ts')
-						const tsName = withExt(fileName, '.ts')
-						civet2tsFile(path)
-						patchFirstLine(tsPath, fileName, tsName)
-						return 'compiled'
-					}
-				}
-			},
-			hPostProcessors: {
-				// --- Keys are a purpose
-				'test': (path: string): void => {
-					return
-				},
-				'lib': (path: string): void => {
-					const {stub} = parsePath(path)
-					if (defined(stub)) {
-						for (const {success} of runUnitTestsFor(stub)) {
+						},
+
+					'.dot': {
+						getOutPaths: (path: string) => {
+							return [withExt(path, '.svg')]
+						},
+						tester: async () => {
+							return await execCmd('dot', ['--version'])
+						},
+						compiler: async (path: string) => {
+							const svgPath = withExt(path, '.svg')
+							rmFile(svgPath)
+							await execCmd('dot', ['-Tsvg', path])
+							return 'compiled'
+						}
+						},
+
+					'.cielo': {
+						// --- We produce an intermediate .civet file,
+						//     but give it a purpose of 'temp'
+						//     so it won't get compiled by the compile script
+
+						getOutPaths: (path: string) => [withExt(path, '.ts')],
+
+						tester: async () => {
+							// --- we need civet to be installed
+							return await execCmd('civet', ['--version'])
+						},
+
+						compiler: (path: string) => {
+							// --- start with a *.cielo file
+							assert((fileExt(path) === '.cielo'), "Not a .cielo file")
+							const civetPath = withExt(path, '.temp.civet')
+							const tsPath = inSameDir(path, '.ts')
+
+							rmFile(civetPath) // --- needed?
+							rmFile(tsPath) // --- needed?
+
+							cielo2civetFile(path, civetPath)
+							civet2tsFile(civetPath, tsPath)
+							const {fileName} = parsePath(path)
+							patchFirstLine(civetPath, fileName, withExt(fileName, '.temp.civet'))
+							patchFirstLine(tsPath, fileName, withExt(fileName, '.ts'))
+							return 'compiled'
+						}
+						},
+
+					'.civet': {
+						getOutPaths: (path: string) => {
+							return [withExt(path, '.ts')]
+						},
+						tester: async () => {
+							return await execCmd('civet', ['--version'])
+						},
+						compiler: (path: string) => {
+							const {purpose, fileName} = parsePath(path)
+							if (purpose === 'temp') {
+								return 'temp'
+							}
+							const tsPath = withExt(path, '.ts')
+							const tsName = withExt(fileName, '.ts')
+							civet2tsFile(path, tsPath)
+							patchFirstLine(tsPath, fileName, tsName)
+							return 'compiled'
+						}
+						}
+					}, // --- end hCompilers
+
+				hPostProcessors: {
+
+					// --- Keys are a purpose
+					'test': (path: string): void => {
+						return
+					},
+
+					'lib': async (path: string): AutoPromise<void> => {
+						for await (const {success} of runUnitTestsFor(path)) {
 							if (!success) {
 								LOG(`Unit test ${path} failed`)
 							}
 						}
+						return
+					},
+
+					'cmd': (path: string): void => {
+						LOG(`- installing command ${path}`)
+						installCmd(path)
+						return
 					}
-					return
-				},
-				'cmd': (path: string): void => {
-					LOG(`- installing command ${path}`)
-					installCmd(path)
-					return
-				}
-			},
+					} // --- end hPostProcessors
+				})
+		}})())
+			)
+
+	DBGVALUE('hConfig', hConfig)
+	assert(isCompilerConfig(hConfig), `Bad compiler config: ${hConfig}`)
+
+	// --- Remove any compilers for which the
+	//     compiler software has not been installed
+	const {hCompilers} = hConfig
+	for (const ext of keys(hCompilers)) {
+		const {tester} = hCompilers[ext]
+		pushLogLevel('silent')
+		const {success} = tester()
+		popLogLevel()
+		if (!success) {
+			DBG(`Deleting compiler for ext ${OL(ext)}`)
+			delete hCompilers[ext]
 		}
 	}
+	return hConfig
 }
 
 // ---------------------------------------------------------------------------
-// --- returns a TCompilerInfo or undef
+// ASYNC
 
-export const getCompilerInfo = (ext: string): (TCompilerInfo | undefined) => {
+export const getCompilerInfo = async (
+		ext: string
+		):AutoPromise<(TCompilerInfo | undefined)> => {
 
-	const hConfig = getCompilerConfig()
+	const hConfig = await getCompilerConfig()
 	const hInfo = hConfig.hCompilers[ext]
 	if (defined(hInfo)) {
 		return hInfo
@@ -322,10 +237,13 @@ export const getCompilerInfo = (ext: string): (TCompilerInfo | undefined) => {
 }
 
 // ---------------------------------------------------------------------------
+// ASYNC
 
-export const getPostProcessor = (purpose: string): (TPostProcessor | undefined) => {
+export const getPostProcessor = async (
+		purpose: string
+		):AutoPromise<(TPostProcessor | undefined)> => {
 
-	const hConfig = getCompilerConfig()
+	const hConfig = await getCompilerConfig()
 	const pp = hConfig.hPostProcessors[purpose]
 	if (defined(pp)) {
 		return pp
@@ -337,20 +255,22 @@ export const getPostProcessor = (purpose: string): (TPostProcessor | undefined) 
 }
 
 // ---------------------------------------------------------------------------
+// ASYNC
+
 // --- src can be a full or relative path
 //     throws error if file does not exist
 //
 //     Possible status values:
 //        'temp'       - it was a temp file, not compiled
 //        'nocompiler' - has no compiler, not compiled
-//        'exists'     - newer compiled file already exists
+//        'notNeeded'  - newer compiled file already exists
 //        'failed'     - compiling failed
 //        'compiled'   - successfully compiled
 
-export const compileFile = (
+export const compileFile = async (
 		path: string,
 		hOptions: hash = {}
-		): TCompileResult => {
+		): AutoPromise<TCompileResult> => {
 
 	assert(isFile(path), `No such file: ${OL(path)}`)
 	DBG(`COMPILE: ${OL(path)}`, INDENT)
@@ -365,82 +285,84 @@ export const compileFile = (
 	if (notdefined(ext)) {
 		DBG(`Not compiling - no file extension in ${OL(path)}`, UNDENT)
 		return {
-			status: 'nocompiler',
-			path: relpath(path)
+			success: true,
+			notNeeded: true
 			}
 	}
 
-	const hCompilerInfo = getCompilerInfo(ext)
+	const hCompilerInfo = await getCompilerInfo(ext)
 	if (notdefined(hCompilerInfo)) {
 		DBG(`Not compiling - no compiler for ${OL(ext)}`, UNDENT)
 		return {
-			status: 'nocompiler',
-			path: relpath(path)
+			success: true,
+			notNeeded: true
 			}
 	}
 
-	// @ts-ignore
 	const {compiler, getOutPaths} = hCompilerInfo
-	const lOutPaths = getOutPaths(relpath(path))
+	const lOutPaths = getOutPaths(path)
 	DBG(`lOutPaths = ${OL(lOutPaths)}`)
-	let allNewer = true
-	for (const outPath of lOutPaths) {
-		if (!newerDestFileExists(relpath(path), outPath)) {
-			allNewer = false
-			break
-		}
-	}
-	if (allNewer) {
+	if (allOf(lOutPaths, (p) => newerDestFileExists(path, p))) {
 		DBG(`Not compiling, newer ${OL(lOutPaths)} exist`, UNDENT)
 		return {
-			status: 'exists',
-			path: relpath(path),
+			success: true,
+			notNeeded: true,
 			lOutPaths
 			}
 	}
 
 	DBG(`compiling ${OL(path)} to ${OL(lOutPaths)}`)
-	const status = compiler(path)
-	let postProcStatus: (unknown | undefined) = undef
-	if ((status === 'compiled') && defined(purpose) && !nopp) {
-		const postProc = getPostProcessor(purpose)
+	const hResult = compiler(path)
+	const {success} = hResult
+
+	if (success && defined(purpose) && !nopp) {
+		const postProc = await getPostProcessor(purpose)
 		if (defined(postProc)) {
 			DBG("post-processing file")
 			try {
-				// @ts-ignore
 				postProc(path)
 			}
 			catch (err) {
-				postProcStatus = err
+				hResult.postProcStatus = getErrStr(err)
 			}
 		}
 	}
 
 	DBG(UNDENT)
-	if (defined(postProcStatus)) {
-		return {
-			status,
-			path: relpath(path),
-			lOutPaths,
-			postProcStatus
-			}
+	return hResult
+}
+
+// ---------------------------------------------------------------------------
+
+class CFileCompiler extends CFileHandler {
+
+	get op() {
+		return 'doCompileFile'
 	}
-	else {
+
+	override async handle(
+			path: string,
+			hOptions: hash = {}
+			): AutoPromise<TExecResult> {
+
+		const hResult = await compileFile(path, hOptions)
+		const {success, notNeeded, lOutPaths, postProcStatus} = hResult
 		return {
-			status,
-			path: relpath(path),
-			lOutPaths
+			success,
+			notNeeded
 			}
 	}
 }
 
-// ---------------------------------------------------------------------------
-// --- GENERATOR
+export const doCompileFile = new CFileCompiler()
 
-export const runUnitTestsFor = function*(
-		stub: nonEmptyString,
+// ---------------------------------------------------------------------------
+// --- ASYNC GENERATOR
+
+export const runUnitTestsFor = async function*(
+		path: nonEmptyString,
 		hOptions: hash = {}
-		): Generator<TUnitTestResult, void, void> {
+		): AsyncGenerator<TExecResult> {
 
 	type opt = {
 		verbose: boolean
@@ -449,43 +371,33 @@ export const runUnitTestsFor = function*(
 		verbose: false
 		})
 
-	DBG(`Running unit tests for ${stub}`)
+	DBG(`Running unit tests for ${relpath(path)}`)
 	if (!verbose) {
 		pushLogLevel('silent')
 	}
-	// --- Ensure that matching lib & cmd files are compiled
-	//     (no error if there is no compiler for the file)
-	build(stub)
-	// --- Compile and run all unit tests for stub
-	for (const path of allFilesMatching(`src/**/${stub}*.test.*`)) {
-		const {status, lOutPaths} = compileFile(path, o`nopp`)
-		assert((status !== 'failed'), `compile of ${path} failed`)
+
+	// --- Compile and run all unit tests for file
+
+	const {stub, purpose, ext} = parsePath(path)
+	for (const testPath of allFilesMatching(`src/**/${stub}.${purpose}.test.*`)) {
+		const {success, lOutPaths} = await compileFile(testPath, {nopp: true})
+		assert(success, `compile of ${testPath} failed`)
 		if (notdefined(lOutPaths)) {
 			continue
 		}
-		// @ts-ignore
 		for (const outPath of lOutPaths) {
 			assert(isFile(outPath), `File ${OL(outPath)} not found`)
+			assert((fileExt(outPath) === '.ts'),
+					`Not a TS file: ${OL(relpath(outPath))}`)
 		}
-		// --- Compile all files in subdir if it exists
-		if (isDir(`test/${stub}`)) {
-			for (const path of allFilesMatching('src/test/' + stub + '/*')) {
-				const {status, lOutPaths} = compileFile(path)
-				assert((status !== 'failed'), `Compile of ${path} failed`)
-				if (notdefined(lOutPaths)) {
-					LOG(`File ${OL(path)} not compiled to ${OL(lOutPaths)}`)
-				}
-			}
-		}
+
 		// --- Run the unit tests, yield results
-		// @ts-ignore
 		for (const outPath of lOutPaths) {
-			const {success} = execCmdSync('deno', [
+			yield await execCmd('deno', [
 				'test',
 				'-qA',
 				outPath
 				])
-			yield {stub, success}
 		}
 	}
 	if (!verbose) {

@@ -13,7 +13,8 @@ import {
 import {
 	isFile, fileExt, withExt, slurp, barf, barfTempFile, parsePath,
 	} from 'fsys'
-import {civet2ts, civet2tsFile} from 'civet'
+import {CFileHandler, TExecResult} from 'exec'
+import {civet2ts, civet2tsFile, doCompileCivet} from 'civet'
 
 # ---------------------------------------------------------------------------
 
@@ -25,11 +26,15 @@ export cielo2civet := (code: string): string =>
 
 export cielo2ts := (code: string): string =>
 
-	return civet2ts cielo2civet code
+	return civet2ts cielo2civet(code)
 
 # ---------------------------------------------------------------------------
 
-export cielo2civetFile := (cieloPath: string, civetPath: string = withExt(cieloPath, '.civet')): string =>
+export cielo2civetFile := (
+		cieloPath: string,
+		civetPath: string = withExt(cieloPath, '.civet')
+		hOptions: hash = {}
+		): string =>
 
 	assert isFile(cieloPath), "No such file: #{OL(cieloPath)} (cielo2civet)"
 	assert (fileExt(cieloPath) == '.cielo'), "Not a cielo file: #{OL(cieloPath)}"
@@ -53,21 +58,37 @@ export cielo2tsFile := (cieloPath: string, tsPath: string = withExt(cieloPath, '
 
 # ---------------------------------------------------------------------------
 
-export configFromFile := (path: string): hash =>
+class CCieloCompiler extends CFileHandler
 
-	{purpose, ext} := parsePath path
-	assert (purpose == 'config'), "Not a config file: #{OL(path)}"
-	DBGVALUE "path", path
-	srcPath := (ext == '.civet') ? civet2tsFile(path) : path
-	assert (fileExt(srcPath) == '.ts'), "config not a .ts or .civet file: #{OL(path)}"
-	DBGVALUE 'srcPath', srcPath
-	url := pathToFileURL srcPath
-	DBGVALUE 'url', url
-	hImported := require srcPath
-	DBGVALUE 'hImported', hImported
-	hResult := hImported?.default || hImported
-	DBGVALUE "hResult", hResult
-	assert isHash(hResult), "Default import in #{OL(srcPath)} not a hash: #{ML(hResult)}"
-	return hResult
+	get op()
+		return 'doCompileCielo'
+
+	# ..........................................................
+	# ASYNC
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): TExecResult
+
+		assert (fileExt(path) == '.cielo'), "Not a cielo file: #{path}"
+		civetPath := withExt(path, '.temp.civet')
+		cielo2civetFile(path, civetPath, hOptions)
+		return await doCompileCivet.handle(civetPath, hOptions)
+
+	# ..........................................................
+	# SYNC
+
+	handleSync(
+			path: string,
+			hOptions: hash = {}
+			): TExecResult
+
+		assert (fileExt(path) == '.cielo'), "Not a cielo file: #{path}"
+		civetPath := withExt(path, '.temp.civet')
+		cielo2civetFile(path, civetPath, hOptions)
+		return doCompileCivet.handleSync(civetPath, hOptions)
+
+export doCompileCielo := new CCieloCompiler()
 
 # ---------------------------------------------------------------------------

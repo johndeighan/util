@@ -4,9 +4,8 @@ import {stdChecks, o} from 'llutils'
 import {assert, defined} from 'datatypes'
 import {nonOption, allNonOptions, flag} from 'cmd-args'
 import {withExt, findFile} from 'fsys'
-import {
-	procFiles, procOneFile, doUnitTest, doInstallCmd,
-	} from 'exec'
+import {procFiles, procOneFile, doInstallCmd} from 'exec'
+import {doUnitTest} from 'typescript'
 import {doCompileCivet} from 'civet'
 
 stdChecks "buildutest -nf (all | <stub>*)"

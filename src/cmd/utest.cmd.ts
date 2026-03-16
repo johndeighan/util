@@ -8,7 +8,8 @@ import {stdChecks, cmdTitle} from 'llutils'
 import {getFlags, nonOption, allNonOptions, argValue} from 'cmd-args'
 import {LOG, DBG, ERR} from 'logger'
 import {isFile, withExt, findFile, relpath} from 'fsys'
-import {execCmd, procFiles, procOneFile, doUnitTest} from 'exec'
+import {execCmd, procFiles, procOneFile} from 'exec'
+import {doUnitTest} from 'typescript'
 import {compileAllLibs, doCompileCivet} from 'civet'
 
 stdChecks(`utest [-I] [-line=<n>] {<stub>} | all
@@ -19,7 +20,7 @@ stdChecks(`utest [-I] [-line=<n>] {<stub>} | all
 // ---------------------------------------------------------------------------
 // --- Compile any libraries
 
-await compileAllLibs({abortOnError: true})
+await compileAllLibs()
 
 try {
 	// --- echoes if flag is set

@@ -13,19 +13,19 @@ let numCompiled = 0
 
 // ---------------------------------------------------------------------------
 
-const logResult = (hResult: TCompileResult): void => {
+const logResult = (
+		hResult: TCompileResult,
+		path: string
+		): void => {
 
-	const {path, status} = hResult
-	switch(status) {
-		case 'compiled': {
+	if (hResult.success) {
+		if (!hResult.notNeeded) {
 			LOG(`COMPILED: ${OL(path)}`)
-			numCompiled += 1;break;
+			numCompiled += 1
 		}
-		case 'exists': {
-			pass();break;
-		}
-		default:
-			LOG(`NOT COMPILED: ${OL(path)}`)
+	}
+	else {
+		LOG(`NOT COMPILED: ${OL(path)}`)
 	}
 	return
 }
@@ -35,8 +35,8 @@ const logResult = (hResult: TCompileResult): void => {
 if (numNonOptions() === 0) {
 	DBG("=====  Compiling all files  =====")
 	for (const path of allFilesMatching('src/**/*.{lib,cmd}.civet')) {
-		const hResult = compileFile(path)
-		logResult(hResult)
+		const hResult = await compileFile(path)
+		logResult(hResult, path)
 	}
 }
 else {
@@ -54,7 +54,7 @@ else {
 				const pat = 'src/**/' + stub + '.' + purpose + '.*'
 				for (const path of allFilesMatching(pat)) {
 					DBG(`compile file ${OL(path)}`)
-					logResult(compileFile(path))
+					logResult(await compileFile(path), path)
 				}
 			}
 			else if ((ref1 = str.match(/^([A-Za-z0-9_-]+)\.(lib|cmd)\.test$/))) {const lMatches2 = ref1;
@@ -62,12 +62,12 @@ else {
 				const pat = 'src/**/' + stub + '.' + purpose + '.test.*'
 				for (const path of allFilesMatching(pat)) {
 					DBG(`compile file ${OL(path)}`)
-					logResult(compileFile(path))
+					logResult(await compileFile(path), path)
 				}
 			}
 			else {
 				DBG(`compile file ${OL(str)}`)
-				logResult(compileFile(str))
+				logResult(await compileFile(str), str)
 			}
 		}
 	}

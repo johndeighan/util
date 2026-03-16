@@ -6,14 +6,13 @@ import {
 	assertArrayIncludes,
 	} from '@std/assert'
 
+import {TPredicate, anyOf, allOf} from 'predicates'
 import {esc, mesc} from 'unicode'
 import {
 	undef, defined, notdefined, isEmpty, nonEmpty,
 	array, arrayof, isArray, isHash, isString, hash, hashof,
-	deepEqual, integer, TFilterFunc,
-	isFunction, isClass, functionDef, classDef,
-	TVoidFunc, TVoidIterator, getErrStr,
-	croak, isGenerator, isIterator,
+	deepEqual, integer, isFunction, isClass, functionDef, classDef,
+	TVoidFunc, TVoidIterator, getErrStr, croak, isGenerator, isIterator,
 	} from 'datatypes'
 import {
 	pass, o, keys, getOptions, spaces, blockToArray,
@@ -39,6 +38,7 @@ import {civet2tsFile} from 'civet'
 import {sourceLib, getNeededImportStmts} from 'symbols'
 import {getTsCode, getImportCode, typeCheckTsCode} from 'typescript'
 import {getMyOutsideCaller} from 'v8-stack'
+import {compileFile} from 'automate'
 
 stringify := JSON.stringify
 
@@ -395,7 +395,7 @@ export execFileOps := (
 			when 'clearDir'
 				clearDir h.path
 			when 'compile'
-				civet2tsFile h.path
+				compileFile h.path
 			when 'barf'
 				barf h.path, h.contents
 	return
@@ -502,33 +502,6 @@ export sampleVal: hash := {
 	fullList: [42]
 	MyClass
 	}
-
-# ---------------------------------------------------------------------------
-# --- Returns true only if all the named values return true
-#     AND all the not named values return false
-
-export allTrue := (
-		lNames: string[],
-		pred: TFilterFunc
-		): boolean =>
-
-	for name of lNames
-		if not pred(sampleVal[name])
-			return false
-	return true
-
-# ---------------------------------------------------------------------------
-# --- Returns true only if all the named values return true
-
-export allFalse := (
-		lNames: string[],
-		pred: TFilterFunc
-		): boolean =>
-
-	for name of lNames
-		if pred(sampleVal[name])
-			return false
-	return true
 
 # ---------------------------------------------------------------------------
 

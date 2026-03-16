@@ -1,7 +1,6 @@
 # typescript.lib.civet
 
-import {existsSync} from '@std/fs'
-import {statSync} from 'node-fs'
+import {exists, existsSync} from '@std/fs'
 import {
 	SourceFile, Node, ScriptTarget, SyntaxKind, ModuleKind,
 	NewLineKind, EmitHint, CompilerOptions, ModuleResolutionKind,
@@ -12,14 +11,15 @@ import {
 
 import {
 	undef, defined, notdefined, integer, hash, hashof,
-	isHash, TFilterFunc, isString, isEmpty, nonEmpty, isNumber,
+	isHash, isString, isEmpty, nonEmpty, isNumber, getErrStr,
 	assert, croak, isFunction, functionDef, isClass, classDef,
 	} from 'datatypes'
 import {
 	getOptions, spaces, o, words, hasKey,
-	CStringSetMap, keys, sep,
+	CStringSetMap, keys, sep, allLinesInBlock,
 	} from 'llutils'
-import {f} from 'f-strings'
+import {f, withColors, decolorize} from 'f-strings'
+import {debugging} from 'cmd-args'
 import {
 	extract, TPathItem, getString, getNumber, getArray,
 	} from 'extract'
@@ -28,9 +28,15 @@ import {
 	LOG, DBG, ERR, LOGVALUE, INDENT, UNDENT, DBGVALUE,
 	pushLogLevel, popLogLevel,
 	} from 'logger'
-import {isFile, slurp, barf, barfTempFile, fileExt} from 'fsys'
+import {
+	isFile, slurp, barf, barfTempFile, fileExt, withExt,
+	pathStr, mkpath, newerDestFileExists,
+	} from 'fsys'
 import {OL, toNice, TMapFunc, DUMP} from 'to-nice'
-import {execCmdSync} from 'exec'
+import {
+	execCmd, execCmdSync, CFileHandler, TProcSpec, TExecResult,
+	procOneFile, procFiles,
+	} from 'exec'
 import {extractSourceMap} from 'source-map'
 import {Walker, TVisitKind} from 'walker'
 import {CMainScope, CScope} from 'scope'
@@ -85,7 +91,7 @@ export descFunc: TMapFunc := (
 # ---------------------------------------------------------------------------
 
 export astAsString := (
-		hAst: Node,
+		hAst: object,
 		hOptions: hash = {}
 		): string =>
 
@@ -98,7 +104,7 @@ export astAsString := (
 
 	return toNice hAst, {
 		ignoreEmptyKeys: true
-		descFunc
+#		descFunc
 		lInclude
 		lExclude: words("""
 			pos end id flags modifierFlagsCache
@@ -358,15 +364,18 @@ export class AstWalker extends Walker<Node>
 # ---------------------------------------------------------------------------
 
 export class CAnalysis
-	mImports: CStringSetMap = new CStringSetMap()
-	mExports: Map<string, string> = new Map<string, string>()
-	mainScope: CMainScope = new CMainScope()
+
+	trace = false
+	mImports = new CStringSetMap()
+	mExports = new Map<string, string>()
+	sMissing = new Set<string>()
+	mainScope = new CMainScope()
 	curScope: CScope
-	finished: boolean = false
+	finished = false
 
 	# ..........................................................
 
-	constructor()
+	constructor(@trace = false)
 
 		@curScope = @mainScope
 
@@ -374,6 +383,8 @@ export class CAnalysis
 
 	define(name: string): void
 
+		if @trace
+			LOG "   define #{name}"
 		@curScope.define name
 		return
 
@@ -383,6 +394,12 @@ export class CAnalysis
 
 		# --- this condition should filter built-ins
 		if not hasKey(globalThis, name)
+			if @trace
+				LOG "   use #{name}"
+			if not @curScope.isDefined(name)
+				if @trace
+					LOG "   missing #{name}"
+				@sMissing.add name
 			@curScope.use name
 		return
 
@@ -390,6 +407,8 @@ export class CAnalysis
 
 	addImport(lib: string, name: string): void
 
+		if @trace
+			LOG "   import '#{name}' in '#{lib}'"
 		@mImports.add lib, name
 		@define name
 		return
@@ -398,9 +417,34 @@ export class CAnalysis
 
 	addExport(name: string, type: string): void
 
+		if @trace
+			LOG "   export '#{name}': '#{type}'"
 		@mExports.set name, type
 		return
 
+	# ..........................................................
+
+	newScope(name: string?, lArgs: string[]): void
+
+		if @trace
+			LOG "   new scope #{name || '<anon>'}(#{lArgs.join(',')})"
+		@curScope = @mainScope.newScope(name, lArgs)
+		return
+
+	# ..........................................................
+
+	endScope(): void
+
+		if @trace
+			LOG "   end scope"
+		scope := @mainScope.endScope @curScope
+		if defined(scope)
+			@curScope = scope
+		else
+			@finished = true
+		return
+
+	# ..........................................................
 	# ..........................................................
 
 	getImports(): TBlockDesc
@@ -418,37 +462,9 @@ export class CAnalysis
 
 	# ..........................................................
 
-	newScope(name: string?, lArgs: string[]): void
-
-		@curScope = @mainScope.newScope(name, lArgs)
-		return
-
-	# ..........................................................
-
-	endScope(): void
-
-		scope := @mainScope.endScope @curScope
-		if defined(scope)
-			@curScope = scope
-		else
-			@finished = true
-		return
-
-	# ..........................................................
-
 	getMissing(): string[]
 
-		walker := new Walker<CScope>()
-		walker.isNode = (x: unknown) =>
-			return (x instanceof CScope)
-
-		# --- Find all names that are used, but not defined
-		sNames := new Set<string>()
-		for scope of walker.walk(@mainScope)
-			for name of scope.allUsed()
-				if not scope.isDefined(name)
-					sNames.add name
-		return Array.from sNames.values()
+		return Array.from @sMissing.values()
 
 	# ..........................................................
 
@@ -512,23 +528,22 @@ export analyzeTS := (
 
 	type opt = {
 		fileName: string?
-		dump: boolean
+		dumpAST: boolean
 		trace: boolean
 		}
-	{fileName, dump, trace} := getOptions<opt> hOptions, {
+	{fileName, dumpAST, trace} := getOptions<opt> hOptions, {
 		fileName: undef
-		dump: false
+		dumpAST: false
 		trace: false
 		}
 
-	debugger
-	analysis := new CAnalysis()
+	analysis := new CAnalysis(trace)
 	walker := new AstWalker()
 
 	hAst := ts2ast tsCode
 
-	if dump
-		DUMP hAst, 'AST'
+	if dumpAST
+		DUMP astAsString(hAst), 'AST'
 
 	# ..........................................................
 
@@ -548,10 +563,20 @@ export analyzeTS := (
 
 	# ..........................................................
 
+	sym := (vkind: TVisitKind): string =>
+		switch vkind
+			when 'enter' then return '->'
+			when 'exit'  then return '<-'
+			else              return '::'
+
+	# ..........................................................
+	# vkind is one of 'enter', 'exit', 'ref'
+
+	lTraceKind := [80, 95, 170, 214, 220, 227, 254, 261, 263, 273, 280, 308]
 	for [vkind, node] of walker.walkEx(hAst)
 		{kind} := node
-		if trace
-			LOG f"NODE #{kind}:3 (#{kindStr(kind)})"
+		if trace && lTraceKind.includes(kind)
+			LOG f"#{sym(vkind)} NODE #{kind}:3 (#{kindStr(kind)}:{cyan})"
 
 		if (vkind == 'exit')
 			switch kind
@@ -567,9 +592,6 @@ export analyzeTS := (
 					do
 						lParms := MAP getArray(node, '.parameters'), (x) ->
 							yield getString(x, '.name.escapedText')
-
-						if trace
-							LOG "   Arrow Func := (#{lParms.join(',')}) =>"
 						analysis.newScope undef, lParms
 
 				when 261    # VariableDeclaration
@@ -584,8 +606,6 @@ export analyzeTS := (
 
 						lParms := MAP getArray(node, '.parameters'), (x) ->
 							yield getString(x, '.name.escapedText')
-						if trace
-							LOG "   function #{funcName}(#{lParms.join(',')})"
 						analysis.define funcName
 						analysis.newScope funcName, lParms
 
@@ -602,8 +622,6 @@ export analyzeTS := (
 					lib := getString node, '.moduleSpecifier.text'
 					for h of getArray(node, '.importClause.namedBindings.elements')
 						name := getString h, '.name.escapedText'
-						if trace
-							console.log "NAME: '#{name}' in '#{lib}'"
 						analysis.addImport lib, name
 
 				when 280    # NamedExports
@@ -648,7 +666,154 @@ export analyzeTS := (
 
 						default:
 							croak "Unexpected subtype of 95: #{parent.kind}"
-				default:
-					if trace
-						LOG "   ...ignored"
 	return analysis
+
+# ---------------------------------------------------------------------------
+
+class CTypescriptCompiler extends CFileHandler
+
+	get op()
+		return 'doCompileTS'
+
+	# ..........................................................
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): TExecResult
+
+		type opt = {
+			force: boolean
+			}
+		{force} := getOptions<opt> hOptions, {
+			force: false
+			}
+
+		assert (fileExt(path) == '.ts'), "Not a typescript file: #{path}"
+		jsPath := withExt path, '.js'
+
+		# --- Check if a newer compiled version already exists
+		if (
+				   not force
+				&& await exists(jsPath)
+				&& newerDestFileExists(path, jsPath)
+				)
+			return {
+				success: true
+				notNeeded: true
+				}
+
+		try
+			hResult := await execCmd 'deno', [
+				'bundle'
+				'--minify'
+				path
+				jsPath
+				]
+			if not hResult.success
+				console.log @getOutput(hResult)
+				croak "Compile failed"
+			return hResult
+
+		catch err
+			if debugging
+				LOG getErrStr(err)
+			errMsg := "COMPILE FAILED: #{pathStr(path)} - #{getErrStr(err)}"
+			return {
+				success: false
+				stderr: errMsg
+				}
+
+export doCompileTS := new CTypescriptCompiler()
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export compileAllTS := (
+		root = '.'
+		hOptions: hash = {}
+		): TExecResult[] =>
+
+	# --- with 'quiet' option, still reports errors
+	spec: TProcSpec := [doCompileTS, [mkpath(root, '**/*.lib.ts')]]
+	return await procFiles spec, {
+		...hOptions
+		quiet: true
+		abortOnError: true
+		}
+
+# ---------------------------------------------------------------------------
+
+class CUnitTester extends CFileHandler
+
+	get op()
+		return 'doUnitTest'
+
+	# ..........................................................
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): TExecResult
+
+		assert path.endsWith('.test.ts'), "Not a unit test file"
+		type opt = {
+			capture: boolean
+			inspect: boolean
+			lineNum: string?
+			}
+		{capture, inspect, lineNum} := getOptions<opt> hOptions, {
+			capture: true
+			inspect: false
+			lineNum: undef
+			}
+
+		hResult := await execCmd 'deno', [
+				'test'
+				'-A'
+				...(inspect ? ['--inspect-brk'] : ['--coverage=./coverage'])
+				...(defined(lineNum) ? ['--filter', "/^line #{lineNum}$/"] : [])
+				path
+				], {capture}
+		return hResult
+
+	# ..........................................................
+
+	override getOutput(hResult: TExecResult): string
+
+		{stdout, stderr} := hResult
+		output := [stdout, stderr].join()
+		if not hResult.success
+			return output
+
+		lLines := MAP allLinesInBlock(decolorize(output)), (line) ->
+			if line.startsWith('running')
+				yield line
+				yield ''
+			else if line.startsWith('line')
+				if not line.includes(' ok ')
+					yield withColors line, {
+						failed: 'red'
+						FAILED: 'red'
+						ok: 'green'
+						OK: 'green'
+						}
+			else if line.includes('passed') && line.includes('failed')
+				if line.includes(' 0 failed ')
+					yield withColors line, {
+						ok: 'green'
+						passed: 'green'
+						}
+				else
+					yield withColors line, {
+						ok: 'green'
+						passed: 'green'
+						failed: 'red'
+						FAILED: 'red'
+						}
+				yield ''
+			else if line.includes('Lcov coverage')
+				yield 'coverage report generated'
+		return lLines.join('\n')
+
+export doUnitTest := new CUnitTester()

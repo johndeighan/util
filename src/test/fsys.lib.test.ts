@@ -3,7 +3,7 @@
 
 type AutoPromise<T> = Promise<Awaited<T>>;
 import {
-	undef, defined, hash, isString, deepEqual,
+	undef, defined, hash, isString, deepEqual, isFunction,
 	} from 'datatypes'
 import {
 	o, spaces, sinceLoad, sinceLoadStr, sleep, pass,
@@ -11,13 +11,13 @@ import {
 import {LOG, DBG} from 'logger'
 import {TPLLToken} from 'pll'
 import {
-	isFile, isDir, getPathType, fileExt, withExt,
+	isFile, isDir, getPathType, fileExt, withExt, inSameDir,
 	isStub, parsePath, allFilesMatching, allLinesIn,
 	normalizePath, pathToURL, mkpath, relpath, pathSubDirs, myself,
-	rmFile, rmDir, isExt, newerDestFileExists,
+	rmFile, rmDir, isExt, newerDestFileExists, configFromFile,
 	clearDir, mkDir, mkDirsForFile, slurp, barf,
 	removeFilesMatching, watchFile, FileEventHandler, TFsEventHandler,
-	TPathType, TPathInfo, patchFirstLine, FsEvent, toFullPath,
+	TPathType, TPathInfo, patchFirstLine, toFullPath,
 	} from 'fsys'
 import {
 	equal, truthy, falsy, like, objListLike, matches, isType, notType,
@@ -30,6 +30,12 @@ import {
 const setup = async (): AutoPromise<void> => {
 
 	await setDirTree(`./src/test/fsys
+file.config.ts
+	export default new Object({
+		a: 1,
+		b: 'abc',
+		f: () => 'hello'
+		})
 dummy.txt
 	dummy
 tokens.txt
@@ -129,8 +135,14 @@ DBG("withExt()")
 
 equal(withExt('deno.json', '.txt'), 'deno.txt')
 equal(withExt("C:/temp/file.txt", ".js"), "C:/temp/file.js")
-equal(withExt("c:\\temp/to/file.txt", ".js"), "c:\\temp/to/file.js")
-equal(withExt("c:\\temp/to/file.flag.txt", ".js"), "c:\\temp/to/file.flag.js")
+equal(withExt("c:\\temp/to/file.txt", ".js"), "C:/temp/to/file.js")
+equal(withExt("c:\\temp/to/file.flag.txt", ".js"), "C:/temp/to/file.flag.js")
+
+DBG("inSameDir()")
+
+equal(inSameDir("C:/temp/file.txt", "file.js"), "C:/temp/file.js")
+equal(inSameDir("c:\\temp/to/file.txt", "file.js"), "C:/temp/to/file.js")
+equal(inSameDir("c:\\temp/to/file.flag.txt", "file.flag.js"), "C:/temp/to/file.flag.js")
 
 DBG("isStub()")
 
@@ -211,6 +223,7 @@ equal(mkpath("C:/temp", "file.txt"), "C:/temp/file.txt")
 equal(mkpath("C:\\temp/to", "file.txt"), "C:/temp/to/file.txt")
 equal(mkpath("C:\\temp", "to/file.flag.txt"), "C:/temp/to/file.flag.txt")
 equal(mkpath('c:\\', 'Users', 'johnd'), 'C:/Users/johnd')
+equal(mkpath('.', '**/*.lib.civet'), './**/*.lib.civet')
 
 DBG("relpath()")
 
@@ -509,6 +522,7 @@ DBG("allFilesMatching()");
 }
 	)();
 
+
 (() => {
 	const lFiles =  Array.from(allFilesMatching('src/test/fsys/**', o`includeDirs`))
 	equal(lFiles.map((x) => parsePath(x).fileName), [
@@ -561,5 +575,18 @@ DBG("allFilesMatching()");
 		'tokens.txt',
 		])
 }
-	)()
+	)();
+
+// ---------------------------------------------------------------------------
+
+(async () => {
+	const hConfig = await configFromFile('src/test/fsys/file.config.ts')
+	truthy(defined(hConfig))
+	truthy(defined(hConfig.a))
+	falsy( defined(hConfig.x))
+	if (isFunction(hConfig.f)) {
+		equal(hConfig.f(), 'hello')
+	}
+}
+	)
 

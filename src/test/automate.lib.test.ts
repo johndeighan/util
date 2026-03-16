@@ -3,15 +3,14 @@
 
 type AutoPromise<T> = Promise<Awaited<T>>;
 import {defined, isHash, isFunction} from 'datatypes'
+import {TPredicate} from 'predicates'
 import {o} from 'llutils'
 import {withExt, TPathInfo, isFile} from 'fsys'
 import {DBG} from 'logger'
 import {
-	TTesterFunc, TCompileStatus, TCompilerFunc, TPostProcessor,
+	TCompilerFunc, TPostProcessor, compileFile,
 	TCompilerInfo, isCompilerInfo, TCompilerConfig, isCompilerConfig,
-	TCompileResult, TUnitTestResult,
-	build, getCompilerConfig, getCompilerInfo, getPostProcessor,
-	compileFile,
+	TCompileResult, getCompilerConfig, getCompilerInfo, getPostProcessor,
 	} from 'automate'
 import {
 	equal, like, succeeds, fails, truthy, falsy, setDirTree,
@@ -24,12 +23,12 @@ import {
 const setup = async (): AutoPromise<void> => {
 
 	await setDirTree(`./src/test/automate
-test1.cielo
+test1.cielo compile
 	# test1.cielo
 
 	LOG := (str: string) => console.log str
 	LOG "Hello, World!"
-test2.civet
+test2.civet compile
 	# test2.civet
 
 	LOG := (str: string) => console.log str
@@ -65,18 +64,11 @@ await setup()
 
 // ---------------------------------------------------------------------------
 
-DBG("type TTesterFunc")
+DBG("type TPredicate")
 
-// isType 'TTesterFunc', () =>
+// isType 'TPredicate', () =>
 //	console.log "Hello, World!"
 //	return true
-
-DBG("type TCompileStatus")
-
-// isType 'TCompileStatus', 'temp'
-// isType 'TCompileStatus', 'exists'
-// isType 'TCompileStatus', 'compiled'
-// notType 'TCompileStatus', 'dummy'
 
 DBG("type TCompilerFunc")
 
@@ -115,13 +107,6 @@ DBG("type TCompileResult")
 // isType 'TCompileResult', {
 //	status: 'compiled'
 //	path: 'temp.civet'
-//	}
-
-DBG("type TUnitTestResult")
-
-// isType 'TUnitTestResult', {
-//	stub: 'temp'
-//	success: true
 //	}
 
 DBG("getCompilerConfig(path)");

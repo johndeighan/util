@@ -2,10 +2,13 @@
 
 import {serveFile, serveDir} from '@std/http/file-server'
 
-import {hash, TStringFilterFunc} from 'datatypes'
+import {
+	undef, defined, notdefined, assert, croak,
+	hash, TStringFilterFunc, getErrStr,
+	} from 'datatypes'
 import {getOptions} from 'llutils'
 import {LOG, DBG, ERR} from 'logger'
-import {mkpath, relpath} from 'fsys'
+import {mkpath, relpath, fileExt} from 'fsys'
 
 defPort := 8000
 
@@ -13,40 +16,180 @@ defPort := 8000
 
 export class CFileServer
 	port: number
+	verbose: boolean
 	root: string
 	server: Deno.HttpServer
 
-	constructor(@root: string, hOptions: hash = {})
+	eventSource: EventSource? = undef
+
+	constructor(
+			@root: string
+			hOptions: hash = {}
+			)
 
 		type opt = {
 			port: number
 			verbose: boolean
 			allow: TStringFilterFunc
 			}
-		{@port, verbose, allow} := getOptions<opt> hOptions, {
+		{port, verbose, allow} := getOptions<opt> hOptions, {
 			port: defPort
 			verbose: true
 			allow: (s) => true
 			}
+		@port = port
+		@verbose = verbose
 
-		onListen := () =>
-			if verbose
-				LOG "Listening on port #{@port}"
-
-		@server = Deno.serve {onListen}, (req: Request) =>
-
-			if not allow(req.url)
-				return new Response("403: Forbidden", {status: 403})
-
-			LOG "Starting file server"
-			return serveDir req, {
-				fsRoot: @root
-				showDirListing: true
-				showIndex: false
-				enableCors: true
-				quiet: not verbose
+		@server = Deno.serve
+			{
+				hostname: 'localhost'
+				port: @port
+				onListen: @onListen
 				}
+			(req: Request) =>
+
+				url := new URL(req.url)
+				path := decodeURIComponent(url.pathname)
+
+				if @forbid(path, req)
+					return new Response("403: Forbidden", {status: 403})
+
+				try
+					return await @getResponse(path, req)
+				catch
+					return new Response "404 Not Found", {status: 404}
+
+	# ..........................................................
+
+	sseConnect(url: string): void
+
+		LOG "📡 Connecting to SSE stream..."
+
+		# --- 🔌 Create EventSource connection
+		@eventSource = new EventSource(url)
+
+		# --- 🎧 Listen for incoming messages
+		@eventSource.onmessage = (event) =>
+			console.log "📨 Message received: #{event.data}"
+			@handleMessage JSON.parse(event.data)
+
+		# --- ✅ Connection opened successfully
+		@eventSource.onopen = () =>
+      	console.log "✅ SSE connection established!"
+
+		# --- ❌ Handle connection errors
+		@eventSource.onerror = (err) =>
+			console.error "❌ SSE connection error: #{getErrStr(err)}"
+
+		# --- 🔍 Check connection state
+		if (this.eventSource?.readyState == EventSource.CLOSED)
+			console.log "🔌 SSE connection closed"
+		else if (this.eventSource?.readyState == EventSource.CONNECTING)
+			console.log "🔄 SSE reconnecting..."
+		return
+
+	# ..........................................................
+
+	sseDisconnect(): void
+
+		if @eventSource
+			console.log "🔌 Closing SSE connection..."
+			@eventSource.close()
+			@eventSource = undef
+		return
+
+	# ..........................................................
+
+	handleMessage(data: any): void
+
+		# --- Override in subclasses or provide callback
+		console.log "📥 Processing message: #{data}"
+		return
+
+	# ..........................................................
+
+	onListen(): void
+
+		if @verbose
+			LOG "Listening on port #{@port}"
+		return
+
+	# ..........................................................
+
+	forbid(path: string, req: Request): boolean
+
+		return false
+
+	# ..........................................................
+
+	customResponse(
+			contents: string,
+			content_type: string = 'text/plain'
+			): Response
+
+		return new Response contents, {
+			status: 200
+			headers: {
+				'Content-type': content_type
+				}
+			}
+
+	# ..........................................................
+
+	getResponse(
+			path: string
+			req: Request
+			): Response
+
+		return await @getFileResponse path, req
+
+	# ..........................................................
+	# ASYNC
+
+	getFileResponse(
+			path: string
+			req: Request
+			): Response
+
+		content_type := @getContentType(path, req)
+		switch content_type
+			when 'text/typescript'
+				contents := await Deno.readTextFile mkpath(@root, path)
+				assert defined(contents)
+				return new Response contents, {
+					status: 200
+					headers: {
+						'Content-type': content_type
+						}
+					}
+			else
+				contents := await Deno.readTextFile mkpath(@root, path)
+				assert defined(contents)
+				return new Response contents, {
+					status: 200
+					headers: {
+						'Content-type': content_type
+						}
+					}
+
+	# ..........................................................
+
+	getContentType(
+			path: string
+			req: Request
+			): string
+
+		return switch fileExt(path)
+			when '.civet' then 'text/civet'
+			when '.js' then 'text/javascript'
+			when '.ts' then 'text/typescript'
+			when '.html', '.htm' then 'text/html'
+			else 'text/plain'
+		return ''
+
+	# ..........................................................
 
 	[Symbol.dispose](): void
 		LOG "stopping file server"
+		@server.shutdown()
 		return

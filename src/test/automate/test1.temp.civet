@@ -1,4 +1,4 @@
-# test1.temp.civet
+# test1.cielo
 
 LOG := (str: string) => console.log str
 LOG "Hello, World!"

@@ -37,36 +37,35 @@ type TMapper<TIn, TOut> = (
 	) => Generator<TOut>
 
 // --- An accumulator cannot be a function and must be defined
-// type TAccum<T> = Exclude<Exclude<T, Function>, undefined>
 
-type TMapperWithAccum<TIn, TOut, T extends TNonFunction> = (
+type TMapperWithAccum<TIn, TOut, TAccum extends TNonFunction> = (
 	x: TIn,
 	i: number,
-	acc: T
-	) => Generator<TOut, T>
+	acc: TAccum
+	) => Generator<TOut, TAccum>
 
 // ---------------------------------------------------------------------------
 
 // --- Variant 1, no accumulator
-export function IMAP<TIn, TOut, T extends TNonFunction>(
+export function IMAP<TIn, TOut, TAccum extends TNonFunction>(
 		lItems:  Generator<TIn> | TIn[],
 		mapFunc: TMapper<TIn, TOut>,
 		nothing: void
 		): Generator<TOut>
 
 // --- Variant 2
-export function IMAP<TIn, TOut, T extends TNonFunction>(
+export function IMAP<TIn, TOut, TAccum extends TNonFunction>(
 		lItems:  Generator<TIn> | TIn[],
-		acc: T,
-		mapFunc: TMapperWithAccum<TIn, TOut, T>
-		): Generator<TOut, T>
+		acc: TAccum,
+		mapFunc: TMapperWithAccum<TIn, TOut, TAccum>
+		): Generator<TOut, TAccum>
 
 // --- implementation
-export function* IMAP<TIn, TOut, T extends TNonFunction>(
+export function* IMAP<TIn, TOut, TAccum extends TNonFunction>(
 		lItems: Generator<TIn> | TIn[],
-		arg2: TMapper<TIn, TOut> | T,
-		arg3: void | TMapperWithAccum<TIn, TOut, T>
-		): Generator<TOut> | Generator<TOut, T> {
+		arg2: TMapper<TIn, TOut> | TAccum,
+		arg3: void | TMapperWithAccum<TIn, TOut, TAccum>
+		): Generator<TOut> | Generator<TOut, TAccum> {
 
 	if (isFunction(arg2)) {
 		// --- variant 1, no accumulator, arg2 is a mapper
@@ -90,8 +89,8 @@ export function* IMAP<TIn, TOut, T extends TNonFunction>(
 		assert(isFunction(arg3), "arg3 not a function!")
 
 		// --- variant 2
-		let runningAcc: T = arg2
-		const mapper: TMapperWithAccum<TIn, TOut, T> = arg3
+		let runningAcc: TAccum = arg2
+		const mapper: TMapperWithAccum<TIn, TOut, TAccum> = arg3
 
 		let i2 = 0;for (const item of lItems) {const i = i2++;
 			const iter = mapper(item, i, runningAcc)
@@ -118,24 +117,24 @@ export function* IMAP<TIn, TOut, T extends TNonFunction>(
 // ---------------------------------------------------------------------------
 
 // --- Variant 1, no accumulator
-export function MAP<TIn, TOut, T extends TNonFunction>(
+export function MAP<TIn, TOut, TAccum extends TNonFunction>(
 		lItems:  Generator<TIn> | TIn[],
 		mapFunc: TMapper<TIn, TOut>,
 		nothing: void
 		): TOut[]
 
-// --- Variant 2
-export function MAP<TIn, TOut, T extends TNonFunction>(
+// --- Variant 2, has accumulator
+export function MAP<TIn, TOut, TAccum extends TNonFunction>(
 		lItems:  Generator<TIn> | TIn[],
-		acc: T,
-		mapFunc: TMapperWithAccum<TIn, TOut, T>
-		): [TOut[], T]
+		acc: TAccum,
+		mapFunc: TMapperWithAccum<TIn, TOut, TAccum>
+		): [TOut[], TAccum]
 
-export function MAP<TIn, TOut, T extends TNonFunction>(
+export function MAP<TIn, TOut, TAccum extends TNonFunction>(
 		lItems: Generator<TIn> | TIn[],
-		arg2: TMapper<TIn, TOut> | T,
-		arg3: void | TMapperWithAccum<TIn, TOut, T>
-		): TOut[] | [TOut[], T] {
+		arg2: TMapper<TIn, TOut> | TAccum,
+		arg3: void | TMapperWithAccum<TIn, TOut, TAccum>
+		): TOut[] | [TOut[], TAccum] {
 
 	let ref;if (isFunction(arg2)) {
 		// --- variant 1
@@ -143,7 +142,7 @@ export function MAP<TIn, TOut, T extends TNonFunction>(
 	}
 	else {
 		// --- variant 2
-		ref = IMAP(lItems, arg2 as T, arg3 as TMapperWithAccum<TIn, TOut, T>)
+		ref = IMAP(lItems, arg2 as TAccum, arg3 as TMapperWithAccum<TIn, TOut, TAccum>)
 	};const iter =ref
 
 	let lNewItems: TOut[] = []
@@ -162,33 +161,48 @@ export function MAP<TIn, TOut, T extends TNonFunction>(
 }
 
 // ---------------------------------------------------------------------------
+// --- mapFunc must return an item of type TAccum
+
+export async function Accumulate<TIn, TAccum extends TNonFunction>(
+		lItems: TIn[],
+		acc: TAccum,
+		mapFunc: (item: TIn, i: number, acc: TAccum) => Promise<TAccum>
+		): AutoPromise<TAccum> {
+
+	let i3 = 0;for (const item of lItems) {const i = i3++;
+		acc = await mapFunc(item, i, acc)
+	}
+	return acc as Awaited<TAccum>
+}
+
+// ---------------------------------------------------------------------------
 
 // --- Variant 1, no accumulator
-export function AIMAP<TIn, TOut, T extends TNonFunction>(
+export function AIMAP<TIn, TOut, TAccum extends TNonFunction>(
 		lItems:  Generator<TIn> | AsyncGenerator<TIn> | TIn[],
 		mapFunc: TMapper<TIn, TOut>,
 		nothing: void
 		): AsyncGenerator<TOut>
 
 // --- Variant 2
-export function AIMAP<TIn, TOut, T extends TNonFunction>(
+export function AIMAP<TIn, TOut, TAccum extends TNonFunction>(
 		lItems:  Generator<TIn> | AsyncGenerator<TIn> | TIn[],
-		acc: T,
-		mapFunc: TMapperWithAccum<TIn, TOut, T>
-		): AsyncGenerator<TOut, T>
+		acc: TAccum,
+		mapFunc: TMapperWithAccum<TIn, TOut, TAccum>
+		): AsyncGenerator<TOut, TAccum>
 
 // --- implementation
-export async function* AIMAP<TIn, TOut, T extends TNonFunction>(
+export async function* AIMAP<TIn, TOut, TAccum extends TNonFunction>(
 		lItems: Generator<TIn> | AsyncGenerator<TIn> | TIn[],
-		arg2: TMapper<TIn, TOut> | T,
-		arg3: void | TMapperWithAccum<TIn, TOut, T>
-		): AsyncGenerator<TOut> | AsyncGenerator<TOut, T> {
+		arg2: TMapper<TIn, TOut> | TAccum,
+		arg3: void | TMapperWithAccum<TIn, TOut, TAccum>
+		): AsyncGenerator<TOut> | AsyncGenerator<TOut, TAccum> {
 
 	if (isFunction(arg2)) {
 		// --- variant 1, no accumulator, arg2 is a mapper
 		const mapper: TMapper<TIn, TOut> = arg2
 
-		let i3 = 0;for await (const item of lItems) {const i = i3++;
+		let i4 = 0;for await (const item of lItems) {const i = i4++;
 			const iter = mapper(item, i)
 			while(true) {
 				const {done, value} = await iter.next()
@@ -206,10 +220,10 @@ export async function* AIMAP<TIn, TOut, T extends TNonFunction>(
 		assert(isFunction(arg3), "arg3 not a function!")
 
 		// --- variant 2
-		let runningAcc: T = arg2
-		const mapper: TMapperWithAccum<TIn, TOut, T> = arg3
+		let runningAcc: TAccum = arg2
+		const mapper: TMapperWithAccum<TIn, TOut, TAccum> = arg3
 
-		let i4 = 0;for await (const item of lItems) {const i = i4++;
+		let i5 = 0;for await (const item of lItems) {const i = i5++;
 			const iter = mapper(item, i, runningAcc)
 			while(true) {
 				const {done, value} = await iter.next()
@@ -234,24 +248,24 @@ export async function* AIMAP<TIn, TOut, T extends TNonFunction>(
 // ---------------------------------------------------------------------------
 
 // --- Variant 1, no accumulator
-export async function AMAP<TIn, TOut, T extends TNonFunction>(
+export async function AMAP<TIn, TOut, TAccum extends TNonFunction>(
 		lItems: AsyncGenerator<TIn>,
 		mapFunc: TMapper<TIn, TOut>,
 		nothing: void
 		): AutoPromise<TOut[]>
 
 // --- Variant 2
-export async function AMAP<TIn, TOut, T extends TNonFunction>(
+export async function AMAP<TIn, TOut, TAccum extends TNonFunction>(
 		lItems: AsyncGenerator<TIn>,
-		acc: T,
-		mapFunc: TMapperWithAccum<TIn, TOut, T>
-		): AutoPromise<[TOut[], T]>
+		acc: TAccum,
+		mapFunc: TMapperWithAccum<TIn, TOut, TAccum>
+		): AutoPromise<[TOut[], TAccum]>
 
-export async function AMAP<TIn, TOut, T extends TNonFunction>(
+export async function AMAP<TIn, TOut, TAccum extends TNonFunction>(
 		lItems: AsyncGenerator<TIn>,
-		arg2: TMapper<TIn, TOut> | T,
-		arg3: void | TMapperWithAccum<TIn, TOut, T>
-		): AutoPromise<TOut[] | [TOut[], T]> {
+		arg2: TMapper<TIn, TOut> | TAccum,
+		arg3: void | TMapperWithAccum<TIn, TOut, TAccum>
+		): AutoPromise<TOut[] | [TOut[], TAccum]> {
 
 	let ref1;if (isFunction(arg2)) {
 		// --- variant 1
@@ -259,7 +273,7 @@ export async function AMAP<TIn, TOut, T extends TNonFunction>(
 	}
 	else {
 		// --- variant 2
-		ref1 = await AIMAP(lItems, arg2 as T, arg3 as TMapperWithAccum<TIn, TOut, T>)
+		ref1 = await AIMAP(lItems, arg2 as TAccum, arg3 as TMapperWithAccum<TIn, TOut, TAccum>)
 	};const iter =ref1
 
 	let lNewItems: TOut[] = []
@@ -280,11 +294,11 @@ export async function AMAP<TIn, TOut, T extends TNonFunction>(
 // ---------------------------------------------------------------------------
 // ASYNC
 // --- returns [lFulfilled, lRejected, lFulfilledTags, lRejectedTags]
-//        lFulfilled is an array of T
+//        lFulfilled is an array of TAccum
 //        lRejected is an array of unknown (usually Error objects)
 //        lFulfilledTags and lRejectedTags are arrays of strings
 
-type TRunResult<T> = [T[], string[], string[], string[]]
+type TRunResult<T> = [T[], unknown[], string[], string[]]
 
 export const awaitAll = async function<T>(
 		lPromises: Promise<T>[],

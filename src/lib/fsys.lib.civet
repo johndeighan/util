@@ -5,6 +5,7 @@ import {parse: parseJSONC, JsonValue} from '@std/jsonc'
 import {debounce} from '@std/async/debounce'
 import {existsSync, emptyDirSync, ensureDirSync} from '@std/fs'
 import {appendFileSync, openSync, closeSync} from 'node-fs'
+import {pathToFileURL} from 'node-url'
 import {EventEmitter} from 'node-events'
 import NReadLines from 'npm-n-readlines'
 import {expandGlobSync} from '@std/fs/expand-glob'
@@ -14,7 +15,7 @@ import {
 	} from '@std/path'
 
 import {
-	undef, defined, notdefined, assert, croak,
+	undef, defined, notdefined, assert, obviously, croak,
 	isEmpty, nonEmpty, isString, isNonEmptyString,
 	isBoolean, isNumber, isInteger, isArray, isArrayOfStrings,
 	isHash, isRegExp, integer, hash, hashof, TVoidFunc,
@@ -28,7 +29,7 @@ import {isMetaDataStart, convertMetaData} from 'meta-data'
 import {debugging} from 'cmd-args'
 import {OL, ML} from 'to-nice'
 import {
-	pushLogLevel, popLogLevel, LOG, DBG,
+	pushLogLevel, popLogLevel, LOG, DBG, WARN, ERR,
 	INDENT, UNDENT, DBGVALUE,
 	} from 'logger'
 
@@ -36,8 +37,44 @@ import {
 #     importing ESM modules
 
 Deno := globalThis.Deno
-export type FsEvent = Deno.FsEvent
-export statSync = Deno.statSync
+type FsEvent = Deno.FsEvent
+
+# ---------------------------------------------------------------------------
+# Deno.FileInfo has:
+#    isFile (boolean): True if it's a regular file.
+#    isDirectory (boolean): True if it's a directory.
+#    isSymlink (boolean): True if it's a symlink.
+#    size (number): File size in bytes.
+#    mtime (Date | null): Modification time.
+#    atime (Date | null): Last access time.
+#    birthtime (Date | null): Creation time (not available on all platforms).
+#    mode (number | null): Permissions (POSIX only).
+#    uid / gid (number | null): Owner/group ID (POSIX only)
+# ---------------------------------------------------------------------------
+
+export type TFileStats = {
+	isFile: boolean
+	isDirectory: boolean
+	isSymlink: boolean
+	mtime: Date?
+	}
+
+export getFileStats := (path: string): TFileStats =>
+
+	if (path == 'ext:core/01_core.js')
+		return {
+			isFile: false
+			isDirectory: false
+			isSymlink: false
+			mtime: undef
+			}
+	hStats := Deno.statSync path
+	return {
+		isFile: hStats.isFile
+		isDirectory: hStats.isDirectory
+		isSymlink: hStats.isSymlink
+		mtime: hStats.mtime || undef
+		}
 
 # ---------------------------------------------------------------------------
 /**
@@ -56,7 +93,7 @@ export getPathType := (path: string): TPathType =>
 	assert isString(path), "not a string: #{OL(path)}"
 	if not existsSync(path)
 		return 'missing'
-	h := statSync path
+	h := getFileStats path
 	return (
 		  h.isFile         ? 'file'
 		: h.isDirectory    ? 'dir'
@@ -81,7 +118,9 @@ export touch := (path: string): void =>
 # ---------------------------------------------------------------------------
 # ASYNC GENERATOR
 
-export allLinesIn := (path: string): AsyncGenerator<string, void, void> ->
+export allLinesIn := (
+		path: string
+		): AsyncGenerator<string> ->
 
 	assert isFile(path), "No such file: #{OL(path)} (allLinesIn)"
 	f := await Deno.open path
@@ -102,12 +141,33 @@ export pathToURL := (...lParts: string[]): string =>
 
 # ---------------------------------------------------------------------------
 
+export normalizePath := (path: string): string =>
+
+	if isEmpty(path)
+		return ''
+
+	npath := path.replaceAll '\\', '/'
+	if npath.charAt(1) == ':'
+		return npath.charAt(0).toUpperCase() + npath.substring(1)
+	else
+		return npath
+
+# ---------------------------------------------------------------------------
+
 export mkpath := (...lParts: string?[]): string =>
 
 	lUseParts := MAP lParts, (x) ->
 		if nonEmpty(x)
-			assert defined(x)
-			lMatches := x.match(/^\.?[\\\/]*(.*?)[\\\/]*$/)
+			obviously defined(x)
+			# --- Remove any leading or trailing slashes,
+			#     even if leading slash is preceded by '.'
+			lMatches := x.match ///^
+				(?:
+					\.? [\\\/]
+					)?
+				(.*?)
+				[\\\/]?
+				$///
 			if defined(lMatches)
 				yield lMatches[1]
 
@@ -203,9 +263,9 @@ export newerDestFileExists := (
 
 	try
 		assert existsSync(destPath)
-		destms := statSync(destPath).mtime
+		destms := getFileStats(destPath).mtime
 		assert defined(destms)
-		srcms  := statSync(srcPath).mtime
+		srcms  := getFileStats(srcPath).mtime
 		assert defined(srcms)
 		return (destms > srcms)
 	catch err
@@ -393,20 +453,29 @@ export addJsonValue := (
 # ---------------------------------------------------------------------------
 
 export fileExt := (path: string): string =>
-	let ref
-	if (ref = path.match(/\.[^\.]+$/))
-		lMatches := ref
-		return lMatches[0]
-	else
-		return ''
+
+	lMatches := path.match(/\.[^\.]+$/)
+	return lMatches ? lMatches[0] : ''
 
 # ---------------------------------------------------------------------------
 
 export withExt := (path: string, ext: string): string =>
+
 	assert ext.startsWith('.'), "Bad file extension: #{ext}"
 	pos := path.lastIndexOf '.'
 	assert (pos >= 0), "path contains no period: #{path}"
-	return path.substring(0, pos) + ext
+	return normalizePath(path.substring(0, pos) + ext)
+
+# ---------------------------------------------------------------------------
+
+export inSameDir := (
+		path: string,
+		fileName: string
+		): string =>
+
+	{dir} := parsePath(path)
+	newpath := mkpath(dir, fileName)
+	return normalizePath newpath
 
 # ---------------------------------------------------------------------------
 
@@ -427,19 +496,6 @@ export slurpAsync := async (path: string): string =>
 
 	data := await Deno.readTextFile path
 	return defined(data) ? removeCR(data) : ''
-
-# ---------------------------------------------------------------------------
-
-export normalizePath := (path: string): string =>
-
-	if notdefined(path)
-		return ''
-
-	npath := path.replaceAll '\\', '/'
-	if npath.charAt(1) == ':'
-		return npath.charAt(0).toUpperCase() + npath.substring(1)
-	else
-		return npath
 
 # ---------------------------------------------------------------------------
 
@@ -538,7 +594,8 @@ export allFilesMatching := (
 			LOG "   NEG: #{pat}"
 	setSkip := new Set<string>()
 	for pat of lPosPats
-		for {path} of expandGlobSync(pat, hGlobOptions)
+		for entry of expandGlobSync(pat, hGlobOptions)
+			{path} := entry
 			if not setSkip.has(path)
 				if debugging
 					LOG "PATH: #{path}"
@@ -629,7 +686,7 @@ export allDirsMatching := (
 	setSkip := new Set<string>()
 	for pat of lPosPats
 		for {path} of expandGlobSync(pat, hGlobOptions)
-			if not setSkip.has(path) && statSync(path).isDirectory
+			if not setSkip.has(path) && getFileStats(path).isDirectory
 				if debugging
 					LOG "DIR: #{path}"
 				yield path
@@ -695,7 +752,7 @@ export isFile := (path: string?): boolean =>
 	if notdefined(path)
 		return false
 	try
-		stats := statSync path
+		stats := getFileStats path
 		return stats.isFile
 	catch err
 		if (err instanceof Deno.errors.NotFound)
@@ -710,7 +767,7 @@ export isDir := (path: string?): boolean =>
 	if notdefined(path)
 		return false
 	try
-		stats := statSync path
+		stats := getFileStats path
 		return stats.isDirectory
 	catch err
 		if (err instanceof Deno.errors.NotFound)
@@ -839,4 +896,17 @@ export openTextFile = (
 			nLines: nMetaLines
 			}
 
+# ---------------------------------------------------------------------------
+# ASYNC
 
+export configFromFile := (fileName: string): hash =>
+
+	path := findFile fileName
+	assert defined(path), "No such file: #{OL(fileName)}"
+	{purpose, ext} := parsePath path
+	assert (purpose == 'config'), "Not a config file: #{OL(path)}"
+	assert (ext == '.ts'), "Config file not TypeScript: #{OL(path)}"
+	DBG "Import config from #{OL(path)}"
+	url := pathToFileURL path
+	DBGVALUE 'url', url
+	return await import url
