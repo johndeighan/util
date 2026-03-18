@@ -1,8 +1,9 @@
 "use strict";
 // datatypes.lib.test.civet
 
+import {croak} from 'croak'
 import {
-	deepEqual, undef, defined, notdefined, croak, assert,
+	deepEqual, undef, defined, notdefined, assert,
 	anyDefined, anyNotDefined,
 	array, arrayof, isArray,
 	hash, hashof, isHash,
@@ -32,8 +33,6 @@ truthy(deepEqual(['a'], ['a']))
 // ---------------------------------------------------------------------------
 
 fails(() => croak("Bad"))
-
-// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 

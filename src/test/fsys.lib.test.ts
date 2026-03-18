@@ -17,11 +17,11 @@ import {
 	rmFile, rmDir, isExt, newerDestFileExists, configFromFile,
 	clearDir, mkDir, mkDirsForFile, slurp, barf,
 	removeFilesMatching, watchFile, FileEventHandler, TFsEventHandler,
-	TPathType, TPathInfo, patchFirstLine, toFullPath,
+	TPathType, TPathInfo, patchFirstLine, toFullPath, splitPatterns,
 	} from 'fsys'
 import {
-	equal, truthy, falsy, like, objListLike, matches, isType, notType,
-	succeeds, fails, includesAll, setDirTree, fileOpsTable,
+	equal, truthy, falsy, like, objListLike, isType, notType,
+	succeeds, fails, setDirTree, fileOpsTable,
 	} from 'unit-test'
 
 // ---------------------------------------------------------------------------
@@ -588,5 +588,14 @@ DBG("allFilesMatching()");
 		equal(hConfig.f(), 'hello')
 	}
 }
-	)
+	);
+
+// ---------------------------------------------------------------------------
+
+(() => {
+	equal(splitPatterns(['xxx.ts', 'yyy.ts']), [['xxx.ts', 'yyy.ts'], []])
+	equal(splitPatterns(['xxx.ts', '! yyy.ts']), [['xxx.ts'], ['yyy.ts']])
+	equal(splitPatterns(['! xxx.ts', 'yyy.ts']), [['yyy.ts'], ['xxx.ts']])
+}
+	)()
 

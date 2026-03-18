@@ -5,7 +5,7 @@ import {undef} from 'datatypes'
 import {DBG} from 'logger'
 import {o} from 'llutils'
 import {TextTable} from 'text-table'
-import {equal, like, objListLike} from 'unit-test'
+import {equal, objListLike} from 'unit-test'
 
 // -------------------------------------------------------------
 

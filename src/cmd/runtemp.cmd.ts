@@ -2,11 +2,11 @@
 // runtemp.cmd.civet
 
 import {
-	undef, defined, notdefined, assert, croak,
+	undef, defined, notdefined, assert,
 	} from 'datatypes'
 import {findFile, withExt, isFile} from 'fsys'
 import {procOneFile, doRun, TExecResult} from 'exec'
-import {stdChecks} from 'llutils'
+import {stdChecks, croak, colorize} from 'llutils'
 import {flag, argValue, allNonOptions, getFlags} from 'cmd-args'
 import {LOG, DBG, ERR} from 'logger'
 import {doCompileCivet, compileAllLibs} from 'civet'
@@ -17,8 +17,25 @@ stdChecks(`runtemp [-fnI] [-stub=<temp_stub>] { <lib_stub> }
 	-I = invoke Chrome debugger
 	- if lib  <lib_stub>.lib.civet exists, compile it
 	- if file <temp_stub>.temp.civet exists, compile and run it
-	- default <temp_stub>, if none provided, is 'temp'`)
+	- default <temp_stub>, if none provided, is the last of:
+	   'temp', 'temp1', 'temp2', 'temp3', etc.`)
 
+// ---------------------------------------------------------------------------
+
+const lastTempStub = (): string => {    // returns a stub
+
+	let retval = 'temp'
+	for (let i = 1; i <= 9; ++i) {const n = i;
+		const stub = `temp${n}`
+		if (isFile(`src/temp/${stub}.civet`)) {
+			retval = stub
+		}
+		else {
+			return retval
+		}
+	}
+	return retval
+}
 
 // ---------------------------------------------------------------------------
 
@@ -35,7 +52,8 @@ try {
 	}
 
 	// --- compile temp file
-	const stub = argValue('stub') || 'temp'
+	const stub = argValue('stub') || lastTempStub()
+	LOG(colorize(`Running ${stub}`, 'cyan'))
 	const root = './src/temp'
 
 	// --- Make sure the 'temp' folder is NOT ignored
@@ -54,7 +72,7 @@ try {
 	await procOneFile(tsPath, doRun, {
 		inspect,
 		capture: false,
-		label: 'OUTPUT'
+		label: `${stub} OUTPUT`
 		})
 }
 

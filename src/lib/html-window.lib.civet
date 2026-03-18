@@ -5,10 +5,10 @@ import {Webview} from '@webview/webview'
 import {WebUI} from '@webui'
 
 import {
-	undef, defined, notdefined, assert, croak, getErrStr,
+	undef, defined, notdefined, assert, getErrStr,
 	TVoidFunc, hash, hashof,
 	} from 'datatypes'
-import {getOptions, sleep} from 'llutils'
+import {getOptions, sleep, croak} from 'llutils'
 import {LOG, DBG, WARN, ERR} from 'logger'
 import {mkpath, slurp, isFile, isDir} from 'fsys'
 import {execCmd} from 'exec'
@@ -26,7 +26,10 @@ export class CHtmlWindow
 
 	# ..........................................................
 
-	defineFunc(funcName: string, func: TVoidFunc): void
+	defineFunc(
+			funcName: string
+			func: TVoidFunc
+			): void
 
 		@window.bind funcName, func
 		return
@@ -69,7 +72,7 @@ export class CHtmlWindow
 		# --- Bind a backend function to a frontend element
 		@window.bind "exit", () =>
 			# --- Closes all windows and exits the Deno process
-			WebUI.exit();
+			await WebUI.exit();
 
 		await @window.showBrowser html, WebUI.Browser.Chrome
 		return

@@ -14,10 +14,10 @@ import {
 import {
 	undef, defined, notdefined, integer, hash, hashof,
 	isHash, isString, isEmpty, nonEmpty, isNumber, getErrStr,
-	assert, croak, isFunction, functionDef, isClass, classDef,
+	assert, isFunction, functionDef, isClass, classDef,
 	} from 'datatypes'
 import {
-	getOptions, spaces, o, words, hasKey,
+	getOptions, spaces, o, words, hasKey, croak,
 	CStringSetMap, keys, sep, allLinesInBlock,
 	} from 'llutils'
 import {f, withColors, decolorize} from 'f-strings'
@@ -126,12 +126,7 @@ export const typeCheckTsFile = (path: string): string => {
 
 	assert(isFile(path), `No such file: ${path}`)
 	const {success, stderr} = execCmdSync('deno', ['check', path])
-	if (success) {
-		return ''
-	}
-	else {
-		return stderr || 'Unknown error'
-	}
+	return success ? '' : (stderr || 'Unknown error')
 }
 
 // ---------------------------------------------------------------------------
@@ -145,60 +140,6 @@ export const typeCheckTsCode = (
 	const path = "./_typecheck_.ts"
 	barf(path, tsCode)
 	return typeCheckTsFile(path)
-}
-
-// ---------------------------------------------------------------------------
-
-// --- We need to add ':unknown' to any function parameters
-//     that don't have an explicit type
-
-export const getTsCode = (
-		typeStr: string,
-		valueStr: string
-		): string => {
-
-	DBGVALUE('typeStr', typeStr)
-	DBGVALUE('valueStr', valueStr)
-	const result = splitFuncStr(valueStr)
-	if (defined(result)) {
-		const [lParms, body] = result
-		const addType = (parm: string): string => {
-			if (parm.indexOf(':') >= 0) {
-				return parm
-			}
-			else {
-				return `${parm}: unknown`
-			}
-		}
-		const parmStr = lParms.map(addType).join(', ')
-		return `const x: ${typeStr} = (${parmStr}) => ${body}`
-	}
-	else {
-		return `const x: ${typeStr} = ${valueStr}`
-	}
-}
-
-// ---------------------------------------------------------------------------
-
-type TSplitResult = [string[], string]
-
-export const splitFuncStr = (valueStr: string): (TSplitResult | undefined) => {
-
-	let ref;if ((ref = valueStr.match(/^\(([^\)]*)\)\s*[\=\-]\>\s*(.*)$/))) {const lMatches = ref;
-		const [_, strParms, strBody] = lMatches
-		if (isEmpty(strParms)) {
-			return [[], strBody]
-		}
-		else {
-			return [
-				strParms.split(',').map((x) => x.trim()),
-				strBody
-				]
-		}
-	}
-	else {
-		return undef
-	}
 }
 
 // ---------------------------------------------------------------------------
@@ -222,11 +163,11 @@ export const getImportCode = (typeStr: string): string => {
 
 export const getSymbolsFromType = (typeStr: string): string[] => {
 
-	let ref1;let ref2;if ((ref1 = typeStr.match(/^([A-Za-z][A-Za-z0-9+]*)(?:\<([A-Za-z][A-Za-z0-9+]*)\>)?$/))) {const lMatches = ref1;
+	let ref;let ref1;if ((ref = typeStr.match(/^([A-Za-z][A-Za-z0-9+]*)(?:\<([A-Za-z][A-Za-z0-9+]*)\>)?$/))) {const lMatches = ref;
 		const [_, type, subtype] = lMatches
 		return nonEmpty(subtype) ? [type, subtype] : [type]
 	}
-	else if ((ref2 = typeStr.match(/^\(\)\s*\=\>\s*([A-Za-z][A-Za-z0-9+]*)$/))) {const lMatches = ref2;
+	else if ((ref1 = typeStr.match(/^\(\)\s*\=\>\s*([A-Za-z][A-Za-z0-9+]*)$/))) {const lMatches = ref1;
 		return [lMatches[1]]
 	}
 	else {
@@ -805,6 +746,8 @@ class CTypescriptCompiler extends CFileHandler {
 			hOptions: hash = {}
 			): AutoPromise<TExecResult> {
 
+		LOG(`doCompileTS '${path}'`)
+
 		type opt = {
 			force: boolean
 			}
@@ -865,7 +808,9 @@ export const compileAllTS = async (
 		): AutoPromise<TExecResult[]> => {
 
 	// --- with 'quiet' option, still reports errors
-	const spec: TProcSpec = [doCompileTS, [mkpath(root, '**/*.lib.ts')]]
+	const pattern = mkpath(root, '**/*.lib.ts')
+	LOG(`pattern = '${pattern}'`)
+	const spec: TProcSpec = [doCompileTS, [pattern]]
 	return await procFiles(spec, {
 		...hOptions,
 		quiet: true,
@@ -916,7 +861,7 @@ class CUnitTester extends CFileHandler {
 
 		const {stdout, stderr} = hResult
 		const output = [stdout, stderr].join()
-		if (!hResult.success) {
+		if (!hResult.success || output.match(/croak|error/i)) {
 			return output
 		}
 

@@ -8,7 +8,7 @@ import {
 	cielo2civet, cielo2civetFile,
 	} from 'cielo'
 import {
-	equal, like, succeeds, fails, truthy, falsy, setDirTree,
+	equal, succeeds, fails, truthy, falsy, setDirTree,
 	} from 'unit-test'
 
 // ---------------------------------------------------------------------------

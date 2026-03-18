@@ -8,7 +8,7 @@ import {
 	} from 'unicode'
 import {DBG} from 'logger'
 import {
-	equal, like, succeeds, fails, truthy, falsy,
+	equal, succeeds, fails, truthy, falsy,
 	} from 'unit-test'
 
 // ---------------------------------------------------------------------------

@@ -13,8 +13,7 @@ import {
 	TCompileResult, getCompilerConfig, getCompilerInfo, getPostProcessor,
 	} from 'automate'
 import {
-	equal, like, succeeds, fails, truthy, falsy, setDirTree,
-	matches, objListLike, strListLike,
+	equal, succeeds, fails, truthy, falsy, isType, setDirTree,
 	} from 'unit-test'
 
 // ---------------------------------------------------------------------------
@@ -66,15 +65,17 @@ await setup()
 
 DBG("type TPredicate")
 
-// isType 'TPredicate', () =>
-//	console.log "Hello, World!"
-//	return true
+isType('TPredicate', () => {
+	console.log("Hello, World!")
+	return true
+})
 
 DBG("type TCompilerFunc")
 
-// isType 'TCompilerFunc', (path: string) =>
-//	console.log path
-//	return 'compiled'
+isType('TCompilerFunc', (path: string) => {
+	console.log(path)
+	return 'compiled'
+})
 
 DBG("type TPostProcessor");
 
@@ -89,25 +90,25 @@ DBG("type TPostProcessor");
 
 DBG("type TCompilerInfo")
 
-// isType 'TCompilerInfo', {
-//	tester: () => true
-//	compiler: (path: string) => return 'compiled',
-//	getOutPaths: (path: string) => return ['temp.ts']
-//	}
+isType('TCompilerInfo', {
+	tester: () => true,
+	compiler: (path: string) => { return 'compiled' },
+	getOutPaths: (path: string) => { return ['temp.ts'] }
+	})
 
 DBG("type TCompilerConfig", "isCompilerConfig()")
 
-// isType 'TCompilerConfig', {
-//	hCompilers: {}
-//	hPostProcessors: {}
-//	}
+isType('TCompilerConfig', {
+	hCompilers: {},
+	hPostProcessors: {}
+	})
 
 DBG("type TCompileResult")
 
-// isType 'TCompileResult', {
-//	status: 'compiled'
-//	path: 'temp.civet'
-//	}
+isType('TCompileResult', {
+	status: 'compiled',
+	path: 'temp.civet'
+	})
 
 DBG("getCompilerConfig(path)");
 
@@ -120,7 +121,7 @@ DBG("getCompilerConfig(path)");
 
 DBG("getCompilerInfo()")
 
-// isType 'TCompilerInfo', getCompilerInfo('.dot'), isCompilerInfo
+isType('TCompilerInfo', getCompilerInfo('.dot'), isCompilerInfo)
 
 DBG("getPostProcessor()");
 

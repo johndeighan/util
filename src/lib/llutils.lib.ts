@@ -13,10 +13,12 @@ import {
 	isHash, isArray, isNonEmptyString,
 	isArrayOfStrings, isEmpty, nonEmpty, isString, isInteger,
 	integer, hash, hashof, array, arrayof, TVoidFunc, isNonPrimitive,
-	functionDef, croak,
-	TStringMapper,
+	functionDef, TStringMapper,
 	} from 'datatypes'
+import {croak} from 'croak'
 import {f, colorize} from 'f-strings'
+
+export {croak, f, colorize}
 
 const llutilsLoadTime: integer = Date.now()
 const defWidth = 64     // ---used in sep, centered

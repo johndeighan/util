@@ -15,14 +15,14 @@ import {
 	} from '@std/path'
 
 import {
-	undef, defined, notdefined, assert, obviously, croak,
+	undef, defined, notdefined, assert, obviously,
 	isEmpty, nonEmpty, isString, isNonEmptyString,
 	isBoolean, isNumber, isInteger, isArray, isArrayOfStrings,
 	isHash, isRegExp, integer, hash, hashof, TVoidFunc,
 	} from 'datatypes'
 import {MAP} from 'map'
 import {
-	getOptions, pass, encode, spaces,
+	getOptions, pass, encode, spaces, croak,
 	sinceLoadStr, sleep, arrayToBlock,
 	} from 'llutils'
 import {isMetaDataStart, convertMetaData} from 'meta-data'
@@ -147,7 +147,7 @@ export normalizePath := (path: string): string =>
 		return ''
 
 	npath := path.replaceAll '\\', '/'
-	if npath.charAt(1) == ':'
+	if (npath.charAt(1) == ':')
 		return npath.charAt(0).toUpperCase() + npath.substring(1)
 	else
 		return npath
@@ -506,37 +506,22 @@ export pathStr := (path: string, root: string = 'src'): string =>
 # ---------------------------------------------------------------------------
 
 export splitPatterns := (
-		lAllPats: string | string?[],
-		lMorePats: string?[] = []
+		lPatterns: string[],
 		): [string[], string[]] =>
 
-	lPosPats: string[] := []
-	lNegPats: string[] := []
-	if (typeof lAllPats == 'string')
-		# --- A single string can't be a negative pattern
-		assert not lAllPats.match(/^\!/), "Bad glob pattern: #{lAllPats}"
-		lPosPats.push lAllPats
-	else
-		for pat of lAllPats
-			if not defined(pat)
-				continue
-			lMatches := pat.match /^(\!\s+)?(.*)$/
-			if lMatches
-				if lMatches[1]
-					lNegPats.push lMatches[2]
-				else
-					lPosPats.push lMatches[2]
-	if defined(lMorePats)
-		for pat of lMorePats
-			if not defined(pat)
-				continue
-			lMatches := pat.match /^(\!\s+)?(.*)$/
-			if lMatches
-				if lMatches[1]
-					lNegPats.push lMatches[2]
-				else
-					lPosPats.push lMatches[2]
-	return [lPosPats, lNegPats]
+	type TAccum = [string[], string[]]
+
+	initAccum: TAccum := [[],[]]
+	[_, accum] := MAP<string,string,TAccum> lPatterns, initAccum, (pat, i, acc) ->
+		yield pat
+		[lPos, lNeg] := acc
+		lMatches := pat.match ///^ \! \s+ (.*) $///
+		return (
+			  defined(lMatches)
+			? [ lPos,              lNeg.concat(lMatches[1])]
+			: [ lPos.concat(pat),  lNeg                    ]
+			)
+	return accum
 
 # ---------------------------------------------------------------------------
 # GENERATOR
@@ -548,10 +533,10 @@ export splitPatterns := (
 #
 #    NOTE: By default, searches from .
 #          By default, ignores anything inside a folder
-#                      named 'temp', 'hide' or 'save'
+#                      named 'temp' or 'save'
 
 export allFilesMatching := (
-		lPatterns: string | string?[],
+		lPatterns: string | string[],
 		hOptions: hash = {}
 		): Generator<string> ->
 
@@ -566,24 +551,26 @@ export allFilesMatching := (
 		} := getOptions<opt> hOptions, {
 			root: '.'
 			hMoreGlobOptions: {}
-			lIgnoreDirs: ['temp', 'hide', 'save']
+			lIgnoreDirs: ['temp', 'save']
 			includeDirs: false
 			}
 
 	hGlobOptions: hash := {
 		root
 		includeDirs
-		followSymLinks: false
+		followSymlinks: false
 		canonicalize: false
 		...hMoreGlobOptions
 		}
 
+	lAllPatterns: string[] := isString(lPatterns) ? [lPatterns] : lPatterns
 	lMorePatterns := (
 		  defined(lIgnoreDirs)
-		? lIgnoreDirs.map((x) => '! **/' + x + '/**')
+		? lIgnoreDirs.map((x) => "! **/#{x}/**")
 		: []
 		)
-	[lPosPats, lNegPats] := splitPatterns lPatterns, lMorePatterns
+
+	[lPosPats, lNegPats] := splitPatterns lAllPatterns.concat(lMorePatterns...)
 	if lNegPats.length > 0
 		hGlobOptions.exclude = lNegPats
 	if debugging
@@ -599,7 +586,8 @@ export allFilesMatching := (
 			if not setSkip.has(path)
 				if debugging
 					LOG "PATH: #{path}"
-				yield normalizePath(path)
+				npath := normalizePath(path)
+				yield npath
 				setSkip.add path
 	return
 
@@ -635,13 +623,15 @@ export findFile := (
 
 	assert not root.endsWith('/'), "Bad root: #{root}"
 	pat := root ? "#{root}/**/#{fileName}" : "**/#{fileName}"
+
+	# NOTE: allFilesMatching() returns normalized paths
 	lPaths := Array.from allFilesMatching pat, {
 		lIgnoreDirs
 		}
 	DBGVALUE 'lPaths', lPaths
 	switch lPaths.length
 		case 1:
-			path := normalizePath lPaths[0]
+			path := lPaths[0]
 			assert isFile(path), "Not a file: #{OL(path)}"
 			return path
 		case 0:
@@ -670,11 +660,12 @@ export allDirsMatching := (
 	hGlobOptions: hash := {
 		root: './src'
 		includeDirs: true
-		followSymLinks: false
+		followSymlinks: false
 		canonicalize: false
 		...hMoreGlobOptions
 		}
-	[lPosPats, lNegPats] := splitPatterns lPatterns
+	lAllPatterns: string[] := isString(lPatterns) ? [lPatterns] : lPatterns
+	[lPosPats, lNegPats] := splitPatterns lAllPatterns
 	if lNegPats.length > 0
 		hGlobOptions.exclude = lNegPats
 	if debugging

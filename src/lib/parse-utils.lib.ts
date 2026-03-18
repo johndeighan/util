@@ -5,9 +5,9 @@ import {sprintf} from '@std/fmt/printf'
 
 import {uni, esc} from 'unicode'
 import {
-	undef, defined, assert, croak, hash, hashof,
+	undef, defined, assert, hash, hashof,
 	} from 'datatypes'
-import {range, centered, sep} from 'llutils'
+import {range, centered, sep, croak} from 'llutils'
 import {f} from 'f-strings'
 import {OL} from 'to-nice'
 import {LOG, DBG, ERR} from 'logger'

@@ -6,9 +6,9 @@ import {RawSourceMap} from 'npm-source-map'
 
 import {
 	undef, defined, notdefined, hash, assert, isString, isHash,
-	isEmpty, nonEmpty, croak, getErrStr,
+	isEmpty, nonEmpty, getErrStr,
 	} from 'datatypes'
-import {getOptions, o, rtrim} from 'llutils'
+import {getOptions, o, rtrim, croak} from 'llutils'
 import {OL, ML} from 'to-nice'
 import {LOG, DBG, ERR, DBGVALUE} from 'logger'
 import {flag, debugging, inspecting} from 'cmd-args'
@@ -20,7 +20,7 @@ import {
 import {
 	execCmdSync, execCmd, CFileHandler, procFiles, TProcSpec, TExecResult,
 	} from 'exec'
-import {ts2ast, analyzeTS, typeCheckTsCode} from 'typescript'
+import {ts2ast, analyzeTS} from 'typescript'
 import {extractSourceMap, haveSourceMapFor} from 'source-map'
 
 import hCivetConfig from "civetconfig" with {type: "json"};

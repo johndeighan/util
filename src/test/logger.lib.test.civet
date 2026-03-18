@@ -6,7 +6,7 @@ import {
 	curLogLevel, setLogLevel, pushLogLevel, popLogLevel,
 	} from 'logger'
 import {
-	equal, like, succeeds, fails, truthy, falsy,
+	equal, succeeds, fails, truthy, falsy,
 	} from 'unit-test'
 
 # ---------------------------------------------------------------------------

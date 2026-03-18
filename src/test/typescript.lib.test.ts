@@ -12,12 +12,12 @@ import {pass, o, s, t} from 'llutils'
 import {DBG} from 'logger'
 import {slurp, withExt} from 'fsys'
 import {
-	typeCheckTsCode, splitFuncStr, getSymbolsFromType,
-	getImportCode, getTsCode, typeCheckTsFile,
+	typeCheckTsCode, getSymbolsFromType,
+	getImportCode, typeCheckTsFile,
 	ts2ast, ast2ts, astAsString, analyzeTS,
 	} from 'typescript'
 import {
-	equal, like, succeeds, fails, truthy, falsy, setDirTree,
+	equal, succeeds, fails, truthy, falsy, setDirTree,
 	} from 'unit-test'
 
 // ---------------------------------------------------------------------------
@@ -53,30 +53,6 @@ DBG("getImportCode(typeStr)")
 
 equal(getImportCode('integer'), `import {integer} from 'datatypes';`)
 equal(getImportCode('hashof<integer>'), `import {hashof, integer} from 'datatypes';`)
-
-DBG("splitFuncStr(valueStr)")
-
-equal(splitFuncStr("abc"), undef)
-equal(splitFuncStr("() => true"), [[], 'true'])
-equal(splitFuncStr("(  ) => true"), [[], 'true'])
-equal(splitFuncStr("(a,b,c) => false"), [
-	['a','b','c'],
-	'false'
-	])
-equal(splitFuncStr("( a , b,c ) => false"), [
-	['a','b','c'],
-	'false'
-	])
-equal(splitFuncStr("(a: string, b)=>true"), [
-	['a: string', 'b'],
-	'true'
-	])
-
-DBG("getTsCode(typeStr, valueStr)")
-
-equal(getTsCode('integer', '42'), 'const x: integer = 42')
-equal(getTsCode('TPredicate', '(x) => true'),
-	'const x: TPredicate = (x: unknown) => true')
 
 DBG("analyzeTS(tsCode, hOptions)")
 

@@ -13,7 +13,7 @@ import {
 	a, civet2tsFile, civet2ts, civet2ast,
 	} from 'civet'
 import {
-	equal, like, succeeds, fails, truthy, falsy,
+	equal, succeeds, fails, truthy, falsy,
 	isType, setDirTree,
 	} from 'unit-test'
 
@@ -54,9 +54,8 @@ const x = 42`)
 
 DBG("civet2ast(code)")
 
-// isType 'SourceFile', ast1
-// isType 'SourceFile', ast2
-
+isType('SourceFile', ast1)
+isType('SourceFile', ast2)
 
 succeeds(() => civet2ast('x := 42'))
 

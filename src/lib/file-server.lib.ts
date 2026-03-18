@@ -5,10 +5,10 @@ type AutoPromise<T> = Promise<Awaited<T>>;
 import {serveFile, serveDir} from '@std/http/file-server'
 
 import {
-	undef, defined, notdefined, assert, croak,
+	undef, defined, notdefined, assert,
 	hash, TStringFilterFunc, getErrStr,
 	} from 'datatypes'
-import {getOptions} from 'llutils'
+import {getOptions, croak} from 'llutils'
 import {LOG, DBG, ERR} from 'logger'
 import {mkpath, relpath, fileExt} from 'fsys'
 

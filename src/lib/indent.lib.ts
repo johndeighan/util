@@ -3,13 +3,13 @@
 
 import {esc} from 'unicode'
 import {
-	undef, defined, notdefined, assert, croak, array,
+	undef, defined, notdefined, assert, array,
 	isEmpty, isString, isArray, isArrayOfStrings,
 	hash, hashof, isHash, integer, isInteger,
 	} from 'datatypes'
 import {
 	rtrim, countChars, getOptions, blockToArray, arrayToBlock,
-	toArray, toBlock, widthOf, heightOf, keys,
+	toArray, toBlock, widthOf, heightOf, keys, croak,
 	} from 'llutils'
 import {OL} from 'to-nice'
 

@@ -1,17 +1,20 @@
 # from-nice.lib.civet
 
 import {
-	undef, defined, notdefined, assert, croak, hash, hashof,
+	undef, defined, notdefined, assert, hash, hashof,
 	isArray, isFunction, isBoolean, isString, isNonPrimitive,
 	isClass, isArrayOfStrings, isEmpty, nonEmpty, className,
 	functionName, symbolName, classDef, functionDef, regexpDef,
 	} from 'datatypes'
 import {uni, delit} from 'unicode'
 import {Fetcher} from 'fetcher'
-import {getOptions, keys, toBlock, o, rtrim} from 'llutils'
+import {
+	getOptions, keys, toBlock, o, rtrim, croak,
+	} from 'llutils'
 import {toNice, OL} from 'to-nice'
 import {
-	TPLLToken, tkIndent, tkUndent, tkEOF, TTokenGenerator, allTokensInBlock,
+	TPLLToken, tkIndent, tkUndent, tkEOF,
+	TTokenGenerator, allTokensInBlock,
 	} from 'pll'
 
 # ---------------------------------------------------------------------------

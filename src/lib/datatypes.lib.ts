@@ -6,6 +6,8 @@ import deepEqual from 'npm-fast-deep-equal'
 
 export {deepEqual}
 
+import {croak} from 'croak'
+
 export type TIterator<T, U=void, V=void> = Generator<T, U, V>
 export type TAsyncIterator<T, U=void, V=void> = AsyncGenerator<T, U, V>
 export type TNonFunction<T=unknown> = Exclude<T, Function>
@@ -26,13 +28,6 @@ export type TUnaryFunc<TIn, TOut> = (item: TIn) => TOut
 export type TStringifier = (item: unknown) => string
 export type TStringMapper = (str: string) => string
 export type TStringFilterFunc = (str: string) => boolean
-
-// ---------------------------------------------------------------------------
-
-export const croak = (msg: string): never => {
-
-	throw new Error(msg)
-}
 
 // ---------------------------------------------------------------------------
 

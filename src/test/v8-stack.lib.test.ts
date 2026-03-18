@@ -2,8 +2,8 @@
 // v8-stack.lib.test.civet
 
 type AutoPromise<T> = Promise<Awaited<T>>;
-import {undef, assert, croak} from 'datatypes'
-import {o} from 'llutils'
+import {undef, assert} from 'datatypes'
+import {o, croak} from 'llutils'
 import {LOG, DBG} from 'logger'
 import {relpath} from 'fsys'
 import {
@@ -11,7 +11,7 @@ import {
 	getMyOutsideCaller, getV8StackStr,
 	} from 'v8-stack'
 import {
-	equal, like, succeeds, objListLike, setDirTree,
+	equal, succeeds, objListLike, setDirTree,
 	} from 'unit-test'
 
 // ---------------------------------------------------------------------------

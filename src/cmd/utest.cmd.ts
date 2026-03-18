@@ -2,9 +2,9 @@
 // utest.cmd.civet
 
 import {
-	undef, defined, notdefined, assert, croak, isString,
+	undef, defined, notdefined, assert, isString,
 	} from 'datatypes'
-import {stdChecks, cmdTitle} from 'llutils'
+import {stdChecks, cmdTitle, croak} from 'llutils'
 import {getFlags, nonOption, allNonOptions, argValue} from 'cmd-args'
 import {LOG, DBG, ERR} from 'logger'
 import {isFile, withExt, findFile, relpath} from 'fsys'

@@ -12,13 +12,13 @@ import {
 import {sprintf} from '@std/fmt/printf'
 
 import {
-	undef, defined, notdefined, assert, croak, hash, getErrStr,
+	undef, defined, notdefined, assert, hash, getErrStr,
 	isString, isArray, isArrayOfStrings, isEmpty, nonEmpty, TStringMapper,
 	} from 'datatypes'
 import {MAP, AMAP, awaitAll, Accumulate} from 'map'
 import {
 	getOptions, pass, blockToArray, decode, encode, sep, centered,
-	allLinesInBlock,
+	allLinesInBlock, croak,
 	} from 'llutils'
 import {f, colorize, decolorize, withColors} from 'f-strings'
 import {write, writeln, resetLine } from 'console-utils'

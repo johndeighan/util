@@ -1,8 +1,8 @@
 "use strict";
 // compile.cmd.civet
 
-import {assert, croak, isArray} from 'datatypes'
-import {pass} from 'llutils'
+import {assert, isArray} from 'datatypes'
+import {pass, croak} from 'llutils'
 import {OL} from 'to-nice'
 import {flag, numNonOptions, allNonOptions} from 'cmd-args'
 import {watchFiles, allFilesMatching} from 'fsys'

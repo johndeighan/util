@@ -1,0 +1,171 @@
+# croak.lib.civet
+
+import {red} from '@std/fmt/colors'
+
+type hash = {
+	[key: string | symbol]: unknown
+	}
+
+export let onlyThrow = false
+
+# ---------------------------------------------------------------------------
+
+export justThrow := (flag: boolean): void =>
+
+	onlyThrow = flag
+	return
+
+# ---------------------------------------------------------------------------
+
+export normalizePath := (path: string): string =>
+
+	newpath := path.replaceAll '\\', '/'
+	if (newpath.charAt(1) == ':')
+		return newpath.charAt(0).toUpperCase() + newpath.substring(1)
+	else
+		return newpath
+
+# ---------------------------------------------------------------------------
+
+export type TFrameType = (
+	'eval' |
+	'native' |
+	'constructor' |
+	'method' |
+	'function' |
+	'script' |
+	'unknown'
+	)
+
+export type TStackFrame = {
+	type: string
+	source: string        # relative file path or 'unknown'
+	line: number
+	col: number
+	name: string          # name of function or method
+	}
+
+# ---------------------------------------------------------------------------
+
+export type TFrameFilter = (frame: TStackFrame) => boolean
+
+# ---------------------------------------------------------------------------
+
+export defaultFilter := (frame: TStackFrame): boolean =>
+
+	{source, type, name} := frame
+	return (
+		   not source.match(/croak\.lib\.(?:civet|ts)/)
+		&& ((type != 'method') || ((name != 'next') && (name != 'from')))
+		)
+
+# ---------------------------------------------------------------------------
+
+export dumpFrame := (
+		frame: TStackFrame,
+		i: number,
+		): void =>
+
+	{type, source, line, col, name} := frame
+	console.log "FRAME[#{i}]: #{type} #{name} #{source}:#{line}:#{col}"
+	return
+
+# ---------------------------------------------------------------------------
+
+# --- by default, ignores any stack frames from this module
+#     files will be mapped to original source files
+#        if a source map is available
+
+export allStackFrames := (
+		hOptions: hash = {}
+		): Generator<TStackFrame> ->
+
+	trace := hOptions.trace || false
+	filter := defaultFilter
+
+	try
+		# @ts-ignore
+		oldLimit := Error.stackTraceLimit
+		# @ts-ignore
+		oldPreparer := Error.prepareStackTrace
+		# @ts-ignore
+		Error.stackTraceLimit = 99
+
+		let prevFrame: TStackFrame? = undefined
+
+		# @ts-ignore
+		Error.prepareStackTrace = (error, lOrgFrames) =>
+
+			lFrames: TStackFrame[] := for orgFrame,i of lOrgFrames
+				fileName := orgFrame.getFileName()
+				if not fileName
+					continue
+
+				functionName := orgFrame.getFunctionName()
+				methodName := orgFrame.getMethodName()
+				frame: TStackFrame := {
+					type: (
+						  orgFrame.isEval()        ? 'eval'
+						: orgFrame.isNative()      ? 'native'
+						: orgFrame.isConstructor() ? 'constructor'
+						: methodName               ? 'method'
+						: functionName             ? 'function'
+						: orgFrame.isToplevel()    ? 'script'
+						:                            'unknown'
+						)
+					source: normalizePath(fileName)
+					line :  orgFrame.getLineNumber()
+					col:    orgFrame.getColumnNumber()
+					name:   functionName || methodName || ''
+					}
+
+				# --- fix a bug in the V8 engine where calls inside a
+				#     top level anonymous function is reported as
+				#     being of type 'script'
+
+				if prevFrame
+					if (frame.type == 'script') && (prevFrame.type == 'script')
+						prevFrame.type = 'function'
+						prevFrame.name = '<anon>'
+
+				if trace
+					{type, source, line, col, name} := frame
+					console.log "#{type} #{name} #{source}:#{line}:#{col}"
+				prevFrame = frame
+				frame
+
+			return lFrames
+
+		obj: hash := {}
+		Error.captureStackTrace(obj)
+		# @ts-ignore
+		lStack: TStackFrame[] := obj.stack
+
+		# --- reset to previous values
+		# @ts-ignore
+		Error.stackTraceLimit = oldLimit
+		# @ts-ignore
+		Error.prepareStackTrace = oldPreparer
+
+		for frame of lStack
+			if filter(frame)
+				yield frame
+		return
+
+	catch err
+		console.error "#{red('ERROR')} #{err}"
+		return
+
+# ---------------------------------------------------------------------------
+
+type TNeverFunc = (errMsg: string) => never;
+
+export croak: TNeverFunc := (errMsg: string): never =>
+
+	if onlyThrow
+		throw new Error(errMsg)
+	else
+		console.error red('CROAK') + ': ' + errMsg
+		for {type, name, line} of allStackFrames()
+			console.log "   #{type} #{name}:#{line}"
+		Deno.exit()

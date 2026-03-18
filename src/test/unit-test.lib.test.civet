@@ -7,8 +7,8 @@ import {range, o, spaces} from 'llutils'
 import {pathToURL} from 'fsys'
 import {
 	equal, truthy, falsy, fails, succeeds, iterEqual, iterLike,
-	like, strListLike, objListLike,
-	matches, includes, includesAll,
+	like, objListLike,
+	isType, notType, checkType, getTsCode, splitFuncStr,
 	TFileOp, setDirTree, getFileOps, fileOpsTable,
 	sampleVal, generateSync, generateAsync,
 	} from 'unit-test'
@@ -78,66 +78,47 @@ iterLike [{a:1, b:2}], [{a:1}]
 		]
 	)()
 
-DBG "matches()"
-
-matches  "this is a long sentence", "long"
-matches  "another 42 lines", /\d+/
-matches  "abcdef", "abc"
-
 DBG "like()"
 
 like {a:1, b:2, c:3}, {a:1, c:3}
 
-DBG "strListLike()"
-
-strListLike ['a','b'], ['a', 'b']
-strListLike ['b','a'], ['a', 'b']
-
 DBG "objListLike()"
 
 objListLike [{a:1, b:2, c:3}], [{a:1, c:3}]
-
-DBG "includes()"
-
-includes ['a','b','c'], 'b'
-
-DBG "includesAll()"
-
-includesAll ['a','b','c'], ['a', 'c']
 
 DBG "isType()"
 
 dump := () =>
 	return
 
-# isType 'number', 23
-# isType 'string', 'abc'
-# isType 'boolean', false
-# isType '() => void', () => return
-# isType '() => void', dump
-# isType 'TVoidFunc', dump
-# isType 'TPredicate', (x: unknown) => return true
+isType 'number', 23
+isType 'string', 'abc'
+isType 'boolean', false
+isType '() => void', () => return
+isType '() => void', dump
+isType 'TVoidFunc', dump
+isType 'TPredicate', (x: unknown) => return true
 
 DBG "# notType()"
 
-# notType 'string', 23
+notType 'string', 23
 
 DBG "type TFileOp"
 
-# isType 'TFileOp', {
-#	op: 'mkDir',
-#	path: '/usr/bin'
-#	}
-# isType 'TFileOp', {
-#	op: 'barf',
-#	path: '/usr/bin/deighan.txt'
-#	contents: 'abc'
-#	}
-# isType 'TFileOp', {
-#	op: 'barf',
-#	path: '/usr/bin/temp.txt',
-#	contents: 'abc\ndef'
-#	}
+isType 'TFileOp', {
+	op: 'mkDir',
+	path: '/usr/bin'
+	}
+isType 'TFileOp', {
+	op: 'barf',
+	path: '/usr/bin/deighan.txt'
+	contents: 'abc'
+	}
+isType 'TFileOp', {
+	op: 'barf',
+	path: '/usr/bin/temp.txt',
+	contents: 'abc\ndef'
+	}
 
 DBG "fileOpsTable()"
 
@@ -201,3 +182,29 @@ xequal := (x1: unknown, x2: unknown): void =>
 			}
 		]
 	)()
+
+# ---------------------------------------------------------------------------
+
+DBG "splitFuncStr(valueStr)"
+
+equal splitFuncStr("abc"), undef
+equal splitFuncStr("() => true"), [[], 'true']
+equal splitFuncStr("(  ) => true"), [[], 'true']
+equal splitFuncStr("(a,b,c) => false"), [
+	['a','b','c']
+	'false'
+	]
+equal splitFuncStr("( a , b,c ) => false"), [
+	['a','b','c']
+	'false'
+	]
+equal splitFuncStr("(a: string, b)=>true"), [
+	['a: string', 'b']
+	'true'
+	]
+
+DBG "getTsCode(typeStr, valueStr)"
+
+equal getTsCode('integer', '42'), 'const x: integer = 42'
+equal getTsCode('TPredicate', '(x) => true'),
+	'const x: TPredicate = (x: unknown) => true'

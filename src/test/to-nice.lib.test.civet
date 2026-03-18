@@ -9,8 +9,7 @@ import {
 	seq2nice, hash2nice,
 	} from 'to-nice'
 import {
-	equal, iterEqual, iterLike, like,
-	succeeds, fails, truthy, falsy,
+	equal, succeeds, fails, truthy, falsy,
 	} from 'unit-test'
 
 # ---------------------------------------------------------------------------

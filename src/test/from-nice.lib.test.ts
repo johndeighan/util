@@ -8,7 +8,7 @@ import {
 	fromNice, getPrimitive, niceSplitter, allNiceTokens,
 	} from 'from-nice'
 import {
-	equal, iterEqual, iterLike, like,
+	equal, iterLike,
 	succeeds, fails, truthy, falsy,
 	} from 'unit-test'
 

@@ -2,9 +2,9 @@
 
 import {TNoArgPredicate} from 'predicates'
 import {
-	undef, defined, notdefined, assert, croak,
+	undef, defined, notdefined, assert,
 	} from 'datatypes'
-import {stdChecks} from 'llutils'
+import {stdChecks, croak} from 'llutils'
 import {LOG, DBG, ERR} from 'logger'
 import {flag, nonOption} from 'cmd-args'
 import {DUMP} from 'to-nice'

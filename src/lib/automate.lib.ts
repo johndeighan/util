@@ -5,11 +5,11 @@ type AutoPromise<T> = Promise<Awaited<T>>;
 import {compile as compileSvelte} from 'npm-svelte/compiler'
 
 import {
-	undef, defined, notdefined, assert, croak,
+	undef, defined, notdefined, assert,
 	nonEmptyString, hash, hashof, getErrStr,
 	} from 'datatypes'
 import {TNoArgPredicate, allOf} from 'predicates'
-import {keys, getOptions} from 'llutils'
+import {keys, getOptions, croak} from 'llutils'
 import {OL} from 'to-nice'
 import {
 	LOG, DBG, WARN, ERR, DBGVALUE, INDENT, UNDENT,

@@ -11,7 +11,7 @@ import {
 	tkIndent, tkUndent, tkEOF, tokenTable,
 	} from 'pll'
 import {
-	equal, iterEqual, iterLike, objListLike, setDirTree,
+	equal, iterEqual, iterLike, objListLike, isType, setDirTree,
 	} from 'unit-test'
 
 // ---------------------------------------------------------------------------
@@ -33,9 +33,9 @@ await setup()
 
 DBG("type TPLLToken")
 
-// isType 'TPLLToken', {kind: 'xxx', str: 'yyy'}
-// isType 'TPLLToken', {kind: 'xxx', str: 'yyy', value: undef}
-// isType 'TPLLToken', {kind: 'xxx', str: 'yyy', value: 42}
+isType('TPLLToken', {kind: 'xxx', str: 'yyy'})
+isType('TPLLToken', {kind: 'xxx', str: 'yyy', value: undef})
+isType('TPLLToken', {kind: 'xxx', str: 'yyy', value: 42})
 
 DBG("tokenWith")
 
@@ -51,8 +51,8 @@ DBG("type TTokenGenerator");
 		yield {kind: 'line', str: line}
 		return
 	}
+	isType('TTokenGenerator', identGen)
 }
-	// isType 'TTokenGenerator', identGen
 	)();
 
 (() => {
@@ -62,8 +62,8 @@ DBG("type TTokenGenerator");
 		}
 		return
 	}
+	isType('TTokenGenerator', charGen)
 }
-	// isType 'TTokenGenerator', charGen
 	)()
 
 DBG("allTokensIn()")
@@ -252,5 +252,4 @@ line   def
 undent
 eof
 ==========`)
-
 

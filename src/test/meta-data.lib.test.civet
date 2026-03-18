@@ -2,7 +2,7 @@
 
 import {convertMetaData} from 'meta-data'
 import {
-	equal, truthy, falsy, succeeds, fails, matches,
+	equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test'
 
 # ---------------------------------------------------------------------------

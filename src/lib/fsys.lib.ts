@@ -17,14 +17,14 @@ import {
 	} from '@std/path'
 
 import {
-	undef, defined, notdefined, assert, obviously, croak,
+	undef, defined, notdefined, assert, obviously,
 	isEmpty, nonEmpty, isString, isNonEmptyString,
 	isBoolean, isNumber, isInteger, isArray, isArrayOfStrings,
 	isHash, isRegExp, integer, hash, hashof, TVoidFunc,
 	} from 'datatypes'
 import {MAP} from 'map'
 import {
-	getOptions, pass, encode, spaces,
+	getOptions, pass, encode, spaces, croak,
 	sinceLoadStr, sleep, arrayToBlock,
 	} from 'llutils'
 import {isMetaDataStart, convertMetaData} from 'meta-data'
@@ -566,50 +566,23 @@ export const pathStr = (path: string, root: string = 'src'): string => {
 // ---------------------------------------------------------------------------
 
 export const splitPatterns = (
-		lAllPats: string | (string | undefined)[],
-		lMorePats: (string | undefined)[] = []
+		lPatterns: string[],
 		): [string[], string[]] => {
 
-	const lPosPats: string[] = []
-	const lNegPats: string[] = []
-	if (typeof lAllPats === 'string') {
-		// --- A single string can't be a negative pattern
-		assert(!lAllPats.match(/^\!/), `Bad glob pattern: ${lAllPats}`)
-		lPosPats.push(lAllPats)
-	}
-	else {
-		for (const pat of lAllPats) {
-			if (!defined(pat)) {
-				continue
-			}
-			const lMatches = pat.match(/^(\!\s+)?(.*)$/)
-			if (lMatches) {
-				if (lMatches[1]) {
-					lNegPats.push(lMatches[2])
-				}
-				else {
-					lPosPats.push(lMatches[2])
-				}
-			}
-		}
-	}
-	if (defined(lMorePats)) {
-		for (const pat of lMorePats) {
-			if (!defined(pat)) {
-				continue
-			}
-			const lMatches = pat.match(/^(\!\s+)?(.*)$/)
-			if (lMatches) {
-				if (lMatches[1]) {
-					lNegPats.push(lMatches[2])
-				}
-				else {
-					lPosPats.push(lMatches[2])
-				}
-			}
-		}
-	}
-	return [lPosPats, lNegPats]
+	type TAccum = [string[], string[]]
+
+	const initAccum: TAccum = [[],[]]
+	const [_, accum] = MAP<string,string,TAccum>(lPatterns, initAccum, function*(pat, i, acc) {
+		yield pat
+		const [lPos, lNeg] = acc
+		const lMatches = pat.match(/^\!\s+(.*)$/)
+		return (
+			  defined(lMatches)
+			? [ lPos,              lNeg.concat(lMatches[1])]
+			: [ lPos.concat(pat),  lNeg                    ]
+			)
+	})
+	return accum
 }
 
 // ---------------------------------------------------------------------------
@@ -622,10 +595,10 @@ export const splitPatterns = (
 //
 //    NOTE: By default, searches from .
 //          By default, ignores anything inside a folder
-//                      named 'temp', 'hide' or 'save'
+//                      named 'temp' or 'save'
 
 export const allFilesMatching = function*(
-		lPatterns: string | (string | undefined)[],
+		lPatterns: string | string[],
 		hOptions: hash = {}
 		): Generator<string> {
 
@@ -640,24 +613,26 @@ export const allFilesMatching = function*(
 		} = getOptions<opt>(hOptions, {
 			root: '.',
 			hMoreGlobOptions: {},
-			lIgnoreDirs: ['temp', 'hide', 'save'],
+			lIgnoreDirs: ['temp', 'save'],
 			includeDirs: false
 			})
 
 	const hGlobOptions: hash = {
 		root,
 		includeDirs,
-		followSymLinks: false,
+		followSymlinks: false,
 		canonicalize: false,
 		...hMoreGlobOptions
 		}
 
+	const lAllPatterns: string[] = isString(lPatterns) ? [lPatterns] : lPatterns
 	const lMorePatterns = (
 		  defined(lIgnoreDirs)
-		? lIgnoreDirs.map((x) => '! **/' + x + '/**')
+		? lIgnoreDirs.map((x) => `! **/${x}/**`)
 		: []
 		)
-	const [lPosPats, lNegPats] = splitPatterns(lPatterns, lMorePatterns)
+
+	const [lPosPats, lNegPats] = splitPatterns(lAllPatterns.concat(...lMorePatterns))
 	if (lNegPats.length > 0) {
 		hGlobOptions.exclude = lNegPats
 	}
@@ -678,7 +653,8 @@ export const allFilesMatching = function*(
 				if (debugging) {
 					LOG(`PATH: ${path}`)
 				}
-				yield normalizePath(path)
+				const npath = normalizePath(path)
+				yield npath
 				setSkip.add(path)
 			}
 		}
@@ -720,13 +696,15 @@ export const findFile = (
 
 	assert(!root.endsWith('/'), `Bad root: ${root}`)
 	const pat = root ? `${root}/**/${fileName}` : `**/${fileName}`
+
+	// NOTE: allFilesMatching() returns normalized paths
 	const lPaths = Array.from(allFilesMatching(pat, {
 		lIgnoreDirs
 		}))
 	DBGVALUE('lPaths', lPaths)
 	switch(lPaths.length) {
 		case 1:
-			const path = normalizePath(lPaths[0])
+			const path = lPaths[0]
 			assert(isFile(path), `Not a file: ${OL(path)}`)
 			return path
 		case 0:
@@ -758,11 +736,12 @@ export const allDirsMatching = function*(
 	const hGlobOptions: hash = {
 		root: './src',
 		includeDirs: true,
-		followSymLinks: false,
+		followSymlinks: false,
 		canonicalize: false,
 		...hMoreGlobOptions
 		}
-	const [lPosPats, lNegPats] = splitPatterns(lPatterns)
+	const lAllPatterns: string[] = isString(lPatterns) ? [lPatterns] : lPatterns
+	const [lPosPats, lNegPats] = splitPatterns(lAllPatterns)
 	if (lNegPats.length > 0) {
 		hGlobOptions.exclude = lNegPats
 	}

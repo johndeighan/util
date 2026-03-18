@@ -5,12 +5,11 @@ import {sprintf} from '@std/fmt/printf'
 import {CallSite} from 'npm-@types/node'
 
 import {
-	undef, defined, notdefined, assert, croak,
+	undef, defined, notdefined, assert,
 	isEmpty, nonEmpty, hash, isString,
 	isNonEmptyString, isInteger,
 	} from 'datatypes'
-import {f} from 'f-strings'
-import {sep, rpad, getOptions} from 'llutils'
+import {sep, rpad, getOptions, f, croak} from 'llutils'
 import {OL, ML, DUMP} from 'to-nice'
 import {
 	LOG, DBG, WARN, ERR, pushLogLevel, popLogLevel,

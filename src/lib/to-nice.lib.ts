@@ -5,14 +5,14 @@ import {uni, esc} from 'unicode'
 import {f} from 'f-strings'
 import {write, writeln} from 'console-utils'
 import {
-	assert, croak, undef, defined, notdefined, anyDefined,
+	assert, undef, defined, notdefined, anyDefined,
 	hash, hashof, isString, isArray, isClass,
 	isRegExp, isObject, isFunction,
 	isEmpty, nonEmpty, integer,
 	symbolName, className, functionName, regexpDef, jsType, isHash,
 	} from 'datatypes'
 import {
-	getOptions, o, toBlock, spaces, sep, keys,
+	getOptions, o, toBlock, spaces, sep, keys, croak,
 	} from 'llutils'
 import {indented} from 'indent'
 import {MAP} from 'map'

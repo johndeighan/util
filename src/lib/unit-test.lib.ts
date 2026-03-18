@@ -8,13 +8,14 @@ import {
 	assertArrayIncludes,
 	} from '@std/assert'
 
+import {croak, justThrow} from 'croak'
 import {TPredicate, anyOf, allOf} from 'predicates'
 import {esc, mesc} from 'unicode'
 import {
 	undef, defined, notdefined, isEmpty, nonEmpty,
 	array, arrayof, isArray, isHash, isString, hash, hashof,
 	deepEqual, integer, isFunction, isClass, functionDef, classDef,
-	TVoidFunc, TVoidIterator, getErrStr, croak, isGenerator, isIterator,
+	TVoidFunc, TVoidIterator, getErrStr, isGenerator, isIterator,
 	} from 'datatypes'
 import {
 	pass, o, keys, getOptions, spaces, blockToArray,
@@ -38,7 +39,7 @@ import {doParse} from 'hera-parse'
 import {TPLLToken, allTokensInBlock, tokenTable, tkEOF} from 'pll'
 import {civet2tsFile} from 'civet'
 import {sourceLib, getNeededImportStmts} from 'symbols'
-import {getTsCode, getImportCode, typeCheckTsCode} from 'typescript'
+import {getImportCode, typeCheckTsCode} from 'typescript'
 import {getMyOutsideCaller} from 'v8-stack'
 import {compileFile} from 'automate'
 
@@ -85,9 +86,9 @@ export const equal = (
 
 export const same = (value: unknown, expected: unknown): void => {
 
-	const name = getTestName()
-	DBG(`same ?, ${stringify(expected)} (${name})`)
-	Deno.test(name, () => assertStrictEquals(value, expected))
+	const testName = getTestName()
+	DBG(`same ?, ${stringify(expected)} (${testName})`)
+	Deno.test(testName, () => assertStrictEquals(value, expected))
 	return
 }
 
@@ -95,9 +96,9 @@ export const same = (value: unknown, expected: unknown): void => {
 
 export const truthy = (value: unknown): void => {
 
-	const name = getTestName()
-	DBG(`truthy ${stringify(value)} (${name})`)
-	Deno.test(name, () => assert(value))
+	const testName = getTestName()
+	DBG(`truthy ${stringify(value)} (${testName})`)
+	Deno.test(testName, () => assert(value))
 	return
 }
 
@@ -105,9 +106,9 @@ export const truthy = (value: unknown): void => {
 
 export const falsy = (value: unknown): void => {
 
-	const name = getTestName()
-	DBG(`falsy ${stringify(value)} (${name})`)
-	Deno.test(name, () => assert((!value)))
+	const testName = getTestName()
+	DBG(`falsy ${stringify(value)} (${testName})`)
+	Deno.test(testName, () => assert((!value)))
 	return
 }
 
@@ -115,17 +116,21 @@ export const falsy = (value: unknown): void => {
 
 export const fails = (func: TVoidFunc): void => {
 
-	pushLogLevel('silent') // --- silence any errors generated
-	const name = getTestName()
-	DBG(`fails <func> (${name})`)
-	Deno.test(name, (): void => {
+	const testName = getTestName()
+	DBG(`fails <func> (${testName})`)
+	Deno.test(testName, (): void => {
+		pushLogLevel('silent') // --- silence any errors generated
+		justThrow(true)
 		try {
 			func()
-			popLogLevel()
-			throw new Error("Test Failure - function succeeds!!!")
+			throw new Error("in fails() - function succeeded")
 		}
 		catch (err) {
+			pass()
+		}
+		finally {
 			popLogLevel()
+			justThrow(false)
 		}
 	})
 	return
@@ -135,17 +140,21 @@ export const fails = (func: TVoidFunc): void => {
 
 export const succeeds = (func: TVoidFunc): void => {
 
-	assert((typeof func === 'function'), "test succeeds() passed non-function")
-	const name = getTestName()
-	DBG(`succeeds <func> (${name})`)
-	Deno.test(name, (): void => {
+	const testName = getTestName()
+	DBG(`succeeds <func> (${testName})`)
+	Deno.test(testName, (): void => {
+		pushLogLevel('silent') // --- silence any errors generated
+		justThrow(true)
 		try {
 			func()
 		}
 		catch (err) {
-			const fullErrMsg = `FAIL - func throws (${getErrStr(err)})`
-			ERR(fullErrMsg)
-			throw new Error(fullErrMsg)
+			const errMsg = getErrStr(err)
+			throw new Error(`in succeeds() - func failed with ${errMsg}`)
+		}
+		finally {
+			popLogLevel()
+			justThrow(false)
 		}
 	})
 	return
@@ -158,9 +167,9 @@ export const iterEqual = (
 		expected: unknown[]
 		): void => {
 
-	const name = getTestName()
-	DBG(`iterEqual ?, ${stringify(expected)} (${name})`)
-	Deno.test(name, () => assertEquals(Array.from(iter), expected))
+	const testName = getTestName()
+	DBG(`iterEqual ?, ${stringify(expected)} (${testName})`)
+	Deno.test(testName, () => assertEquals(Array.from(iter), expected))
 	return
 }
 
@@ -171,85 +180,49 @@ export const iterLike = (
 		expected: hash[]
 		): void => {
 
-	const name = getTestName()
-	DBG(`iterEqual ?, ${stringify(expected)} (${name})`)
+	const testName = getTestName()
+	DBG(`iterEqual ?, ${stringify(expected)} (${testName})`)
 	const lItems = Array.from(iter)
 	const len = lItems.length
-	Deno.test(`${name}/len`, () => assertEquals(len, expected.length))
-	for (let end = len - 1, i1 = 0, asc = 0 <= end; (asc? (i1 <= end) : (i1 >= end)); (asc? (++i1) : (--i1))) {
-		const i = i1
-		// @ts-ignore
-		Deno.test(`${name}/${i}`, () => assertObjectMatch(lItems[i], expected[i]))
+	Deno.test(`${testName}/len`, () => {
+		assertEquals(len, expected.length)
+	})
+	let i1 = 0;for (const value of iter) {const i = i1++;
+		const expect = expected[i]
+		Deno.test(`${testName}/${i}`, () => {
+			assertObjectMatch(value, expect)
+		})
 	}
 	return
 }
 
 // ---------------------------------------------------------------------------
 
-export const matches = (value: unknown, expected: unknown): void => {
-
-	assert(isString(value), `Not a string: ${value}`)
-	const name = getTestName()
-	DBG(`matches ?, ${stringify(expected)} (${name})`)
-	if (isString(expected)) {
-		Deno.test(name, () => assertStringIncludes(value, expected))
-	}
-	else if (expected instanceof RegExp) {
-		Deno.test(name, () => assertMatch(value, expected))
-	}
-	else {
-		Deno.test(name, () => assert(false))
-	}
-	return
-}
-
-// ---------------------------------------------------------------------------
-
-export const like = (value: (object | undefined), expected: hash): void => {
-
-	const name = getTestName()
-	DBG(`like ?, ${stringify(expected)} (${name})`)
-	if (notdefined(value)) {
-		Deno.test(name, () => assertEquals(value, undef))
-	}
-	else {
-		Deno.test(name, () => assertObjectMatch(value, expected))
-	}
-	return
-}
-
-// ---------------------------------------------------------------------------
-
-export const strListLike = (
-		value: string[],
-		expected: string[]
+export const like = (
+		value: (object | undefined),
+		expected: hash
 		): void => {
 
-	const name = getTestName()
-	DBG(`strListLike ?, ${stringify(expected)}`)
-	const len = value.length
-	Deno.test(`${name}/len`, () => assertEquals(len, expected.length))
-	if (len === 0) {
-		return
+	const testName = getTestName()
+	DBG(`like ?, ${stringify(expected)} (${testName})`)
+	if (notdefined(value)) {
+		Deno.test(testName, () => assertEquals(value, undef))
 	}
-	const lValues = value.toSorted()
-	const lExpected = expected.toSorted()
-	for (let end1 = len - 1, i2 = 0, asc1 = 0 <= end1; (asc1? (i2 <= end1) : (i2 >= end1)); (asc1? (++i2) : (--i2))) {
-		const i = i2
-		const val = lValues[i]
-		const exp = lExpected[i]
-		// @ts-ignore
-		Deno.test(`${name}/${i}`, () => assertEquals(val, exp))
+	else {
+		Deno.test(testName, () => assertObjectMatch(value, expected))
 	}
 	return
 }
 
 // ---------------------------------------------------------------------------
 
-export const hashLike = (h: hash, hPat: hash): boolean => {
+export const hashLike = (
+		h: hash,
+		hPat: hash
+		): boolean => {
 
-	const lHashKeys = Object.keys(h)
-	for (const key of Object.keys(hPat)) {
+	const lHashKeys = keys(h)
+	for (const key of keys(hPat)) {
 		if (lHashKeys.includes(key)) {
 			const patVal = hPat[key]
 			if (defined(patVal) && !deepEqual(h[key], patVal)) {
@@ -276,14 +249,15 @@ export const objListLike = (
 		likeFunc: THashLikeFunc = hashLike // used for comparison
 		): void => {
 
-	const name = getTestName()
+	const testName = getTestName()
 	DBG(`objListLike ?, ${stringify(expected)}`)
 	DBG(`strFunc is ${OL(strFunc)}`)
 	const len = value.length
-	Deno.test(`${name}/len`, () => assertEquals(len, expected.length))
+	Deno.test(`${testName}/len`, () => assertEquals(len, expected.length))
 	if (len === 0) {
 		return
 	}
+
 	// --- create the arrays to actually be compared
 	let lVals: hash[] = value
 	if (defined(strFunc)) {
@@ -311,31 +285,62 @@ export const objListLike = (
 	for (let end2 = len - 1, i3 = 0, asc2 = 0 <= end2; (asc2? (i3 <= end2) : (i3 >= end2)); (asc2? (++i3) : (--i3))) {
 		const i = i3
 		// @ts-ignore
-		Deno.test(`${name}/${i}`, () => assert(likeFunc(lVals[i], lExp[i])))
+		Deno.test(`${testName}/${i}`, () => assert(likeFunc(lVals[i], lExp[i])))
 	}
 	return
 }
 
 // ---------------------------------------------------------------------------
 
-export const includes = (value: unknown, expected: unknown): void => {
+type TSplitResult = [string[], string]
 
-	assert(Array.isArray(value), `not an array: ${value}`)
-	const name = getTestName()
-	DBG(`includes ?, ${stringify(expected)} (${name})`)
-	Deno.test(name, () => assertArrayIncludes(value, [expected]))
-	return
+export const splitFuncStr = (valueStr: string): (TSplitResult | undefined) => {
+
+	let ref;if ((ref = valueStr.match(/^\(([^\)]*)\)\s*[\=\-]\>\s*(.*)$/))) {const lMatches = ref;
+		const [_, strParms, strBody] = lMatches
+		if (isEmpty(strParms)) {
+			return [[], strBody]
+		}
+		else {
+			return [
+				strParms.split(',').map((x) => x.trim()),
+				strBody
+				]
+		}
+	}
+	else {
+		return undef
+	}
 }
 
 // ---------------------------------------------------------------------------
+// --- We need to add ':unknown' to any function parameters
+//     that don't have an explicit type
 
-export const includesAll = (value: unknown, expected: unknown): void => {
-	assert(Array.isArray(value), `not an array: ${value}`)
-	assert(Array.isArray(expected), `not an array: ${expected}`)
-	const name = getTestName()
-	DBG(`includesAll ?, ${stringify(expected)} (${name})`)
-	Deno.test(name, () => assertArrayIncludes(value, expected))
-	return
+export const getTsCode = (
+		typeStr: string,
+		valueStr: string
+		): string => {
+
+	DBGVALUE('typeStr', typeStr)
+	DBGVALUE('valueStr', valueStr)
+	const result = splitFuncStr(valueStr)
+	if (defined(result)) {
+		const [lParms, body] = result
+		const addType = (parm: string): string => {
+			if (parm.indexOf(':') >= 0) {
+				return parm
+			}
+			else {
+				return `${parm}: unknown`
+			}
+		}
+		const parmStr = lParms.map(addType).join(', ')
+		return `const x: ${typeStr} = (${parmStr}) => ${body}`
+	}
+	else {
+		return `const x: ${typeStr} = ${valueStr}`
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -343,9 +348,8 @@ export const includesAll = (value: unknown, expected: unknown): void => {
 
 export const checkType = (
 		typeStr: string,
-		value: unknown,
-		expectSuccess: boolean = true
-		): void => {
+		value: unknown
+		): string => {
 
 	const valueStr = (
 		  isFunction(value) ? functionDef(value)
@@ -360,11 +364,7 @@ export const checkType = (
 	const code = `${importCode}
 ${tsCode}`
 
-	const errMsg = typeCheckTsCode(code)
-	if (errMsg) {
-		croak(errMsg)
-	}
-	return
+	return typeCheckTsCode(code)
 }
 
 // ---------------------------------------------------------------------------
@@ -375,23 +375,15 @@ export const isType = (
 		isOfType: ((Function | undefined)) = undef
 		): void => {
 
-	const name = getTestName()
+	const testName = getTestName()
 	if (defined(isOfType)) {
 		DBG("Using type guard")
-		Deno.test(name, () => assert(isOfType(value)))
+		Deno.test(testName, () => assert(isOfType(value)))
 	}
 	else {
-		DBG(INDENT)
-		let errMsg: (string | undefined) = undef
-		try {
-			checkType(typeStr, value, true)
-		}
-		catch (err) {
-			ERR(err, 'TYPE ERROR')
-			errMsg = getErrStr(err)
-		}
-		DBG(UNDENT)
-		Deno.test(name, () => assert(isEmpty(errMsg)))
+		// --- returns errMsg or '' if no type error
+		const errMsg = checkType(typeStr, value)
+		Deno.test(testName, () => assert(isEmpty(errMsg)))
 	}
 	return
 }
@@ -404,22 +396,14 @@ export const notType = (
 		isOfType: (Function | undefined) = undef
 		): void => {
 
-	const name = getTestName()
+	const testName = getTestName()
 	if (defined(isOfType)) {
 		DBG("Using type guard")
-		Deno.test(name, () => assert(!isOfType(value)))
+		Deno.test(testName, () => assert(!isOfType(value)))
 	}
 	else {
-		DBG(INDENT)
-		let errMsg: (string | undefined) = undef
-		try {
-			checkType(typeStr, value, false)
-		}
-		catch (err) {
-			errMsg = getErrStr(err)
-		}
-		DBG(UNDENT)
-		Deno.test(name, () => assert(nonEmpty(errMsg)))
+		const errMsg = checkType(typeStr, value)
+		Deno.test(testName, () => assert(nonEmpty(errMsg)))
 	}
 	return
 }
@@ -516,7 +500,7 @@ export const fileOpsTable = (
 				}
 				else {
 					const lLines = blockToArray(str)
-					let i4 = 0;for (const line of lLines) {const i = i4++;
+					let i2 = 0;for (const line of lLines) {const i = i2++;
 						const contents = truncStr(esc(lLines[i]), trunc)
 						if (i === 0) {
 							tt.data(['barf', path, contents])

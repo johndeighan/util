@@ -13,7 +13,7 @@ import {
 	indented, undented, blockify, Blockify,
 	} from 'indent'
 import {
-	equal, truthy, falsy, like, succeeds, fails,
+	equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test'
 
 // ---------------------------------------------------------------------------

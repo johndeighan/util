@@ -2,10 +2,10 @@
 // section.lib.civet
 
 import {
-	undef, defined, assert, croak, TStringMapper,
+	undef, defined, assert, TStringMapper,
 	isArray, isEmpty, isFunction, isInteger,
 	} from 'datatypes'
-import {toBlock} from 'llutils'
+import {toBlock, croak} from 'llutils'
 import {OL} from 'to-nice'
 import {indented} from 'indent'
 

@@ -6,13 +6,14 @@ import {
 	assertArrayIncludes,
 	} from '@std/assert'
 
+import {croak, justThrow} from 'croak'
 import {TPredicate, anyOf, allOf} from 'predicates'
 import {esc, mesc} from 'unicode'
 import {
 	undef, defined, notdefined, isEmpty, nonEmpty,
 	array, arrayof, isArray, isHash, isString, hash, hashof,
 	deepEqual, integer, isFunction, isClass, functionDef, classDef,
-	TVoidFunc, TVoidIterator, getErrStr, croak, isGenerator, isIterator,
+	TVoidFunc, TVoidIterator, getErrStr, isGenerator, isIterator,
 	} from 'datatypes'
 import {
 	pass, o, keys, getOptions, spaces, blockToArray,
@@ -36,7 +37,7 @@ import {doParse} from 'hera-parse'
 import {TPLLToken, allTokensInBlock, tokenTable, tkEOF} from 'pll'
 import {civet2tsFile} from 'civet'
 import {sourceLib, getNeededImportStmts} from 'symbols'
-import {getTsCode, getImportCode, typeCheckTsCode} from 'typescript'
+import {getImportCode, typeCheckTsCode} from 'typescript'
 import {getMyOutsideCaller} from 'v8-stack'
 import {compileFile} from 'automate'
 
@@ -79,59 +80,65 @@ export equal := (
 
 export same := (value: unknown, expected: unknown): void =>
 
-	name := getTestName()
-	DBG "same ?, #{stringify(expected)} (#{name})"
-	Deno.test name, () => assertStrictEquals value, expected
+	testName := getTestName()
+	DBG "same ?, #{stringify(expected)} (#{testName})"
+	Deno.test testName, () => assertStrictEquals value, expected
 	return
 
 # ---------------------------------------------------------------------------
 
 export truthy := (value: unknown): void =>
 
-	name := getTestName()
-	DBG "truthy #{stringify(value)} (#{name})"
-	Deno.test name, () => assert value
+	testName := getTestName()
+	DBG "truthy #{stringify(value)} (#{testName})"
+	Deno.test testName, () => assert value
 	return
 
 # ---------------------------------------------------------------------------
 
 export falsy := (value: unknown): void =>
 
-	name := getTestName()
-	DBG "falsy #{stringify(value)} (#{name})"
-	Deno.test name, () => assert (not value)
+	testName := getTestName()
+	DBG "falsy #{stringify(value)} (#{testName})"
+	Deno.test testName, () => assert (not value)
 	return
 
 # ---------------------------------------------------------------------------
 
 export fails := (func: TVoidFunc): void =>
 
-	pushLogLevel 'silent' # --- silence any errors generated
-	name := getTestName()
-	DBG "fails <func> (#{name})"
-	Deno.test name, : void =>
+	testName := getTestName()
+	DBG "fails <func> (#{testName})"
+	Deno.test testName, (): void =>
+		pushLogLevel 'silent' # --- silence any errors generated
+		justThrow true
 		try
 			func()
-			popLogLevel()
-			throw new Error("Test Failure - function succeeds!!!")
+			throw new Error("in fails() - function succeeded")
 		catch err
+			pass()
+		finally
 			popLogLevel()
+			justThrow false
 	return
 
 # ---------------------------------------------------------------------------
 
 export succeeds := (func: TVoidFunc): void =>
 
-	assert (typeof func == 'function'), "test succeeds() passed non-function"
-	name := getTestName()
-	DBG "succeeds <func> (#{name})"
-	Deno.test name, : void =>
+	testName := getTestName()
+	DBG "succeeds <func> (#{testName})"
+	Deno.test testName, (): void =>
+		pushLogLevel 'silent' # --- silence any errors generated
+		justThrow true
 		try
 			func()
 		catch err
-			fullErrMsg := "FAIL - func throws (#{getErrStr(err)})"
-			ERR fullErrMsg
-			throw new Error(fullErrMsg)
+			errMsg := getErrStr(err)
+			throw new Error("in succeeds() - func failed with #{errMsg}")
+		finally
+			popLogLevel()
+			justThrow false
 	return
 
 # ---------------------------------------------------------------------------
@@ -141,9 +148,9 @@ export iterEqual := (
 		expected: unknown[]
 		): void =>
 
-	name := getTestName()
-	DBG "iterEqual ?, #{stringify(expected)} (#{name})"
-	Deno.test name, () => assertEquals Array.from(iter), expected
+	testName := getTestName()
+	DBG "iterEqual ?, #{stringify(expected)} (#{testName})"
+	Deno.test testName, () => assertEquals Array.from(iter), expected
 	return
 
 # ---------------------------------------------------------------------------
@@ -153,73 +160,42 @@ export iterLike := (
 		expected: hash[]
 		): void =>
 
-	name := getTestName()
-	DBG "iterEqual ?, #{stringify(expected)} (#{name})"
+	testName := getTestName()
+	DBG "iterEqual ?, #{stringify(expected)} (#{testName})"
 	lItems := Array.from iter
 	len := lItems.length
-	Deno.test "#{name}/len", () => assertEquals len, expected.length
-	for let end = len - 1, i1 = 0, asc = 0 <= end; if asc then i1 <= end else i1 >= end; if asc then ++i1 else --i1
-		i := i1
-		# @ts-ignore
-		Deno.test "#{name}/#{i}", () => assertObjectMatch lItems[i], expected[i]
+	Deno.test "#{testName}/len", () =>
+		assertEquals len, expected.length
+	for value,i of iter
+		expect := expected[i]
+		Deno.test "#{testName}/#{i}", () =>
+			assertObjectMatch value, expect
 	return
 
 # ---------------------------------------------------------------------------
 
-export matches := (value: unknown, expected: unknown): void =>
-
-	assert isString(value), "Not a string: #{value}"
-	name := getTestName()
-	DBG "matches ?, #{stringify(expected)} (#{name})"
-	if isString(expected)
-		Deno.test name, () => assertStringIncludes value, expected
-	else if (expected instanceof RegExp)
-		Deno.test name, () => assertMatch value, expected
-	else
-		Deno.test name, () => assert false
-	return
-
-# ---------------------------------------------------------------------------
-
-export like := (value: object?, expected: hash): void =>
-
-	name := getTestName()
-	DBG "like ?, #{stringify(expected)} (#{name})"
-	if notdefined(value)
-		Deno.test name, () => assertEquals value, undef
-	else
-		Deno.test name, () => assertObjectMatch value, expected
-	return
-
-# ---------------------------------------------------------------------------
-
-export strListLike := (
-		value: string[],
-		expected: string[]
+export like := (
+		value: object?
+		expected: hash
 		): void =>
 
-	name := getTestName()
-	DBG "strListLike ?, #{stringify(expected)}"
-	len := value.length
-	Deno.test "#{name}/len", () => assertEquals len, expected.length
-	if len == 0
-		return
-	lValues := value.toSorted()
-	lExpected := expected.toSorted()
-	for let end1 = len - 1, i2 = 0, asc1 = 0 <= end1; if asc1 then i2 <= end1 else i2 >= end1; if asc1 then ++i2 else --i2
-		i := i2
-		val := lValues[i]
-		exp := lExpected[i]
-		# @ts-ignore
-		Deno.test "#{name}/#{i}", () => assertEquals val, exp
+	testName := getTestName()
+	DBG "like ?, #{stringify(expected)} (#{testName})"
+	if notdefined(value)
+		Deno.test testName, () => assertEquals value, undef
+	else
+		Deno.test testName, () => assertObjectMatch value, expected
 	return
 
 # ---------------------------------------------------------------------------
 
-export hashLike := (h: hash, hPat: hash): boolean =>
+export hashLike := (
+		h: hash
+		hPat: hash
+		): boolean =>
 
-	lHashKeys := Object.keys h
-	for key of Object.keys(hPat)
+	lHashKeys := keys h
+	for key of keys(hPat)
 		if lHashKeys.includes(key)
 			patVal := hPat[key]
 			if defined(patVal) && not deepEqual(h[key], patVal)
@@ -241,13 +217,14 @@ export objListLike := (
 		likeFunc: THashLikeFunc = hashLike # used for comparison
 		): void =>
 
-	name := getTestName()
+	testName := getTestName()
 	DBG "objListLike ?, #{stringify(expected)}"
 	DBG "strFunc is #{OL(strFunc)}"
 	len := value.length
-	Deno.test "#{name}/len", () => assertEquals len, expected.length
-	if len == 0
+	Deno.test "#{testName}/len", () => assertEquals len, expected.length
+	if (len == 0)
 		return
+
 	# --- create the arrays to actually be compared
 	let lVals: hash[] = value
 	if defined(strFunc)
@@ -271,37 +248,58 @@ export objListLike := (
 	for let end2 = len - 1, i3 = 0, asc2 = 0 <= end2; if asc2 then i3 <= end2 else i3 >= end2; if asc2 then ++i3 else --i3
 		i := i3
 		# @ts-ignore
-		Deno.test "#{name}/#{i}", () => assert likeFunc lVals[i], lExp[i]
+		Deno.test "#{testName}/#{i}", () => assert likeFunc lVals[i], lExp[i]
 	return
 
 # ---------------------------------------------------------------------------
 
-export includes := (value: unknown, expected: unknown): void =>
+type TSplitResult = [string[], string]
 
-	assert Array.isArray(value), "not an array: #{value}"
-	name := getTestName()
-	DBG "includes ?, #{stringify(expected)} (#{name})"
-	Deno.test name, () => assertArrayIncludes value, [expected]
-	return
+export splitFuncStr := (valueStr: string): TSplitResult? =>
+
+	if (lMatches := valueStr.match(/^\(([^\)]*)\)\s*[\=\-]\>\s*(.*)$/))
+		[_, strParms, strBody] := lMatches
+		if isEmpty(strParms)
+			return [[], strBody]
+		else
+			return [
+				strParms.split(',').map((x) => x.trim())
+				strBody
+				]
+	else
+		return undef
 
 # ---------------------------------------------------------------------------
+# --- We need to add ':unknown' to any function parameters
+#     that don't have an explicit type
 
-export includesAll := (value: unknown, expected: unknown): void =>
-	assert Array.isArray(value), "not an array: #{value}"
-	assert Array.isArray(expected), "not an array: #{expected}"
-	name := getTestName()
-	DBG "includesAll ?, #{stringify(expected)} (#{name})"
-	Deno.test name, () => assertArrayIncludes value, expected
-	return
+export getTsCode := (
+		typeStr: string,
+		valueStr: string
+		): string =>
+
+	DBGVALUE 'typeStr', typeStr
+	DBGVALUE 'valueStr', valueStr
+	result := splitFuncStr valueStr
+	if defined(result)
+		[lParms, body] := result
+		addType := (parm: string): string =>
+			if (parm.indexOf(':') >= 0)
+				return parm
+			else
+				return "#{parm}: unknown"
+		parmStr := lParms.map(addType).join ', '
+		return "const x: #{typeStr} = (#{parmStr}) => #{body}"
+	else
+		return "const x: #{typeStr} = #{valueStr}"
 
 # ---------------------------------------------------------------------------
 # throws on error
 
 export checkType := (
-		typeStr: string,
-		value: unknown,
-		expectSuccess: boolean = true
-		): void =>
+		typeStr: string
+		value: unknown
+		): string =>
 
 	valueStr := (
 		  isFunction(value) ? functionDef(value)
@@ -318,10 +316,7 @@ export checkType := (
 		#{tsCode}
 		"""
 
-	errMsg := typeCheckTsCode code
-	if errMsg
-		croak errMsg
-	return
+	return typeCheckTsCode code
 
 # ---------------------------------------------------------------------------
 
@@ -331,20 +326,14 @@ export isType := (
 		isOfType: (Function?) = undef
 		): void =>
 
-	name := getTestName()
+	testName := getTestName()
 	if defined(isOfType)
 		DBG "Using type guard"
-		Deno.test name, () => assert isOfType value
+		Deno.test testName, () => assert isOfType value
 	else
-		DBG INDENT
-		let errMsg: string? = undef
-		try
-			checkType typeStr, value, true
-		catch err
-			ERR err, 'TYPE ERROR'
-			errMsg = getErrStr(err)
-		DBG UNDENT
-		Deno.test name, () => assert isEmpty(errMsg)
+		# --- returns errMsg or '' if no type error
+		errMsg := checkType typeStr, value
+		Deno.test testName, () => assert isEmpty(errMsg)
 	return
 
 # ---------------------------------------------------------------------------
@@ -355,19 +344,13 @@ export notType := (
 		isOfType: Function? = undef
 		): void =>
 
-	name := getTestName()
+	testName := getTestName()
 	if defined(isOfType)
 		DBG "Using type guard"
-		Deno.test name, () => assert not isOfType(value)
+		Deno.test testName, () => assert not isOfType(value)
 	else
-		DBG INDENT
-		let errMsg: string? = undef
-		try
-			checkType typeStr, value, false
-		catch err
-			errMsg = getErrStr(err)
-		DBG UNDENT
-		Deno.test name, () => assert nonEmpty(errMsg)
+		errMsg := checkType typeStr, value
+		Deno.test testName, () => assert nonEmpty(errMsg)
 	return
 
 # ---------------------------------------------------------------------------

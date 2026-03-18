@@ -7,7 +7,7 @@ import {
 	mkstr, getCmdLine, execCmd, execCmdSync, TExecResult,
 	} from 'exec'
 import {
-	equal, like, succeeds, fails, truthy, falsy, setDirTree,
+	equal, succeeds, fails, truthy, falsy, setDirTree,
 	} from 'unit-test'
 
 # ---------------------------------------------------------------------------

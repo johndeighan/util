@@ -10,8 +10,8 @@ import {
 	decodeLine, getMappings, orgPos,
 	} from 'source-map'
 import {
-	equal, truthy, falsy, like, objListLike, matches,
-	succeeds, fails, includesAll, setDirTree,
+	equal, truthy, falsy, objListLike,
+	succeeds, fails, setDirTree,
 	} from 'unit-test'
 
 // ---------------------------------------------------------------------------

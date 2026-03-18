@@ -2,13 +2,13 @@
 // cmd-args.lib.civet
 
 import {
-	undef, defined, notdefined, assert, croak, nonEmpty,
+	undef, defined, notdefined, assert, nonEmpty,
 	hash, hashof, char, integer,
 	isEmpty, isArray, isBoolean,
 	isInteger, isHash, isString,
 	} from 'datatypes'
 import {MAP} from 'map'
-import {keys, getOptions, o, spaces} from 'llutils'
+import {keys, getOptions, o, spaces, croak} from 'llutils'
 import {clearScreen} from 'console-utils'
 import {setLogLevel, LOG, DBG, ERR} from 'logger'
 import {OL, DUMP} from 'to-nice'
@@ -40,7 +40,9 @@ export const flags = (...lChars: char[]): boolean[] => {
 // --- hFlags should be { <name>: <char>, ... {\}
 // --- return hash      { <name>: <boolean>, ... }
 
-export const getFlags = (hFlags: hashof<char>): hashof<boolean> => {
+export const getFlags = (
+		hFlags: hashof<char>
+		): hashof<boolean> => {
 
 	const lKeys: string[] = keys(hFlags)
 	const acc0: hashof<boolean> = {}

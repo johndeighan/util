@@ -2,8 +2,9 @@
 // scope.lib.civet
 
 import {
-	undef, defined, notdefined, assert, croak, hash,
+	undef, defined, notdefined, assert, hash,
 	} from 'datatypes'
+import {croak} from 'llutils'
 import {LOG} from 'logger'
 
 // ---------------------------------------------------------------------------

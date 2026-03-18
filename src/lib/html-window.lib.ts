@@ -7,10 +7,10 @@ import {Webview} from '@webview/webview'
 import {WebUI} from '@webui'
 
 import {
-	undef, defined, notdefined, assert, croak, getErrStr,
+	undef, defined, notdefined, assert, getErrStr,
 	TVoidFunc, hash, hashof,
 	} from 'datatypes'
-import {getOptions, sleep} from 'llutils'
+import {getOptions, sleep, croak} from 'llutils'
 import {LOG, DBG, WARN, ERR} from 'logger'
 import {mkpath, slurp, isFile, isDir} from 'fsys'
 import {execCmd} from 'exec'
@@ -29,7 +29,10 @@ export class CHtmlWindow {
 
 	// ..........................................................
 
-	defineFunc(funcName: string, func: TVoidFunc): void {
+	defineFunc(
+			funcName: string,
+			func: TVoidFunc
+			): void {
 
 		this.window.bind(funcName, func)
 		return
@@ -73,9 +76,9 @@ GOT source = ${source}`)
 		this.window.setSize(width, height)
 
 		// --- Bind a backend function to a frontend element
-		this.window.bind("exit", () => {
+		this.window.bind("exit", async () => {
 			// --- Closes all windows and exits the Deno process
-			WebUI.exit();
+			await WebUI.exit();
 		})
 
 		await this.window.showBrowser(html, WebUI.Browser.Chrome)

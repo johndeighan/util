@@ -4,14 +4,14 @@
 type AutoPromise<T> = Promise<Awaited<T>>;
 import {uni, esc} from 'unicode'
 import {
-	undef, defined, notdefined, hash, assert, croak,
+	undef, defined, notdefined, hash, assert,
 	isEmpty, nonEmpty, deepCopy,
 	TStringMapper, getErrStr, TVoidFunc,
 	} from 'datatypes'
 import {isFile, findFile} from 'fsys'
 import {MAP} from 'map'
 import {
-	allLinesInBlock, getOptions, sep,
+	allLinesInBlock, getOptions, sep, croak,
 	} from 'llutils'
 import {OL, ML} from 'to-nice'
 import {resetOneIndent, splitLine} from 'indent'

@@ -1,7 +1,8 @@
 "use strict";
 // parsestr.cmd.civet
 
-import {croak, defined, assert} from 'datatypes'
+import {defined, assert} from 'datatypes'
+import {croak} from 'llutils'
 import {findFile} from 'fsys'
 import {allNonOptions} from 'cmd-args'
 

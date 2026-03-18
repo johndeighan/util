@@ -7,9 +7,9 @@ import {existsSync} from '@std/fs'
 import {SourceMapConsumer} from 'npm-source-map'
 
 import {
-	undef, assert, defined, notdefined, hash, croak, getErrStr,
+	undef, assert, defined, notdefined, hash, getErrStr,
 	} from 'datatypes'
-import {getOptions} from 'llutils'
+import {getOptions, croak} from 'llutils'
 import {OL, DUMP} from 'to-nice'
 import {LOG, DBG, WARN, ERR} from 'logger'
 import {TextTable} from 'text-table'

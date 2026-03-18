@@ -1,8 +1,19 @@
 to do
 
+op doUnitTest is displaying long output, not summary
+
+get fails() and succeeds() to test a function without
+producing any output
+
+use temp1.civet to check if variant 3 of MAP is recognized
+
+in fsys::allFilesMatching(), if any positive path contains 'temp' or 'save',
+	exclude those from lExclude
+
 ??? instead of compiling serially, do it in dependency order
 
 work on temp.civet, getting SSE to work
+	- file src/temp/public/sse.lib.ts isn't being compiled to JS
 
 test function compileFile(), add to unit tests for automate lib
 

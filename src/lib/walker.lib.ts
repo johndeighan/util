@@ -3,8 +3,9 @@
 
 import {
 	undef, defined, notdefined, integer, hash, array,
-	isArray, isHash, assert, croak, isEmpty,
+	isArray, isHash, assert, isEmpty,
 	} from 'datatypes'
+import {croak} from 'llutils'
 import {OL} from 'to-nice'
 import {DBG} from 'logger'
 

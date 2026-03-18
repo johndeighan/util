@@ -1,3 +1,6 @@
+croak
+	normalizePath TFrameType TStackFrame TFrameFilter
+	defaultFilter dumpFrame allStackFrames croak
 datatypes
 	undef defined notdefined
 	array hash arrayof hashof integer

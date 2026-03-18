@@ -4,12 +4,13 @@
 import {sprintf} from '@std/fmt/printf'
 
 import {
-	undef, defined, notdefined, assert, croak, nonEmpty,
+	undef, defined, notdefined, assert, nonEmpty,
 	isString, isNumber, isInteger, isArray, array, arrayof,
 	hash, hashof, integer, char, isArrayOfIntegers,
 	} from 'datatypes'
 import {
-	getOptions, words, rtrim, alignString, toBlock, TAlignment,
+	getOptions, words, rtrim, alignString, toBlock,
+	TAlignment, croak,
 	} from 'llutils'
 import {OL} from 'to-nice'
 import {LOGVALUE, DBG} from 'logger'
