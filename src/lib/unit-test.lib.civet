@@ -6,14 +6,14 @@ import {
 	assertArrayIncludes,
 	} from '@std/assert'
 
-import {croak, justThrow} from 'croak'
+import {croak, getErrStr, justThrow} from 'croak'
 import {TPredicate, anyOf, allOf} from 'predicates'
 import {esc, mesc} from 'unicode'
 import {
 	undef, defined, notdefined, isEmpty, nonEmpty,
 	array, arrayof, isArray, isHash, isString, hash, hashof,
 	deepEqual, integer, isFunction, isClass, functionDef, classDef,
-	TVoidFunc, TVoidIterator, getErrStr, isGenerator, isIterator,
+	TVoidFunc, TVoidIterator, isIterator,
 	} from 'datatypes'
 import {
 	pass, o, keys, getOptions, spaces, blockToArray,
@@ -74,6 +74,32 @@ export equal := (
 	testName := getTestName()
 	DBG "equal ?, #{stringify(expected)} (#{testName})"
 	Deno.test testName, () => assertEquals(value, expected)
+	return
+
+# ---------------------------------------------------------------------------
+
+valuesFrom := <TOut>(
+		iter: Iterator<TOut, void, void>
+		): TOut[] ->
+
+	let lItems: TOut[] = []
+	loop
+		{value, done} := iter.next()
+		if done
+			break
+		else
+			lItems.push value
+	return lItems
+
+# ---------------------------------------------------------------------------
+
+export generates := <TOut>(
+		value: Iterator<TOut>,
+		expected: unknown
+		): void =>
+
+	testName := getTestName()
+	Deno.test testName, () => assertEquals(valuesFrom(value), expected)
 	return
 
 # ---------------------------------------------------------------------------

@@ -1,13 +1,14 @@
 # cmd-args.lib.civet
 
+import {croak} from 'croak'
 import {
 	undef, defined, notdefined, assert, nonEmpty,
 	hash, hashof, char, integer,
 	isEmpty, isArray, isBoolean,
 	isInteger, isHash, isString,
 	} from 'datatypes'
-import {MAP} from 'map'
-import {keys, getOptions, o, spaces, croak} from 'llutils'
+import {MAP} from 'mapper'
+import {keys, getOptions, o, spaces} from 'llutils'
 import {clearScreen} from 'console-utils'
 import {setLogLevel, LOG, DBG, ERR} from 'logger'
 import {OL, DUMP} from 'to-nice'
@@ -42,13 +43,11 @@ export getFlags := (
 
 	lKeys: string[] := keys(hFlags)
 	acc0: hashof<boolean> := {}
-	[lItems, h] := MAP lKeys, acc0, (name, i, acc) ->
-		yield name
+	return MAP lKeys, acc0, (name, acc) =>
 		bool := flag(hFlags[name])
 		if bool
 			LOG "#{name} = true"
 		return {...acc, [name]: bool}
-	return h
 
 # ---------------------------------------------------------------------------
 

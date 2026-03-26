@@ -1,0 +1,178 @@
+# mapper.lib.civet
+
+import {croak, getErrStr} from 'croak'
+import {
+	assert, obviously, TNonFunction,
+	isGeneratorFunction, isArray, isIterator, isIterableIterator, isFunction,
+	} from 'datatypes'
+
+let trace: boolean = false
+
+# ---------------------------------------------------------------------------
+
+export doTrace := (flag: boolean): void =>
+
+	trace = flag
+	return
+
+# ---------------------------------------------------------------------------
+
+type TMapper<TIn, TOut> = (
+	x: TIn,
+	) => Generator<TOut, void>
+
+# --- This is not a generator at all
+
+type TAccumMapper<TIn, TAccum extends TNonFunction> = (
+	x: TIn
+	acc: TAccum
+	) => TAccum
+
+# --- An accumulator cannot be a function and must be defined
+
+type TBothMapper<TIn, TOut, TAccum extends TNonFunction> = (
+	x: TIn,
+	acc: TAccum
+	) => Generator<TOut, TAccum, void>
+
+# ---------------------------------------------------------------------------
+
+# --- Variant 1, no accumulator
+export function MAP<TIn, TOut, TAccum extends TNonFunction>(
+		lItems:  TIn[] | Iterator<TIn>
+		mapFunc: TMapper<TIn, TOut>
+		nothing: void
+		): Generator<TOut, void, void>
+
+# --- Variant 2, only accumulator
+export function MAP<TIn, TOut, TAccum extends TNonFunction>(
+		lItems:  TIn[] | Iterator<TIn>
+		acc: TAccum
+		mapFunc: TAccumMapper<TIn, TAccum>         # plain function
+		): TAccum
+
+# --- Variant 3, iterator with accumulator
+export function MAP<TIn, TOut, TAccum extends TNonFunction>(
+		lItems:  TIn[] | Iterator<TIn>
+		acc: TAccum
+		mapFunc: TBothMapper<TIn, TOut, TAccum>    # generator function
+		): Generator<TOut, TAccum, void>
+
+export function MAP<TIn, TOut, TAccum extends TNonFunction>(
+		lItems:  TIn[] | Iterator<TIn>
+		arg2: TMapper<TIn, TOut> | TAccum
+		arg3: void | TAccumMapper<TIn, TAccum> | TBothMapper<TIn, TOut, TAccum>
+		): TAccum | Generator<TOut, void, void> | Generator<TOut, TAccum, void>
+
+	debugger
+	if trace
+		console.log "MAP() entered"
+	iter := isArray(lItems) ? lItems.values() : lItems
+
+	if isFunction(arg2)
+		# --- variant 1, no accumulator
+		if trace
+			console.log "MAP(): variant 1"
+		mapFunc := arg2
+		obviously isGeneratorFunction<TOut, void> mapFunc
+		loop
+			{value, done} := iter.next()
+			if done
+				break
+			else
+				yield* mapFunc(value)   # --- don't care about return value
+		return
+	else
+		assert not isFunction(arg2), "arg 2 is a function"
+		mapFunc := arg3
+		obviously isFunction(mapFunc)
+
+		let acc: TAccum = arg2
+
+		if isGeneratorFunction<TOut, TAccum>(mapFunc)
+			# --- variant 3
+			if trace
+				console.log "MAP(): variant 3"
+			loop
+				{value, done} := iter.next()
+				if done
+					break
+				else
+					# @ts-ignore - we know that mapFunc() is a generator function
+					acc = yield* mapFunc(value, acc)
+		else
+			# --- variant 2, only accumulator
+			if trace
+				console.log "MAP(): variant 2"
+			obviously not isFunction(arg2), "arg 2 is a function"
+			mapFunc := arg3
+			assert isFunction(mapFunc), "arg 3 not a function"
+			assert not isGeneratorFunction<TOut, void>(mapFunc)
+
+			loop
+				{value, done} := iter.next()
+				if done
+					break
+				else
+					# @ts-ignore
+					acc = mapFunc(value, acc)
+		return acc
+
+# ---------------------------------------------------------------------------
+# ASYNC
+# --- returns [lFulfilled, lRejected, lFulfilledTags, lRejectedTags]
+#        lFulfilled is an array of TAccum
+#        lRejected is an array of unknown (usually Error objects)
+#        lFulfilledTags and lRejectedTags are arrays of strings
+
+type TRunResult<T> = [T[], unknown[], string[], string[]]
+
+export awaitAll := <T>(
+		lPromises: Promise<T>[]
+		lTags: string[] = []
+		): TRunResult<T> ->
+
+	lSettled := await Promise.allSettled(lPromises)
+	acc0: TRunResult<T> := [[],[],[],[]]
+	# @ts-ignore
+	[lItems, accum] := MAP lSettled, acc0, (h, i, acc) ->
+		if (h.status == 'fulfilled')
+			yield h.value
+		tag := (i >= 0) && (i < lTags.length) ? lTags[i] : ''
+		[lFulfilled, lRejected, lTags1, lTags2] := acc
+		if (h.status == 'fulfilled')
+			return [
+				[...lFulfilled, h.value],
+				lRejected,
+				[...lTags1, tag],
+				lTags2
+				]
+		else
+			return [
+				lFulfilled
+				[...lRejected, getErrStr(h.reason)]
+				lTags1
+				[...lTags2, tag]
+				]
+	# @ts-ignore
+	return accum
+
+# ---------------------------------------------------------------------------
+# ASYNC
+# --- mapFunc must return an item of type TAccum
+
+type TAsyncAccumMapper<TIn, TAccum extends TNonFunction> = (
+	x: TIn
+	acc: TAccum
+	) => Promise<TAccum>
+
+export function AACCUM<TIn, TAccum extends TNonFunction>(
+		lItems: IterableIterator<TIn> | TIn[]
+		acc: TAccum
+		mapFunc: TAsyncAccumMapper<TIn, TAccum>   # async function
+		): Promise<TAccum>
+
+	iter := isArray(lItems) ? lItems.values() : lItems
+	for item,i of iter
+		acc = await mapFunc(item, acc)
+	return acc

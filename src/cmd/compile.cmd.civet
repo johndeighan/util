@@ -1,7 +1,8 @@
 # compile.cmd.civet
 
+import {croak} from 'croak'
 import {assert, isArray} from 'datatypes'
-import {pass, croak} from 'llutils'
+import {pass} from 'llutils'
 import {OL} from 'to-nice'
 import {flag, numNonOptions, allNonOptions} from 'cmd-args'
 import {watchFiles, allFilesMatching} from 'fsys'

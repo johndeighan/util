@@ -6,6 +6,7 @@ import {relative} from '@std/path'
 import {existsSync} from '@std/fs'
 import {parse: parseYAML} from "@std/yaml"
 
+import {croak} from 'croak'
 import {
 	undef, defined, notdefined, assert, char, deepEqual,
 	isHash, isArray, isNonEmptyString,
@@ -13,10 +14,7 @@ import {
 	integer, hash, hashof, array, arrayof, TVoidFunc, isNonPrimitive,
 	functionDef, TStringMapper,
 	} from 'datatypes'
-import {croak} from 'croak'
 import {f, colorize} from 'f-strings'
-
-export {croak, f, colorize}
 
 llutilsLoadTime: integer := Date.now()
 defWidth := 64     # ---used in sep, centered

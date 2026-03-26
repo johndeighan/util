@@ -2,10 +2,11 @@
 
 import {pathToFileURL} from 'node-url'
 
+import {croak} from 'croak'
 import {
 	undef, defined, notdefined, assert, hash, isHash,
 	} from 'datatypes'
-import {pass, keys, require, croak} from 'llutils'
+import {pass, keys, require} from 'llutils'
 import {OL, ML} from 'to-nice'
 import {
 	DBG, LOG, DBGVALUE, pushLogLevel, popLogLevel,

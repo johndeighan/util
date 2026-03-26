@@ -1,10 +1,10 @@
 # walker.lib.civet
 
+import {croak} from 'croak'
 import {
 	undef, defined, notdefined, integer, hash, array,
 	isArray, isHash, assert, isEmpty,
 	} from 'datatypes'
-import {croak} from 'llutils'
 import {OL} from 'to-nice'
 import {DBG} from 'logger'
 

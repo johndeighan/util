@@ -1,10 +1,11 @@
 # analyze.cmd.civet
 
+import {croak} from 'croak'
 import {TNoArgPredicate} from 'predicates'
 import {
 	undef, defined, notdefined, assert,
 	} from 'datatypes'
-import {stdChecks, croak} from 'llutils'
+import {stdChecks} from 'llutils'
 import {LOG, DBG, ERR} from 'logger'
 import {flag, nonOption} from 'cmd-args'
 import {DUMP} from 'to-nice'

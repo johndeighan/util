@@ -1,11 +1,18 @@
 to do
 
+bootstrap has errors
+
+loop
+	add a call to MAP to temp1.civet
+	run (use temptest) and see what the output is
+	add a unit test to temp1.lib.test.civet
+	run temputest and make sure tests all pass
+
+
 op doUnitTest is displaying long output, not summary
 
 get fails() and succeeds() to test a function without
 producing any output
-
-use temp1.civet to check if variant 3 of MAP is recognized
 
 in fsys::allFilesMatching(), if any positive path contains 'temp' or 'save',
 	exclude those from lExclude

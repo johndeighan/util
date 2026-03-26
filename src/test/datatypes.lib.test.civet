@@ -1,6 +1,7 @@
 # datatypes.lib.test.civet
 
 import {croak} from 'croak'
+import {obviously} from 'datatypes'
 import {
 	deepEqual, undef, defined, notdefined, assert,
 	anyDefined, anyNotDefined,
@@ -15,7 +16,7 @@ import {
 	isClass, className, isPromise, isClassInstance,
 	isSymbol, symbolName, functionName, functionDef,
 	classDef, regexpDef,
-	isObject, isGenerator, isAsyncGenerator,
+	isObject, isGeneratorFunction, isAsyncGeneratorFunction,
 	isIterator, isAsyncIterator, jsType,
 	} from 'datatypes'
 import {DBG} from 'logger'
@@ -293,17 +294,17 @@ falsy  isPromise(null)
 
 # ---------------------------------------------------------------------------
 
-truthy isGenerator(sampleVal.genFunc)
-truthy isAsyncGenerator(sampleVal.asyncGenFunc)
-falsy  isGenerator(sampleVal.regularFunc)
-falsy  isGenerator(sampleVal.lambdaFunc)
+truthy isGeneratorFunction(sampleVal.genFunc)
+truthy isAsyncGeneratorFunction(sampleVal.asyncGenFunc)
+falsy  isGeneratorFunction(sampleVal.regularFunc)
+falsy  isGeneratorFunction(sampleVal.lambdaFunc)
 
-if isGenerator(sampleVal.genFunc)
-	truthy isIterator(sampleVal.genFunc())
-if isAsyncGenerator(sampleVal.asyncGenFunc)
-	truthy isAsyncIterator(sampleVal.asyncGenFunc())
+obviously isGeneratorFunction(sampleVal.genFunc)
+truthy isIterator(sampleVal.genFunc())
+
+obviously isAsyncGeneratorFunction(sampleVal.asyncGenFunc)
+truthy isAsyncIterator(sampleVal.asyncGenFunc())
 
 falsy  isIterator(sampleVal.genFunc)
 falsy  isIterator(sampleVal.regularFunc)
 falsy  isIterator(sampleVal.lambdaFunc)
-

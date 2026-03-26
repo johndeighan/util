@@ -1,12 +1,14 @@
 # section-map.lib.civet
 
+import {croak} from 'croak'
 import {
 	undef, defined, notdefined, assert, hash, hashof,
 	TStringMapper,
 	isEmpty, nonEmpty, isString, isHash, isArray, isFunction,
 	} from 'datatypes'
+import {f} from 'f-strings'
 import {
-	toBlock, isTAML, fromTAML, hasKeys, f, croak,
+	toBlock, isTAML, fromTAML, hasKeys,
 	} from 'llutils'
 import {OL, ML} from 'to-nice'
 import {isSectionName, Section} from 'section'

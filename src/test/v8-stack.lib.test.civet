@@ -1,7 +1,7 @@
 # v8-stack.lib.test.civet
 
+import {croak} from 'croak'
 import {undef, assert} from 'datatypes'
-import {o, croak} from 'llutils'
 import {LOG, DBG} from 'logger'
 import {relpath} from 'fsys'
 import {

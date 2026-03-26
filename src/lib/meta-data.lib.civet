@@ -1,9 +1,11 @@
 # meta-data.lib.civet
 
+import {croak} from 'croak'
 import {
 	undef, defined, notdefined, isString, assert, hash, hashof,
 	} from 'datatypes'
-import {croak, f, fromTAML} from 'llutils'
+import {f} from 'f-strings'
+import {fromTAML} from 'llutils'
 
 export type TConverter = (str: string) => unknown
 

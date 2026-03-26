@@ -1,18 +1,28 @@
 # croak.lib.civet
 
 import {red} from '@std/fmt/colors'
+import {relative} from '@std/path'
+import {sprintf} from '@std/fmt/printf'
 
 type hash = {
 	[key: string | symbol]: unknown
 	}
 
 export let onlyThrow = false
+export let debug = false
 
 # ---------------------------------------------------------------------------
 
-export justThrow := (flag: boolean): void =>
+export justThrow := (flag: boolean=true): void =>
 
 	onlyThrow = flag
+	return
+
+# ---------------------------------------------------------------------------
+
+export doDebug := (flag: boolean=true): void =>
+
+	debug = flag
 	return
 
 # ---------------------------------------------------------------------------
@@ -27,6 +37,15 @@ export normalizePath := (path: string): string =>
 
 # ---------------------------------------------------------------------------
 
+export relpath := (
+		path: string,
+		root: string = Deno.cwd()
+		): string =>
+
+	return normalizePath relative(root, path)
+
+# ---------------------------------------------------------------------------
+
 export type TFrameType = (
 	'eval' |
 	'native' |
@@ -38,6 +57,7 @@ export type TFrameType = (
 	)
 
 export type TStackFrame = {
+	i: number
 	type: string
 	source: string        # relative file path or 'unknown'
 	line: number
@@ -63,11 +83,16 @@ export defaultFilter := (frame: TStackFrame): boolean =>
 
 export dumpFrame := (
 		frame: TStackFrame,
-		i: number,
+		label: string = 'FRAME'
 		): void =>
 
-	{type, source, line, col, name} := frame
-	console.log "FRAME[#{i}]: #{type} #{name} #{source}:#{line}:#{col}"
+	{i, type, source, line, col, name} := frame
+	typeStr := sprintf('%-8s', type)
+	nameStr := sprintf('%-16s', name)
+	if source
+		console.log "#{label}[#{i}]: #{typeStr} #{nameStr} #{source}:#{line}:#{col}"
+	else
+		console.log "#{label}[#{i}]: #{typeStr} #{nameStr} <none>"
 	return
 
 # ---------------------------------------------------------------------------
@@ -98,12 +123,10 @@ export allStackFrames := (
 
 			lFrames: TStackFrame[] := for orgFrame,i of lOrgFrames
 				fileName := orgFrame.getFileName()
-				if not fileName
-					continue
-
 				functionName := orgFrame.getFunctionName()
 				methodName := orgFrame.getMethodName()
 				frame: TStackFrame := {
+					i
 					type: (
 						  orgFrame.isEval()        ? 'eval'
 						: orgFrame.isNative()      ? 'native'
@@ -113,7 +136,7 @@ export allStackFrames := (
 						: orgFrame.isToplevel()    ? 'script'
 						:                            'unknown'
 						)
-					source: normalizePath(fileName)
+					source: fileName ? normalizePath(relpath(fileName)) : ''
 					line :  orgFrame.getLineNumber()
 					col:    orgFrame.getColumnNumber()
 					name:   functionName || methodName || ''
@@ -128,9 +151,8 @@ export allStackFrames := (
 						prevFrame.type = 'function'
 						prevFrame.name = '<anon>'
 
-				if trace
-					{type, source, line, col, name} := frame
-					console.log "#{type} #{name} #{source}:#{line}:#{col}"
+				if trace || debug
+					dumpFrame frame, 'ORG FRAME'
 				prevFrame = frame
 				frame
 
@@ -153,19 +175,33 @@ export allStackFrames := (
 		return
 
 	catch err
-		console.error "#{red('ERROR')} #{err}"
+		console.error "#{red('ERROR:')} #{err}"
 		return
 
 # ---------------------------------------------------------------------------
 
-type TNeverFunc = (errMsg: string) => never;
+export getErrStr := (err: unknown): string =>
 
-export croak: TNeverFunc := (errMsg: string): never =>
+	if (typeof err == 'string')
+		return err
+	else if (err instanceof Error)
+		return err.message
+	else
+		return "Serious Error"
 
+# ---------------------------------------------------------------------------
+
+type TNeverFunc = (err: unknown) => never
+
+export croak: TNeverFunc := (err: unknown): never =>
+
+	errMsg := getErrStr(err)
 	if onlyThrow
+		# --- allows the error to be caught and handled or ignored
 		throw new Error(errMsg)
 	else
 		console.error red('CROAK') + ': ' + errMsg
-		for {type, name, line} of allStackFrames()
-			console.log "   #{type} #{name}:#{line}"
+		console.error "STACK:"
+		for frame of allStackFrames()
+			dumpFrame frame
 		Deno.exit()

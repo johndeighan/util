@@ -1,5 +1,6 @@
 # from-nice.lib.civet
 
+import {croak} from 'croak'
 import {
 	undef, defined, notdefined, assert, hash, hashof,
 	isArray, isFunction, isBoolean, isString, isNonPrimitive,
@@ -9,7 +10,7 @@ import {
 import {uni, delit} from 'unicode'
 import {Fetcher} from 'fetcher'
 import {
-	getOptions, keys, toBlock, o, rtrim, croak,
+	getOptions, keys, toBlock, o, rtrim,
 	} from 'llutils'
 import {toNice, OL} from 'to-nice'
 import {

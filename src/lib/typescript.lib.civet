@@ -9,13 +9,14 @@ import {
 	flattenDiagnosticMessageText, getLineAndCharacterOfPosition,
 	} from 'npm-typescript'
 
+import {croak, getErrStr} from 'croak'
 import {
 	undef, defined, notdefined, integer, hash, hashof,
-	isHash, isString, isEmpty, nonEmpty, isNumber, getErrStr,
+	isHash, isString, isEmpty, nonEmpty, isNumber,
 	assert, isFunction, functionDef, isClass, classDef,
 	} from 'datatypes'
 import {
-	getOptions, spaces, o, words, hasKey, croak,
+	getOptions, spaces, o, words, hasKey,
 	CStringSetMap, keys, sep, allLinesInBlock,
 	} from 'llutils'
 import {f, withColors, decolorize} from 'f-strings'
@@ -41,7 +42,7 @@ import {extractSourceMap} from 'source-map'
 import {Walker, TVisitKind} from 'walker'
 import {CMainScope, CScope} from 'scope'
 import {getNeededImportStmts} from 'symbols'
-import {MAP} from 'map'
+import {MAP} from 'mapper'
 
 decoder := new TextDecoder "utf-8"
 
@@ -544,7 +545,7 @@ export analyzeTS := (
 
 				when 220    # ArrowFunction
 					do
-						lParms := MAP getArray(node, '.parameters'), (x) ->
+						lParms := Array.from MAP getArray(node, '.parameters'), (x) ->
 							yield getString(x, '.name.escapedText')
 						analysis.newScope undef, lParms
 
@@ -558,7 +559,7 @@ export analyzeTS := (
 					do
 						funcName := getString node, '.name.escapedText'
 
-						lParms := MAP getArray(node, '.parameters'), (x) ->
+						lParms := Array.from MAP getArray(node, '.parameters'), (x) ->
 							yield getString(x, '.name.escapedText')
 						analysis.define funcName
 						analysis.newScope funcName, lParms
@@ -744,7 +745,7 @@ class CUnitTester extends CFileHandler
 		if not hResult.success || output.match(/croak|error/i)
 			return output
 
-		lLines := MAP allLinesInBlock(decolorize(output)), (line) ->
+		lLines := Array.from MAP allLinesInBlock(decolorize(output)), (line) ->
 			if line.startsWith('running')
 				yield line
 				yield ''

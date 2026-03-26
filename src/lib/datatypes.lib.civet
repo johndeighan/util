@@ -5,7 +5,7 @@ import deepEqual from 'npm-fast-deep-equal'
 
 export {deepEqual}
 
-import {croak} from 'croak'
+import {croak, getErrStr} from 'croak'
 
 export type TIterator<T, U=void, V=void> = Generator<T, U, V>
 export type TAsyncIterator<T, U=void, V=void> = AsyncGenerator<T, U, V>
@@ -37,7 +37,7 @@ export type TAssertFunc = (
 
 export assert: TAssertFunc := (
 		cond: unknown,
-		msg: string = "An error occurred"
+		msg: string = "An unknown error occurred"
 		): asserts cond =>
 
 	if not cond
@@ -469,19 +469,35 @@ export isPromise := <T>(x: unknown): x is Promise<T> =>
 
 # ---------------------------------------------------------------------------
 
-export isGenerator := (x: unknown): x is GeneratorFunction =>
+export isIterator := (
+		x: unknown
+		): x is Iterator<unknown, unknown, unknown> =>
 
-	return isFunction(x) && asStringIs(x, "[object GeneratorFunction]")
+	return (
+		   (typeof x == 'object')
+		&& (x != null)
+		&& ('next' in x)
+		&& (typeof x.next == 'function')
+		)
 
 # ---------------------------------------------------------------------------
 
-export isAsyncGenerator := (x: unknown): x is GeneratorFunction =>
+export isIterable := <T>(
+		x: unknown
+		): x is Iterable<T> =>
 
-	return isFunction(x) && asStringIs(x, "[object AsyncGeneratorFunction]")
+	return (
+		   (typeof x == 'object')
+		&& (x != null)
+		&& (Symbol.iterator in x)
+		&& (typeof x[Symbol.iterator] == 'function')
+		)
 
 # ---------------------------------------------------------------------------
 
-export isIterator := <T>(x: unknown): x is IterableIterator<T> =>
+export isIterableIterator := <T>(
+		x: unknown
+		): x is IterableIterator<T> =>
 
 	if (
 			   (typeof x != 'object')
@@ -496,11 +512,39 @@ export isIterator := <T>(x: unknown): x is IterableIterator<T> =>
 
 # ---------------------------------------------------------------------------
 
-export isAsyncIterator := <T>(x: unknown): x is AsyncIterableIterator<T> =>
+export isAsyncIterator := <T>(
+		x: unknown
+		): x is AsyncIterator<T> =>
+
+	return (
+		   (typeof x == 'object')
+		&& (x != null)
+		&& (Symbol.asyncIterator in x)
+		&& (typeof x[Symbol.asyncIterator] == 'function')
+		)
+
+# ---------------------------------------------------------------------------
+
+export isAsyncIterable := <T>(
+		x: unknown
+		): x is AsyncIterator<T> =>
+
+	return (
+		   (typeof x == 'object')
+		&& (x != null)
+		&& (Symbol.asyncIterator in x)
+		&& (typeof x[Symbol.asyncIterator] == 'function')
+		)
+
+# ---------------------------------------------------------------------------
+
+export isAsyncIterableIterator := <T>(
+		x: unknown
+		): x is AsyncIterableIterator<T> =>
 
 	if (
- 			   (typeof x != 'object')
- 			|| (x == null)
+			   (typeof x != 'object')
+			|| (x == null)
 			|| ('next' not in x)
 			|| (typeof x.next != 'function')
 			|| (Symbol.asyncIterator not in x)
@@ -511,11 +555,16 @@ export isAsyncIterator := <T>(x: unknown): x is AsyncIterableIterator<T> =>
 
 # ---------------------------------------------------------------------------
 
-export getErrStr := (err: unknown): string =>
+export isGeneratorFunction := <TIn, TAccum>(
+		x: unknown
+		): x is GeneratorFunction =>
 
-	if (typeof err == 'string')
-		return err
-	else if (err instanceof Error)
-		return err.message
-	else
-		return "Serious Error"
+	return Object.prototype.toString.call(x) == '[object GeneratorFunction]'
+
+# ---------------------------------------------------------------------------
+
+export isAsyncGeneratorFunction := <TIn, TAccum>(
+		x: unknown
+		): x is AsyncGeneratorFunction =>
+
+	return Object.prototype.toString.call(x) == '[object AsyncGeneratorFunction]'

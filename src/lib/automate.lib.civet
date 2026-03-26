@@ -2,12 +2,13 @@
 
 import {compile: compileSvelte} from 'npm-svelte/compiler'
 
+import {croak, getErrStr} from 'croak'
 import {
 	undef, defined, notdefined, assert,
-	nonEmptyString, hash, hashof, getErrStr,
+	nonEmptyString, hash, hashof,
 	} from 'datatypes'
 import {TNoArgPredicate, allOf} from 'predicates'
-import {keys, getOptions, croak} from 'llutils'
+import {keys, getOptions} from 'llutils'
 import {OL} from 'to-nice'
 import {
 	LOG, DBG, WARN, ERR, DBGVALUE, INDENT, UNDENT,

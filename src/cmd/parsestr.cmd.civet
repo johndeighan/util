@@ -1,7 +1,7 @@
 # parsestr.cmd.civet
 
 import {defined, assert} from 'datatypes'
-import {croak} from 'llutils'
+import {croak} from 'croak'
 import {findFile} from 'fsys'
 import {allNonOptions} from 'cmd-args'
 

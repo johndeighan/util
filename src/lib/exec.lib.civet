@@ -9,14 +9,16 @@ import {
 	} from 'npm-typescript'
 import {sprintf} from '@std/fmt/printf'
 
+import {croak, getErrStr} from 'croak'
 import {
-	undef, defined, notdefined, assert, hash, getErrStr,
-	isString, isArray, isArrayOfStrings, isEmpty, nonEmpty, TStringMapper,
+	undef, defined, notdefined, assert, hash, isEmpty,
+	isString, isArray, isArrayOfStrings, nonEmpty, TStringMapper,
 	} from 'datatypes'
-import {MAP, AMAP, awaitAll, Accumulate} from 'map'
+import {arrayAndAccumFrom, awaitAll} from 'iter-utils'
+import {MAP, AACCUM} from 'mapper'
 import {
-	getOptions, pass, blockToArray, decode, encode, sep, centered,
-	allLinesInBlock, croak,
+	getOptions, pass, blockToArray, decode, encode,
+	sep, centered, allLinesInBlock,
 	} from 'llutils'
 import {f, colorize, decolorize, withColors} from 'f-strings'
 import {write, writeln, resetLine } from 'console-utils'
@@ -71,61 +73,16 @@ export type TExecResult =
 
 type TFileProcessor = (input: string) => string
 
-export execCmdSync := (
-		cmdName: string,
-		lArgs: string[] = [],
-		hOptions: hash = {}
-		): TExecResult =>
+# ---------------------------------------------------------------------------
 
-	type opt = {
-		capture: boolean
-		outfile: string?
-		outProc: TFileProcessor
-		}
+export summarizeExec := (
+		lResults: TExecResult[]
+		action: string = 'executed'
+		): string =>
 
-	{capture, outfile, outProc,
-			} := getOptions<opt> hOptions, {
-		capture: true
-		outfile: undef
-		outProc: (str) => return str
-		}
-
-	streamType: TStreamType := capture ? 'piped' : 'inherit'
-	if defined(outfile)
-		assert (streamType == 'piped'),
-			"When specifying infile or outfile, capture must be true"
-	DBGVALUE "EXEC SYNC", "#{OL(getCmdLine cmdName, lArgs)}"
-	DBG INDENT
-	try
-		cmd := new Deno.Command cmdName, {
-			args: lArgs
-			env: {DEFAULT_LOGGER: curLogLevel()}
-			stdin: 'inherit'
-			stdout: streamType
-			stderr: streamType
-			}
-
-		{
-			success,
-			stdout: rawStdOut
-			stderr: rawStdErr
-			} := cmd.outputSync()
-		DBG UNDENT
-		if success && capture && defined(outfile)
-			Deno.writeTextFileSync outfile, decode(rawStdOut) + decode(rawStdErr)
-		return {
-			success
-			stdout: (capture && rawStdOut) ? outProc(decode(rawStdOut)) : ''
-			stderr: (capture && rawStdErr) ? outProc(decode(rawStdErr)) : ''
-			outfile
-			}
-	catch err
-		if debugging
-			ERR err
-		return {
-			success: false
-			stderr: getErrStr(err)
-			}
+	numOK := MAP lResults, 0, (h, acc) ->
+		return h.success && not h.notNeeded ? acc+1 : acc
+	return (numOK == 0) ? '' : "#{numOK} #{action}"
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -180,6 +137,64 @@ export execCmd := (
 			stdout: rawStdOut
 			stderr: rawStdErr
 			} := await child.output()
+		DBG UNDENT
+		if success && capture && defined(outfile)
+			Deno.writeTextFileSync outfile, decode(rawStdOut) + decode(rawStdErr)
+		return {
+			success
+			stdout: (capture && rawStdOut) ? outProc(decode(rawStdOut)) : ''
+			stderr: (capture && rawStdErr) ? outProc(decode(rawStdErr)) : ''
+			outfile
+			}
+	catch err
+		if debugging
+			ERR err
+		return {
+			success: false
+			stderr: getErrStr(err)
+			}
+
+# ---------------------------------------------------------------------------
+
+export execCmdSync := (
+		cmdName: string,
+		lArgs: string[] = [],
+		hOptions: hash = {}
+		): TExecResult =>
+
+	type opt = {
+		capture: boolean
+		outfile: string?
+		outProc: TFileProcessor
+		}
+
+	{capture, outfile, outProc,
+			} := getOptions<opt> hOptions, {
+		capture: true
+		outfile: undef
+		outProc: (str) => return str
+		}
+
+	streamType: TStreamType := capture ? 'piped' : 'inherit'
+	if defined(outfile)
+		assert (streamType == 'piped'),
+			"When specifying infile or outfile, capture must be true"
+	DBGVALUE "EXEC SYNC", "#{OL(getCmdLine cmdName, lArgs)}"
+	DBG INDENT
+	try
+		cmd := new Deno.Command cmdName, {
+			args: lArgs
+			env: {DEFAULT_LOGGER: curLogLevel()}
+			stdin: 'inherit'
+			stdout: streamType
+			stderr: streamType
+			}
+
+		{
+			success,
+			stdout: rawStdOut
+			stderr: rawStdErr
+			} := cmd.outputSync()
 		DBG UNDENT
 		if success && capture && defined(outfile)
 			Deno.writeTextFileSync outfile, decode(rawStdOut) + decode(rawStdErr)
@@ -308,7 +323,8 @@ export procFiles := (
 
 	lFinalResult := (
 		if serial
-			mapFunc := (path: string, i: number, acc: TAccum): TAccum ->
+			acc0: TAccum := [[],[],[],[]]
+			await AACCUM lPaths, acc0, (path: string, acc: TAccum): Promise<TAccum> =>
 				# --- must return a TAccum
 				prelog op, path, capture
 				try
@@ -318,8 +334,6 @@ export procFiles := (
 					return [[...acc[0], xres], acc[1], [...acc[2], path], acc[3]]
 				catch err
 					return [acc[0], [...acc[1], getErrStr(err)], acc[2], [...acc[3], path]]
-
-			await Accumulate<string,TAccum> lPaths, [[],[],[],[]], mapFunc
 		else
 			lPromises := for path of lPaths
 				handler.handle path, hOptions
@@ -328,8 +342,8 @@ export procFiles := (
 
 	[lFulfilled, lRejected, lFulPaths, lRejPaths] := lFinalResult
 
-	nRej := lRejected.length
-	[lAllResults, [nNotNeeded, nOk, nErr]] := MAP lFulfilled, [0,0,0], (h, i, acc) ->
+	acc0 := [0,0,0]
+	iter := MAP lFulfilled, acc0, (h, acc) ->
 		yield h
 		[n1, n2, n3] := acc
 		if h.success
@@ -339,6 +353,8 @@ export procFiles := (
 				return [n1, n2+1, n3]
 		else
 			return [n1, n2, n3+1]
+
+	[lAllResults, [nNotNeeded, nOk, nErr]] := arrayAndAccumFrom iter
 
 	# --- Write results to the console
 
@@ -355,7 +371,7 @@ export procFiles := (
 		showRejResult handler, lRejPaths[i], getErrStr(reason), hOptions
 
 	if not quiet || (nOk + nErr > 0)
-		showFinalResult op, nNotNeeded, nOk, nErr, nRej, lPatterns
+		showFinalResult op, nNotNeeded, nOk, nErr, lRejected.length, lPatterns
 	if abortOnError && (nErr > 0)
 		LOG "Aborting..."
 		Deno.exit -1

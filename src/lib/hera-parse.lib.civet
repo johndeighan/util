@@ -1,15 +1,16 @@
 # hera-parse.lib.civet
 
+import {croak, getErrStr} from 'croak'
 import {uni, esc} from 'unicode'
 import {
 	undef, defined, notdefined, hash, assert,
 	isEmpty, nonEmpty, deepCopy,
-	TStringMapper, getErrStr, TVoidFunc,
+	TStringMapper, TVoidFunc,
 	} from 'datatypes'
 import {isFile, findFile} from 'fsys'
-import {MAP} from 'map'
+import {MAP} from 'mapper'
 import {
-	allLinesInBlock, getOptions, sep, croak,
+	allLinesInBlock, getOptions, sep,
 	} from 'llutils'
 import {OL, ML} from 'to-nice'
 import {resetOneIndent, splitLine} from 'indent'

@@ -4,10 +4,11 @@ import {parse: parseFilePath} from 'node-path'
 import {existsSync} from '@std/fs'
 import {SourceMapConsumer} from 'npm-source-map'
 
+import {croak, getErrStr} from 'croak'
 import {
-	undef, assert, defined, notdefined, hash, getErrStr,
+	undef, assert, defined, notdefined, hash,
 	} from 'datatypes'
-import {getOptions, croak} from 'llutils'
+import {getOptions} from 'llutils'
 import {OL, DUMP} from 'to-nice'
 import {LOG, DBG, WARN, ERR} from 'logger'
 import {TextTable} from 'text-table'

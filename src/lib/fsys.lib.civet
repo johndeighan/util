@@ -14,15 +14,16 @@ import {
 	parse, resolve, relative, fromFileUrl,
 	} from '@std/path'
 
+import {croak} from 'croak'
 import {
 	undef, defined, notdefined, assert, obviously,
 	isEmpty, nonEmpty, isString, isNonEmptyString,
 	isBoolean, isNumber, isInteger, isArray, isArrayOfStrings,
 	isHash, isRegExp, integer, hash, hashof, TVoidFunc,
 	} from 'datatypes'
-import {MAP} from 'map'
+import {MAP} from 'mapper'
 import {
-	getOptions, pass, encode, spaces, croak,
+	getOptions, pass, encode, spaces,
 	sinceLoadStr, sleep, arrayToBlock,
 	} from 'llutils'
 import {isMetaDataStart, convertMetaData} from 'meta-data'
@@ -156,7 +157,8 @@ export normalizePath := (path: string): string =>
 
 export mkpath := (...lParts: string?[]): string =>
 
-	lUseParts := MAP lParts, (x) ->
+	debugger
+	lUseParts := Array.from MAP lParts, (x) ->
 		if nonEmpty(x)
 			obviously defined(x)
 			# --- Remove any leading or trailing slashes,
@@ -170,6 +172,7 @@ export mkpath := (...lParts: string?[]): string =>
 				$///
 			if defined(lMatches)
 				yield lMatches[1]
+		return
 
 	return normalizePath lUseParts.join('/')
 
@@ -511,9 +514,8 @@ export splitPatterns := (
 
 	type TAccum = [string[], string[]]
 
-	initAccum: TAccum := [[],[]]
-	[_, accum] := MAP<string,string,TAccum> lPatterns, initAccum, (pat, i, acc) ->
-		yield pat
+	acc0: TAccum := [[],[]]
+	accum := MAP lPatterns, acc0, (pat: string, acc: TAccum): TAccum ->
 		[lPos, lNeg] := acc
 		lMatches := pat.match ///^ \! \s+ (.*) $///
 		return (

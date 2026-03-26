@@ -1,20 +1,21 @@
 # to-nice.lib.civet
 
+import {croak} from 'croak'
 import {uni, esc} from 'unicode'
 import {f} from 'f-strings'
 import {write, writeln} from 'console-utils'
 import {
 	assert, undef, defined, notdefined, anyDefined,
 	hash, hashof, isString, isArray, isClass,
-	isRegExp, isObject, isFunction,
+	isRegExp, isObject, isFunction, isHash,
 	isEmpty, nonEmpty, integer,
-	symbolName, className, functionName, regexpDef, jsType, isHash,
+	symbolName, className, functionName, regexpDef, jsType,
 	} from 'datatypes'
 import {
-	getOptions, o, toBlock, spaces, sep, keys, croak,
+	getOptions, o, toBlock, spaces, sep, keys,
 	} from 'llutils'
 import {indented} from 'indent'
-import {MAP} from 'map'
+import {MAP} from 'mapper'
 
 # ---------------------------------------------------------------------------
 
@@ -171,8 +172,11 @@ export seq2nice := (
 	{compact, oneIndent} := getOptions<TNiceOptions> hOptions, hNiceDefaults
 
 	let hasMultiLine = false
-	lParts := MAP lValues, (val, i) ->
-		yield toNice(val, hOptions, mapVisited, [lPath..., i])
+	lParts := Array.from MAP lValues.entries(), (entry) ->
+		[val, i] := entry
+		# @ts-ignore - for some reason, TS thinks lPath has unknown elements
+		lNewPath: TPathIndex[] := [lPath..., i]
+		yield toNice(val, hOptions, mapVisited, lNewPath)
 		return
 
 	if compact
@@ -182,7 +186,7 @@ export seq2nice := (
 			return uni.alt_lbracket + lParts.join(' ') + uni.alt_rbracket
 	else
 		prefix := (kind == 'array') ? '-' : '--'
-		lBlocks := MAP lParts, (str, i) ->
+		lBlocks := Array.from MAP lParts, (str) ->
 			if str.includes('\n')
 				yield prefix + '\n' + indented(str, 1, {oneIndent})
 			else
@@ -238,7 +242,7 @@ export hash2nice := (
 			return false
 		return true
 	iterKeys := (defined(func) ? lKeys.sort(func) : lKeys).filter(useKey)
-	lParts := MAP iterKeys, (key: string): Generator<string> ->
+	lParts := Array.from MAP iterKeys, (key: string): Generator<string> ->
 		val := getter(key)
 		if not ignoreEmptyKeys || nonEmpty(val)
 			switch jsType(val)

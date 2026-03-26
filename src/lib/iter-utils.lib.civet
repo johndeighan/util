@@ -1,0 +1,124 @@
+# iter-utils.lib.civet
+
+import {assertEquals} from '@std/assert'
+
+import {getErrStr, croak} from 'croak'
+import {
+	undef, defined, notdefined, assert, obviously,
+	} from 'datatypes'
+
+# ---------------------------------------------------------------------------
+
+export arrayAndAccumFrom := <TOut, TAccum>(
+		iter: Generator<TOut, TAccum, void>
+		): [TOut[], TAccum] ->
+
+	let lItems: TOut[] = []
+	let finalVal: TAccum? = undef
+	loop
+		{value, done} := iter.next()
+		if done
+			finalVal = value
+			break
+		else
+			lItems.push value
+	return [lItems, finalVal]
+
+# ---------------------------------------------------------------------------
+
+export valuesFrom := <TOut>(
+		iter: Iterator<TOut, void, void>
+		): TOut[] ->
+
+	let lItems: TOut[] = []
+	loop
+		{value, done} := iter.next()
+		if done
+			break
+		else
+			lItems.push value
+	return lItems
+
+# ---------------------------------------------------------------------------
+
+export accumFrom := <TOut, TAccum>(
+		iter: Iterator<TOut, TAccum>
+		initAcc: TAccum
+		): TAccum =>
+
+	let retval: TAccum = initAcc
+	loop
+		{value, done} := iter.next()
+		if done
+			return retval
+
+# ---------------------------------------------------------------------------
+# ASYNC
+# --- returns [lFulfilled, lRejected, lFulfilledTags, lRejectedTags]
+#        lFulfilled is an array of TAccum
+#        lRejected is an array of unknown (usually Error objects)
+#        lFulfilledTags and lRejectedTags are arrays of strings
+
+type TRunResult<T> = [T[], unknown[], string[], string[]]
+
+export awaitAll := <T>(
+		lPromises: Promise<T>[]
+		lTags: string[] = []
+		): TRunResult<T> ->
+
+	lSettled := await Promise.allSettled(lPromises)
+	acc0: TRunResult<T> := [[],[],[],[]]
+	# @ts-ignore
+	[lItems, accum] := MAP lSettled, acc0, (h, i, acc) ->
+		if (h.status == 'fulfilled')
+			yield h.value
+		tag := (i >= 0) && (i < lTags.length) ? lTags[i] : ''
+		[lFulfilled, lRejected, lTags1, lTags2] := acc
+		if (h.status == 'fulfilled')
+			return [
+				[...lFulfilled, h.value],
+				lRejected,
+				[...lTags1, tag],
+				lTags2
+				]
+		else
+			return [
+				lFulfilled
+				[...lRejected, getErrStr(h.reason)]
+				lTags1
+				[...lTags2, tag]
+				]
+	# @ts-ignore
+	return accum
+
+# ---------------------------------------------------------------------------
+
+let nextNum = 1
+
+export equal := (
+		value: unknown,
+		expected: unknown
+		testName: string? = undef
+		): void =>
+
+	if notdefined(testName)
+		testName = "test #{nextNum}"
+		nextNum += 1
+	Deno.test testName, () => assertEquals(value, expected)
+	return
+
+# ---------------------------------------------------------------------------
+
+export generates := <TOut>(
+		value: Iterator<TOut>,
+		expected: unknown
+		testName: string? = undef
+		): void =>
+
+	if notdefined(testName)
+		testName = "test #{nextNum}"
+		nextNum += 1
+	Deno.test testName, () => assertEquals(valuesFrom(value), expected)
+	return
+
+# ---------------------------------------------------------------------------

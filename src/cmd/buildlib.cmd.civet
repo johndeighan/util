@@ -2,7 +2,6 @@
 
 import {assert, defined, notdefined} from 'datatypes'
 import {stdChecks, o, cmdTitle} from 'llutils'
-import {MAP} from 'map'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {LOG, ERR} from 'logger'
 import {withExt, findFile, relpath} from 'fsys'

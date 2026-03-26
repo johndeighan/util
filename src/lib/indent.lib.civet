@@ -1,5 +1,6 @@
 # indent.lib.civet
 
+import {croak} from 'croak'
 import {esc} from 'unicode'
 import {
 	undef, defined, notdefined, assert, array,
@@ -8,7 +9,7 @@ import {
 	} from 'datatypes'
 import {
 	rtrim, countChars, getOptions, blockToArray, arrayToBlock,
-	toArray, toBlock, widthOf, heightOf, keys, croak,
+	toArray, toBlock, widthOf, heightOf, keys,
 	} from 'llutils'
 import {OL} from 'to-nice'
 

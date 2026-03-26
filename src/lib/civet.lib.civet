@@ -4,11 +4,12 @@ import {exists, existsSync} from '@std/fs'
 import {Node, SourceFile} from 'npm-typescript'
 import {RawSourceMap} from 'npm-source-map'
 
+import {croak, getErrStr} from 'croak'
 import {
 	undef, defined, notdefined, hash, assert, isString, isHash,
-	isEmpty, nonEmpty, getErrStr,
+	isEmpty, nonEmpty,
 	} from 'datatypes'
-import {getOptions, o, rtrim, croak} from 'llutils'
+import {getOptions, o, rtrim} from 'llutils'
 import {OL, ML} from 'to-nice'
 import {LOG, DBG, ERR, DBGVALUE} from 'logger'
 import {flag, debugging, inspecting} from 'cmd-args'
@@ -18,7 +19,8 @@ import {
 	normalizePath, inSameDir, newerDestFileExists,
 	} from 'fsys'
 import {
-	execCmdSync, execCmd, CFileHandler, procFiles, TProcSpec, TExecResult,
+	execCmdSync, execCmd, CFileHandler, procFiles,
+	TProcSpec, TExecResult, summarizeExec,
 	} from 'exec'
 import {ts2ast, analyzeTS} from 'typescript'
 import {extractSourceMap, haveSourceMapFor} from 'source-map'
@@ -246,13 +248,29 @@ export compileAllLibs := (
 		hOptions: hash = {}
 		): TExecResult[] =>
 
+	type opt = {
+		summarize: boolean
+		echo: boolean
+		}
+	{summarize, echo} := getOptions<opt> hOptions, {
+		summarize: false
+		echo: false
+		}
+
 	# --- with 'quiet' option, still reports errors
 	spec: TProcSpec := [doCompileCivet, [mkpath(root, '**/*.lib.civet')]]
-	return await procFiles spec, {
+	lResults := await procFiles spec, {
 		...hOptions
 		quiet: true
 		abortOnError: true
 		}
+	if summarize
+		str := summarizeExec lResults, 'compiled'
+		if str
+			LOG str
+		else
+			LOG "No files compiled"
+	return lResults
 
 # ---------------------------------------------------------------------------
 

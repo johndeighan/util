@@ -1,10 +1,11 @@
 # symbols.lib.civet
 
+import {croak} from 'croak'
 import {
 	undef, defined, notdefined, assert,
 	hash, hashof, isEmpty, nonEmpty,
 	} from 'datatypes'
-import {pass, o, getOptions, keys, croak} from 'llutils'
+import {pass, o, getOptions, keys} from 'llutils'
 import {OL, ML} from 'to-nice'
 import {resetOneIndent} from 'indent'
 import {LOG, DBG, DBGVALUE} from 'logger'

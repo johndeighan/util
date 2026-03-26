@@ -2,11 +2,12 @@
 
 import {serveFile, serveDir} from '@std/http/file-server'
 
+import {croak, getErrStr} from 'croak'
 import {
 	undef, defined, notdefined, assert,
-	hash, TStringFilterFunc, getErrStr,
+	hash, TStringFilterFunc,
 	} from 'datatypes'
-import {getOptions, croak} from 'llutils'
+import {getOptions} from 'llutils'
 import {LOG, DBG, ERR} from 'logger'
 import {mkpath, relpath, fileExt} from 'fsys'
 
