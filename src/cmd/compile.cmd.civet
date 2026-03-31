@@ -1,6 +1,6 @@
 # compile.cmd.civet
 
-import {croak} from 'croak'
+import {TRY} from 'croak'
 import {assert, isArray} from 'datatypes'
 import {pass} from 'llutils'
 import {OL} from 'to-nice'
@@ -28,38 +28,40 @@ logResult := (
 
 # ---------------------------------------------------------------------------
 
-if (numNonOptions() == 0)
-	DBG "=====  Compiling all files  ====="
-	for path of allFilesMatching('src/**/*.{lib,cmd}.civet')
-		hResult := await compileFile path
-		logResult hResult, path
-else
-	# --- Files can be specified as:
-	#        - <stub>.(lib|cmd)
-	#        - <stub>.(lib|cmd).test
-	#        - a full or relative path
-	#     Multiple files can be comma-separated
-	for str of allNonOptions()
-		DBG "non-option: #{OL(str)}"
-		for item of str.split(',')
-			str: string := item
-			if (lMatches := str.match(/^([A-Za-z0-9_-]+)\.(lib|cmd)$/))
-				[_, stub, purpose] := lMatches
-				pat := 'src/**/' + stub + '.' + purpose + '.*'
-				for path of allFilesMatching(pat)
-					DBG "compile file #{OL(path)}"
-					logResult await compileFile(path), path
-			else if (lMatches2 := str.match(/^([A-Za-z0-9_-]+)\.(lib|cmd)\.test$/))
-				[_, stub, purpose] := lMatches2
-				pat := 'src/**/' + stub + '.' + purpose + '.test.*'
-				for path of allFilesMatching(pat)
-					DBG "compile file #{OL(path)}"
-					logResult await compileFile(path), path
-			else
-				DBG "compile file #{OL(str)}"
-				logResult await compileFile(str), str
-LOG "(#{numCompiled} files compiled)"
-if flag('w')
-	watchFiles Deno.cwd(), (kind, path) =>
-		console.log "EVENT: #{kind} #{OL(path)}"
-		return false
+TRY () =>
+	if (numNonOptions() == 0)
+		DBG "=====  Compiling all files  ====="
+		for path of allFilesMatching('src/**/*.{lib,cmd}.civet')
+			hResult := await compileFile path
+			logResult hResult, path
+	else
+		# --- Files can be specified as:
+		#        - <stub>.(lib|cmd)
+		#        - <stub>.(lib|cmd).test
+		#        - a full or relative path
+		#     Multiple files can be comma-separated
+		for str of allNonOptions()
+			DBG "non-option: #{OL(str)}"
+			for item of str.split(',')
+				str: string := item
+				if (lMatches := str.match(/^([A-Za-z0-9_-]+)\.(lib|cmd)$/))
+					[_, stub, purpose] := lMatches
+					pat := 'src/**/' + stub + '.' + purpose + '.*'
+					for path of allFilesMatching(pat)
+						DBG "compile file #{OL(path)}"
+						logResult await compileFile(path), path
+				else if (lMatches2 := str.match(/^([A-Za-z0-9_-]+)\.(lib|cmd)\.test$/))
+					[_, stub, purpose] := lMatches2
+					pat := 'src/**/' + stub + '.' + purpose + '.test.*'
+					for path of allFilesMatching(pat)
+						DBG "compile file #{OL(path)}"
+						logResult await compileFile(path), path
+				else
+					DBG "compile file #{OL(str)}"
+					logResult await compileFile(str), str
+	LOG "(#{numCompiled} files compiled)"
+	if flag('w')
+		watchFiles Deno.cwd(), (kind, path) =>
+			console.log "EVENT: #{kind} #{OL(path)}"
+			return false
+

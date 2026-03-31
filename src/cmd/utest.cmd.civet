@@ -1,6 +1,6 @@
 # utest.cmd.civet
 
-import {croak} from 'croak'
+import {TRY} from 'croak'
 import {
 	undef, defined, notdefined, assert, isString,
 	} from 'datatypes'
@@ -24,7 +24,7 @@ stdChecks """
 
 await compileAllLibs('.', {summarize: true})
 
-try
+TRY () =>
 	# --- echoes if flag is set
 	{force, inspect} := getFlags {
 		force: 'f'
@@ -62,6 +62,3 @@ try
 					}
 			else
 				ERR "No such file: #{fileName}"
-
-catch err
-	ERR err

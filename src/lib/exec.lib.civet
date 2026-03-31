@@ -15,7 +15,7 @@ import {
 	isString, isArray, isArrayOfStrings, nonEmpty, TStringMapper,
 	} from 'datatypes'
 import {arrayAndAccumFrom, awaitAll} from 'iter-utils'
-import {MAP, AACCUM} from 'mapper'
+import {MAP} from 'mapper'
 import {
 	getOptions, pass, blockToArray, decode, encode,
 	sep, centered, allLinesInBlock,
@@ -261,7 +261,7 @@ export prelog := (
 		): void =>
 
 	if capture
-		write "#{op} #{relpath(path)}"
+		writeln "#{op} #{relpath(path)}"     # was just write
 	else
 		writeln "#{op} #{relpath(path)} (no capture)"
 	return
@@ -273,6 +273,7 @@ export postlog := (
 		success: boolean
 		notNeeded: boolean?
 		): void =>
+
 	if success
 		if notNeeded
 			writeln f"#{' - not needed'}:{yellow}"
@@ -294,6 +295,7 @@ export procFiles := (
 		hOptions: hash = {}
 		): TExecResult[] =>
 
+	debugger
 	type opt = {
 		quiet: boolean
 		abortOnError: boolean
@@ -324,16 +326,27 @@ export procFiles := (
 	lFinalResult := (
 		if serial
 			acc0: TAccum := [[],[],[],[]]
-			await AACCUM lPaths, acc0, (path: string, acc: TAccum): Promise<TAccum> =>
+			MAP lPaths, acc0, (path, acc1): TAccum ->
 				# --- must return a TAccum
+				[lRes, lErrMsg, lPaths, lBadPaths] := acc1
 				prelog op, path, capture
 				try
 					xres: TExecResult := await handler.handle path, hOptions
 					if capture
 						postlog xres.success, xres.notNeeded
-					return [[...acc[0], xres], acc[1], [...acc[2], path], acc[3]]
+					return [
+						[...lRes, xres]
+						lErrMsg
+						[...lPaths, path]
+						lBadPaths
+						]
 				catch err
-					return [acc[0], [...acc[1], getErrStr(err)], acc[2], [...acc[3], path]]
+					return [
+						lRes
+						[...lErrMsg, getErrStr(err)]
+						lPaths
+						[...lBadPaths, path]
+						]
 		else
 			lPromises := for path of lPaths
 				handler.handle path, hOptions
@@ -343,9 +356,9 @@ export procFiles := (
 	[lFulfilled, lRejected, lFulPaths, lRejPaths] := lFinalResult
 
 	acc0 := [0,0,0]
-	iter := MAP lFulfilled, acc0, (h, acc) ->
+	iter := MAP lFulfilled, acc0, (h, acc2) ->
 		yield h
-		[n1, n2, n3] := acc
+		[n1, n2, n3] := acc2
 		if h.success
 			if h.notNeeded
 				return [n1+1, n2, n3]

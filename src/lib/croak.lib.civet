@@ -7,6 +7,7 @@ import {sprintf} from '@std/fmt/printf'
 type hash = {
 	[key: string | symbol]: unknown
 	}
+type TVoidFunc = () => void
 
 export let onlyThrow = false
 export let debug = false
@@ -71,16 +72,6 @@ export type TFrameFilter = (frame: TStackFrame) => boolean
 
 # ---------------------------------------------------------------------------
 
-export defaultFilter := (frame: TStackFrame): boolean =>
-
-	{source, type, name} := frame
-	return (
-		   not source.match(/croak\.lib\.(?:civet|ts)/)
-		&& ((type != 'method') || ((name != 'next') && (name != 'from')))
-		)
-
-# ---------------------------------------------------------------------------
-
 export dumpFrame := (
 		frame: TStackFrame,
 		label: string = 'FRAME'
@@ -97,16 +88,11 @@ export dumpFrame := (
 
 # ---------------------------------------------------------------------------
 
-# --- by default, ignores any stack frames from this module
-#     files will be mapped to original source files
-#        if a source map is available
-
 export allStackFrames := (
 		hOptions: hash = {}
 		): Generator<TStackFrame> ->
 
 	trace := hOptions.trace || false
-	filter := defaultFilter
 
 	try
 		# @ts-ignore
@@ -170,8 +156,7 @@ export allStackFrames := (
 		Error.prepareStackTrace = oldPreparer
 
 		for frame of lStack
-			if filter(frame)
-				yield frame
+			yield frame
 		return
 
 	catch err
@@ -201,7 +186,16 @@ export croak: TNeverFunc := (err: unknown): never =>
 		throw new Error(errMsg)
 	else
 		console.error red('CROAK') + ': ' + errMsg
-		console.error "STACK:"
+		console.error "-----  STACK -----"
 		for frame of allStackFrames()
 			dumpFrame frame
 		Deno.exit()
+
+# ---------------------------------------------------------------------------
+
+export TRY := (func: TVoidFunc): void =>
+
+	try
+		func()
+	catch err
+		croak err

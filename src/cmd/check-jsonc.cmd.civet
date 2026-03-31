@@ -1,12 +1,12 @@
-# --- check-jsonc.cmd.civet
+# check-jsonc.cmd.civet
 
 {parse: parseJSONC} from 'jsr:@std/jsonc'
 
+import {TRY} from 'croak'
+
 # ---------------------------------------------------------------------------
 
-try
+TRY () =>
 	contents := Deno.readTextFileSync Deno.args[0]
 	data := parseJSONC contents
 	console.log "OK"
-catch err
-	console.error "Error reading or parsing JSONC file:", err

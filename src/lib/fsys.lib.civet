@@ -542,6 +542,7 @@ export allFilesMatching := (
 		hOptions: hash = {}
 		): Generator<string> ->
 
+	debugger
 	type opt = {
 		root: string
 		hMoreGlobOptions: hash
@@ -573,7 +574,9 @@ export allFilesMatching := (
 		)
 
 	[lPosPats, lNegPats] := splitPatterns lAllPatterns.concat(lMorePatterns...)
-	if lNegPats.length > 0
+	if isEmpty(lPosPats)
+		return
+	if nonEmpty(lNegPats)
 		hGlobOptions.exclude = lNegPats
 	if debugging
 		LOG "PATTERNS:"

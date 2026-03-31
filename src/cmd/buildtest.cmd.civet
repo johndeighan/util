@@ -1,8 +1,9 @@
 # buildtest.cmd.civet
 
+import {TRY} from 'croak'
 import {stdChecks, o} from 'llutils'
 import {assert, defined} from 'datatypes'
-import {nonOption, allNonOptions, flag} from 'cmd-args'
+import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {withExt, findFile} from 'fsys'
 import {procFiles, procOneFile, doInstallCmd} from 'exec'
 import {doUnitTest} from 'typescript'
@@ -12,15 +13,16 @@ stdChecks "buildutest -nf (all | <stub>*)"
 
 // ---------------------------------------------------------------------------
 
-force := flag('f')
-if force
-	console.log "force = #{force}"
-
-if (nonOption(0) == 'all')
-	await procFiles [doCompileCivet, ['**/*.test.civet']], {force}
-else
-	for stub of allNonOptions()
-		fileName := "#{stub}.test.civet"
-		path := findFile fileName
-		assert defined(path), "No such file: #{fileName}"
-		await procOneFile path, doCompileCivet, {force}
+TRY () =>
+	# --- echoes if flag is set
+	{force} := getFlags {
+		force: 'f'
+		}
+	if (nonOption(0) == 'all')
+		await procFiles [doCompileCivet, ['**/*.test.civet']], {force}
+	else
+		for stub of allNonOptions()
+			fileName := "#{stub}.test.civet"
+			path := findFile fileName
+			assert defined(path), "No such file: #{fileName}"
+			await procOneFile path, doCompileCivet, {force}

@@ -1,5 +1,6 @@
 # build-dot-symbols.cmd.civet
 
+import {TRY} from 'croak'
 import {stdChecks} from 'llutils'
 import {undef, assert, hash, isEmpty, nonEmpty} from 'datatypes'
 import {getOptions, keys} from 'llutils'
@@ -65,8 +66,9 @@ getDotSymbols := (
 
 // ---------------------------------------------------------------------------
 
-lLines := await Array.fromAsync getDotSymbols()
-contents := lLines.join '\n'
-DBGVALUE 'contents', contents
-barf 'src/.symbols', contents
+TRY () =>
+	lLines := await Array.fromAsync getDotSymbols()
+	contents := lLines.join '\n'
+	DBGVALUE 'contents', contents
+	barf 'src/.symbols', contents
 

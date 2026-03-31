@@ -3,6 +3,7 @@
 import {assertEquals} from '@std/assert'
 
 import {getErrStr, croak} from 'croak'
+import {MAP} from 'mapper'
 import {
 	undef, defined, notdefined, assert, obviously,
 	} from 'datatypes'
@@ -25,14 +26,36 @@ export arrayAndAccumFrom := <TOut, TAccum>(
 	return [lItems, finalVal]
 
 # ---------------------------------------------------------------------------
+# ASYNC - returns a Promise<[TOut[], TAccum]
+
+export asyncArrayAndAccumFrom := <TOut, TAccum>(
+		iter: AsyncGenerator<TOut, TAccum, void>
+		): Promise<[TOut[], TAccum]> ->
+
+	let lItems: TOut[] = []
+	let finalVal: TAccum? = undef
+	loop
+		{value, done} := await iter.next()
+		if done
+			finalVal = value
+			break
+		else
+			lItems.push value
+	return new Promise (resolve, reject) =>
+		try
+			resolve [lItems, finalVal]
+		catch err
+			reject err
+
+# ---------------------------------------------------------------------------
 
 export valuesFrom := <TOut>(
-		iter: Iterator<TOut, void, void>
+		iter: Iterator<TOut, void, void> | AsyncIterator<TOut, void, void>
 		): TOut[] ->
 
 	let lItems: TOut[] = []
 	loop
-		{value, done} := iter.next()
+		{value, done} := await iter.next()
 		if done
 			break
 		else
@@ -110,7 +133,7 @@ export equal := (
 # ---------------------------------------------------------------------------
 
 export generates := <TOut>(
-		value: Iterator<TOut>,
+		value: Iterator<TOut> | AsyncIterator<TOut>
 		expected: unknown
 		testName: string? = undef
 		): void =>
@@ -118,7 +141,8 @@ export generates := <TOut>(
 	if notdefined(testName)
 		testName = "test #{nextNum}"
 		nextNum += 1
-	Deno.test testName, () => assertEquals(valuesFrom(value), expected)
+	lItems := await valuesFrom(value)
+	Deno.test testName, () => assertEquals(lItems, expected)
 	return
 
 # ---------------------------------------------------------------------------

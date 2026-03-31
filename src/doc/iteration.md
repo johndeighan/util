@@ -7,10 +7,15 @@ Iterator<T, TReturn, TNext>
 
 Iterable<T>
 	- an object that has a [Symbol.iterator] key
-	- can be used in for...of loop and with spread operator
+	- can be used in for ... of loop and with spread operator
 	- when [Symbol.iterator] is called, must return an Iterator<...> object
 	- Array, Map and Set are Iterables
 		their methods keys(), values() and entries() are Iterators
+
+AsyncIterable<T>
+	- an object that has a [Symbol.asyncIterator] key
+	- can be used in for await ... of loop and with spread operator
+	- when [Symbol.asyncIterator] is called, must return an AsyncIterator<...> object
 
 IterableIterator<T>
 	- is both an Iterator and an Iterable

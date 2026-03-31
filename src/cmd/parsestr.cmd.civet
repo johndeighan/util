@@ -1,5 +1,6 @@
 # parsestr.cmd.civet
 
+import {TRY} from 'croak'
 import {defined, assert} from 'datatypes'
 import {croak} from 'croak'
 import {findFile} from 'fsys'
@@ -7,31 +8,32 @@ import {allNonOptions} from 'cmd-args'
 
 # ---------------------------------------------------------------------------
 
-lNonOptions := allNonOptions()
-[stub, str] := switch lNonOptions.length
-		case 0:
-			croak "No args!"
-			['dummy', '']
-		case 1:
-			['test', lNonOptions[0]]
-		default:
-			[lNonOptions[0], lNonOptions.slice(1).join(' ')]
+TRY () =>
+	lNonOptions := allNonOptions()
+	[stub, str] := switch lNonOptions.length
+			case 0:
+				croak "No args!"
+				['dummy', '']
+			case 1:
+				['test', lNonOptions[0]]
+			default:
+				[lNonOptions[0], lNonOptions.slice(1).join(' ')]
 
-# console.log "stub = #{stub}"
-# console.log "str = #{str}"
+	# console.log "stub = #{stub}"
+	# console.log "str = #{str}"
 
-fileName := "#{stub}.parser.ts"
+	fileName := "#{stub}.parser.ts"
 
-# console.log "fileName = #{fileName}"
+	# console.log "fileName = #{fileName}"
 
-path := findFile fileName
+	path := findFile fileName
 
-# console.log "path = #{path}"
+	# console.log "path = #{path}"
 
-assert defined(path), "No such file: #{fileName}"
-{parser} := await import "file:///#{path}"
+	assert defined(path), "No such file: #{fileName}"
+	{parser} := await import "file:///#{path}"
 
-# console.log "parser found"
+	# console.log "parser found"
 
-result := parser.parse 'aaabbbbb'
-console.log "RESULT IS: #{result}"
+	result := parser.parse 'aaabbbbb'
+	console.log "RESULT IS: #{result}"

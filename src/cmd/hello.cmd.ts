@@ -1,6 +1,0 @@
-"use strict";
-// hello.cmd.civet
-
-console.log("Hello, you")
-
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoic3JjL2NtZFxcaGVsbG8uY21kLnRzIiwic291cmNlcyI6WyJzcmMvY21kL2hlbGxvLmNtZC5jaXZldCJdLCJtYXBwaW5ncyI6IjtBQUFBLGtCQUFpQjtBQUNqQixBQUFBO0FBQ0EsQUFBQSxPQUFPLENBQUMsR0FBRyxDQUFBLEFBQUMsWUFBWSxDQUFBO0FBQ3hCIiwibmFtZXMiOltdLCJzb3VyY2VzQ29udGVudCI6WyIjIGhlbGxvLmNtZC5jaXZldFxuXG5jb25zb2xlLmxvZyBcIkhlbGxvLCB5b3VcIlxuIl19

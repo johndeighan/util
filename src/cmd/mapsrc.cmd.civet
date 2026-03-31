@@ -1,5 +1,6 @@
 # mapsrc.cmd.civet
 
+import {TRY} from 'croak'
 import {stdChecks} from 'llutils'
 import {flag, nonOption, allNonOptions} from 'cmd-args'
 import {assert, defined} from 'datatypes'
@@ -10,22 +11,22 @@ stdChecks("mapsrc <path> <lineNum>")
 
 # ---------------------------------------------------------------------------
 
-source := nonOption 0
-assert defined(source), "Missing file path"
-assert isFile(source), "No such file: #{source}"
+TRY () =>
+	source := nonOption 0
+	assert defined(source), "Missing file path"
+	assert isFile(source), "No such file: #{source}"
 
-for str,i of allNonOptions()
-	if (i == 0)
-		# --- skip the path
-		continue
-	assert defined(str), "Missing line number"
-	assert str.match(/^\d+$/), "Bad line number: #{str}"
+	for str,i of allNonOptions()
+		if (i == 0)
+			# --- skip the path
+			continue
+		assert defined(str), "Missing line number"
+		assert str.match(/^\d+$/), "Bad line number: #{str}"
 
-	hPos := mapSourcePos {
-		source
-		line: parseInt(str)
-		col: 1
-		}
-	console.log "Line #{str} maps to:"
-	console.dir hPos
-
+		hPos := mapSourcePos {
+			source
+			line: parseInt(str)
+			col: 1
+			}
+		console.log "Line #{str} maps to:"
+		console.dir hPos

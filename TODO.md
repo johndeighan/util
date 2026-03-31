@@ -1,13 +1,7 @@
 to do
 
-bootstrap has errors
-
-loop
-	add a call to MAP to temp1.civet
-	run (use temptest) and see what the output is
-	add a unit test to temp1.lib.test.civet
-	run temputest and make sure tests all pass
-
+bootstrap fails on exec.lib.civet, but only when compiling
+serially
 
 op doUnitTest is displaying long output, not summary
 

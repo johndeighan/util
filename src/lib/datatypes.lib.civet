@@ -469,15 +469,44 @@ export isPromise := <T>(x: unknown): x is Promise<T> =>
 
 # ---------------------------------------------------------------------------
 
-export isIterator := (
+export isIterator := <T>(
 		x: unknown
-		): x is Iterator<unknown, unknown, unknown> =>
+		): x is Iterator<T, void, void> =>
 
 	return (
-		   (typeof x == 'object')
-		&& (x != null)
+		   isObject(x)
 		&& ('next' in x)
 		&& (typeof x.next == 'function')
+		)
+
+# ---------------------------------------------------------------------------
+
+export isIterableIterator := <T>(
+		x: unknown
+		): x is IterableIterator<T> =>
+
+	return (
+		   isObject(x)
+		&& ('next' in x)
+		&& (typeof x.next == 'function')
+		&& (Symbol.iterator in x)
+		&& (typeof x[Symbol.iterator] == 'function')
+		# @ts-ignore
+		&& (x[Symbol.iterator].call(x) == x)
+		)
+
+# ---------------------------------------------------------------------------
+
+export isAsyncIterator := <T>(
+		x: unknown
+		): x is AsyncIterator<T> =>
+
+	return (
+		   isObject(x)
+		&& ('next' in x)
+		&& (typeof x.next == 'function')
+		&& (Symbol.asyncIterator in x)
+		&& (typeof x[Symbol.asyncIterator] == 'function')
 		)
 
 # ---------------------------------------------------------------------------
@@ -487,40 +516,9 @@ export isIterable := <T>(
 		): x is Iterable<T> =>
 
 	return (
-		   (typeof x == 'object')
-		&& (x != null)
+		   isObject(x)
 		&& (Symbol.iterator in x)
 		&& (typeof x[Symbol.iterator] == 'function')
-		)
-
-# ---------------------------------------------------------------------------
-
-export isIterableIterator := <T>(
-		x: unknown
-		): x is IterableIterator<T> =>
-
-	if (
-			   (typeof x != 'object')
-			|| (x == null)
-			|| ('next' not in x)
-			|| (typeof x.next != 'function')
-			|| (Symbol.iterator not in x)
-			)
-		return false
-	iter := x[Symbol.iterator]
-	return (typeof iter == 'function') && (iter.call(x) == x)
-
-# ---------------------------------------------------------------------------
-
-export isAsyncIterator := <T>(
-		x: unknown
-		): x is AsyncIterator<T> =>
-
-	return (
-		   (typeof x == 'object')
-		&& (x != null)
-		&& (Symbol.asyncIterator in x)
-		&& (typeof x[Symbol.asyncIterator] == 'function')
 		)
 
 # ---------------------------------------------------------------------------
@@ -542,29 +540,34 @@ export isAsyncIterableIterator := <T>(
 		x: unknown
 		): x is AsyncIterableIterator<T> =>
 
-	if (
-			   (typeof x != 'object')
-			|| (x == null)
-			|| ('next' not in x)
-			|| (typeof x.next != 'function')
-			|| (Symbol.asyncIterator not in x)
-			)
-		return false
-	iter := x[Symbol.asyncIterator]
-	return (typeof iter == 'function') && (iter.call(x) == x)
+	return (
+		   isObject(x)
+		&& ('next' in x)
+		&& (typeof x.next == 'function')
+		&& (Symbol.asyncIterator in x)
+		&& (typeof x[Symbol.asyncIterator] == 'function')
+		# @ts-ignore
+		&& (x[Symbol.asyncIterator].call(x) == x)
+		)
 
 # ---------------------------------------------------------------------------
 
-export isGeneratorFunction := <TIn, TAccum>(
+export isGeneratorFunction := (
 		x: unknown
 		): x is GeneratorFunction =>
 
-	return Object.prototype.toString.call(x) == '[object GeneratorFunction]'
+	return (
+		   (typeof x == 'function')
+		&& (x.toString().match(/\bfunction\s*\*/) != null)
+		)
 
 # ---------------------------------------------------------------------------
 
-export isAsyncGeneratorFunction := <TIn, TAccum>(
+export isAsyncGeneratorFunction := (
 		x: unknown
 		): x is AsyncGeneratorFunction =>
 
-	return Object.prototype.toString.call(x) == '[object AsyncGeneratorFunction]'
+	return (
+		   (typeof x == 'function')
+		&& (x.toString().match(/\basync\s+function\s*\*/) != null)
+		)

@@ -1,5 +1,6 @@
 # buildpar.cmd.civet
 
+import {TRY} from 'croak'
 import {assert, defined} from 'datatypes'
 import {stdChecks, centered} from 'llutils'
 import {flag, nonOption, allNonOptions, getFlags} from 'cmd-args'
@@ -24,7 +25,7 @@ stdChecks """
 #     since unit test may require command to be installed
 
 hStyle  := {char: '=', color: 'cyan'}
-try
+TRY () =>
 	# --- echoes if flag is set
 	{force, doTest, inspect} := getFlags {
 		force: 'f'
@@ -53,6 +54,3 @@ try
 					await procOneFile withExt(heraPath, '.ts'), doUnitTest
 				else
 					console.log "No unit test named #{testPath}"
-catch err
-	ERR err
-

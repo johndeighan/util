@@ -1,5 +1,6 @@
 # buildlib.cmd.civet
 
+import {TRY} from 'croak'
 import {assert, defined, notdefined} from 'datatypes'
 import {stdChecks, o, cmdTitle} from 'llutils'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
@@ -19,7 +20,7 @@ stdChecks """
 
 # ---------------------------------------------------------------------------
 
-try
+TRY () =>
 	# --- echoes if flag is set
 	{force, doTest, inspect, inspectTest} := getFlags {
 		force: 'f'
@@ -38,6 +39,7 @@ try
 			# --- Create HTML coverage file
 			await execCmd 'deno', ['coverage', '--html'], {capture: false}
 	else
+		debugger
 		lNonOptions := Array.from(allNonOptions())
 		for stub of allNonOptions()
 			fileName := "#{stub}.lib.civet"
@@ -63,6 +65,3 @@ try
 						}
 				else
 					LOG "No unit test exists for #{stub}.lib"
-
-catch err
-	ERR err

@@ -1,6 +1,6 @@
 # analyze.cmd.civet
 
-import {croak} from 'croak'
+import {TRY, croak} from 'croak'
 import {TNoArgPredicate} from 'predicates'
 import {
 	undef, defined, notdefined, assert,
@@ -20,27 +20,29 @@ stdChecks """
 
 # ---------------------------------------------------------------------------
 
-fileName := nonOption(0)
-assert defined(fileName), "No file name provided"
-path := (
-	  fileName.match(/[\\\/]/)
-	? fileName
-	: findFile(fileName, {lIgnoreDirs: []})
-	)
-assert defined(path), "No such file: #{fileName}"
-LOG "-----  ANALYZE #{relpath(path)}  -----"
-tsCode := switch fileExt(path)
-	when '.ts'
-		slurp(path)
-	when '.civet'
-		civet2ts(slurp path)
-	default:
-		croak("Bad path: #{path}")
+TRY () =>
+	fileName := nonOption(0)
+	assert defined(fileName), "No file name provided"
+	path := (
+		  fileName.match(/[\\\/]/)
+		? fileName
+		: findFile(fileName, {lIgnoreDirs: []})
+		)
+	assert defined(path), "No such file: #{fileName}"
+	LOG "-----  ANALYZE #{relpath(path)}  -----"
+	tsCode := switch fileExt(path)
+		when '.ts'
+			slurp(path)
+		when '.civet'
+			civet2ts(slurp path)
+		default:
+			croak("Bad path: #{path}")
 
-analysis := analyzeTS tsCode, {dumpAST: true, trace: true}
-DUMP analysis
+	analysis := analyzeTS tsCode, {dumpAST: true, trace: true}
+	DUMP analysis
 
-if flag('v')
-	DUMP analysis, 'ANALYSIS'
-else
-	DUMP analysis.asString(), 'ANALYSIS'
+	if flag('v')
+		DUMP analysis, 'ANALYSIS'
+	else
+		DUMP analysis.asString(), 'ANALYSIS'
+

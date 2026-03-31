@@ -1,6 +1,7 @@
 # reset.cmd.civet
 
-import {stdChecks } from 'llutils'
+import {TRY} from 'croak'
+import {stdChecks} from 'llutils'
 import {
 	procFiles, doRemoveTsFile, doRemoveFile, doInstallCmd, doUninstallCmd,
 	} from 'exec'
@@ -10,25 +11,26 @@ stdChecks "reset"
 
 # ---------------------------------------------------------------------------
 
-# 1. remove all *.ts files corresponding to *.civet files
-#           if purpose is 'lib', 'cmd', 'parse', or 'test'
-console.log "Remove *.{lib,cmd,parse,text}.ts"
-await procFiles [doRemoveTsFile, ['src/**/*.{lib,cmd,parse,test}.ts']]
+TRY () =>
+	# 1. remove all *.ts files corresponding to *.civet files
+	#           if purpose is 'lib', 'cmd', 'parse', or 'test'
+	console.log "Remove *.{lib,cmd,parse,text}.ts"
+	await procFiles [doRemoveTsFile, ['src/**/*.{lib,cmd,parse,test}.ts']]
 
-# 2. remove all temp files
-console.log "Remove temp files"
-await procFiles [doRemoveFile, ['src/**/*.temp.*']]
+	# 2. remove all temp files
+	console.log "Remove temp files"
+	await procFiles [doRemoveFile, ['src/**/*.temp.*']]
 
-# 3. If there is a directory named 'test', remove any subfolders
-console.log "Remove test subfolders"
-for path of allFilesMatching("src/**/test/*", includeDirs: true)
-	if isDir(path)
-		rmDir path, {clear: true}
+	# 3. If there is a directory named 'test', remove any subfolders
+	console.log "Remove test subfolders"
+	for path of allFilesMatching("src/**/test/*", includeDirs: true)
+		if isDir(path)
+			rmDir path, {clear: true}
 
-# 4. remove all log files
-console.log "Remove log files"
-await procFiles [doRemoveFile, ['src/**/log/*']]
+	# 4. remove all log files
+	console.log "Remove log files"
+	await procFiles [doRemoveFile, ['src/**/log/*']]
 
-# 5. uninstall all commands installed by this project
-console.log "Uninstall cmd files"
-await procFiles [doUninstallCmd, ['src/**/*.cmd.ts']]
+	# 5. uninstall all commands installed by this project
+	console.log "Uninstall cmd files"
+	await procFiles [doUninstallCmd, ['src/**/*.cmd.ts']]

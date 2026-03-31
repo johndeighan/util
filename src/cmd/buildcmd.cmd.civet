@@ -1,5 +1,6 @@
 # buildcmd.cmd.civet
 
+import {TRY} from 'croak'
 import {assert, defined} from 'datatypes'
 import {stdChecks, cmdTitle} from 'llutils'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
@@ -19,7 +20,7 @@ stdChecks """
 
 # ---------------------------------------------------------------------------
 
-try
+TRY () =>
 	# --- echoes if flag is set
 	{doInstall, doTest, inspect, force} := getFlags {
 		doInstall: 'i'
@@ -57,5 +58,3 @@ try
 				await procOneFile tsPath, doInstallCmd
 			else
 				LOG "not installed (use -i to install)"
-catch err
-	ERR err
