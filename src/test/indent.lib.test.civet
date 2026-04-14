@@ -2,10 +2,10 @@
 
 import {DBG} from 'logger'
 import {
-	undef, defined, notdefined, assert, deepEqual,
+	undef, defined, notdefined, assert,
 	} from 'datatypes'
 import {
-	spaces, tabs, throwsError, s,
+	spaces, tabs, throwsError, s, deepEqual,
 	} from 'llutils'
 import {
 	oneIndent, resetOneIndent, indentLevel, splitLine,

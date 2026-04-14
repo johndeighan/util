@@ -5,10 +5,11 @@ import {sprintf} from '@std/fmt/printf'
 import {relative} from '@std/path'
 import {existsSync} from '@std/fs'
 import {parse: parseYAML} from "@std/yaml"
+import deepEqual from 'npm-fast-deep-equal'
 
 import {croak} from 'croak'
 import {
-	undef, defined, notdefined, assert, char, deepEqual,
+	undef, defined, notdefined, assert, char,
 	isHash, isArray, isNonEmptyString,
 	isArrayOfStrings, isEmpty, nonEmpty, isString, isInteger,
 	integer, hash, hashof, array, arrayof, TVoidFunc, isNonPrimitive,
@@ -18,6 +19,8 @@ import {f, colorize} from 'f-strings'
 
 llutilsLoadTime: integer := Date.now()
 defWidth := 64     # ---used in sep, centered
+
+export {deepEqual}
 
 # ---------------------------------------------------------------------------
 

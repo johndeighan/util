@@ -1,5 +1,7 @@
 # fetcher.civet
 
+import deepEqual from 'npm-fast-deep-equal'
+
 import {
 	undef, defined, notdefined, assert, deepEqual,
 	} from 'datatypes'

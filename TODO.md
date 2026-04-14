@@ -1,7 +1,6 @@
 to do
 
-bootstrap fails on exec.lib.civet, but only when compiling
-serially
+in mapper.lib.test.civet, test named 'nine test 2' craps out
 
 op doUnitTest is displaying long output, not summary
 

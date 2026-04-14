@@ -66,14 +66,12 @@ export valuesFrom := <TOut>(
 
 export accumFrom := <TOut, TAccum>(
 		iter: Iterator<TOut, TAccum>
-		initAcc: TAccum
-		): TAccum =>
+		): TAccum? =>
 
-	let retval: TAccum = initAcc
 	loop
 		{value, done} := iter.next()
 		if done
-			return retval
+			return value
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -113,36 +111,5 @@ export awaitAll := <T>(
 				]
 	# @ts-ignore
 	return accum
-
-# ---------------------------------------------------------------------------
-
-let nextNum = 1
-
-export equal := (
-		value: unknown,
-		expected: unknown
-		testName: string? = undef
-		): void =>
-
-	if notdefined(testName)
-		testName = "test #{nextNum}"
-		nextNum += 1
-	Deno.test testName, () => assertEquals(value, expected)
-	return
-
-# ---------------------------------------------------------------------------
-
-export generates := <TOut>(
-		value: Iterator<TOut> | AsyncIterator<TOut>
-		expected: unknown
-		testName: string? = undef
-		): void =>
-
-	if notdefined(testName)
-		testName = "test #{nextNum}"
-		nextNum += 1
-	lItems := await valuesFrom(value)
-	Deno.test testName, () => assertEquals(lItems, expected)
-	return
 
 # ---------------------------------------------------------------------------

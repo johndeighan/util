@@ -12,12 +12,12 @@ import {esc, mesc} from 'unicode'
 import {
 	undef, defined, notdefined, isEmpty, nonEmpty,
 	array, arrayof, isArray, isHash, isString, hash, hashof,
-	deepEqual, integer, isFunction, isClass, functionDef, classDef,
+	integer, isFunction, isClass, functionDef, classDef,
 	TVoidFunc, TVoidIterator, isIterator,
 	} from 'datatypes'
 import {
 	pass, o, keys, getOptions, spaces, blockToArray,
-	truncStr, sleep,
+	truncStr, sleep, deepEqual,
 	} from 'llutils'
 import {splitLine, indented} from 'indent'
 import {OL, ML, DUMP} from 'to-nice'
@@ -131,25 +131,6 @@ export falsy := (value: unknown): void =>
 
 # ---------------------------------------------------------------------------
 
-export fails := (func: TVoidFunc): void =>
-
-	testName := getTestName()
-	DBG "fails <func> (#{testName})"
-	Deno.test testName, (): void =>
-		pushLogLevel 'silent' # --- silence any errors generated
-		justThrow true
-		try
-			func()
-			throw new Error("in fails() - function succeeded")
-		catch err
-			pass()
-		finally
-			popLogLevel()
-			justThrow false
-	return
-
-# ---------------------------------------------------------------------------
-
 export succeeds := (func: TVoidFunc): void =>
 
 	testName := getTestName()
@@ -162,6 +143,25 @@ export succeeds := (func: TVoidFunc): void =>
 		catch err
 			errMsg := getErrStr(err)
 			throw new Error("in succeeds() - func failed with #{errMsg}")
+		finally
+			popLogLevel()
+			justThrow false
+	return
+
+# ---------------------------------------------------------------------------
+
+export fails := (func: TVoidFunc): void =>
+
+	testName := getTestName()
+	DBG "fails <func> (#{testName})"
+	Deno.test testName, (): void =>
+		pushLogLevel 'silent' # --- silence any errors generated
+		justThrow true
+		try
+			func()
+			throw new Error("in fails() - function succeeded")
+		catch err
+			pass()
 		finally
 			popLogLevel()
 			justThrow false
@@ -349,7 +349,7 @@ export checkType := (
 export isType := (
 		typeStr: string,
 		value: unknown,
-		isOfType: (Function?) = undef
+		isOfType: Function? = undef
 		): void =>
 
 	testName := getTestName()

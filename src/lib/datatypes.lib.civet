@@ -1,9 +1,6 @@
 # datatypes.lib.civet
 
 import {minify} from 'npm-uglify-js'
-import deepEqual from 'npm-fast-deep-equal'
-
-export {deepEqual}
 
 import {croak, getErrStr} from 'croak'
 

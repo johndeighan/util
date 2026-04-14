@@ -1,9 +1,8 @@
 # datatypes.lib.test.civet
 
 import {croak} from 'croak'
-import {obviously} from 'datatypes'
 import {
-	deepEqual, undef, defined, notdefined, assert,
+	undef, defined, notdefined, assert, obviously,
 	anyDefined, anyNotDefined,
 	array, arrayof, isArray,
 	hash, hashof, isHash,
@@ -19,6 +18,7 @@ import {
 	isObject, isGeneratorFunction, isAsyncGeneratorFunction,
 	isIterator, isAsyncIterator, jsType,
 	} from 'datatypes'
+import {deepEqual} from 'llutils'
 import {DBG} from 'logger'
 import {
 	equal, truthy, falsy, fails, succeeds,

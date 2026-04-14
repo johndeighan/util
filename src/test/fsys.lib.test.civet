@@ -1,7 +1,7 @@
 # fsys.lib.test.civet
 
 import {
-	undef, defined, hash, isString, deepEqual, isFunction,
+	undef, defined, hash, isString, isFunction,
 	} from 'datatypes'
 import {
 	o, spaces, sinceLoad, sinceLoadStr, sleep, pass,

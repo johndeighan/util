@@ -3,8 +3,10 @@
 import {yellow} from '@std/fmt/colors'
 
 import {getErrStr} from 'croak'
+import {accumFrom, arrayAndAccumFrom} from 'iter-utils'
 import {
-	assert, obviously, isArray, isFunction, isIterator, isIterable,
+	undef, assert, obviously,
+	isArray, isFunction, isIterator, isIterable,
 	TNonFunction, isString, isAsyncIterableIterator,
 	isGeneratorFunction, isAsyncGeneratorFunction,
 	} from 'datatypes'
@@ -54,52 +56,51 @@ type TAsyncAccumMapper<TIn, TAccum extends TNonFunction> = (
 
 # ---------------------------------------------------------------------------
 
-# --- Variant 1, no accumulator
-export function MAPv1<TIn, TOut, TAccum extends TNonFunction>(
-		lItems:  TIn[] | Iterator<TIn>
-		mapFunc: TMapper<TIn, TOut>
-		): Generator<TOut, void, void>
-
-	trace "in MAPv1"
-	iter := isArray(lItems) ? lItems.values() : lItems
-	obviously isGeneratorFunction mapFunc
-	loop
-		{value, done} := iter.next()
-		if done
-			break
-		else
-			yield* mapFunc(value)   # --- don't care about return value
-	return
+# # --- Variant 1, no accumulator
+# export function MAPsync<TIn, TOut, TAccum extends TNonFunction>(
+# 		lItems:  TIn[] | Iterator<TIn>
+# 		mapFunc: TBothMapper<TIn, TOut, void>
+# 		): Generator<TOut, void, void>
+#
+# 	trace "in MAPsync"
+# 	iter := isArray(lItems) ? lItems.values() : lItems
+# 	loop
+# 		{value, done} := iter.next()
+# 		if done
+# 			break
+# 		else
+# 			yield* mapFunc(value, undef)   # --- don't care about return value
+# 	return
 
 # ---------------------------------------------------------------------------
 
-# --- Variant 2, only accumulator
-export function MAPv2<TIn, TOut, TAccum extends TNonFunction>(
-		lItems:  TIn[] | Iterator<TIn>
-		acc: TAccum
-		mapFunc: TAccumMapper<TIn, TAccum>         # plain function
-		): TAccum
-
-	trace "in MAPv2"
-	iter := isArray(lItems) ? lItems.values() : lItems
-	loop
-		{value, done} := iter.next()
-		if done
-			break
-		else
-			acc = mapFunc(value, acc)
-	return acc
+# # --- Variant 2, only accumulator
+# export function MAPv2<TIn, TOut, TAccum extends TNonFunction>(
+# 		lItems:  TIn[] | Iterator<TIn>
+# 		acc: TAccum
+# 		mapFunc: TBothMapper<TIn, void, TAccum>         # plain function
+# 		): TAccum
+#
+# 	trace "in MAPv2"
+# 	iter := isArray(lItems) ? lItems.values() : lItems
+# 	loop
+# 		{value, done} := iter.next()
+# 		if done
+# 			break
+# 		else
+# 			acc = mapFunc(value, acc)
+# 	return acc
 
 # ---------------------------------------------------------------------------
 
 # --- Variant 3, iterator with accumulator
-export function MAPv3<TIn, TOut, TAccum extends TNonFunction>(
+export function MAPsync<TIn, TOut, TAccum extends TNonFunction>(
 		lItems:  TIn[] | Iterator<TIn>
 		acc: TAccum
 		mapFunc: TBothMapper<TIn, TOut, TAccum>    # generator function
 		): Generator<TOut, TAccum, void>
 
-	trace "in MAPv3"
+	trace "in MAPsync"
 	iter := isArray(lItems) ? lItems.values() : lItems
 	loop
 		{value, done} := iter.next()
@@ -236,7 +237,7 @@ export function MAP<TIn, TOut, TAccum extends TNonFunction>(
 		lItems:  TIn[] | Iterator<TIn> | AsyncIterableIterator<TIn>
 		arg2: TMapper<TIn, TOut> | TAccum
 		arg3: void | TAccumMapper<TIn, TAccum> | TBothMapper<TIn, TOut, TAccum> | TAsyncAccumMapper<TIn, TAccum>
-		): Generator<TOut, void | TAccum, void> | TAccum | Promise<TAccum> | AsyncGenerator<TOut, void | TAccum, void>
+		): Generator<TOut, void | TAccum, void> | TAccum? | Promise<TAccum> | AsyncGenerator<TOut, void | TAccum, void>
 
 	if isAsyncIterableIterator(lItems)
 		if isFunction(arg2)
@@ -257,7 +258,7 @@ export function MAP<TIn, TOut, TAccum extends TNonFunction>(
 		iter := isArray(lItems) ? lItems.values() : lItems
 		if isFunction(arg2)
 			mapFunc := arg2
-			return MAPv1 lItems, mapFunc
+			return MAPsync lItems, undef, mapFunc      # was MAPsync
 		else
 			acc := arg2
 			mapFunc := arg3
@@ -265,13 +266,14 @@ export function MAP<TIn, TOut, TAccum extends TNonFunction>(
 			obviously isFunction(mapFunc)
 			if isGeneratorFunction(mapFunc)
 				# @ts-ignore
-				return MAPv3 lItems, acc, mapFunc
+				return MAPsync lItems, acc, mapFunc
 			else if isAsyncGeneratorFunction(mapFunc)
 				# @ts-ignore
 				return MAPv7 lItems, acc, mapFunc
 			else
 				# @ts-ignore
-				return MAPv2 lItems, acc, mapFunc
+				iter := MAPsync lItems, acc, mapFunc    # was MAPv2
+				return accumFrom iter, undef
 
 # ---------------------------------------------------------------------------
 # ASYNC

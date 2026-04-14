@@ -2,7 +2,7 @@
 
 import {LOG, DBG} from 'logger'
 import {
-	deepEqual, undef, functionDef, isArray, isHash,
+	undef, functionDef, isArray, isHash,
 	} from 'datatypes'
 import {
 	sinceLoad, sinceLoadStr, throwsError, pass, truncStr,
@@ -10,7 +10,7 @@ import {
 	keys, hasKey, hasKeys, sleep, spaces, tabs,
 	rtrim, countChars, words, getLineAndColumn,
 	blockToArray, allLinesInBlock, toArray,
-	arrayToBlock, toBlock, rpad, lpad,
+	arrayToBlock, toBlock, rpad, lpad, deepEqual,
 	TAlignment, isAlignment, alignString, zpad,
 	TBlockSpec, isBlockSpec, allMatches, range,
 	widthOf, heightOf, CStringSetMap, fromTAML,
