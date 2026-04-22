@@ -2,18 +2,19 @@
 
 import {undef, defined, notdefined} from 'base-utils'
 import {hash, isArray, TAsyncIterator} from 'datatypes'
+import {f} from 'f-strings'
 import {croak, assert, obviously} from 'croak'
+import {DBG, pushLogLevel, popLogLevel} from 'logger'
 
 # ---------------------------------------------------------------------------
 
-type TStateNum = number
-type TStateValue<TOut> = TStateNum | [-1, TOut]
+export type TState = number
 
-type TStateFunc<TIn, TOut> = (
+export type TStateFunc<TIn, TOut> = (
 		item: TIn,
 		i: number
-		) => TStateValue<TOut>
-type TReturnFunc<TOut> = () => TOut
+		) => TState
+export type TReturnFunc<TOut> = () => TOut
 
 export type TStateDesc<TIn, TOut> = {
 	stateFunc: TStateFunc<TIn, TOut>
@@ -22,7 +23,7 @@ export type TStateDesc<TIn, TOut> = {
 
 # ---------------------------------------------------------------------------
 
-export isStateNum := (x: number): x is TStateNum =>
+export isStateNum := (x: number): x is TState =>
 
 	return (x >= 0)
 
@@ -33,16 +34,25 @@ export fromFSM := <TIn, TOut>(
 		lStates: TStateDesc<TIn, TOut>[]
 		): TOut =>
 
+	numStates := lStates.length
 	try
 		let state = 0
+		let newState = 0
+		DBG "state  new"
+		DBG f"#{'-'}:5 #{0}:5"
 		for item,i of lItems
 			{stateFunc, retFunc} := lStates[state]
-			state = handleItem item, stateFunc, retFunc, i
+			newState = handleItem item, stateFunc, retFunc, i
+			DBG f"#{state}:5 #{newState}:5"
+			assert (newState >= 0), "Bad new state: #{newState}"
+			state = newState
 
 		{retFunc} := lStates[state]
 		obviously 0 <= state <= lStates.length
 		if defined(retFunc)
-			return retFunc()
+			retval := retFunc()
+			DBG f"#{state}:5 #{state}:5 #{JSON.stringify(retval)}"
+			return retval
 		else
 			croak "End state #{state} not a final state"
 	catch x
@@ -53,12 +63,28 @@ export fromFSM := <TIn, TOut>(
 
 # ---------------------------------------------------------------------------
 
+export fromFSMdebug := <TIn, TOut>(
+		lItems:  TIn[]
+		lStates: TStateDesc<TIn, TOut>[]
+		): TOut =>
+
+	try
+		pushLogLevel 'debug'
+		result := fromFSM lItems, lStates
+		popLogLevel()
+		return result
+	catch err
+		popLogLevel()
+		throw err
+
+# ---------------------------------------------------------------------------
+
 handleItem := <TIn, TOut>(
 		item:      TIn
 		stateFunc: TStateFunc<TIn, TOut>
 		retFunc:   TReturnFunc<TOut>?
 		i: number
-		): TStateNum =>
+		): TState =>
 
 	result := stateFunc(item, i)
 

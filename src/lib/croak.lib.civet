@@ -84,10 +84,11 @@ export allStackFrames := (
 		# @ts-ignore
 		Error.prepareStackTrace = (error, lOrgFrames) =>
 
+			debugger
 			lFrames: TStackFrame[] := for orgFrame,i of lOrgFrames
-				fileName := orgFrame.getFileName()
+				fileName     := orgFrame.getFileName()
 				functionName := orgFrame.getFunctionName()
-				methodName := orgFrame.getMethodName()
+				methodName   := orgFrame.getMethodName()
 				frame: TStackFrame := {
 					i
 					type: (
@@ -109,10 +110,9 @@ export allStackFrames := (
 				#     top level anonymous function is reported as
 				#     being of type 'script'
 
-				if prevFrame
-					if (frame.type == 'script') && (prevFrame.type == 'script')
-						prevFrame.type = 'function'
-						prevFrame.name = '<anon>'
+				if prevFrame && (frame.type == 'script') && (prevFrame.type == 'script')
+					prevFrame.type = 'function'
+					prevFrame.name = '<anon>'
 
 				if trace
 					dumpFrame frame, 'ORG FRAME'

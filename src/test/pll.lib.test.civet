@@ -1,15 +1,16 @@
 # pll.lib.test.civet
 
-import {undef} from 'datatypes'
+import {undef} from 'base-utils'
 import {DBG} from 'logger'
 import {allLinesInBlock, o} from 'llutils'
 import {
 	TPLLToken, tokenWith, TTokenGenerator,
 	allTokensIn, allTokensInBlock, allTokensInFile,
 	tkIndent, tkUndent, tkEOF, tokenTable,
+	isPLLToken, isTokenGenerator,
 	} from 'pll'
 import {
-	equal, iterEqual, iterLike, objListLike, isType, setDirTree,
+	equal, truthy, falsy, unifies, setDirTree,
 	} from 'unit-test'
 
 # ---------------------------------------------------------------------------
@@ -32,9 +33,9 @@ await setup()
 
 DBG "type TPLLToken"
 
-isType 'TPLLToken', {kind: 'xxx', str: 'yyy'}
-isType 'TPLLToken', {kind: 'xxx', str: 'yyy', value: undef}
-isType 'TPLLToken', {kind: 'xxx', str: 'yyy', value: 42}
+truthy isPLLToken {kind: 'xxx', str: 'yyy'}
+truthy isPLLToken {kind: 'xxx', str: 'yyy', value: undef}
+truthy isPLLToken {kind: 'xxx', str: 'yyy', value: 42}
 
 DBG "tokenWith"
 
@@ -49,7 +50,7 @@ DBG "type TTokenGenerator"
 	identGen := (line: string) ->
 		yield {kind: 'line', str: line}
 		return
-	isType 'TTokenGenerator', identGen
+	truthy isTokenGenerator identGen
 	)()
 
 (() =>
@@ -57,18 +58,18 @@ DBG "type TTokenGenerator"
 		for ch of line
 			yield {kind: 'char', str: ch}
 		return
-	isType 'TTokenGenerator', charGen
+	truthy isTokenGenerator charGen
 	)()
 
 DBG "allTokensIn()"
 
-iterLike allTokensIn(allLinesInBlock("abc\ndef")), [
+unifies Array.from(allTokensIn(allLinesInBlock("abc\ndef"))), [
 	{kind: 'line', str: 'abc'}
 	{kind: 'line', str: 'def'}
 	{kind: 'eof'}
 	]
 
-iterEqual allTokensIn(allLinesInBlock('abc\ndef')), [
+unifies Array.from(allTokensIn(allLinesInBlock('abc\ndef'))), [
 	{kind: 'line', str: 'abc'}
 	{kind: 'line', str: 'def'}
 	{kind: 'eof'}
@@ -76,22 +77,22 @@ iterEqual allTokensIn(allLinesInBlock('abc\ndef')), [
 
 DBG "allTokensInBlock(str)"
 
-iterEqual allTokensInBlock('abc\ndef'), [
+unifies Array.from(allTokensInBlock('abc\ndef')), [
 	{kind: 'line', str: 'abc'}
 	{kind: 'line', str: 'def'}
 	{kind: 'eof'}
 	]
 
-iterLike allTokensInBlock("""
+unifies Array.from(allTokensInBlock("""
 	abc
 	def
-	"""), [
+	""")), [
 	{kind: 'line', str: 'abc'}
 	{kind: 'line', str: 'def'}
 	{kind: 'eof'}
 	]
 
-iterLike allTokensInBlock("abc\n\tdef"), [
+unifies Array.from(allTokensInBlock("abc\n\tdef")), [
 	{kind: 'line', str: 'abc'}
 	{kind: 'indent'}
 	{kind: 'line', str: 'def'}
@@ -99,14 +100,14 @@ iterLike allTokensInBlock("abc\n\tdef"), [
 	{kind: 'eof'}
 	]
 
-iterLike allTokensInBlock("""
+unifies Array.from(allTokensInBlock("""
 	abc
 		def
 		ghi
 	jkl
 		mno
 			pqr
-	"""), [
+	""")), [
 	{kind: 'line', str: 'abc'}
 	{kind: 'indent'}
 	{kind: 'line', str: 'def'}
@@ -122,7 +123,7 @@ iterLike allTokensInBlock("""
 	{kind: 'eof'}
 	]
 
-iterLike allTokensInBlock("""
+unifies Array.from(allTokensInBlock("""
 	abc
 		def
 		ghi
@@ -130,7 +131,7 @@ iterLike allTokensInBlock("""
 		mno
 			pqr
 
-	"""), [
+	""")), [
 	{kind: 'line', str: 'abc'}
 	{kind: 'indent'}
 	{kind: 'line', str: 'def'}
@@ -148,7 +149,7 @@ iterLike allTokensInBlock("""
 
 # --- by default, empty lines return no tokens
 
-iterLike allTokensInBlock("""
+unifies Array.from(allTokensInBlock("""
 	abc
 		def
 		ghi
@@ -156,7 +157,7 @@ iterLike allTokensInBlock("""
 	jkl
 		mno
 			pqr
-	"""), [
+	""")), [
 	{kind: 'line',  str: 'abc'}
 	{kind: 'indent'}
 	{kind: 'line',  str: 'def'}
@@ -181,10 +182,10 @@ iterLike allTokensInBlock("""
 			yield {kind: 'char', str: ch}
 		return
 
-	iterLike allTokensInBlock("""
+	unifies Array.from(allTokensInBlock("""
 		abc
 			def
-		""", charGenerator), [
+		""", charGenerator)), [
 		{ kind: "char", str: "a" }
 		{ kind: "char", str: "b" }
 		{ kind: "char", str: "c" }
@@ -216,10 +217,10 @@ iterLike allTokensInBlock("""
 				}
 		return
 
-	iterLike allTokensInBlock("""
+	unifies Array.from(allTokensInBlock("""
 		- a
 		- b
-		""", niceGenerator), [
+		""", niceGenerator)), [
 		{ kind: "list-item", str: "- a", value: "a" }
 		{ kind: "list-item", str: "- b", value: "b" }
 		{kind: 'eof'}
@@ -228,7 +229,7 @@ iterLike allTokensInBlock("""
 
 DBG "allTokensInFile()"
 
-objListLike Array.from(allTokensInFile('src/test/pll/tokens.txt')), [
+unifies Array.from(allTokensInFile('src/test/pll/tokens.txt')), [
 	{kind: 'line',   str: 'if x==1'}
 	{kind: 'indent'}
 	{kind: 'line',   str: 'print "OK"'}

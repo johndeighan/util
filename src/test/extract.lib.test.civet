@@ -3,7 +3,6 @@
 import {
 	TPathItem, extract, getString, getNumber,
 	} from 'extract'
-
 import {
 	equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test'

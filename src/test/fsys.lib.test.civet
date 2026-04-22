@@ -14,12 +14,12 @@ import {
 	isStub, parsePath, allFilesMatching, allLinesIn,
 	normalizePath, pathToURL, mkpath, relpath, pathSubDirs, myself,
 	rmFile, rmDir, isExt, newerDestFileExists, configFromFile,
-	clearDir, mkDir, mkDirsForFile, slurp, barf,
+	clearDir, mkDir, mkDirsForFile, slurp, barf, isPathType,
 	removeFilesMatching, watchFile, FileEventHandler, TFsEventHandler,
 	TPathType, TPathInfo, patchFirstLine, toFullPath, splitPatterns,
 	} from 'fsys'
 import {
-	equal, truthy, falsy, like, objListLike, isType, notType,
+	equal, truthy, falsy, unifies,
 	succeeds, fails, setDirTree, fileOpsTable,
 	} from 'unit-test'
 
@@ -99,9 +99,6 @@ falsy isFile('./src/lib/notafile.txt')
 truthy isFile("./src/test/fsys/dummy.txt")
 falsy  isFile("./src/test/fsys")
 
-
-
-
 DBG "isDir()"
 
 truthy isDir('src/test')
@@ -111,9 +108,9 @@ falsy  isDir("./src/test/fsys/dummy.txt")
 
 DBG "type TPathType"
 
-isType  'TPathType', 'missing'
-isType  'TPathType', 'file'
-notType 'TPathType', 'xxx'
+truthy isPathType('missing')
+truthy isPathType('file')
+falsy  isPathType('xxx')
 
 DBG "getPathType()"
 
@@ -162,7 +159,7 @@ equal  parsePath("C:/temp/file.txt"), {
 	ext: '.txt'
 	}
 
-like parsePath(import.meta.url), {
+unifies parsePath(import.meta.url), {
 	fileName: 'fsys.lib.test.ts'
 	stub: 'fsys.lib'
 	purpose: 'test'
@@ -479,7 +476,7 @@ await (() =>
 
 	equal slurp(path), 'dummyABCDE'
 
-	objListLike lChanges, [
+	unifies lChanges, [
 		{kind: 'modify', path}
 		{kind: 'modify', path}
 		]

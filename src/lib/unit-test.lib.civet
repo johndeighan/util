@@ -9,10 +9,16 @@ import {undef, defined, notdefined, sleep} from 'base-utils'
 import {
 	justThrow, croak, allStackFrames, TStackFrame, dumpFrame,
 	} from 'croak'
+import {esc} from 'unicode'
 import {LOG} from 'logger'
 import {unify} from 'unify'
 import {TIterator, TAsyncIterator, TVoidFunc, hash} from 'datatypes'
-import {fromFSM} from 'fsm'
+import {getOptions, truncStr, blockToArray} from 'llutils'
+import {fromFSM, fromFSMdebug} from 'fsm'
+import {TextTable} from 'text-table'
+import {doParse} from 'hera-parse'
+import {mkDir, clearDir, barf} from 'fsys'
+import {compileFile} from 'automate'
 
 let nextNum = 1
 
@@ -153,8 +159,10 @@ export getMyOutsideCaller := (
 			stateFunc: (frame: TStackFrame): number =>
 				if (
 						   (frame.name == 'getMyOutsideCaller')
-						&& frame.source.match(/\bcroak\.lib\.(?:ts|civet)$/)
+						&& frame.source.match(/\bunit-test\.lib\.(?:ts|civet)$/)
 						)
+					if trace
+						LOG "getMyOutsideCaller found, set state to 1"
 					return 1
 				else
 					return 0
@@ -172,13 +180,100 @@ export getMyOutsideCaller := (
 				if (source == mySrc)
 					return 2
 				else
-					outsideFrame = frame
-					return -1
-
-			retFunc: (): TStackFrame? =>
-				return outsideFrame as TStackFrame
+					throw frame     # found !
 			}
 		]
+
+# ---------------------------------------------------------------------------
+
+export type TFileOp = {
+		op: 'mkDir' | 'clearDir' | 'compile'
+		path: string
+		}
+	| {
+		op: 'barf'
+		path: string
+		contents: string
+		}
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export setDirTree := (desc: string): TFileOp[] =>
+
+	lFileOps := await getFileOps(desc)
+	execFileOps lFileOps
+	return lFileOps
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export getFileOps := (desc: string): TFileOp[] =>
+
+	return await doParse<TFileOp[]> 'dir-tree', desc
+
+# ---------------------------------------------------------------------------
+
+export execFileOps := (
+		lFileOps: TFileOp[]
+		): void =>
+
+	for h of lFileOps
+		switch h.op
+			when 'mkDir'
+				mkDir h.path
+			when 'clearDir'
+				clearDir h.path
+			when 'compile'
+				compileFile h.path
+			when 'barf'
+				barf h.path, h.contents
+	return
+
+# ---------------------------------------------------------------------------
+
+export fileOpsTable := (
+		lFileOps: TFileOp[]
+		hOptions: hash = {}
+		): string =>
+
+	type opt = {
+		oneLine: boolean
+		trunc: number
+		}
+	{oneLine, trunc} := getOptions<opt> hOptions, {
+		oneLine: true
+		trunc: 32
+		}
+
+	tt := new TextTable("l l l")
+	tt.fullsep()
+	tt.title 'FILE OPS'
+	tt.fullsep()
+	tt.labels ['op', 'path', 'contents']
+	tt.sep()
+	for h of lFileOps
+		switch h.op
+			when 'barf'
+				{path, contents} := h
+				str := contents || ''
+				if str.length == 0
+					tt.data ['barf', path, '<empty>']
+				else if oneLine
+					output := truncStr(esc(str), trunc)
+					tt.data ['barf', path, output]
+				else
+					lLines := blockToArray str
+					for line,i of lLines
+						contents := truncStr(esc(lLines[i]), trunc)
+						if (i == 0)
+							tt.data ['barf', path, contents]
+						else
+							tt.data ['', '', contents]
+			else
+				tt.data [h.op, h.path, '']
+	tt.fullsep()
+	return tt.asString()
 
 # ---------------------------------------------------------------------------
 # --- Create some values for testing

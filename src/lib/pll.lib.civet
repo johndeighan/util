@@ -2,8 +2,11 @@
 
 import {undef, defined, notdefined} from 'base-utils'
 import {esc} from 'unicode'
-import {hash, isEmpty, nonEmpty} from 'datatypes'
-import {getOptions, allLinesInBlock} from 'llutils'
+import {
+	hash, isObject, isEmpty, nonEmpty,
+	TIterator, isIterator, isGeneratorFunction,
+	} from 'datatypes'
+import {getOptions, allLinesInBlock, hasKey} from 'llutils'
 import {DBG, DBGVALUE} from 'logger'
 import {oneIndent, indentLevel, splitLine} from 'indent'
 import {TextTable} from 'text-table'
@@ -13,11 +16,17 @@ import {slurp} from 'fsys'
 # --- Common token types:
 #        'line', 'empty', 'indent', 'undent'
 
-export type TPLLToken =
+export type TPLLToken = {
 	kind: string
 	str?: string
 	name?: string
 	value?: unknown
+	}
+
+export isPLLToken := (
+		x: unknown
+		): x is TPLLToken =>
+	return isObject(x) && hasKey(x, 'kind')
 
 export tkIndent := kind: 'indent'
 export tkUndent := kind: 'undent'
@@ -27,7 +36,14 @@ export tokenWith := (tk: TPLLToken, s: string) =>
 
 # ---------------------------------------------------------------------------
 
-export type TTokenGenerator = (line: string) => Generator<TPLLToken, void, void>
+export type TTokenGenerator = (
+		line: string
+		) => TIterator<TPLLToken>
+
+export isTokenGenerator := (
+		x: unknown
+		): x is TTokenGenerator =>
+	return isGeneratorFunction(x)
 
 lineTokenGen: TTokenGenerator := (line: string) ->
 

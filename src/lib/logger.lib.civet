@@ -2,9 +2,11 @@
 
 import {red, cyan} from '@std/fmt/colors'
 
+import {assert} from 'croak'
 import {write, writeln} from 'console-utils'
-import {isString} from 'datatypes'
+import {hash, isString} from 'datatypes'
 import {f} from 'f-strings'
+import {getOptions, o} from 'llutils'
 import {OL, ML} from 'to-nice'
 
 let level = 0
@@ -109,17 +111,41 @@ export curLogLevel := (): TLogLevel =>
 
 # ---------------------------------------------------------------------------
 
-export setLogLevel := (level: TLogLevel): void =>
+export setLogLevel := (
+		level: TLogLevel
+		hOptions: hash = {}
+		): void =>
 
-	if (lLogLevels.length > 0)
-		lLogLevels[lLogLevels.length - 1] = level
+	type opt = {
+		echo: boolean
+		}
+	{echo} := getOptions<opt> hOptions, {
+		echo: false
+		}
+
+	assert (lLogLevels.length > 0), "Empty lLogLevels"
+	lLogLevels[lLogLevels.length - 1] = level
+	if echo
+		LOG "LOG LEVEL set to #{level}"
 	return
 
 # ---------------------------------------------------------------------------
 
-export pushLogLevel := (level: TLogLevel): void =>
+export pushLogLevel := (
+		level: TLogLevel
+		hOptions: hash = {}
+		): void =>
+
+	type opt = {
+		echo: boolean
+		}
+	{echo} := getOptions<opt> hOptions, {
+		echo: false
+		}
 
 	lLogLevels.push level
+	if echo
+		LOG "LOG LEVEL pushed to #{level}"
 	return
 
 # ---------------------------------------------------------------------------

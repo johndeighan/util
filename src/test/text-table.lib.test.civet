@@ -4,7 +4,7 @@ import {undef} from 'datatypes'
 import {DBG} from 'logger'
 import {o} from 'llutils'
 import {TextTable} from 'text-table'
-import {equal, objListLike} from 'unit-test'
+import {equal, unifies} from 'unit-test'
 
 # -------------------------------------------------------------
 
@@ -104,7 +104,7 @@ DBG "class TextTable"
 	table.data    [undef, 30, 40]
 	table.data    [undef, 130, 40]
 
-	objListLike table.lRows, [
+	unifies table.lRows, [
 		{
 			opcode: 'labels'
 			lRow: ['Coffee', 'Jan', 'Feb']

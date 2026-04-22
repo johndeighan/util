@@ -10,7 +10,7 @@ import {
 import {MAP} from 'mapper'
 import {keys, getOptions, o, spaces} from 'llutils'
 import {clearScreen} from 'console-utils'
-import {setLogLevel, LOG, DBG, ERR} from 'logger'
+import {LOG, DBG, ERR, setLogLevel} from 'logger'
 import {OL, DUMP} from 'to-nice'
 
 hFlags: hashof<boolean> := {}
@@ -106,11 +106,9 @@ export setCmdArgs := (
 		else
 			for ch of optStr.split('')
 				if (ch == 'D')
-					LOG "debug = true"
-					setLogLevel('debug')
+					setLogLevel 'debug', o'echo'
 				else if (ch == 'S')
-					LOG "silent = true"
-					setLogLevel('silent')
+					setLogLevel 'silent', o'echo'
 				hFlags[ch] = true
 
 setCmdArgs()

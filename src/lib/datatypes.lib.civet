@@ -135,13 +135,17 @@ export regexpDef := (x: unknown): string =>
 
 # ---------------------------------------------------------------------------
 
-export isHash := (x: unknown): x is hash =>
+export isHash := <T = unknown>(
+		x: unknown
+		): x is hashof<T> =>
 
 	return (jsType(x) == 'hash')
 
 # ---------------------------------------------------------------------------
 
-export isArray := (x: unknown): x is array =>
+export isArray := <T = unknown>(
+		x: unknown
+		): x is arrayof<T> =>
 
 	return Array.isArray x
 

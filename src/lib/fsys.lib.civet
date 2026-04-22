@@ -27,7 +27,7 @@ import {
 import {MAP} from 'mapper'
 import {
 	getOptions, pass, encode, spaces,
-	sinceLoadStr, arrayToBlock,
+	sinceLoadStr, arrayToBlock, words,
 	} from 'llutils'
 import {isMetaDataStart, convertMetaData} from 'meta-data'
 import {debugging} from 'cmd-args'
@@ -93,6 +93,10 @@ export getFileStats := (path: string): TFileStats =>
  */
 
 export type TPathType = 'missing' | 'file' | 'dir' | 'symlink' | 'unknown'
+
+export isPathType := (x: unknown): x is TPathType =>
+
+	return isString(x) && words('missing file dir symlink unknown').includes(x)
 
 export getPathType := (path: string): TPathType =>
 

@@ -1,10 +1,9 @@
 # indent.lib.test.civet
 
+import {undef, defined, notdefined} from 'base-utils'
+import {croak, assert} from 'croak'
 import {deepEqual} from 'base-utils'
 import {DBG} from 'logger'
-import {
-	undef, defined, notdefined, assert,
-	} from 'datatypes'
 import {
 	spaces, tabs, throwsError, s,
 	} from 'llutils'

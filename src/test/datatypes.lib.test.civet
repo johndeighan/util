@@ -1,10 +1,12 @@
 # datatypes.lib.test.civet
 
-import {deepEqual} from 'base-utils'
-import {croak} from 'croak'
 import {
-	undef, defined, notdefined, assert, obviously,
-	anyDefined, anyNotDefined,
+	undef, defined, notdefined, anyDefined, anyNotDefined, deepEqual,
+	} from 'base-utils'
+import {
+	croak, assert, obviously,
+	} from 'croak'
+import {
 	array, arrayof, isArray,
 	hash, hashof, isHash,
 	TVoidFunc, nonEmptyString,
@@ -21,8 +23,7 @@ import {
 	} from 'datatypes'
 import {DBG} from 'logger'
 import {
-	equal, truthy, falsy, fails, succeeds,
-	isType, notType, sampleVal,
+	equal, truthy, falsy, fails, succeeds, sampleVal,
 	} from 'unit-test'
 
 # ---------------------------------------------------------------------------
@@ -105,11 +106,9 @@ equal jsType(sampleVal.fullList), 'array'
 
 # ---------------------------------------------------------------------------
 
-isType 'number', 42
-isType 'hash', {a:1, b:2}
-notType 'hashof<number>', {a:'a'}
-isType 'array', ['a', 2, undef]
-notType 'arrayof<number>', ['a']
+truthy isNumber 42
+truthy isHash {a:1, b:2}
+truthy isArray ['a', 2, undef]
 
 # ---------------------------------------------------------------------------
 

@@ -1,6 +1,7 @@
 to do
 
-in mapper.lib.test.civet, test named 'nine test 2' craps out
+Get all unit tests to pass
+	- base-utils currently passes
 
 op doUnitTest is displaying long output, not summary
 
