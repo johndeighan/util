@@ -10,6 +10,9 @@ src/save/
 src/test/**/*
 _typecheck_.ts
 
+src/.save
+src/.temp
+
 # dotenv environment variables file
 .env
 .env.test
