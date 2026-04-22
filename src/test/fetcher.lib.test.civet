@@ -1,7 +1,7 @@
 # fetcher.lib.test.civet
 
+import {range} from 'base-utils'
 import {undef} from 'datatypes'
-import {range} from 'llutils'
 import {Fetcher} from 'fetcher'
 import {DBG} from 'logger'
 import {equal, truthy, falsy} from 'unit-test'

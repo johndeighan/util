@@ -1,8 +1,9 @@
 # from-nice.lib.civet
 
-import {croak} from 'croak'
+import {undef, defined, notdefined} from 'base-utils'
+import {croak, assert} from 'croak'
 import {
-	undef, defined, notdefined, assert, hash, hashof,
+	hash, hashof,
 	isArray, isFunction, isBoolean, isString, isNonPrimitive,
 	isClass, isArrayOfStrings, isEmpty, nonEmpty, className,
 	functionName, symbolName, classDef, functionDef, regexpDef,

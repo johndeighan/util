@@ -1,10 +1,11 @@
 # fsys.lib.test.civet
 
+import {sleep} from 'base-utils'
 import {
 	undef, defined, hash, isString, isFunction,
 	} from 'datatypes'
 import {
-	o, spaces, sinceLoad, sinceLoadStr, sleep, pass,
+	o, spaces, sinceLoad, sinceLoadStr, pass,
 	} from 'llutils'
 import {LOG, DBG} from 'logger'
 import {TPLLToken} from 'pll'

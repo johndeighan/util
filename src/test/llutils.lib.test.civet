@@ -1,5 +1,6 @@
 # llutils.lib.test.civet
 
+import {sleep, deepEqual} from 'base-utils'
 import {LOG, DBG} from 'logger'
 import {
 	undef, functionDef, isArray, isHash,
@@ -7,12 +8,12 @@ import {
 import {
 	sinceLoad, sinceLoadStr, throwsError, pass, truncStr,
 	o, s, t, strToHash, getOptions,
-	keys, hasKey, hasKeys, sleep, spaces, tabs,
+	keys, hasKey, hasKeys, spaces, tabs,
 	rtrim, countChars, words, getLineAndColumn,
 	blockToArray, allLinesInBlock, toArray,
-	arrayToBlock, toBlock, rpad, lpad, deepEqual,
+	arrayToBlock, toBlock, rpad, lpad,
 	TAlignment, isAlignment, alignString, zpad,
-	TBlockSpec, isBlockSpec, allMatches, range,
+	TBlockSpec, isBlockSpec, allMatches,
 	widthOf, heightOf, CStringSetMap, fromTAML,
 	} from 'llutils'
 import {
@@ -304,11 +305,6 @@ DBG "allMatches()"
 		lIdents.push x[2]
 	equal lIdents, ['TBlockSpec', 'isBlockSpec']
 	)()
-
-DBG "range()"
-
-equal Array.from(range(3)), [0, 1, 2]
-equal Array.from(range(5)), [0, 1, 2, 3, 4]
 
 DBG "getLineAndColumn(str, pos)"
 

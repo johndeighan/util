@@ -2,13 +2,20 @@
 
 import {minify} from 'npm-uglify-js'
 
-import {croak, getErrStr} from 'croak'
+import {
+	deepCopy, undef, defined, notdefined,
+	anyDefined, anyNotDefined,
+	} from 'base-utils'
+import {croak, assert, getErrStr} from 'croak'
 
 export type TIterator<T, U=void, V=void> = Generator<T, U, V>
 export type TAsyncIterator<T, U=void, V=void> = AsyncGenerator<T, U, V>
 export type TNonFunction<T=unknown> = Exclude<T, Function>
 
-export deepCopy = structuredClone
+export {
+	deepCopy, undef, defined, notdefined,
+	anyDefined, anyNotDefined,
+	}
 
 # ---------------------------------------------------------------------------
 
@@ -24,66 +31,6 @@ export type TUnaryFunc<TIn, TOut> = (item: TIn) => TOut
 export type TStringifier = (item: unknown) => string
 export type TStringMapper = (str: string) => string
 export type TStringFilterFunc = (str: string) => boolean
-
-# ---------------------------------------------------------------------------
-
-export type TAssertFunc = (
-		cond: unknown,
-		msg?: string
-		) => asserts cond
-
-export assert: TAssertFunc := (
-		cond: unknown,
-		msg: string = "An unknown error occurred"
-		): asserts cond =>
-
-	if not cond
-		croak msg
-	return
-
-export obviously: TAssertFunc := (
-		cond: unknown
-		): asserts cond =>
-
-	if not cond
-		croak "obviously not"
-	return
-
-# ---------------------------------------------------------------------------
-
-export undef := undefined
-type TDefined = NonNullable<unknown>
-type TNotDefined = null | undefined
-
-# ---------------------------------------------------------------------------
-
-export defined := (x: unknown): x is TDefined =>
-
-	return (x != undef) && (x != null)
-
-# ---------------------------------------------------------------------------
-
-export anyDefined := (...lItems: unknown[]): boolean =>
-
-	for item of lItems
-		if defined(item)
-			return true
-	return false
-
-# ---------------------------------------------------------------------------
-
-export notdefined := (x: unknown): x is TNotDefined =>
-
-	return (x == undef) || (x == null)
-
-# ---------------------------------------------------------------------------
-
-export anyNotDefined := (...lItems: unknown[]): boolean =>
-
-	for item of lItems
-		if notdefined(item)
-			return true
-	return false
 
 # ---------------------------------------------------------------------------
 
@@ -505,6 +452,13 @@ export isAsyncIterator := <T>(
 		&& (Symbol.asyncIterator in x)
 		&& (typeof x[Symbol.asyncIterator] == 'function')
 		)
+
+# ---------------------------------------------------------------------------
+
+export isAsyncFunction := (fn: Function): boolean =>
+
+	return (fn.constructor.name == 'AsyncFunction') ||
+		(fn.constructor.name == 'AsyncGenerator')
 
 # ---------------------------------------------------------------------------
 

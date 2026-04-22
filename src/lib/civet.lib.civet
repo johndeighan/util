@@ -4,10 +4,10 @@ import {exists, existsSync} from '@std/fs'
 import {Node, SourceFile} from 'npm-typescript'
 import {RawSourceMap} from 'npm-source-map'
 
-import {croak, getErrStr} from 'croak'
+import {undef, defined, notdefined} from 'base-utils'
+import {croak, assert, getErrStr} from 'croak'
 import {
-	undef, defined, notdefined, hash, assert, isString, isHash,
-	isEmpty, nonEmpty,
+	hash, isString, isHash, isEmpty, nonEmpty,
 	} from 'datatypes'
 import {getOptions, o, rtrim} from 'llutils'
 import {OL, ML} from 'to-nice'

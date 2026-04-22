@@ -1,9 +1,8 @@
 # scope.lib.civet
 
-import {croak} from 'croak'
-import {
-	undef, defined, notdefined, assert, hash,
-	} from 'datatypes'
+import {undef, defined, notdefined} from 'base-utils'
+import {croak, assert} from 'croak'
+import {hash} from 'datatypes'
 import {LOG} from 'logger'
 
 # ---------------------------------------------------------------------------
@@ -115,7 +114,7 @@ export class CScope
 
 # ---------------------------------------------------------------------------
 
-export class CMainScope < CScope
+export class CMainScope extends CScope
 
 	constructor()
 		super 'main', []

@@ -2,12 +2,11 @@
 
 import {sprintf} from '@std/fmt/printf'
 
-import {croak} from 'croak'
+import {undef, defined, notdefined} from 'base-utils'
+import {croak, assert} from 'croak'
 import {uni, esc} from 'unicode'
-import {
-	undef, defined, assert, hash, hashof,
-	} from 'datatypes'
-import {range, centered, sep} from 'llutils'
+import {hash, hashof} from 'datatypes'
+import {centered, sep} from 'llutils'
 import {f} from 'f-strings'
 import {OL} from 'to-nice'
 import {LOG, DBG, ERR} from 'logger'

@@ -1,9 +1,8 @@
 # meta-data.lib.civet
 
-import {croak} from 'croak'
-import {
-	undef, defined, notdefined, isString, assert, hash, hashof,
-	} from 'datatypes'
+import {undef, defined, notdefined} from 'base-utils'
+import {croak, assert} from 'croak'
+import {isString, hash, hashof} from 'datatypes'
 import {f} from 'f-strings'
 import {fromTAML} from 'llutils'
 

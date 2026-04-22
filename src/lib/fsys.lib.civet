@@ -14,17 +14,20 @@ import {
 	parse, resolve, relative, fromFileUrl,
 	} from '@std/path'
 
-import {croak} from 'croak'
+import {undef, defined, notdefined, sleep} from 'base-utils'
+import {croak, assert, obviously} from 'croak'
 import {
-	undef, defined, notdefined, assert, obviously,
 	isEmpty, nonEmpty, isString, isNonEmptyString,
 	isBoolean, isNumber, isInteger, isArray, isArrayOfStrings,
 	isHash, isRegExp, integer, hash, hashof, TVoidFunc,
 	} from 'datatypes'
+import {
+	normalizePath, relpath, toFullPath, allLinesIn,
+	} from 'llfs'
 import {MAP} from 'mapper'
 import {
 	getOptions, pass, encode, spaces,
-	sinceLoadStr, sleep, arrayToBlock,
+	sinceLoadStr, arrayToBlock,
 	} from 'llutils'
 import {isMetaDataStart, convertMetaData} from 'meta-data'
 import {debugging} from 'cmd-args'
@@ -33,6 +36,8 @@ import {
 	pushLogLevel, popLogLevel, LOG, DBG, WARN, ERR,
 	INDENT, UNDENT, DBGVALUE,
 	} from 'logger'
+
+export {normalizePath, relpath, toFullPath, allLinesIn}
 
 # --- Create a function capable of synchronously
 #     importing ESM modules
@@ -117,41 +122,11 @@ export touch := (path: string): void =>
 	return
 
 # ---------------------------------------------------------------------------
-# ASYNC GENERATOR
-
-export allLinesIn := (
-		path: string
-		): AsyncGenerator<string> ->
-
-	assert isFile(path), "No such file: #{OL(path)} (allLinesIn)"
-	f := await Deno.open path
-	readable := (f.readable
-			.pipeThrough(new TextDecoderStream())
-			.pipeThrough(new TextLineStream())
-			)
-	for await line of readable
-		yield line
-	return
-
-# ---------------------------------------------------------------------------
 
 export pathToURL := (...lParts: string[]): string =>
 
 	path := resolve ...lParts
 	return new URL('file:' + path).href.replaceAll('\\', '/')
-
-# ---------------------------------------------------------------------------
-
-export normalizePath := (path: string): string =>
-
-	if isEmpty(path)
-		return ''
-
-	npath := path.replaceAll '\\', '/'
-	if (npath.charAt(1) == ':')
-		return npath.charAt(0).toUpperCase() + npath.substring(1)
-	else
-		return npath
 
 # ---------------------------------------------------------------------------
 
@@ -542,7 +517,6 @@ export allFilesMatching := (
 		hOptions: hash = {}
 		): Generator<string> ->
 
-	debugger
 	type opt = {
 		root: string
 		hMoreGlobOptions: hash
@@ -725,21 +699,6 @@ export parsePath := (path: string): TPathInfo =>
 		purpose: if (nParts > 2) then lParts.at(-2) else undef
 		ext: if (nParts > 1) then ".#{lParts.at(-1)}" else undef
 	}
-
-# ---------------------------------------------------------------------------
-
-export relpath := (
-		path: string,
-		root: string = Deno.cwd()
-		): string =>
-
-	return normalizePath relative(root, path)
-
-# ---------------------------------------------------------------------------
-
-export toFullPath := (path: string): string =>
-
-	return normalizePath(resolve('.', path))
 
 # ---------------------------------------------------------------------------
 

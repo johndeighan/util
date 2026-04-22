@@ -1,0 +1,48 @@
+# llfs.lib.civet
+
+import {resolve, relative} from '@std/path'
+import {TextLineStream} from '@std/streams'
+
+import {TIterator} from 'datatypes'
+
+# ---------------------------------------------------------------------------
+
+export normalizePath := (path: string): string =>
+
+	newpath := path.replaceAll '\\', '/'
+	if (newpath.charAt(1) == ':')
+		return newpath.charAt(0).toUpperCase() + newpath.substring(1)
+	else
+		return newpath
+
+# ---------------------------------------------------------------------------
+
+export relpath := (
+		path: string,
+		root: string = Deno.cwd()
+		): string =>
+
+	return normalizePath relative(root, path)
+
+# ---------------------------------------------------------------------------
+
+export toFullPath := (path: string): string =>
+
+	return normalizePath(resolve('.', path))
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export allLinesIn := (
+		path: string
+		): AsyncGenerator<string> ->
+
+	f := await Deno.open path
+	readable := (f.readable
+			.pipeThrough(new TextDecoderStream())
+			.pipeThrough(new TextLineStream())
+			)
+	for await line of readable
+		yield line
+	return
+

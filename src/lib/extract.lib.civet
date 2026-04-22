@@ -1,8 +1,10 @@
 # extract.lib.civet
 
+import {undef, defined, notdefined} from 'base-utils'
+import {croak, assert} from 'croak'
 import {
-	undef, defined, notdefined, isString, isArray, isNumber,
-	isEmpty, nonEmpty, integer, assert,
+	isString, isArray, isNumber,
+	isEmpty, nonEmpty, integer,
 	} from 'datatypes'
 import {o, sep} from 'llutils'
 import {toNice} from 'to-nice'

@@ -2,11 +2,11 @@
 
 import {sprintf} from '@std/fmt/printf'
 
-import {croak} from 'croak'
+import {undef, defined, notdefined} from 'base-utils'
+import {croak, assert} from 'croak'
 import {
-	undef, defined, notdefined, assert, nonEmpty,
 	isString, isNumber, isInteger, isArray, array, arrayof,
-	hash, hashof, integer, char, isArrayOfIntegers,
+	hash, hashof, integer, char, isArrayOfIntegers, nonEmpty,
 	} from 'datatypes'
 import {
 	getOptions, words, rtrim, alignString, toBlock, TAlignment,

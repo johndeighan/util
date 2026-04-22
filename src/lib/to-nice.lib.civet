@@ -1,11 +1,11 @@
 # to-nice.lib.civet
 
-import {croak} from 'croak'
+import {undef, defined, notdefined, anyDefined} from 'base-utils'
+import {croak, assert} from 'croak'
 import {uni, esc} from 'unicode'
 import {f} from 'f-strings'
 import {write, writeln} from 'console-utils'
 import {
-	assert, undef, defined, notdefined, anyDefined,
 	hash, hashof, isString, isArray, isClass,
 	isRegExp, isObject, isFunction, isHash,
 	isEmpty, nonEmpty, integer,
@@ -172,8 +172,7 @@ export seq2nice := (
 	{compact, oneIndent} := getOptions<TNiceOptions> hOptions, hNiceDefaults
 
 	let hasMultiLine = false
-	lParts := Array.from MAP lValues.entries(), (entry) ->
-		[val, i] := entry
+	lParts := Array.from MAP lValues, (val, i) ->
 		# @ts-ignore - for some reason, TS thinks lPath has unknown elements
 		lNewPath: TPathIndex[] := [lPath..., i]
 		yield toNice(val, hOptions, mapVisited, lNewPath)

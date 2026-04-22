@@ -9,12 +9,14 @@ import {
 	} from 'npm-typescript'
 import {sprintf} from '@std/fmt/printf'
 
-import {croak, getErrStr} from 'croak'
+import {undef, defined, notdefined} from 'base-utils'
+import {croak, assert, getErrStr} from 'croak'
 import {
-	undef, defined, notdefined, assert, hash, isEmpty,
-	isString, isArray, isArrayOfStrings, nonEmpty, TStringMapper,
+	hash, isEmpty, TStringMapper,
+	isString, isArray, isArrayOfStrings, nonEmpty,
 	} from 'datatypes'
-import {arrayAndAccumFrom, awaitAll} from 'iter-utils'
+import {awaitAll} from 'promise-utils'
+import {arrayAndAccumFrom} from 'iter-utils'
 import {MAP} from 'mapper'
 import {
 	getOptions, pass, blockToArray, decode, encode,
@@ -326,9 +328,9 @@ export procFiles := (
 	lFinalResult := (
 		if serial
 			acc0: TAccum := [[],[],[],[]]
-			MAP lPaths, acc0, (path, acc1): TAccum ->
+			MAP lPaths, acc0, (path, acc): TAccum ->
 				# --- must return a TAccum
-				[lRes, lErrMsg, lPaths, lBadPaths] := acc1
+				[lRes, lErrMsg, lPaths, lBadPaths] := acc
 				prelog op, path, capture
 				try
 					xres: TExecResult := await handler.handle path, hOptions

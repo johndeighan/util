@@ -2,10 +2,9 @@
 
 import {pathToFileURL} from 'node-url'
 
-import {croak} from 'croak'
-import {
-	undef, defined, notdefined, assert, hash, isHash,
-	} from 'datatypes'
+import {undef, defined, notdefined} from 'base-utils'
+import {croak, assert} from 'croak'
+import {hash, isHash} from 'datatypes'
 import {pass, keys, require} from 'llutils'
 import {OL, ML} from 'to-nice'
 import {

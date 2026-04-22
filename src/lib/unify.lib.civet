@@ -1,0 +1,59 @@
+# unify.lib.civet
+
+import {
+	deepCopy, defined, notdefined, LOG, max, range,
+	} from 'base-utils'
+import {croak, assert, obviously} from 'croak'
+import {
+	hash, array, isHash, isArray, jsType,
+	} from 'datatypes'
+
+# ---------------------------------------------------------------------------
+# --- throws error if unification is not possible
+
+export function unify(x: string, y: string): string
+export function unify(x: number, y: number): number
+export function unify(x: boolean, y: boolean): boolean
+export function unify(x: hash, y: hash): hash
+export function unify(x: array, y: array): array
+export function unify(x: unknown, y: unknown): unknown
+
+export function unify(
+		x: unknown
+		y: unknown
+		): string | number | boolean | hash | array | unknown
+
+	if notdefined(x)
+		return deepCopy y
+	else if notdefined(y)
+		return deepCopy x
+
+	xtype := jsType x
+	ytype := jsType y
+
+	if (xtype != ytype)
+		croak "FAILED: x is #{xtype}, y is #{ytype}"
+
+	switch xtype
+		when 'hash'
+			obviously isHash(x)
+			obviously isHash(y)
+			let hNew: hash = {}
+
+			lKeys := [...new Set([...Object.keys(x), ...Object.keys(y)])]
+			for key of lKeys
+				hNew[key] = unify(x[key], y[key])
+			return hNew
+		when 'array'
+			obviously isArray(x)
+			obviously isArray(y)
+			maxlen := max(x.length, y.length)
+			let lNew = []
+			for i of range(maxlen)
+				lNew.push unify(x[i], y[i])
+			return lNew
+		else
+			if (x == y)
+				return x
+			else
+				croak "#{x} != #{y}"

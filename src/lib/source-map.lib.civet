@@ -4,10 +4,11 @@ import {parse: parseFilePath} from 'node-path'
 import {existsSync} from '@std/fs'
 import {SourceMapConsumer} from 'npm-source-map'
 
-import {croak, getErrStr} from 'croak'
+import {undef, defined, notdefined} from 'base-utils'
 import {
-	undef, assert, defined, notdefined, hash,
-	} from 'datatypes'
+	croak, assert, getErrStr,
+	} from 'croak'
+import {hash} from 'datatypes'
 import {getOptions} from 'llutils'
 import {OL, DUMP} from 'to-nice'
 import {LOG, DBG, WARN, ERR} from 'logger'
@@ -16,7 +17,6 @@ import {
 	fromJsonFile, parsePath, mkpath, normalizePath, relpath,
 	toFullPath, isFile, fileExt,
 	} from 'fsys'
-import {allStackFrames, dumpFrame, getV8Stack} from 'v8-stack'
 
 # --- Get info about all known source maps
 sourceMapPath := "C:/Users/johnd/util/sourcemaps.json"

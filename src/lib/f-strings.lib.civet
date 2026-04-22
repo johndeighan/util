@@ -6,10 +6,11 @@ import {
 	stripAnsiCode,
 	} from '@std/fmt/colors'
 
+import {defined} from 'base-utils'
 import {esc} from 'unicode'
 import {MAP} from 'mapper'
 import {
-	TIterator, defined, nonEmpty, isInteger, hashof,
+	TIterator, nonEmpty, isInteger, hashof,
 	} from 'datatypes'
 
 # --- hash of all supported colors
@@ -32,7 +33,7 @@ export f := (
 		): string =>
 
 	[firstStr, mainWidth, mainEsc, mainColor] := fsplit lStrings[0]
-	iter := MAP lValues.entries(), ([i,val]) ->
+	iter := MAP lValues, (val, i) ->
 		[str, width, doEsc, color] := fsplit lStrings[i+1]
 		result := switch typeof val
 			when 'string'

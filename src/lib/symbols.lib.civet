@@ -1,8 +1,8 @@
 # symbols.lib.civet
 
-import {croak} from 'croak'
+import {undef, defined, notdefined} from 'base-utils'
+import {croak, assert} from 'croak'
 import {
-	undef, defined, notdefined, assert,
 	hash, hashof, isEmpty, nonEmpty,
 	} from 'datatypes'
 import {pass, o, getOptions, keys} from 'llutils'

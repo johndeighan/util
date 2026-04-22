@@ -44,8 +44,13 @@
 		"npm-console-gui-tools": "npm:console-gui-tools",
 		"npm-blessed": "npm:@unblessed/node",
 
+		"llfs":          "file:///C:/Users/johnd/util/src/lib/llfs.lib.ts",
+		"fsm":           "file:///C:/Users/johnd/util/src/lib/fsm.lib.ts",
+		"base-utils":    "file:///C:/Users/johnd/util/src/lib/base-utils.lib.ts",
+		"promise-utils": "file:///C:/Users/johnd/util/src/lib/promise-utils.lib.ts",
 		"datatypes":     "file:///C:/Users/johnd/util/src/lib/datatypes.lib.ts",
 		"croak":         "file:///C:/Users/johnd/util/src/lib/croak.lib.ts",
+		"unify":         "file:///C:/Users/johnd/util/src/lib/unify.lib.ts",
 		"predicates":    "file:///C:/Users/johnd/util/src/lib/predicates.lib.ts",
 		"source-map":    "file:///C:/Users/johnd/util/src/lib/source-map.lib.ts",
 		"f-strings":     "file:///C:/Users/johnd/util/src/lib/f-strings.lib.ts",
@@ -77,7 +82,7 @@
 		"civet":         "file:///C:/Users/johnd/util/src/lib/civet.lib.ts",
 		"cielo":         "file:///C:/Users/johnd/util/src/lib/cielo.lib.ts",
 		"automate":      "file:///C:/Users/johnd/util/src/lib/automate.lib.ts",
-		"v8-stack":      "file:///C:/Users/johnd/util/src/lib/v8-stack.lib.ts",
+		"old-unit-test": "file:///C:/Users/johnd/util/src/lib/old-unit-test.lib.ts",
 		"unit-test":     "file:///C:/Users/johnd/util/src/lib/unit-test.lib.ts",
 		"iter-utils":    "file:///C:/Users/johnd/util/src/lib/iter-utils.lib.ts",
 		"mapper":        "file:///C:/Users/johnd/util/src/lib/mapper.lib.ts",
@@ -85,7 +90,6 @@
 		"file-server":   "file:///C:/Users/johnd/util/src/lib/file-server.lib.ts",
 		"html-window":   "file:///C:/Users/johnd/util/src/lib/html-window.lib.ts",
 
-		"civetconfig":   "file:///C:/Users/johnd/civetconfig.json",
-		"sourcemap":     "file:///C:/Users/johnd/util/sourcemap.json"
+		"civetconfig":   "file:///C:/Users/johnd/civet.config.json",
 	}
 }

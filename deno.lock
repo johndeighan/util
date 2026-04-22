@@ -43,6 +43,7 @@
     "jsr:@webui/deno-webui@2.5.13": "2.5.13",
     "jsr:@webview/webview@*": "0.9.0",
     "jsr:@zip-js/zip-js@^2.8.7": "2.8.24",
+    "npm:@danielx/civet@*": "0.11.2_typescript@5.9.3",
     "npm:@danielx/civet@latest": "0.11.2_typescript@5.9.3",
     "npm:@danielx/civet@~0.11.1": "0.11.2_typescript@5.9.3",
     "npm:@danielx/hera@*": "0.8.18",

@@ -1,9 +1,8 @@
 # pll.lib.civet
 
+import {undef, defined, notdefined} from 'base-utils'
 import {esc} from 'unicode'
-import {
-	undef, defined, notdefined, hash, isEmpty, nonEmpty,
-	} from 'datatypes'
+import {hash, isEmpty, nonEmpty} from 'datatypes'
 import {getOptions, allLinesInBlock} from 'llutils'
 import {DBG, DBGVALUE} from 'logger'
 import {oneIndent, indentLevel, splitLine} from 'indent'

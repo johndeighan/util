@@ -1,0 +1,43 @@
+# promise-utils.lib.civet
+
+import {getErrStr} from 'croak'
+import {MAP} from 'mapper'
+
+# ---------------------------------------------------------------------------
+# ASYNC
+# --- returns [lFulfilled, lRejected, lFulfilledTags, lRejectedTags]
+#        lFulfilled is an array of TAccum
+#        lRejected is an array of unknown (usually Error objects)
+#        lFulfilledTags and lRejectedTags are arrays of strings
+
+type TRunResult<T> = [T[], unknown[], string[], string[]]
+
+export awaitAll := <T>(
+		lPromises: Promise<T>[]
+		lTags: string[] = []
+		): TRunResult<T> ->
+
+	lSettled := await Promise.allSettled(lPromises)
+	acc0: TRunResult<T> := [[],[],[],[]]
+	# @ts-ignore
+	[lItems, accum] := MAP lSettled, acc0, (h, acc, i) ->
+		if (h.status == 'fulfilled')
+			yield h.value
+		tag := (i >= 0) && (i < lTags.length) ? lTags[i] : ''
+		[lFulfilled, lRejected, lTags1, lTags2] := acc
+		if (h.status == 'fulfilled')
+			return [
+				[...lFulfilled, h.value],
+				lRejected,
+				[...lTags1, tag],
+				lTags2
+				]
+		else
+			return [
+				lFulfilled
+				[...lRejected, getErrStr(h.reason)]
+				lTags1
+				[...lTags2, tag]
+				]
+	# @ts-ignore
+	return accum

@@ -5,12 +5,11 @@ import {sprintf} from '@std/fmt/printf'
 import {relative} from '@std/path'
 import {existsSync} from '@std/fs'
 import {parse: parseYAML} from "@std/yaml"
-import deepEqual from 'npm-fast-deep-equal'
 
-import {croak} from 'croak'
+import {undef, defined, notdefined, deepEqual} from 'base-utils'
+import {croak, assert} from 'croak'
 import {
-	undef, defined, notdefined, assert, char,
-	isHash, isArray, isNonEmptyString,
+	isHash, isArray, isNonEmptyString, char,
 	isArrayOfStrings, isEmpty, nonEmpty, isString, isInteger,
 	integer, hash, hashof, array, arrayof, TVoidFunc, isNonPrimitive,
 	functionDef, TStringMapper,
@@ -157,14 +156,6 @@ export hasKey := (obj: unknown, ...lKeys: string[]) =>
 	return true
 
 export hasKeys := hasKey
-
-# ---------------------------------------------------------------------------
-# --- ASYNC !
-
-export sleep := async (sec: number): void =>
-
-	await new Promise((r) => setTimeout r, 1000 * sec)
-	return
 
 # ---------------------------------------------------------------------------
 
@@ -328,14 +319,6 @@ export allMatches := (
 
 # ---------------------------------------------------------------------------
 
-export range := (n: number): Generator<number, void, void> ->
-
-	for i of [0...n]
-		yield i
-	return
-
-# ---------------------------------------------------------------------------
-
 export require := createRequire import.meta.url
 
 # ---------------------------------------------------------------------------
@@ -371,7 +354,10 @@ export heightOf := (block: string): number =>
 
 # ---------------------------------------------------------------------------
 
-export getOptions := <T extends hash>(hOptions: hash = {}, hDefaults: T): T =>
+export getOptions := <T extends hash>(
+		hOptions: hash = {}
+		hDefaults: T
+		): T =>
 
 	return { ...hDefaults, ...hOptions }
 
@@ -471,7 +457,7 @@ export cmdTitle := (title: string): string =>
 
 # ---------------------------------------------------------------------------
 
-export class CStringSetMap<T = string> < Map<T, Set<string>>
+export class CStringSetMap<T = string> extends Map<T, Set<string>>
 
 	add(key: T, value: string): void
 

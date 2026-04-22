@@ -1,0 +1,72 @@
+# fsm.lib.civet
+
+import {undef, defined, notdefined} from 'base-utils'
+import {hash, isArray, TAsyncIterator} from 'datatypes'
+import {croak, assert, obviously} from 'croak'
+
+# ---------------------------------------------------------------------------
+
+type TStateNum = number
+type TStateValue<TOut> = TStateNum | [-1, TOut]
+
+type TStateFunc<TIn, TOut> = (
+		item: TIn,
+		i: number
+		) => TStateValue<TOut>
+type TReturnFunc<TOut> = () => TOut
+
+export type TStateDesc<TIn, TOut> = {
+	stateFunc: TStateFunc<TIn, TOut>
+	retFunc?: TReturnFunc<TOut>
+	}
+
+# ---------------------------------------------------------------------------
+
+export isStateNum := (x: number): x is TStateNum =>
+
+	return (x >= 0)
+
+# ---------------------------------------------------------------------------
+
+export fromFSM := <TIn, TOut>(
+		lItems:  TIn[]
+		lStates: TStateDesc<TIn, TOut>[]
+		): TOut =>
+
+	try
+		let state = 0
+		for item,i of lItems
+			{stateFunc, retFunc} := lStates[state]
+			state = handleItem item, stateFunc, retFunc, i
+
+		{retFunc} := lStates[state]
+		obviously 0 <= state <= lStates.length
+		if defined(retFunc)
+			return retFunc()
+		else
+			croak "End state #{state} not a final state"
+	catch x
+		if (x instanceof Error)
+			throw x
+		else
+			return x as TOut
+
+# ---------------------------------------------------------------------------
+
+handleItem := <TIn, TOut>(
+		item:      TIn
+		stateFunc: TStateFunc<TIn, TOut>
+		retFunc:   TReturnFunc<TOut>?
+		i: number
+		): TStateNum =>
+
+	result := stateFunc(item, i)
+
+	# --- If we throw, it's a TOut to return to caller of fromFSM
+	if isArray(result)
+		throw result[1]
+	else if (result == -1)
+		assert defined(retFunc), "Return -1 without a TReturnFunc"
+		throw retFunc()
+	else
+		return result

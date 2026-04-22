@@ -2,9 +2,9 @@
 
 import {compile: compileSvelte} from 'npm-svelte/compiler'
 
-import {croak, getErrStr} from 'croak'
+import {undef, defined, notdefined} from 'base-utils'
+import {croak, assert, getErrStr} from 'croak'
 import {
-	undef, defined, notdefined, assert,
 	nonEmptyString, hash, hashof,
 	} from 'datatypes'
 import {TNoArgPredicate, allOf} from 'predicates'

@@ -1,11 +1,12 @@
 # indent.lib.test.civet
 
+import {deepEqual} from 'base-utils'
 import {DBG} from 'logger'
 import {
 	undef, defined, notdefined, assert,
 	} from 'datatypes'
 import {
-	spaces, tabs, throwsError, s, deepEqual,
+	spaces, tabs, throwsError, s,
 	} from 'llutils'
 import {
 	oneIndent, resetOneIndent, indentLevel, splitLine,

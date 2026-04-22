@@ -2,13 +2,11 @@
 
 import {existsSync} from '@std/fs'
 
-import {croak, getErrStr} from 'croak'
+import {undef, defined, notdefined} from 'base-utils'
+import {croak, assert, getErrStr} from 'croak'
 import {uni, esc} from 'unicode'
 import {f} from 'f-strings'
-import {
-	undef, defined, notdefined,
-	assert, hash, isEmpty, nonEmpty,
-	} from 'datatypes'
+import {hash, isEmpty, nonEmpty} from 'datatypes'
 import {
 	allLinesInBlock, arrayToBlock, getOptions,
 	sep, pass, untabify,

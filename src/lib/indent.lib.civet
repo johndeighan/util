@@ -1,17 +1,16 @@
 # indent.lib.civet
 
-import {croak} from 'croak'
+import {undef, defined, notdefined} from 'base-utils'
+import {croak, assert} from 'croak'
 import {esc} from 'unicode'
 import {
-	undef, defined, notdefined, assert, array,
-	isEmpty, isString, isArray, isArrayOfStrings,
+	array, isEmpty, isString, isArray, isArrayOfStrings,
 	hash, hashof, isHash, integer, isInteger,
 	} from 'datatypes'
 import {
 	rtrim, countChars, getOptions, blockToArray, arrayToBlock,
 	toArray, toBlock, widthOf, heightOf, keys,
 	} from 'llutils'
-import {OL} from 'to-nice'
 
 export let oneIndent: string? = undef
 
@@ -166,7 +165,7 @@ export function undented(
 	let nToRemove: number = 0
 	lNewLines: string[] := []
 	for line of toArray(input)
-		assert isString(line), "Bad input to undented: #{OL(input)}"
+		assert isString(line), "Bad input to undented: #{input}"
 		trimmed := rtrim line
 		if (trimmed == '')
 			lNewLines.push ''

@@ -1,12 +1,10 @@
 # iter-utils.lib.civet
 
-import {assertEquals} from '@std/assert'
-
-import {getErrStr, croak} from 'croak'
-import {MAP} from 'mapper'
+import {getErrStr, croak, assert, obviously} from 'croak'
 import {
-	undef, defined, notdefined, assert, obviously,
-	} from 'datatypes'
+	sleep, undef, defined, notdefined,
+	} from 'base-utils'
+import {TIterator, TAsyncIterator, isArray} from 'datatypes'
 
 # ---------------------------------------------------------------------------
 
@@ -49,67 +47,71 @@ export asyncArrayAndAccumFrom := <TOut, TAccum>(
 
 # ---------------------------------------------------------------------------
 
-export valuesFrom := <TOut>(
-		iter: Iterator<TOut, void, void> | AsyncIterator<TOut, void, void>
-		): TOut[] ->
+export allValuesFrom := <T>(
+		lItems: T[] | TIterator<T>
+		): TIterator<T> ->
 
-	let lItems: TOut[] = []
+	iter := isArray(lItems) ? lItems.values() : lItems
+	loop
+		{value, done} := iter.next()
+		if done
+			break
+		else
+			yield value
+	return
+
+# ---------------------------------------------------------------------------
+
+export allValuesFromAsync := <T>(
+		lItems: T[] | TIterator<T> | TAsyncIterator<T>
+		): TAsyncIterator<T> ->
+
+	iter := isArray(lItems) ? lItems.values() : lItems
 	loop
 		{value, done} := await iter.next()
 		if done
 			break
 		else
-			lItems.push value
-	return lItems
+			yield value
+	return
 
 # ---------------------------------------------------------------------------
 
-export accumFrom := <TOut, TAccum>(
-		iter: Iterator<TOut, TAccum>
+export accumFrom := <TIn, TAccum>(
+		lItems: TIn[] | TIterator<TIn, TAccum>
+		initAcc: TAccum? = undef
 		): TAccum? =>
 
+	iter := isArray(lItems) ? lItems.values() : lItems
 	loop
 		{value, done} := iter.next()
 		if done
 			return value
 
 # ---------------------------------------------------------------------------
+
+export accumFromAsync := <TIn, TAccum>(
+		lItems: TIn[] | TIterator<TIn, TAccum> | TAsyncIterator<TIn, TAccum>
+		initAcc: TAccum? = undef
+		): TAccum? =>
+
+	iter := isArray(lItems) ? lItems.values() : lItems
+	loop
+		{value, done} := await iter.next()
+		if done
+			return Promise.resolve(value)
+
+# ---------------------------------------------------------------------------
 # ASYNC
-# --- returns [lFulfilled, lRejected, lFulfilledTags, lRejectedTags]
-#        lFulfilled is an array of TAccum
-#        lRejected is an array of unknown (usually Error objects)
-#        lFulfilledTags and lRejectedTags are arrays of strings
 
-type TRunResult<T> = [T[], unknown[], string[], string[]]
+export generateAsync := <T>(
+		lItems: T[],
+		sleepFor = 1
+		): AsyncGenerator<T> ->
 
-export awaitAll := <T>(
-		lPromises: Promise<T>[]
-		lTags: string[] = []
-		): TRunResult<T> ->
-
-	lSettled := await Promise.allSettled(lPromises)
-	acc0: TRunResult<T> := [[],[],[],[]]
-	# @ts-ignore
-	[lItems, accum] := MAP lSettled, acc0, (h, i, acc) ->
-		if (h.status == 'fulfilled')
-			yield h.value
-		tag := (i >= 0) && (i < lTags.length) ? lTags[i] : ''
-		[lFulfilled, lRejected, lTags1, lTags2] := acc
-		if (h.status == 'fulfilled')
-			return [
-				[...lFulfilled, h.value],
-				lRejected,
-				[...lTags1, tag],
-				lTags2
-				]
-		else
-			return [
-				lFulfilled
-				[...lRejected, getErrStr(h.reason)]
-				lTags1
-				[...lTags2, tag]
-				]
-	# @ts-ignore
-	return accum
+	for item of lItems
+		await sleep(sleepFor)
+		yield item
+	return
 
 # ---------------------------------------------------------------------------
