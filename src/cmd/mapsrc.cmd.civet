@@ -1,6 +1,6 @@
 # mapsrc.cmd.civet
 
-import {TRY} from 'croak'
+import {TRY} from 'base'
 import {stdChecks} from 'llutils'
 import {flag, nonOption, allNonOptions} from 'cmd-args'
 import {assert, defined} from 'datatypes'

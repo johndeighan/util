@@ -1,6 +1,6 @@
 # promise-utils.lib.civet
 
-import {getErrStr} from 'croak'
+import {getErrStr} from 'base'
 import {MAP} from 'mapper'
 
 # ---------------------------------------------------------------------------

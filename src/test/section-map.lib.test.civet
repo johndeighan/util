@@ -1,8 +1,6 @@
 # section-map.lib.test.civet
 
-import {
-	undef, defined, notdefined,
-	} from 'datatypes'
+import {undef, defined, notdefined} from 'base'
 import {keys} from 'llutils'
 import {Section} from 'section'
 import {

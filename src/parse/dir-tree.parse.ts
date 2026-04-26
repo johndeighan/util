@@ -241,7 +241,8 @@ export {
 import {CParseMatches} from 'parse-utils';
 export let pm = new CParseMatches();
 
-import {undef, defined, assert, hash} from 'datatypes';
+import {undef, defined, assert} from 'base';
+import {hash} from 'datatypes';
 import {indented, undented} from 'indent';
 
 export type TFileOp = {

@@ -1,6 +1,6 @@
 # unicode.lib.civet
 
-import {undef, defined} from 'base-utils'
+import {undef, defined} from 'base'
 import {hash, hashof, char} from 'datatypes'
 
 # ---------------------------------------------------------------------------

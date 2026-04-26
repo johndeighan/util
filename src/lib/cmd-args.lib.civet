@@ -1,13 +1,13 @@
 # cmd-args.lib.civet
 
-import {undef, defined, notdefined} from 'base-utils'
-import {croak, assert} from 'croak'
+import {
+	undef, defined, notdefined, croak, assert, mapper,
+	} from 'base'
 import {
 	hash, hashof, char, integer, nonEmpty,
 	isEmpty, isArray, isBoolean,
 	isInteger, isHash, isString,
 	} from 'datatypes'
-import {MAP} from 'mapper'
 import {keys, getOptions, o, spaces} from 'llutils'
 import {clearScreen} from 'console-utils'
 import {LOG, DBG, ERR, setLogLevel} from 'logger'
@@ -43,7 +43,7 @@ export getFlags := (
 
 	lKeys: string[] := keys(hFlags)
 	acc0: hashof<boolean> := {}
-	return MAP lKeys, acc0, (name, acc) =>
+	return mapper lKeys, acc0, (name, acc) =>
 		bool := flag(hFlags[name])
 		if bool
 			LOG "#{name} = true"

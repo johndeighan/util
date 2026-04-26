@@ -5,17 +5,10 @@ import {minify} from 'npm-uglify-js'
 import {
 	deepCopy, undef, defined, notdefined,
 	anyDefined, anyNotDefined,
-	} from 'base-utils'
-import {croak, assert, getErrStr} from 'croak'
-
-export type TIterator<T, U=void, V=void> = Generator<T, U, V>
-export type TAsyncIterator<T, U=void, V=void> = AsyncGenerator<T, U, V>
-export type TNonFunction<T=unknown> = Exclude<T, Function>
-
-export {
-	deepCopy, undef, defined, notdefined,
-	anyDefined, anyNotDefined,
-	}
+	croak, assert, getErrStr,
+	TIterator, TAsyncIterator, TNonFunction,
+	mapper,
+	} from 'base'
 
 # ---------------------------------------------------------------------------
 

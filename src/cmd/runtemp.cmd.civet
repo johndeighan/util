@@ -1,9 +1,6 @@
 # runtemp.cmd.civet
 
-import {TRY, croak} from 'croak'
-import {
-	undef, defined, notdefined, assert,
-	} from 'datatypes'
+import {TRY, croak, undef, defined, notdefined, assert} from 'base'
 import {f, colorize} from 'f-strings'
 import {findFile, withExt, isFile} from 'fsys'
 import {procOneFile, doRun, TExecResult} from 'exec'

@@ -1,6 +1,6 @@
 # unicode.lib.test.civet
 
-import {undef} from 'datatypes'
+import {undef} from 'base'
 import {
 	uni, lit, delit, litC,
 	esc, mesc, unesc, getPrefix,

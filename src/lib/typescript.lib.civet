@@ -9,8 +9,7 @@ import {
 	flattenDiagnosticMessageText, getLineAndCharacterOfPosition,
 	} from 'npm-typescript'
 
-import {undef, defined, notdefined} from 'base-utils'
-import {croak, assert, getErrStr} from 'croak'
+import {undef, defined, notdefined, croak, assert, getErrStr} from 'base'
 import {
 	integer, hash, hashof,
 	isHash, isString, isEmpty, nonEmpty, isNumber,
@@ -44,6 +43,7 @@ import {Walker, TVisitKind} from 'walker'
 import {CMainScope, CScope} from 'scope'
 import {getNeededImportStmts} from 'symbols'
 import {MAP} from 'mapper'
+import {typeCheckTsFile} from 'lltypescript'
 
 decoder := new TextDecoder "utf-8"
 
@@ -106,7 +106,6 @@ export astAsString := (
 
 	return toNice hAst, {
 		ignoreEmptyKeys: true
-#		descFunc
 		lInclude
 		lExclude: words("""
 			pos end id flags modifierFlagsCache
@@ -116,26 +115,6 @@ export astAsString := (
 			hasNoDefaultLib
 			""")
 		}
-
-# ---------------------------------------------------------------------------
-
-export typeCheckTsFile := (path: string): string =>
-
-	assert isFile(path), "No such file: #{path}"
-	{success, stderr} := execCmdSync 'deno', ['check', path]
-	return success ? '' : (stderr || 'Unknown error')
-
-# ---------------------------------------------------------------------------
-# --- We must place the TypeScript file at the project root
-#     so that paths gotten from .symbols resolve correctly
-
-export typeCheckTsCode := (
-		tsCode: string
-		): string =>
-
-	path := "./_typecheck_.ts"
-	barf path, tsCode
-	return typeCheckTsFile path
 
 # ---------------------------------------------------------------------------
 

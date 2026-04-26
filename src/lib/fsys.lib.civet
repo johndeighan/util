@@ -14,19 +14,20 @@ import {
 	parse, resolve, relative, fromFileUrl,
 	} from '@std/path'
 
-import {undef, defined, notdefined, sleep} from 'base-utils'
-import {croak, assert, obviously} from 'croak'
+import {
+	pass, undef, defined, notdefined, sleep, toRelPath,
+	normalizePath, toFullPath, allLinesIn,
+	fileExt, withExt, getFileStats,
+	croak, assert, obviously,
+	} from 'base'
 import {
 	isEmpty, nonEmpty, isString, isNonEmptyString,
 	isBoolean, isNumber, isInteger, isArray, isArrayOfStrings,
 	isHash, isRegExp, integer, hash, hashof, TVoidFunc,
 	} from 'datatypes'
-import {
-	normalizePath, relpath, toFullPath, allLinesIn,
-	} from 'llfs'
 import {MAP} from 'mapper'
 import {
-	getOptions, pass, encode, spaces,
+	getOptions, encode, spaces,
 	sinceLoadStr, arrayToBlock, words,
 	} from 'llutils'
 import {isMetaDataStart, convertMetaData} from 'meta-data'
@@ -36,8 +37,12 @@ import {
 	pushLogLevel, popLogLevel, LOG, DBG, WARN, ERR,
 	INDENT, UNDENT, DBGVALUE,
 	} from 'logger'
+import {civet2tsFile} from 'llcivet'
 
-export {normalizePath, relpath, toFullPath, allLinesIn}
+export {
+	normalizePath, toRelPath, toFullPath, allLinesIn,
+	fileExt, withExt, getFileStats,
+	}
 
 # --- Create a function capable of synchronously
 #     importing ESM modules
@@ -56,32 +61,6 @@ type FsEvent = Deno.FsEvent
 #    birthtime (Date | null): Creation time (not available on all platforms).
 #    mode (number | null): Permissions (POSIX only).
 #    uid / gid (number | null): Owner/group ID (POSIX only)
-# ---------------------------------------------------------------------------
-
-export type TFileStats = {
-	isFile: boolean
-	isDirectory: boolean
-	isSymlink: boolean
-	mtime: Date?
-	}
-
-export getFileStats := (path: string): TFileStats =>
-
-	if (path == 'ext:core/01_core.js')
-		return {
-			isFile: false
-			isDirectory: false
-			isSymlink: false
-			mtime: undef
-			}
-	hStats := Deno.statSync path
-	return {
-		isFile: hStats.isFile
-		isDirectory: hStats.isDirectory
-		isSymlink: hStats.isSymlink
-		mtime: hStats.mtime || undef
-		}
-
 # ---------------------------------------------------------------------------
 /**
  * returns one of:
@@ -182,7 +161,7 @@ export pathSubDirs := (
 
 export myself := (url: string): string =>
 
-	return relpath fromFileUrl url
+	return toRelPath fromFileUrl url
 
 # ---------------------------------------------------------------------------
 
@@ -219,15 +198,9 @@ export barfTempFile := (
 	{ext} := getOptions<opt> hOptions, {
 		ext: '.civet'
 		}
-	tempFilePath := Deno.makeTempFileSync suffix: ext
+	tempFilePath := Deno.makeTempFileSync {suffix: ext}
 	barf tempFilePath, contents
 	return tempFilePath
-
-# ---------------------------------------------------------------------------
-
-export isExt := (str: string): boolean =>
-
-	return /^\.[A-Za-z0-9_]+$/.test str
 
 # ---------------------------------------------------------------------------
 
@@ -240,11 +213,12 @@ export newerDestFileExists := (
 	assert isFile(srcPath), "No such file: #{OL(srcPath)}"
 
 	# --- allow passing a file extension for 2nd argument
-	if isExt(destPath)
+	if destPath.startsWith('.')
 		destPath = withExt(srcPath, destPath)
 
+	if not existsSync(destPath)
+		return false
 	try
-		assert existsSync(destPath)
 		destms := getFileStats(destPath).mtime
 		assert defined(destms)
 		srcms  := getFileStats(srcPath).mtime
@@ -434,22 +408,6 @@ export addJsonValue := (
 
 # ---------------------------------------------------------------------------
 
-export fileExt := (path: string): string =>
-
-	lMatches := path.match(/\.[^\.]+$/)
-	return lMatches ? lMatches[0] : ''
-
-# ---------------------------------------------------------------------------
-
-export withExt := (path: string, ext: string): string =>
-
-	assert ext.startsWith('.'), "Bad file extension: #{ext}"
-	pos := path.lastIndexOf '.'
-	assert (pos >= 0), "path contains no period: #{path}"
-	return normalizePath(path.substring(0, pos) + ext)
-
-# ---------------------------------------------------------------------------
-
 export inSameDir := (
 		path: string,
 		fileName: string
@@ -600,8 +558,8 @@ export findFile := (
 		lIgnoreDirs: string[]
 		}
 	{root, lIgnoreDirs} := getOptions<opt> hOptions, {
-		root: './src'
-		lIgnoreDirs: ['temp']
+		root: '.'
+		lIgnoreDirs: ['.temp', '.save']
 		}
 
 	assert not root.endsWith('/'), "Bad root: #{root}"
@@ -858,14 +816,24 @@ export openTextFile = (
 # ---------------------------------------------------------------------------
 # ASYNC
 
-export configFromFile := (fileName: string): hash =>
+export configFromFile := (
+		fileName: string
+		): hash =>
 
 	path := findFile fileName
 	assert defined(path), "No such file: #{OL(fileName)}"
 	{purpose, ext} := parsePath path
 	assert (purpose == 'config'), "Not a config file: #{OL(path)}"
-	assert (ext == '.ts'), "Config file not TypeScript: #{OL(path)}"
-	DBG "Import config from #{OL(path)}"
-	url := pathToFileURL path
-	DBGVALUE 'url', url
-	return await import url
+	if (ext == '.civet')
+		tsPath := await civet2tsFile path
+		DBG "Import config from #{OL(tsPath)}"
+		url := pathToFileURL tsPath
+		DBGVALUE 'url', url
+		return await import url
+	else if (ext == '.ts')
+		DBG "Import config from #{OL(path)}"
+		url := pathToFileURL path
+		DBGVALUE 'url', url
+		return await import url
+	else
+		croak "Not a civet or ts file: #{fileName}"

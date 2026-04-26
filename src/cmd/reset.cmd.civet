@@ -1,6 +1,6 @@
 # reset.cmd.civet
 
-import {TRY} from 'croak'
+import {TRY} from 'base'
 import {stdChecks} from 'llutils'
 import {
 	procFiles, doRemoveTsFile, doRemoveFile, doInstallCmd, doUninstallCmd,

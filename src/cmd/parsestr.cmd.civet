@@ -1,8 +1,6 @@
 # parsestr.cmd.civet
 
-import {TRY} from 'croak'
-import {defined, assert} from 'datatypes'
-import {croak} from 'croak'
+import {TRY, defined, assert, croak} from 'base'
 import {findFile} from 'fsys'
 import {allNonOptions} from 'cmd-args'
 

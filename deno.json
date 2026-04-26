@@ -22,6 +22,7 @@
 		"@webui": "jsr:@webui/deno-webui"
 		"@std/http/file-server": "jsr:@std/http/file-server",
 		"@mwid/better-sse": "jsr:@mwid/better-sse",
+		"@danielx/civet": "npm:@danielx/civet",
 
 		"@deno/emit": "jsr:@deno/emit",
 		"@danielx/civet": "npm:@danielx/civet@latest",
@@ -44,14 +45,12 @@
 		"npm-console-gui-tools": "npm:console-gui-tools",
 		"npm-blessed": "npm:@unblessed/node",
 
+		"base":          "file:///C:/Users/johnd/util/src/lib/base.lib.ts",
 		"llfs":          "file:///C:/Users/johnd/util/src/lib/llfs.lib.ts",
 		"fsm":           "file:///C:/Users/johnd/util/src/lib/fsm.lib.ts",
-		"base-utils":    "file:///C:/Users/johnd/util/src/lib/base-utils.lib.ts",
 		"promise-utils": "file:///C:/Users/johnd/util/src/lib/promise-utils.lib.ts",
 		"datatypes":     "file:///C:/Users/johnd/util/src/lib/datatypes.lib.ts",
-		"croak":         "file:///C:/Users/johnd/util/src/lib/croak.lib.ts",
 		"unify":         "file:///C:/Users/johnd/util/src/lib/unify.lib.ts",
-		"predicates":    "file:///C:/Users/johnd/util/src/lib/predicates.lib.ts",
 		"source-map":    "file:///C:/Users/johnd/util/src/lib/source-map.lib.ts",
 		"f-strings":     "file:///C:/Users/johnd/util/src/lib/f-strings.lib.ts",
 		"llutils":       "file:///C:/Users/johnd/util/src/lib/llutils.lib.ts",
@@ -79,6 +78,8 @@
 		"from-nice":     "file:///C:/Users/johnd/util/src/lib/from-nice.lib.ts",
 		"symbols":       "file:///C:/Users/johnd/util/src/lib/symbols.lib.ts",
 		"typescript":    "file:///C:/Users/johnd/util/src/lib/typescript.lib.ts",
+		"lltypescript":  "file:///C:/Users/johnd/util/src/lib/lltypescript.lib.ts",
+		"llcivet":       "file:///C:/Users/johnd/util/src/lib/llcivet.lib.ts",
 		"civet":         "file:///C:/Users/johnd/util/src/lib/civet.lib.ts",
 		"cielo":         "file:///C:/Users/johnd/util/src/lib/cielo.lib.ts",
 		"automate":      "file:///C:/Users/johnd/util/src/lib/automate.lib.ts",

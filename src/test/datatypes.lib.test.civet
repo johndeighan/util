@@ -2,10 +2,8 @@
 
 import {
 	undef, defined, notdefined, anyDefined, anyNotDefined, deepEqual,
-	} from 'base-utils'
-import {
 	croak, assert, obviously,
-	} from 'croak'
+	} from 'base'
 import {
 	array, arrayof, isArray,
 	hash, hashof, isHash,

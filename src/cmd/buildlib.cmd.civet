@@ -1,11 +1,10 @@
 # buildlib.cmd.civet
 
-import {TRY} from 'croak'
-import {assert, defined, notdefined} from 'datatypes'
+import {assert, defined, notdefined, TRY, toRelPath} from 'base'
 import {stdChecks, o, cmdTitle} from 'llutils'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {LOG, ERR} from 'logger'
-import {withExt, findFile, relpath} from 'fsys'
+import {withExt, findFile} from 'fsys'
 import {execCmd, procFiles, procOneFile} from 'exec'
 import {doUnitTest} from 'typescript'
 import {doCompileCivet} from 'civet'
@@ -46,7 +45,7 @@ TRY () =>
 			path := findFile fileName
 			assert defined(path), "No such file: #{fileName}"
 
-			LOG cmdTitle("BUILD LIB #{relpath(path)}")
+			LOG cmdTitle("BUILD LIB #{toRelPath(path)}")
 			await procOneFile path, doCompileCivet, {force, inspect}
 
 			if doTest
@@ -54,10 +53,10 @@ TRY () =>
 				testFileName := "#{stub}.lib.test.civet"
 				testPath := findFile testFileName
 				if defined(testPath)
-					LOG cmdTitle("COMPILE TEST #{relpath(testPath)}")
+					LOG cmdTitle("COMPILE TEST #{toRelPath(testPath)}")
 					await procOneFile testPath, doCompileCivet, {force}
 					tsPath := withExt(testPath, '.ts')
-					LOG cmdTitle("RUN TEST #{relpath(tsPath)}")
+					LOG cmdTitle("RUN TEST #{toRelPath(tsPath)}")
 					hResult := await procOneFile tsPath, doUnitTest, {
 						capture: true
 						inspect: inspectTest

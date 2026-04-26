@@ -2,10 +2,13 @@
 
 import {yellow} from '@std/fmt/colors'
 
-import {getErrStr, assert, obviously} from 'croak'
-import {undef, defined, notdefined} from 'base-utils'
 import {
-	array, hash, jsType, TNonFunction, TIterator, TAsyncIterator,
+	undef, defined, notdefined,
+	getErrStr, assert, obviously,
+	TIterator, TAsyncIterator, TNonFunction,
+	} from 'base'
+import {
+	array, hash, jsType,
 	isString, isArray, isObject, isAsyncFunction,
 	isFunction, isIterator, isAsyncIterator,
 	isGeneratorFunction, isAsyncGeneratorFunction,
@@ -185,14 +188,6 @@ export function MAP<TIn, TOut, TAccum extends TNonFunction>(
 		nothing: void
 		): TAsyncIterator<TOut>
 
-# --- Variant 6, possibly async input, iterator with accumulator
-#     ASYNC
-export function MAP<TIn, TOut, TAccum extends TNonFunction>(
-		iter: TIn[] | TIterator<TIn> | TAsyncIterator<TIn>
-		acc: TAccum
-		mapFunc: TAsyncBothMapper<TIn, TOut, TAccum> | TBothMapper<TIn, TOut, TAccum>
-		): TAsyncIterator<TOut, TAccum, void>
-
 # --- Variant 5, possibly async input, only accumulator
 #     ASYNC
 export function MAP<TIn, TOut, TAccum extends TNonFunction>(
@@ -200,6 +195,14 @@ export function MAP<TIn, TOut, TAccum extends TNonFunction>(
 		acc: TAccum
 		mapFunc: TAsyncAccumMapper<TIn, TAccum> | TAccumMapper<TIn, TAccum>
 		): Promise<TAccum>
+
+# --- Variant 6, possibly async input, iterator with accumulator
+#     ASYNC
+export function MAP<TIn, TOut, TAccum extends TNonFunction>(
+		iter: TIn[] | TIterator<TIn> | TAsyncIterator<TIn>
+		acc: TAccum
+		mapFunc: TAsyncBothMapper<TIn, TOut, TAccum> | TBothMapper<TIn, TOut, TAccum>
+		): TAsyncIterator<TOut, TAccum, void>
 
 export function MAP<TIn, TOut, TAccum extends TNonFunction>(
 		lItems:  TIn[] | TIterator<TIn> | TAsyncIterator<TIn>

@@ -1,10 +1,11 @@
 # iter-utils.lib.civet
 
-import {getErrStr, croak, assert, obviously} from 'croak'
 import {
 	sleep, undef, defined, notdefined,
-	} from 'base-utils'
-import {TIterator, TAsyncIterator, isArray} from 'datatypes'
+	getErrStr, croak, assert, obviously,
+	TIterator, TAsyncIterator,
+	} from 'base'
+import {isArray} from 'datatypes'
 
 # ---------------------------------------------------------------------------
 

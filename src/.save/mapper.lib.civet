@@ -2,7 +2,7 @@
 
 import {yellow} from '@std/fmt/colors'
 
-import {undef} from 'base-utils'
+import {undef} from 'base'
 import {assert, obviously, getErrStr} from 'croak'
 import {accumFrom, arrayAndAccumFrom} from 'iter-utils'
 import {

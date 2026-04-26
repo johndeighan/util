@@ -2,10 +2,9 @@
 
 import {pathToFileURL} from 'node-url'
 
-import {undef, defined, notdefined} from 'base-utils'
-import {croak, assert} from 'croak'
+import {pass, undef, defined, notdefined, croak, assert} from 'base'
 import {hash, isHash} from 'datatypes'
-import {pass, keys, require} from 'llutils'
+import {keys, require} from 'llutils'
 import {OL, ML} from 'to-nice'
 import {
 	DBG, LOG, DBGVALUE, pushLogLevel, popLogLevel,
@@ -14,7 +13,8 @@ import {
 	isFile, fileExt, withExt, slurp, barf, barfTempFile, parsePath,
 	} from 'fsys'
 import {CFileHandler, TExecResult} from 'exec'
-import {civet2ts, civet2tsFile, doCompileCivet} from 'civet'
+import {civet2tsSync} from 'llcivet'
+import {doCompileCivet} from 'civet'
 
 # ---------------------------------------------------------------------------
 
@@ -26,7 +26,7 @@ export cielo2civet := (code: string): string =>
 
 export cielo2ts := (code: string): string =>
 
-	return civet2ts cielo2civet(code)
+	return civet2tsSync cielo2civet(code)
 
 # ---------------------------------------------------------------------------
 

@@ -3,17 +3,16 @@
 import {stripAnsiCode} from "@std/fmt/colors"
 import {SourceFile} from 'npm:typescript'
 
-import {undef, defined, isHash} from 'datatypes'
+import {undef, defined} from 'base'
+import {isHash} from 'datatypes'
 import {o, s, rtrim} from 'llutils'
 import {DBG} from 'logger'
 import {slurp, withExt} from 'fsys'
 import {ts2ast, astAsString} from 'typescript'
+import {civet2tsSync, civet2tsFileSync} from 'llcivet'
+import {a, civet2ast} from 'civet'
 import {
-	a, civet2tsFile, civet2ts, civet2ast,
-	} from 'civet'
-import {
-	equal, succeeds, fails, truthy, falsy,
-	isType, setDirTree,
+	equal, succeeds, fails, truthy, falsy, setDirTree,
 	} from 'unit-test'
 
 fileName := "test-civet.civet"
@@ -31,35 +30,30 @@ await setDirTree """
 testPath := "src/test/civet/#{fileName}"
 
 civetCode := slurp testPath
-tsCode :=  civet2ts civetCode
+tsCode :=  civet2tsSync civetCode
 
 # --- source maps are stripped out before an ast is created
 ast1 := civet2ast civetCode
 ast2 := ts2ast tsCode
 equal ast1, ast2
 
-DBG "civet2ts(code)"
+DBG "civet2tsSync(code)"
 
-equal civet2ts('x := 42', o'!inlineMap'), """
-	"use strict";
+equal civet2tsSync('x := 42', o'!inlineMap'), """
 	const x = 42
 	"""
 
-DBG "civet2tsFile(path)"
+DBG "civet2tsFileSync(path)"
 
 (() =>
-	civet2tsFile testPath, undef, o'!inlineMap'
+	civet2tsFileSync testPath, undef, o'!inlineMap'
 	code := slurp withExt(testPath, '.ts')
 	equal rtrim(code), """
-		"use strict";
 		const x = 42
 		"""
 	)()
 
 DBG "civet2ast(code)"
-
-isType 'SourceFile', ast1
-isType 'SourceFile', ast2
 
 succeeds () => civet2ast('x := 42')
 

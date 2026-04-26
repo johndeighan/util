@@ -1,0 +1,586 @@
+# base.lib.civet
+
+import {red} from '@std/fmt/colors'
+import {resolve, relative} from '@std/path'
+import {TextLineStream} from '@std/streams'
+import deepEqual from 'npm-fast-deep-equal'
+import {existsSync, emptyDirSync, ensureDirSync} from '@std/fs'
+import {sprintf} from '@std/fmt/printf'
+
+export {deepEqual}
+export deepCopy = structuredClone
+
+# ---------------------------------------------------------------------------
+
+export pass := (): void =>
+	# do nothing
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export sleep := (sec: number): void =>
+
+	await new Promise((r) => setTimeout r, 1000 * sec)
+	return
+
+# ---------------------------------------------------------------------------
+
+export undef := undefined
+type TDefined = NonNullable<unknown>
+type TNotDefined = null | undefined
+
+# ---------------------------------------------------------------------------
+
+export defined := (x: unknown): x is TDefined =>
+
+	return (x != undef) && (x != null)
+
+# ---------------------------------------------------------------------------
+
+export anyDefined := (...lItems: unknown[]): boolean =>
+
+	for item of lItems
+		if defined(item)
+			return true
+	return false
+
+# ---------------------------------------------------------------------------
+
+export notdefined := (x: unknown): x is TNotDefined =>
+
+	return (x == undef) || (x == null)
+
+# ---------------------------------------------------------------------------
+
+export anyNotDefined := (...lItems: unknown[]): boolean =>
+
+	for item of lItems
+		if notdefined(item)
+			return true
+	return false
+
+# ---------------------------------------------------------------------------
+
+let lLogLines: string[] = []
+
+# ---------------------------------------------------------------------------
+
+export LOG := (x: unknown): void =>
+
+	console.log x
+	lLogLines.push String(x)
+	return
+
+# ---------------------------------------------------------------------------
+
+export ERR := (x: unknown): void =>
+
+	console.error x
+	lLogLines.push String(x)
+	return
+
+# ---------------------------------------------------------------------------
+
+export clearLog := (): void =>
+
+	lLogLines.length = 0
+	return
+
+# ---------------------------------------------------------------------------
+
+export getLog := (): string =>
+
+	return lLogLines.join('\n')
+
+# ---------------------------------------------------------------------------
+
+export max := (x: number, y: number): number =>
+
+	return (x > y) ? x : y
+
+# ---------------------------------------------------------------------------
+
+export range := (n: number): Generator<number, void, void> ->
+
+	for i of [0...n]
+		yield i
+	return
+
+# ---------------------------------------------------------------------------
+#              File System Utils
+# ---------------------------------------------------------------------------
+
+export normalizePath := (
+		path: string
+		): string =>
+
+	newpath := path.replaceAll '\\', '/'
+	if (newpath.charAt(1) == ':')
+		return newpath.charAt(0).toUpperCase() + newpath.substring(1)
+	else
+		return newpath
+
+# ---------------------------------------------------------------------------
+
+export fileExt := (path: string): string =>
+
+	lMatches := path.match(/\.[^\.]+$/)
+	return lMatches ? lMatches[0] : ''
+
+# ---------------------------------------------------------------------------
+
+export withExt := (path: string, ext: string): string =>
+
+	assert ext.startsWith('.'), "Bad file extension: #{ext}"
+	pos := path.lastIndexOf '.'
+	assert (pos >= 0), "path contains no period: #{path}"
+	return normalizePath(path.substring(0, pos) + ext)
+
+# ---------------------------------------------------------------------------
+
+export toRelPath := (
+		path: string,
+		root: string = Deno.cwd()
+		): string =>
+
+	return normalizePath relative(root, path)
+
+# ---------------------------------------------------------------------------
+
+export toFullPath := (path: string): string =>
+
+	return normalizePath(resolve('.', path))
+
+# ---------------------------------------------------------------------------
+
+export newerDestFileExists := (
+		srcPath: string,
+		destPath: string    # --- can be a file extension
+		): boolean =>
+
+	# --- source file must exist
+	assert existsSync(srcPath), "No such file: #{srcPath}"
+
+	# --- allow passing a file extension for 2nd argument
+	if destPath.startsWith('.')
+		destPath = withExt(srcPath, destPath)
+
+	if not existsSync(destPath)
+		return false
+	try
+		destms := getFileStats(destPath).mtime
+		assert defined(destms)
+		srcms  := getFileStats(srcPath).mtime
+		assert defined(srcms)
+		return (destms > srcms)
+	catch err
+		return false
+
+# ---------------------------------------------------------------------------
+
+export type TFileStats = {
+	isFile: boolean
+	isDirectory: boolean
+	isSymlink: boolean
+	mtime: Date?
+	}
+
+export getFileStats := (
+		path: string
+		): TFileStats =>
+
+	if (path == 'ext:core/01_core.js')
+		return {
+			isFile: false
+			isDirectory: false
+			isSymlink: false
+			mtime: undef
+			}
+	hStats := Deno.statSync path
+	return {
+		isFile:      hStats.isFile
+		isDirectory: hStats.isDirectory
+		isSymlink:   hStats.isSymlink
+		mtime:       hStats.mtime || undef
+		}
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export allLinesIn := (
+		path: string
+		): AsyncGenerator<string> ->
+
+	f := await Deno.open path
+	readable := (f.readable
+			.pipeThrough(new TextDecoderStream())
+			.pipeThrough(new TextLineStream())
+			)
+	for await line of readable
+		yield line
+	return
+
+export let onlyThrow = false
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export mkTempFile := (
+		suffix: string
+		): string =>
+
+	return await Deno.makeTempFile {suffix}
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export mkTempFileSync := (
+		suffix: string
+		): string =>
+
+	return Deno.makeTempFileSync {suffix}
+
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
+export justThrow := (flag: boolean=true): void =>
+
+	onlyThrow = flag
+	return
+
+# ---------------------------------------------------------------------------
+
+export type TAssertFunc = (
+		cond: unknown,
+		msg?: string
+		) => asserts cond
+
+export assert: TAssertFunc := (
+		cond: unknown,
+		msg: string = "An unknown error occurred"
+		): asserts cond =>
+
+	if not cond
+		croak msg
+	return
+
+export obviously: TAssertFunc := (
+		cond: unknown
+		): asserts cond =>
+
+	if not cond
+		croak "condition obviously not true"
+	return
+
+# ---------------------------------------------------------------------------
+
+export type TFrameType = (
+	'eval' |
+	'native' |
+	'constructor' |
+	'method' |
+	'function' |
+	'script' |
+	'unknown'
+	)
+
+export type TStackFrame = {
+	i: number
+	type: string
+	source: string        # relative file path or 'unknown'
+	line: number
+	col: number
+	name: string          # name of function or method
+	}
+
+# ---------------------------------------------------------------------------
+
+export type TFrameFilter = (frame: TStackFrame) => boolean
+
+# ---------------------------------------------------------------------------
+
+export allStackFrames := (
+		trace = false
+		): Generator<TStackFrame> ->
+
+	try
+		# @ts-ignore
+		oldLimit := Error.stackTraceLimit
+		# @ts-ignore
+		oldPreparer := Error.prepareStackTrace
+		# @ts-ignore
+		Error.stackTraceLimit = 99
+
+		let prevFrame: TStackFrame? = undefined
+
+		# @ts-ignore
+		Error.prepareStackTrace = (error, lOrgFrames) =>
+
+			debugger
+			lFrames: TStackFrame[] := for orgFrame,i of lOrgFrames
+				fileName     := orgFrame.getFileName()
+				functionName := orgFrame.getFunctionName()
+				methodName   := orgFrame.getMethodName()
+				frame: TStackFrame := {
+					i
+					type: (
+						  orgFrame.isEval()        ? 'eval'
+						: orgFrame.isNative()      ? 'native'
+						: orgFrame.isConstructor() ? 'constructor'
+						: methodName               ? 'method'
+						: functionName             ? 'function'
+						: orgFrame.isToplevel()    ? 'script'
+						:                            'unknown'
+						)
+					source: fileName ? toRelPath(fileName) : ''
+					line :  orgFrame.getLineNumber()
+					col:    orgFrame.getColumnNumber()
+					name:   functionName || methodName || ''
+					}
+
+				# --- fix a bug in the V8 engine where calls inside a
+				#     top level anonymous function is reported as
+				#     being of type 'script'
+
+				if prevFrame && (frame.type == 'script') && (prevFrame.type == 'script')
+					prevFrame.type = 'function'
+					prevFrame.name = '<anon>'
+
+				if trace
+					dumpFrame frame, 'ORG FRAME'
+				prevFrame = frame
+				frame
+
+			return lFrames
+
+		obj: Object := {}
+		Error.captureStackTrace(obj)
+		# @ts-ignore
+		lStack: TStackFrame[] := obj.stack
+
+		# --- reset to previous values
+		# @ts-ignore
+		Error.stackTraceLimit = oldLimit
+		# @ts-ignore
+		Error.prepareStackTrace = oldPreparer
+
+		for frame of lStack
+			yield frame
+		return
+
+	catch err
+		console.error "#{red('ERROR:')} #{err}"
+		return
+
+# ---------------------------------------------------------------------------
+
+export dumpFrame := (
+		frame: TStackFrame,
+		label: string = 'FRAME'
+		): void =>
+
+	{i, type, source, line, col, name} := frame
+	typeStr := sprintf('%-8s', type)
+	nameStr := sprintf('%-16s', name)
+	if source
+		LOG "#{label}[#{i}]: #{typeStr} #{nameStr} #{source}:#{line}:#{col}"
+	else
+		LOG "#{label}[#{i}]: #{typeStr} #{nameStr} <none>"
+	return
+
+# ---------------------------------------------------------------------------
+
+export getErrStr := (err: unknown): string =>
+
+	if (typeof err == 'string')
+		return err
+	else if (err instanceof Error)
+		return err.message
+	else
+		return "Serious Error"
+
+# ---------------------------------------------------------------------------
+
+type TNeverFunc = (err?: unknown) => never
+
+export croak: TNeverFunc := (
+		err: unknown = undef
+		): never =>
+
+	if notdefined(err)
+		throw new Error()
+	else
+		errMsg := getErrStr(err)
+		if onlyThrow
+			# --- allows the error to be caught and handled or ignored
+			throw new Error(errMsg)
+		else
+			console.error red('CROAK') + ': ' + errMsg
+			console.error "-----  STACK -----"
+			for frame of allStackFrames()
+				dumpFrame frame
+			Deno.exit()
+
+# ---------------------------------------------------------------------------
+
+export TRY := (func: () => void): void =>
+
+	try
+		debugger
+		func()
+	catch err
+		croak err
+
+# ---------------------------------------------------------------------------
+
+export type TPredicate<T=unknown> = (item: T) => boolean
+
+# ---------------------------------------------------------------------------
+
+export toBool := (x: unknown): boolean =>
+
+	return not not x
+
+# ---------------------------------------------------------------------------
+
+export anyOf := <T>(
+		lItems: T[],
+		checkFunc: TPredicate<T> = (x) => toBool(x)
+		): boolean =>
+
+	for item of lItems
+		if checkFunc(item)
+			return true
+	return false
+
+# ---------------------------------------------------------------------------
+
+export allOf := <T>(
+		lItems: T[],
+		checkFunc: TPredicate<T> = (x) => toBool(x)
+		): boolean =>
+
+	for item of lItems
+		if not checkFunc(item)
+			return false
+	return true
+
+# ---------------------------------------------------------------------------
+#       mapper()
+# ---------------------------------------------------------------------------
+
+export type TIterator<T, U=void, V=void> = Generator<T, U, V>
+export type TAsyncIterator<T, U=void, V=void> = AsyncGenerator<T, U, V>
+export type TNonFunction<T=unknown> = Exclude<T, Function>
+
+type TMapper<TIn, TAccum extends TNonFunction> = (
+	x: TIn
+	acc: TAccum
+	i: number
+	) => TAccum
+
+type TAsyncMapper<TIn, TAccum extends TNonFunction> = (
+	x: TIn
+	acc: TAccum
+	i: number
+	) => Promise<TAccum>
+
+# ---------------------------------------------------------------------------
+
+isAsyncGeneratorFunction := (
+		x: unknown
+		): x is AsyncGeneratorFunction =>
+
+	return (
+		   (typeof x == 'function')
+		&& (x.toString().match(/\basync\s+function\s*\*/) != null)
+		)
+# ---------------------------------------------------------------------------
+
+# --- Variant 2, only accumulator
+#     NOT ASYNC
+export function mapper<TIn, TOut, TAccum extends TNonFunction>(
+		lItems:  TIn[] | TIterator<TIn>
+		acc: TAccum
+		mapFunc: TMapper<TIn, TAccum>         # plain function
+		): TAccum
+
+# --- Variant 5, possibly async input, only accumulator
+#     ASYNC
+export function mapper<TIn, TOut, TAccum extends TNonFunction>(
+		iter: TIn[] | TIterator<TIn> | TAsyncIterator<TIn>
+		acc: TAccum
+		mapFunc: TAsyncMapper<TIn, TAccum> | TMapper<TIn, TAccum>
+		): Promise<TAccum>
+
+export function mapper<TIn, TOut, TAccum extends TNonFunction>(
+		lItems:  TIn[] | TIterator<TIn> | TAsyncIterator<TIn>
+		acc: TAccum
+		mapFunc: TAsyncMapper<TIn, TAccum> | TMapper<TIn, TAccum>
+		): TAccum | Promise<TAccum>
+
+	if (Symbol.asyncIterator in lItems) || isAsyncGeneratorFunction(mapFunc)
+		# @ts-ignore
+		return mapperv2 lItems, acc, mapFunc
+	else
+		# @ts-ignore
+		return mapperv1 lItems, acc, mapFunc
+
+# ---------------------------------------------------------------------------
+# --- Variant 1, only accumulator, no iterator
+
+function mapperv1<TIn, TOut, TAccum extends TNonFunction>(
+		lItems:  TIn[] | TIterator<TIn>
+		acc: TAccum
+		mapFunc: TMapper<TIn, TAccum>
+		): TAccum
+
+	for value,i of allValuesFrom(lItems)
+		acc = mapFunc(value, acc, i)
+	return acc
+
+# ---------------------------------------------------------------------------
+# --- Variant 5, async input, only accumulator
+# ASYNC
+
+function mapperv2<TIn, TOut, TAccum extends TNonFunction>(
+		lItems:  TIn[] | TIterator<TIn> | TAsyncIterator<TIn>
+		acc: TAccum
+		mapFunc: TMapper<TIn, TAccum> | TAsyncMapper<TIn, TAccum>
+		): TAccum?
+
+	for await value,i of allValuesFromAsync(lItems)
+		acc = await mapFunc(value, acc, i)
+	return Promise.resolve(acc)
+
+# ---------------------------------------------------------------------------
+
+export allValuesFrom := <T>(
+		lItems: T[] | TIterator<T>
+		): TIterator<T> ->
+
+	iter := Array.isArray(lItems) ? lItems.values() : lItems
+	loop
+		{value, done} := iter.next()
+		if done
+			break
+		else
+			yield value
+	return
+
+# ---------------------------------------------------------------------------
+
+export allValuesFromAsync := <T>(
+		lItems: T[] | TIterator<T> | TAsyncIterator<T>
+		): TAsyncIterator<T> ->
+
+	iter := Array.isArray(lItems) ? lItems.values() : lItems
+	loop
+		{value, done} := await iter.next()
+		if done
+			break
+		else
+			yield value
+	return
+
+# ---------------------------------------------------------------------------

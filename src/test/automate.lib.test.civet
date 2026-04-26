@@ -1,17 +1,18 @@
 # automate.lib.test.civet
 
-import {defined, isHash, isFunction} from 'datatypes'
-import {TPredicate} from 'predicates'
+import {defined} from 'base'
+import {isHash, isFunction} from 'datatypes'
 import {o} from 'llutils'
 import {withExt, TPathInfo, isFile} from 'fsys'
 import {DBG} from 'logger'
+import {typeCheckTsCode, typeCheckTsCodeSync} from 'lltypescript'
 import {
 	TCompilerFunc, TPostProcessor, compileFile,
 	TCompilerInfo, isCompilerInfo, TCompilerConfig, isCompilerConfig,
 	TCompileResult, getCompilerConfig, getCompilerInfo, getPostProcessor,
 	} from 'automate'
 import {
-	equal, succeeds, fails, truthy, falsy, isType, setDirTree,
+	equal, succeeds, fails, truthy, falsy, setDirTree,
 	} from 'unit-test'
 
 # ---------------------------------------------------------------------------
@@ -20,7 +21,7 @@ import {
 setup := (): void =>
 
 	await setDirTree """
-		./src/test/automate
+		./src/test/automate clear
 		test1.cielo compile
 			# test1.cielo
 
@@ -43,7 +44,7 @@ setup := (): void =>
 			OO -> EE
 		hello.ts
 			console.log("Hello, World!");
-		comp.config.civet
+		mycompile.config.civet
 			import {withExt} from 'fsys'
 			export default new Object {
 				hCompilers: {
@@ -62,17 +63,15 @@ await setup()
 
 # ---------------------------------------------------------------------------
 
-DBG "type TPredicate"
-
-isType 'TPredicate', () =>
-	console.log "Hello, World!"
-	return true
-
 DBG "type TCompilerFunc"
 
-isType 'TCompilerFunc', (path: string) =>
-	console.log path
-	return 'compiled'
+succeeds () => typeCheckTsCodeSync """
+	import type {TCompilerFunc} from 'automate';
+	const func: TCompilerFunc = (path: string) =>
+		console.log(path);
+		return 'compiled'
+	"""
+
 
 DBG "type TPostProcessor"
 
@@ -85,37 +84,36 @@ DBG "type TPostProcessor"
 
 DBG "type TCompilerInfo"
 
-isType 'TCompilerInfo', {
-	tester: () => true
-	compiler: (path: string) => return 'compiled',
-	getOutPaths: (path: string) => return ['temp.ts']
-	}
+(() =>
+	h := {
+		tester: () => true
+		compiler: (path: string) => return 'compiled',
+		getOutPaths: (path: string) => return ['temp.ts']
+		}
+	truthy isCompilerInfo h
+	)()
 
 DBG "type TCompilerConfig", "isCompilerConfig()"
 
-isType 'TCompilerConfig', {
-	hCompilers: {}
-	hPostProcessors: {}
-	}
-
-DBG "type TCompileResult"
-
-isType 'TCompileResult', {
-	status: 'compiled'
-	path: 'temp.civet'
-	}
+(() =>
+	h := {
+		hCompilers: {}
+		hPostProcessors: {}
+		}
+	truthy isCompilerConfig(h)
+	)()
 
 DBG "getCompilerConfig(path)"
 
 (() =>
-	civetPath := 'src/test/automate/comp.config.civet'
+	civetPath := 'src/test/automate/mycompile.config.civet'
 	hConfig := getCompilerConfig(civetPath)
-	# isType 'TCompilerConfig', hConfig, isCompilerConfig
+	truthy isCompilerConfig(hConfig)
 	)()
 
 DBG "getCompilerInfo()"
 
-isType 'TCompilerInfo', getCompilerInfo('.dot'), isCompilerInfo
+truthy isCompilerInfo(getCompilerInfo('.dot'))
 
 DBG "getPostProcessor()"
 

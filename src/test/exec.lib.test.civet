@@ -1,6 +1,7 @@
 # exec.lib.test.civet
 
-import {undef, isEmpty, nonEmpty} from 'datatypes'
+import {undef} from 'base'
+import {isEmpty, nonEmpty} from 'datatypes'
 import {o} from 'llutils'
 import {DBG} from 'logger'
 import {

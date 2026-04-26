@@ -1,7 +1,6 @@
 # to-nice.lib.civet
 
-import {undef, defined, notdefined, anyDefined} from 'base-utils'
-import {croak, assert} from 'croak'
+import {undef, defined, notdefined, anyDefined, croak, assert} from 'base'
 import {uni, esc} from 'unicode'
 import {f} from 'f-strings'
 import {write, writeln} from 'console-utils'

@@ -1,6 +1,6 @@
 # cmd-args.lib.test.civet
 
-import {undef} from 'datatypes'
+import {undef} from 'base'
 import {curLogLevel} from 'logger'
 import {
 	flag, numNonOptions, nonOption, allNonOptions,

@@ -1,6 +1,6 @@
 # text-table.lib.test.civet
 
-import {undef} from 'datatypes'
+import {undef} from 'base'
 import {DBG} from 'logger'
 import {o} from 'llutils'
 import {TextTable} from 'text-table'

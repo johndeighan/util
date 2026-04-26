@@ -1,7 +1,8 @@
 # fetcher.civet
 
-import {undef, defined, notdefined, deepEqual} from 'base-utils'
-import {croak, assert} from 'croak'
+import {
+	undef, defined, notdefined, deepEqual, croak, assert,
+	} from 'base'
 
 # ---------------------------------------------------------------------------
 

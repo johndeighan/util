@@ -1,7 +1,6 @@
 # indent.lib.civet
 
-import {undef, defined, notdefined} from 'base-utils'
-import {croak, assert} from 'croak'
+import {undef, defined, notdefined, croak, assert} from 'base'
 import {esc} from 'unicode'
 import {
 	array, isEmpty, isString, isArray, isArrayOfStrings,

@@ -4,17 +4,17 @@ import {parse: parseFilePath} from 'node-path'
 import {existsSync} from '@std/fs'
 import {SourceMapConsumer} from 'npm-source-map'
 
-import {undef, defined, notdefined} from 'base-utils'
 import {
+	undef, defined, notdefined, toRelPath,
 	croak, assert, getErrStr,
-	} from 'croak'
+	} from 'base'
 import {hash} from 'datatypes'
 import {getOptions} from 'llutils'
 import {OL, DUMP} from 'to-nice'
 import {LOG, DBG, WARN, ERR} from 'logger'
 import {TextTable} from 'text-table'
 import {
-	fromJsonFile, parsePath, mkpath, normalizePath, relpath,
+	fromJsonFile, parsePath, mkpath, normalizePath,
 	toFullPath, isFile, fileExt,
 	} from 'fsys'
 
@@ -244,11 +244,11 @@ export extractSourceMap := (
 	[_, code, hSrcMapStr] := lMatches
 	hSrcMap := JSON.parse(atob(hSrcMapStr)) as RawSourceMap
 	{file} := hSrcMap
-	if file.includes('.tsx')
-		ERR "file ends with .tsx in source map"
-	hSrcMap.file = relpath(file)
+#	if file.includes('.tsx')
+#		ERR "file ends with .tsx in source map"
+	hSrcMap.file = toRelPath(file)
 	hSrcMap.sources = for path of hSrcMap.sources
-		relpath(path)
+		toRelPath(path)
 	return [code, hSrcMap]
 
 # ---------------------------------------------------------------------------
@@ -305,7 +305,7 @@ export dumpSourceMapFor := (
 
 	fmtStr := (linesOnly ? 'r r r' : 'r r r r r')
 	table := new TextTable(fmtStr, {decPlaces: 0})
-	table.title   relpath(hSrcMap.file)
+	table.title   toRelPath(hSrcMap.file)
 	table.fullsep '-'
 	if linesOnly
 		table.labels  ['ts line', '=>', 'cv line']

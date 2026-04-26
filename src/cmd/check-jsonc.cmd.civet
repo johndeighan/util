@@ -2,7 +2,7 @@
 
 {parse: parseJSONC} from 'jsr:@std/jsonc'
 
-import {TRY} from 'croak'
+import {TRY} from 'base'
 
 # ---------------------------------------------------------------------------
 

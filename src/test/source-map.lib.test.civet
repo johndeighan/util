@@ -1,6 +1,6 @@
 # source-map.lib.test.civet
 
-import {defined} from 'datatypes'
+import {defined} from 'base'
 import {o} from 'llutils'
 import {mkpath} from 'fsys'
 import {
@@ -8,7 +8,7 @@ import {
 	decodeLine, getMappings, orgPos,
 	} from 'source-map'
 import {
-	equal, truthy, falsy, objListLike,
+	equal, truthy, falsy, unifies,
 	succeeds, fails, setDirTree,
 	} from 'unit-test'
 

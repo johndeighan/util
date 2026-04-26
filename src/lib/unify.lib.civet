@@ -2,8 +2,8 @@
 
 import {
 	deepCopy, defined, notdefined, LOG, max, range,
-	} from 'base-utils'
-import {croak, assert, obviously} from 'croak'
+	croak, assert, obviously,
+	} from 'base'
 import {
 	hash, array, isHash, isArray, jsType,
 	} from 'datatypes'

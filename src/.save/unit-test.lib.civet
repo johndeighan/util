@@ -6,7 +6,7 @@ import {
 	assertArrayIncludes,
 	} from '@std/assert'
 
-import {sleep, deepEqual} from 'base-utils'
+import {pass, sleep, deepEqual} from 'base'
 import {croak, getErrStr, justThrow} from 'croak'
 import {TPredicate, anyOf, allOf} from 'predicates'
 import {esc, mesc} from 'unicode'
@@ -17,7 +17,7 @@ import {
 	TVoidFunc, TVoidIterator, isIterator,
 	} from 'datatypes'
 import {
-	pass, o, keys, getOptions, spaces, blockToArray, truncStr,
+	o, keys, getOptions, spaces, blockToArray, truncStr,
 	} from 'llutils'
 import {splitLine, indented} from 'indent'
 import {OL, ML, DUMP} from 'to-nice'
@@ -29,13 +29,12 @@ import {
 	} from 'logger'
 import {flag} from 'cmd-args'
 import {
-	relpath, mkDir, barf, getPathType, fileExt,
+	mkDir, barf, getPathType, fileExt,
 	isDir, clearDir,
 	} from 'fsys'
 import {Fetcher} from 'fetcher'
 import {doParse} from 'hera-parse'
 import {TPLLToken, allTokensInBlock, tokenTable, tkEOF} from 'pll'
-import {civet2tsFile} from 'civet'
 import {sourceLib, getNeededImportStmts} from 'symbols'
 import {getImportCode, typeCheckTsCode} from 'typescript'
 import {getMyOutsideCaller} from 'v8-stack'

@@ -1,6 +1,6 @@
 # logger.lib.test.civet
 
-import {undef, defined} from 'base-utils'
+import {undef, defined} from 'base'
 import {isFunction} from 'datatypes'
 import {
 	lLogLines, getLog, TLogLevel, LOG, DBG,

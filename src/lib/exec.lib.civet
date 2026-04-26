@@ -9,8 +9,10 @@ import {
 	} from 'npm-typescript'
 import {sprintf} from '@std/fmt/printf'
 
-import {undef, defined, notdefined} from 'base-utils'
-import {croak, assert, getErrStr} from 'croak'
+import {
+	pass, undef, defined, notdefined, toRelPath,
+	croak, assert, getErrStr, mapper,
+	} from 'base'
 import {
 	hash, isEmpty, TStringMapper,
 	isString, isArray, isArrayOfStrings, nonEmpty,
@@ -19,7 +21,7 @@ import {awaitAll} from 'promise-utils'
 import {arrayAndAccumFrom} from 'iter-utils'
 import {MAP} from 'mapper'
 import {
-	getOptions, pass, blockToArray, decode, encode,
+	getOptions, blockToArray, decode, encode,
 	sep, centered, allLinesInBlock,
 	} from 'llutils'
 import {f, colorize, decolorize, withColors} from 'f-strings'
@@ -32,7 +34,7 @@ import {
 	} from 'logger'
 import {
 	barf, pathStr, allFilesMatching, normalizePath, barfTempFile,
-	fileExt, withExt, slurpAsync, parsePath, relpath,
+	fileExt, withExt, slurpAsync, parsePath,
 	} from 'fsys'
 
 # ---------------------------------------------------------------------------
@@ -82,7 +84,7 @@ export summarizeExec := (
 		action: string = 'executed'
 		): string =>
 
-	numOK := MAP lResults, 0, (h, acc) ->
+	numOK := mapper lResults, 0, (h, acc) ->
 		return h.success && not h.notNeeded ? acc+1 : acc
 	return (numOK == 0) ? '' : "#{numOK} #{action}"
 
@@ -263,9 +265,9 @@ export prelog := (
 		): void =>
 
 	if capture
-		writeln "#{op} #{relpath(path)}"     # was just write
+		writeln "#{op} #{toRelPath(path)}"     # was just write
 	else
-		writeln "#{op} #{relpath(path)} (no capture)"
+		writeln "#{op} #{toRelPath(path)} (no capture)"
 	return
 
 # ---------------------------------------------------------------------------

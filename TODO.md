@@ -1,7 +1,14 @@
 to do
 
 Get all unit tests to pass
-	- base-utils currently passes
+	- automate.lib.civet doesn't pass
+
+find low-level way to compile a hera file
+
+in automate.lib.test.civet, replace isType() with
+succeeds and a block of civet code (which must be compiled, then type checked)
+
+in fsys::findFile(), remove lIgnoreDirs and ignore . files
 
 op doUnitTest is displaying long output, not summary
 

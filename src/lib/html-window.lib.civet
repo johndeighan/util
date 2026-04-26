@@ -4,9 +4,8 @@ import {createResponse} from '@mwid/better-sse'
 import {Webview} from '@webview/webview'
 import {WebUI} from '@webui'
 
-import {undef, defined, notdefined} from 'base-utils'
-import {sleep} from 'base-utils'
-import {croak, assert} from 'croak'
+import {undef, defined, notdefined, croak, assert} from 'base'
+import {sleep} from 'base'
 import {
 	TVoidFunc, hash, hashof,
 	} from 'datatypes'

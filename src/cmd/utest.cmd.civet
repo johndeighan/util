@@ -1,13 +1,13 @@
 # utest.cmd.civet
 
-import {TRY} from 'croak'
 import {
-	undef, defined, notdefined, assert, isString,
-	} from 'datatypes'
+	TRY, toRelPath, undef, defined, notdefined, assert,
+	} from 'base'
+import {isString} from 'datatypes'
 import {stdChecks, cmdTitle} from 'llutils'
 import {getFlags, nonOption, allNonOptions, argValue} from 'cmd-args'
 import {LOG, DBG, ERR} from 'logger'
-import {isFile, withExt, findFile, relpath} from 'fsys'
+import {isFile, withExt, findFile} from 'fsys'
 import {execCmd, procFiles, procOneFile} from 'exec'
 import {doUnitTest} from 'typescript'
 import {compileAllLibs, doCompileCivet} from 'civet'
@@ -53,7 +53,7 @@ TRY () =>
 			path := findFile fileName
 			if defined(path)
 				tsPath := withExt(path, '.ts')
-				LOG cmdTitle("RUN UNIT TEST #{relpath(path)}")
+				LOG cmdTitle("RUN UNIT TEST #{toRelPath(path)}")
 				await procOneFile path, doCompileCivet, {force}
 				await procOneFile tsPath, doUnitTest, {
 					lineNum

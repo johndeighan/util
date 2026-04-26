@@ -1,6 +1,6 @@
 # scope.lib.test.civet
 
-import {undef, assert} from 'datatypes'
+import {undef, assert} from 'base'
 import {s} from 'llutils'
 import {toNice} from 'to-nice'
 import {CMainScope, CScope} from 'scope'

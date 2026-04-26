@@ -1,12 +1,12 @@
 # build-dot-symbols.cmd.civet
 
-import {TRY} from 'croak'
+import {TRY, toRelPath} from 'base'
 import {stdChecks} from 'llutils'
 import {undef, assert, hash, isEmpty, nonEmpty} from 'datatypes'
 import {getOptions, keys} from 'llutils'
 import {OL} from 'to-nice'
 import {LOG, DBG, LOGVALUE, DBGVALUE} from 'logger'
-import {barf, allFilesMatching, relpath} from 'fsys'
+import {barf, allFilesMatching} from 'fsys'
 import {analyzeTS, CAnalysis} from 'typescript'
 
 stdChecks "build-dot-symbols"
@@ -59,7 +59,7 @@ getDotSymbols := (
 		): AsyncGenerator<string, void, void> ->
 
 	for path of allFilesMatching('src/**/*.lib.civet')
-		DBG "GET symbols from: #{relpath(path)}"
+		DBG "GET symbols from: #{toRelPath(path)}"
 		for await line of getDotSymbolsLines(path)
 			yield line
 	return

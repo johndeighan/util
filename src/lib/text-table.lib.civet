@@ -2,8 +2,7 @@
 
 import {sprintf} from '@std/fmt/printf'
 
-import {undef, defined, notdefined} from 'base-utils'
-import {croak, assert} from 'croak'
+import {undef, defined, notdefined, croak, assert} from 'base'
 import {
 	isString, isNumber, isInteger, isArray, array, arrayof,
 	hash, hashof, integer, char, isArrayOfIntegers, nonEmpty,

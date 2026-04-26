@@ -1,7 +1,6 @@
 # section-map.lib.civet
 
-import {undef, defined, notdefined} from 'base-utils'
-import {croak, assert} from 'croak'
+import {undef, defined, notdefined, croak, assert} from 'base'
 import {
 	hash, hashof, TStringMapper,
 	isEmpty, nonEmpty, isString, isHash, isArray, isFunction,

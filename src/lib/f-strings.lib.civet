@@ -6,12 +6,12 @@ import {
 	stripAnsiCode,
 	} from '@std/fmt/colors'
 
-import {defined} from 'base-utils'
-import {esc} from 'unicode'
-import {MAP} from 'mapper'
 import {
-	TIterator, nonEmpty, isInteger, hashof,
-	} from 'datatypes'
+	undef, defined, notdefined, mapper, toRelPath, toBool, obviously,
+	} from 'base'
+import {esc} from 'unicode'
+import {hashof} from 'datatypes'
+import {alignString} from 'llutils'
 
 # --- hash of all supported colors
 hColor := {
@@ -24,6 +24,18 @@ hColor := {
 	yellow
 	} as const
 
+type TFormat = {
+	toRel: boolean
+	escape: boolean
+	width: number
+	color: string
+	}
+
+# ---------------------------------------------------------------------------
+#    f"name = #{'John'}:-10"    => "name = John      "
+#    f"name = #{'John'}:10"     => "name =       John"
+#    f"name = #{'a\tb'}!"       => "name = a→b"
+#    f"name = #{'John'}:{blue}" => "name = John" ('John' in blue color)
 # ---------------------------------------------------------------------------
 # --- Number of strings is always 1 greater than the number of values
 
@@ -32,20 +44,14 @@ export f := (
 		...lValues: unknown[]
 		): string =>
 
-	[firstStr, mainWidth, mainEsc, mainColor] := fsplit lStrings[0]
-	iter := MAP lValues, (val, i) ->
-		[str, width, doEsc, color] := fsplit lStrings[i+1]
-		result := switch typeof val
-			when 'string'
-				formatStr val, width, doEsc, color, '-'
-			when 'number'
-				formatStr val.toString(), width, doEsc, color, ''
-			else
-				formatStr JSON.stringify(val), width, doEsc, color, '-'
-		yield result + str
-		return
-	mainStr := [firstStr, ...iter].join('')
-	return formatStr mainStr, mainWidth, mainEsc, mainColor, '-'
+	# --- Split the first string
+	[mainFmt, firstStr] := fsplit lStrings[0]
+
+	# --- format each of the values, concatenating as we go
+	bigStr := mapper lValues, firstStr, (val, acc, i) =>
+		[fmt, nextStr] := fsplit(lStrings[i+1])
+		return acc + formatVal(val, fmt) + nextStr
+	return formatVal(bigStr, mainFmt)
 
 # ---------------------------------------------------------------------------
 
@@ -67,7 +73,10 @@ export colorize := (
 
 # ---------------------------------------------------------------------------
 
-export withColors := (str: string, hColors: hashof<string>) =>
+export withColors := (
+		str: string
+		hColors: hashof<string>
+		): string =>
 
 	for word of Object.keys(hColors)
 		str = str.replace(word, colorize(word, hColors[word]))
@@ -75,48 +84,63 @@ export withColors := (str: string, hColors: hashof<string>) =>
 
 # ---------------------------------------------------------------------------
 
-export formatStr := (
-		str: string,
-		width: number,
-		doEsc: boolean,
-		color: string?
-		justify: '-' | ''
+export formatVal := (
+		val: unknown
+		fmt: TFormat?
 		): string =>
 
-	valStr := doEsc ? esc(str) : str
-	outstr := width ? sprintf("%#{justify}#{width}s", valStr) : valStr
-	return colorize(outstr, color)
+	str1 := (
+		  (val == undefined) ? 'undef'
+		: (val == null)      ? 'null'
+		: String(val)
+		)
+	if notdefined(fmt)
+		return str1
+	{toRel, escape, width, color} := fmt
+	str2 := toRel ? toRelPath(str1) : str1
+	str3 := escape ? esc(str2) : str2
+	str4 := (
+		  (width > 0) ? alignString(str3, width, 'right')
+		: (width < 0) ? alignString(str3, -width, 'left')
+		:                   str3
+		)
+	return colorize(str4, color)
 
 # ---------------------------------------------------------------------------
 
-export decolorize := (str: string) =>
+export decolorize := (str: string): string =>
 
 	return stripAnsiCode(str)
 
 # ---------------------------------------------------------------------------
-# --- returns [str, width, doEsc?, color]
 
-export fsplit := (str: string): [string, number, boolean, string] =>
+export fsplit := (
+	str: string
+	): [TFormat | undefined, string] =>
 
+	if not str.startsWith(':')
+		return [undef, str]
 	lMatches := str.match ///^
 			:
-			(\d+)?      # width
+			(~)?        # to relative path
+			([-+]?\d+)? # width
 			(\!)?       # escape text?
 			(?:
 				{ ([a-z]+) }   # color
 				)?
 			(.*)        # actual text
 			$///
-	if defined(lMatches)
-		[_, width, doEsc, color, rest] := lMatches
-		if width || doEsc || (color && (color in hColor))
-			return [
-				rest
-				width ? parseInt(width) : 0
-				nonEmpty(doEsc)
-				defined(color) && (color in hColor) ? color : ''
-				]
-		else
-			return [str, 0, false, '']
-	else
-		return [str, 0, false, '']
+
+	obviously defined(lMatches)
+	[_, toRel, width, doEsc, color, rest] := lMatches
+	if not toRel && not width && not doEsc && not color
+		return [undef, str]
+	return [
+		{
+			toRel:  toBool(toRel)
+			width:  width ? parseInt(width) : 0
+			escape: toBool(doEsc)
+			color:  defined(color) && (color in hColor) ? color : ''
+			},
+		rest
+		]

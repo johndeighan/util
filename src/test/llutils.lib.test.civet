@@ -1,12 +1,12 @@
 # llutils.lib.test.civet
 
-import {sleep, deepEqual} from 'base-utils'
+import {undef, sleep, deepEqual} from 'base'
 import {LOG, DBG} from 'logger'
 import {
-	undef, functionDef, isArray, isHash,
+	functionDef, isArray, isHash,
 	} from 'datatypes'
 import {
-	sinceLoad, sinceLoadStr, throwsError, pass, truncStr,
+	sinceLoad, sinceLoadStr, throwsError, truncStr,
 	o, s, t, strToHash, getOptions,
 	keys, hasKey, hasKeys, spaces, tabs,
 	rtrim, countChars, words, getLineAndColumn,
@@ -33,11 +33,7 @@ succeeds () => LOG sinceLoadStr()
 DBG "throwsError()"
 
 succeeds () => throwsError(() => throw new Error("why?"))
-# fails () => throwsError(() => return)
-
-DBG "pass()"
-
-succeeds () => pass()
+fails    () => throwsError(() => return)
 
 DBG "deepEqual()"
 

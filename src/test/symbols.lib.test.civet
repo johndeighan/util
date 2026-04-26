@@ -1,6 +1,6 @@
 # symbols.lib.test.civet
 
-import {undef} from 'datatypes'
+import {undef} from 'base'
 import {LOG, DBG} from 'logger'
 import {
 	loadSymbols,

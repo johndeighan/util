@@ -1,4 +1,0 @@
-# test1.cielo
-
-LOG := (str) => console.log str
-LOG "Hello, World!"

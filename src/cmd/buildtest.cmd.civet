@@ -1,8 +1,7 @@
 # buildtest.cmd.civet
 
-import {TRY} from 'croak'
+import {TRY, assert, defined} from 'base'
 import {stdChecks, o} from 'llutils'
-import {assert, defined} from 'datatypes'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {withExt, findFile} from 'fsys'
 import {procFiles, procOneFile, doInstallCmd} from 'exec'

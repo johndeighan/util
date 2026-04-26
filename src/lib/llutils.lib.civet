@@ -6,8 +6,9 @@ import {relative} from '@std/path'
 import {existsSync} from '@std/fs'
 import {parse: parseYAML} from "@std/yaml"
 
-import {undef, defined, notdefined, deepEqual} from 'base-utils'
-import {croak, assert} from 'croak'
+import {
+	undef, defined, notdefined, deepEqual, croak, assert,
+	} from 'base'
 import {
 	isHash, isArray, isNonEmptyString, char,
 	isArrayOfStrings, isEmpty, nonEmpty, isString, isInteger,
@@ -70,11 +71,6 @@ export throwsError := (
 	catch err
 		return
 # ignore error - it was expected
-
-# ---------------------------------------------------------------------------
-
-export pass := (): void =>
-	# do nothing
 
 # ---------------------------------------------------------------------------
 
@@ -283,7 +279,11 @@ export type TAlignment = 'l' | 'c' | 'r' | 'left' | 'center' | 'right'
 export isAlignment := (x: unknown): x is TAlignment =>
 	return ((typeof x == 'string') && ['l', 'c', 'r', 'left', 'center', 'right'].includes(x))
 
-export alignString := function(str: string, width: number, align: TAlignment): string
+export alignString := function(
+		str: string,
+		width: number,
+		align: TAlignment
+		): string
 
 	switch align
 		case 'left':

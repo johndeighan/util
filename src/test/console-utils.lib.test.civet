@@ -1,6 +1,7 @@
 # console-utils.lib.test.civet
 
-import {defined, isFunction} from 'datatypes'
+import {undef, defined, notdefined} from 'base'
+import {isFunction} from 'datatypes'
 import {
 	write, writeln, clearScreen, resetLine,
 	} from 'console-utils'

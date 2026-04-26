@@ -4,8 +4,9 @@ import {exists, existsSync} from '@std/fs'
 import {Node, SourceFile} from 'npm-typescript'
 import {RawSourceMap} from 'npm-source-map'
 
-import {undef, defined, notdefined} from 'base-utils'
-import {croak, assert, getErrStr} from 'croak'
+import {
+	undef, defined, notdefined, croak, assert, getErrStr,
+	} from 'base'
 import {
 	hash, isString, isHash, isEmpty, nonEmpty,
 	} from 'datatypes'
@@ -22,6 +23,7 @@ import {
 	execCmdSync, execCmd, CFileHandler, procFiles,
 	TProcSpec, TExecResult, summarizeExec,
 	} from 'exec'
+import {civet2tsSync, civet2tsFileSync} from 'llcivet'
 import {ts2ast, analyzeTS} from 'typescript'
 import {extractSourceMap, haveSourceMapFor} from 'source-map'
 
@@ -202,42 +204,10 @@ class CCivetCompiler extends CFileHandler
 export doCompileCivet := new CCivetCompiler()
 
 # ---------------------------------------------------------------------------
-# SYNC
-
-export civet2tsFile := (
-		civetPath: string
-		tsPath: string = withExt(civetPath, '.ts')
-		hOptions: hash = {}
-		): string =>
-
-	hResult: TExecResult := doCompileCivet.handleSync(civetPath, hOptions)
-	{success} := hResult
-	if success
-		return withExt(civetPath, '.ts')
-	else
-		output := hResult.stdout + '\n' + hResult.stderr
-		errMsg := "compile of #{civetPath} failed\n#{output}"
-		ERR errMsg
-		throw errMsg
-
-# ---------------------------------------------------------------------------
-
-export civet2ts := (
-		civetCode: string,
-		hOptions: hash = {}
-		path: string? = undef
-		): string =>
-
-	tempPath := barfTempFile civetCode, {ext: '.civet'}
-	tsPath := civet2tsFile tempPath, withExt(tempPath, '.ts'), hOptions
-	tsCode := slurp tsPath
-	return rtrim(tsCode)
-
-# ---------------------------------------------------------------------------
 
 export civet2ast := (civetCode: string): Node =>
 
-	tsCode := civet2ts civetCode
+	tsCode := civet2tsSync civetCode
 	return ts2ast tsCode
 
 # ---------------------------------------------------------------------------
@@ -278,11 +248,11 @@ export compileAllLibs := (
 #     the analysis of civet code
 
 export a := (lStrings: TemplateStringsArray): string =>
-	tsCode := civet2ts lStrings[0], {nocheck: true}
+	tsCode := civet2tsSync lStrings[0], {nocheck: true}
 	result := analyzeTS(tsCode).asString()
 	return result
 
 export A := (lStrings: TemplateStringsArray): string =>
-	tsCode := civet2ts lStrings[0], {nocheck: true}
+	tsCode := civet2tsSync lStrings[0], {nocheck: true}
 	result := analyzeTS(tsCode, {dump: true}).asString()
 	return result

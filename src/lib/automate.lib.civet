@@ -2,12 +2,13 @@
 
 import {compile: compileSvelte} from 'npm-svelte/compiler'
 
-import {undef, defined, notdefined} from 'base-utils'
-import {croak, assert, getErrStr} from 'croak'
+import {
+	undef, defined, notdefined, toRelPath,
+	croak, assert, getErrStr, allOf,
+	} from 'base'
 import {
 	nonEmptyString, hash, hashof,
 	} from 'datatypes'
-import {TNoArgPredicate, allOf} from 'predicates'
 import {keys, getOptions} from 'llutils'
 import {OL} from 'to-nice'
 import {
@@ -16,14 +17,14 @@ import {
 	} from 'logger'
 import {
 	slurp, barf, patchFirstLine, parsePath, configFromFile,
-	isFile, rmFile, findFile, relpath, withExt, fileExt,
+	isFile, rmFile, findFile, withExt, fileExt,
 	newerDestFileExists, allFilesMatching, inSameDir,
 	} from 'fsys'
 import {
 	execCmd, CFileHandler, TExecResult,
 	} from 'exec'
 import {cielo2civetFile} from 'cielo'
-import {civet2tsFile} from 'civet'
+import {civet2tsFileSync} from 'llcivet'
 
 # ---------------------------------------------------------------------------
 # Please, no dependencies on the directory structure!
@@ -127,7 +128,7 @@ export getCompilerConfig := (
 							rmFile tsPath # --- needed?
 
 							cielo2civetFile path, civetPath
-							civet2tsFile civetPath, tsPath
+							civet2tsFileSync civetPath, tsPath
 							{fileName} := parsePath path
 							patchFirstLine civetPath, fileName, withExt(fileName, '.temp.civet')
 							patchFirstLine tsPath, fileName, withExt(fileName, '.ts')
@@ -145,7 +146,7 @@ export getCompilerConfig := (
 								return 'temp'
 							tsPath := withExt path, '.ts'
 							tsName := withExt fileName, '.ts'
-							civet2tsFile path, tsPath
+							civet2tsFileSync path, tsPath
 							patchFirstLine tsPath, fileName, tsName
 							return 'compiled'
 						}
@@ -323,7 +324,7 @@ export runUnitTestsFor := (
 		verbose: false
 		}
 
-	DBG "Running unit tests for #{relpath(path)}"
+	DBG "Running unit tests for #{toRelPath(path)}"
 	if not verbose
 		pushLogLevel 'silent'
 
@@ -338,7 +339,7 @@ export runUnitTestsFor := (
 		for outPath of lOutPaths
 			assert isFile(outPath), "File #{OL(outPath)} not found"
 			assert (fileExt(outPath) == '.ts'),
-					"Not a TS file: #{OL(relpath(outPath))}"
+					"Not a TS file: #{OL(toRelPath(outPath))}"
 
 		# --- Run the unit tests, yield results
 		for outPath of lOutPaths

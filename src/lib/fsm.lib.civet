@@ -1,9 +1,11 @@
 # fsm.lib.civet
 
-import {undef, defined, notdefined} from 'base-utils'
-import {hash, isArray, TAsyncIterator} from 'datatypes'
+import {
+	undef, defined, notdefined, croak, assert, obviously,
+	TAsyncIterator,
+	} from 'base'
+import {hash, isArray} from 'datatypes'
 import {f} from 'f-strings'
-import {croak, assert, obviously} from 'croak'
 import {DBG, pushLogLevel, popLogLevel} from 'logger'
 
 # ---------------------------------------------------------------------------

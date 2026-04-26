@@ -1,6 +1,7 @@
 # walker.lib.test.civet
 
-import {undef, hash} from 'datatypes'
+import {undef} from 'base'
+import {hash} from 'datatypes'
 import {hasKey, hasKeys} from 'llutils'
 import {LOG, DBG} from 'logger'
 import {Walker} from 'walker'

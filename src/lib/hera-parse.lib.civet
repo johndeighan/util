@@ -1,10 +1,12 @@
 # hera-parse.lib.civet
 
-import {undef, defined, notdefined} from 'base-utils'
-import {croak, assert, getErrStr} from 'croak'
+import {
+	undef, defined, notdefined, deepCopy,
+	croak, assert, getErrStr,
+	} from 'base'
 import {uni, esc} from 'unicode'
 import {
-	hash, isEmpty, nonEmpty, deepCopy,
+	hash, isEmpty, nonEmpty,
 	TStringMapper, TVoidFunc,
 	} from 'datatypes'
 import {isFile, findFile} from 'fsys'

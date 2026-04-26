@@ -1,7 +1,6 @@
 # analyze.cmd.civet
 
-import {TRY, croak} from 'croak'
-import {TNoArgPredicate} from 'predicates'
+import {toRelPath, assert, croak, TRY} from 'base'
 import {
 	undef, defined, notdefined, assert,
 	} from 'datatypes'
@@ -9,9 +8,9 @@ import {stdChecks} from 'llutils'
 import {LOG, DBG, ERR} from 'logger'
 import {flag, nonOption} from 'cmd-args'
 import {DUMP} from 'to-nice'
-import {findFile, slurp, fileExt, relpath} from 'fsys'
+import {findFile, slurp, fileExt} from 'fsys'
 import {analyzeTS} from 'typescript'
-import {civet2ts} from 'civet'
+import {civet2tsSync} from 'llcivet'
 
 stdChecks """
 	analyze [-v] <filename>
@@ -29,12 +28,12 @@ TRY () =>
 		: findFile(fileName, {lIgnoreDirs: []})
 		)
 	assert defined(path), "No such file: #{fileName}"
-	LOG "-----  ANALYZE #{relpath(path)}  -----"
+	LOG "-----  ANALYZE #{toRelPath(path)}  -----"
 	tsCode := switch fileExt(path)
 		when '.ts'
 			slurp(path)
 		when '.civet'
-			civet2ts(slurp path)
+			civet2tsSync(slurp path)
 		default:
 			croak("Bad path: #{path}")
 

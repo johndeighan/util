@@ -2,8 +2,7 @@
 
 import {sprintf} from '@std/fmt/printf'
 
-import {undef, defined, notdefined} from 'base-utils'
-import {croak, assert} from 'croak'
+import {undef, defined, notdefined, croak, assert} from 'base'
 import {uni, esc} from 'unicode'
 import {hash, hashof} from 'datatypes'
 import {centered, sep} from 'llutils'

@@ -1,6 +1,7 @@
 # cielo.lib.test.civet
 
-import {defined, isFunction} from 'datatypes'
+import {defined} from 'base'
+import {isFunction} from 'datatypes'
 import {DBG} from 'logger'
 import {
 	cielo2civet, cielo2civetFile,

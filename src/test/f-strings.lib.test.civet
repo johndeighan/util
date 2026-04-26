@@ -21,7 +21,7 @@ equal f"abc", "abc"
 	str := 'abc def'
 	equal f"str is #{str}",    "str is abc def"
 	equal f"str is #{str}:!",  "str is abc˳def"
-	equal f"str is #{str}:10", "str is abc def   "
+	equal f"str is #{str}:-10", "str is abc def   "
 	)()
 
 # ---------------------------------------------------------------------------

@@ -1,33 +1,11 @@
 # temp.civet
 
-import {sleep} from 'base-utils'
-import {
-	allValuesFromAsync, accumFromAsync,
-	arrayAndAccumFrom, asyncArrayAndAccumFrom,
-	} from 'iter-utils'
-import {MAPv6, MAP} from 'mapper'
+import {mkTempFile, mkTempFileSync} from 'base'
 
 # ---------------------------------------------------------------------------
 
-lItems := [1, 2, 3]
-gen := () ->
-	yield 1
-	yield 2
-	yield 3
-	return
-agen := () ->
-	await sleep 0.1
-	yield 1
-	await sleep 0.1
-	yield 2
-	await sleep 0.1
-	yield 3
-	return
-
-# ---------------------------------------------------------------------------
-
-[lAllItems, acc] := await asyncArrayAndAccumFrom MAPv6 agen(), 0, (n, acc) ->
-	yield n
-	return acc + n
-console.log lAllItems
-console.log acc
+path := mkTempFileSync '.civet'
+Deno.writeTextFileSync path, "Hello"
+str := Deno.readTextFileSync path
+console.log str
+console.log "file at #{path}"

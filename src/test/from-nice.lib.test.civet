@@ -1,13 +1,14 @@
 # from-nice.lib.test.civet
 
-import {undef, isSymbol, symbolName} from 'datatypes'
+import {undef} from 'base'
+import {isSymbol, symbolName} from 'datatypes'
 import {DBG} from 'logger'
 import {allTokensInBlock} from 'pll'
 import {
 	fromNice, getPrimitive, niceSplitter, allNiceTokens,
 	} from 'from-nice'
 import {
-	equal, iterLike,
+	equal, unifies,
 	succeeds, fails, truthy, falsy,
 	} from 'unit-test'
 
@@ -15,64 +16,64 @@ import {
 
 DBG "niceSplitter()"
 
-iterLike niceSplitter('a'), [
+unifies niceSplitter('a'), [
 	{kind: 'primitive', value: 'a'}
 	]
-iterLike niceSplitter('42'), [
+unifies niceSplitter('42'), [
 	{kind: 'primitive', value: 42}
 	]
-iterLike niceSplitter('｟undef｠'), [
+unifies niceSplitter('｟undef｠'), [
 	{kind: 'primitive', value: undef}
 	]
-iterLike niceSplitter('“｟undef｠'), [
+unifies niceSplitter('“｟undef｠'), [
 	{kind: 'primitive', value: '｟undef｠'}
 	]
-iterLike niceSplitter("“abc"), [
+unifies niceSplitter("“abc"), [
 	{kind: 'primitive', value: "abc"}
 	]
-iterLike niceSplitter('- a'), [
+unifies niceSplitter('- a'), [
 	{kind: 'list-item', value: 'a'}
 	]
-iterLike niceSplitter('-'), [
+unifies niceSplitter('-'), [
 	{kind: 'list-head'}
 	]
-iterLike niceSplitter('tag: abc'), [
+unifies niceSplitter('tag: abc'), [
 	{kind: 'hash-item', value: 'abc'}
 	]
-iterLike niceSplitter('tag:'), [
+unifies niceSplitter('tag:'), [
 	{kind: 'hash-head', name: 'tag'}
 	]
 
 # --- Add checks to be sure that extra whitespace is OK
 
-iterLike niceSplitter('a  '), [
+unifies niceSplitter('a  '), [
 	{kind: 'primitive', value: 'a'}
 	]
-iterLike niceSplitter('42   '), [
+unifies niceSplitter('42   '), [
 	{kind: 'primitive', value: 42}
 	]
-iterLike niceSplitter('｟undef｠  '), [
+unifies niceSplitter('｟undef｠  '), [
 	{kind: 'primitive', value: undef}
 	]
-iterLike niceSplitter('｟  undef  ｠  '), [
+unifies niceSplitter('｟  undef  ｠  '), [
 	{kind: 'primitive', value: undef}
 	]
-iterLike niceSplitter('-   a  '), [
+unifies niceSplitter('-   a  '), [
 	{kind: 'list-item', value: 'a'}
 	]
-iterLike niceSplitter('-  '), [
+unifies niceSplitter('-  '), [
 	{kind: 'list-head'}
 	]
-iterLike niceSplitter('tag:   abc  '), [
+unifies niceSplitter('tag:   abc  '), [
 	{kind: 'hash-item', value: 'abc'}
 	]
-iterLike niceSplitter('tag:  '), [
+unifies niceSplitter('tag:  '), [
 	{kind: 'hash-head', name: 'tag'}
 	]
 
 # --- Test breaking NICE string into tokens
 
-iterLike allTokensInBlock("""
+unifies allTokensInBlock("""
 	a
 	42
 	""", niceSplitter), [
@@ -81,7 +82,7 @@ iterLike allTokensInBlock("""
 	{kind: 'eof'}
 	]
 
-iterLike allTokensInBlock("""
+unifies allTokensInBlock("""
 	- a
 	- b
 	""", niceSplitter), [
@@ -90,7 +91,7 @@ iterLike allTokensInBlock("""
 	{kind: 'eof'}
 	]
 
-iterLike allTokensInBlock("""
+unifies allTokensInBlock("""
 	a: 1
 	b: c
 	""", niceSplitter), [
@@ -99,7 +100,7 @@ iterLike allTokensInBlock("""
 	{kind: 'eof'}
 	]
 
-iterLike allTokensInBlock("""
+unifies allTokensInBlock("""
 	-
 		b
 		42
@@ -112,7 +113,7 @@ iterLike allTokensInBlock("""
 	{kind: 'eof'}
 	]
 
-iterLike allTokensInBlock("""
+unifies allTokensInBlock("""
 	lItems:
 		b
 		42
@@ -125,7 +126,7 @@ iterLike allTokensInBlock("""
 	{kind: 'eof'}
 	]
 
-iterLike allTokensInBlock("""
+unifies allTokensInBlock("""
 	lNames:
 		John
 		Alice
@@ -181,7 +182,7 @@ equal fromNice('{}'), "{}"
 
 DBG "allNiceTokens(block)"
 
-iterLike allNiceTokens("""
+unifies allNiceTokens("""
 	- a
 	- b
 	"""), [
@@ -190,7 +191,7 @@ iterLike allNiceTokens("""
 	{kind: 'eof'}
 	]
 
-iterLike allNiceTokens("""
+unifies allNiceTokens("""
 	-
 		a
 		b
@@ -203,7 +204,7 @@ iterLike allNiceTokens("""
 	{kind: 'eof'}
 	]
 
-iterLike allNiceTokens("""
+unifies allNiceTokens("""
 	- a
 	-
 		a
@@ -218,7 +219,7 @@ iterLike allNiceTokens("""
 	{kind: 'eof'}
 	]
 
-iterLike allNiceTokens("""
+unifies allNiceTokens("""
 	-
 		a
 		b
@@ -233,7 +234,7 @@ iterLike allNiceTokens("""
 	{kind: 'eof'}
 	]
 
-iterLike allNiceTokens("""
+unifies allNiceTokens("""
 	-
 		-
 			a
@@ -254,7 +255,7 @@ iterLike allNiceTokens("""
 	{kind: 'eof'}
 	]
 
-iterLike allNiceTokens("""
+unifies allNiceTokens("""
 	-
 		- a
 		- b
@@ -267,7 +268,7 @@ iterLike allNiceTokens("""
 	{kind: 'eof'}
 	]
 
-iterLike allNiceTokens("""
+unifies allNiceTokens("""
 	a: 1
 	b: 2
 	"""), [
@@ -276,7 +277,7 @@ iterLike allNiceTokens("""
 	{kind: 'eof'}
 	]
 
-iterLike allNiceTokens("""
+unifies allNiceTokens("""
 	lItems:
 		a: 1
 		b: 2
@@ -289,7 +290,7 @@ iterLike allNiceTokens("""
 	{kind: 'eof'}
 	]
 
-iterLike allNiceTokens("""
+unifies allNiceTokens("""
 	lItems:
 		a: 1
 		b: 2
@@ -306,7 +307,7 @@ iterLike allNiceTokens("""
 	{kind: 'eof'}
 	]
 
-iterLike allNiceTokens("""
+unifies allNiceTokens("""
 	a: 1
 	b: 2
 	lItems:
@@ -323,7 +324,7 @@ iterLike allNiceTokens("""
 	{kind: 'eof'}
 	]
 
-iterLike allNiceTokens("""
+unifies allNiceTokens("""
 	a: 1
 	b: 2
 	lItems:

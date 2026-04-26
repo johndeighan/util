@@ -1,10 +1,12 @@
 # pll.lib.civet
 
-import {undef, defined, notdefined} from 'base-utils'
+import {
+	undef, defined, notdefined, TIterator, TAsyncIterator,
+	} from 'base'
 import {esc} from 'unicode'
 import {
 	hash, isObject, isEmpty, nonEmpty,
-	TIterator, isIterator, isGeneratorFunction,
+	isIterator, isGeneratorFunction,
 	} from 'datatypes'
 import {getOptions, allLinesInBlock, hasKey} from 'llutils'
 import {DBG, DBGVALUE} from 'logger'

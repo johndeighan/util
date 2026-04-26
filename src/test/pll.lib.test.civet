@@ -1,6 +1,6 @@
 # pll.lib.test.civet
 
-import {undef} from 'base-utils'
+import {undef} from 'base'
 import {DBG} from 'logger'
 import {allLinesInBlock, o} from 'llutils'
 import {

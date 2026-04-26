@@ -1,6 +1,6 @@
 # to-nice.lib.test.civet
 
-import {undef} from 'base-utils'
+import {undef} from 'base'
 import {s} from 'llutils'
 import {uni} from 'unicode'
 import {DBG} from 'logger'

@@ -1,7 +1,6 @@
 # buildcmd.cmd.civet
 
-import {TRY} from 'croak'
-import {assert, defined} from 'datatypes'
+import {assert, defined, TRY} from 'base'
 import {stdChecks, cmdTitle} from 'llutils'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {LOG, DBG, WARN, ERR} from 'logger'

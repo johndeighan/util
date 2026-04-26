@@ -2,7 +2,7 @@
 
 import {red, cyan} from '@std/fmt/colors'
 
-import {assert} from 'croak'
+import {assert} from 'base'
 import {write, writeln} from 'console-utils'
 import {hash, isString} from 'datatypes'
 import {f} from 'f-strings'

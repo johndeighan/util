@@ -1,19 +1,17 @@
 # fsys.lib.test.civet
 
-import {sleep} from 'base-utils'
+import {undef, defined, notdefined, sleep, toRelPath} from 'base'
+import {hash, isString, isFunction} from 'datatypes'
 import {
-	undef, defined, hash, isString, isFunction,
-	} from 'datatypes'
-import {
-	o, spaces, sinceLoad, sinceLoadStr, pass,
+	o, spaces, sinceLoad, sinceLoadStr,
 	} from 'llutils'
 import {LOG, DBG} from 'logger'
 import {TPLLToken} from 'pll'
 import {
 	isFile, isDir, getPathType, fileExt, withExt, inSameDir,
 	isStub, parsePath, allFilesMatching, allLinesIn,
-	normalizePath, pathToURL, mkpath, relpath, pathSubDirs, myself,
-	rmFile, rmDir, isExt, newerDestFileExists, configFromFile,
+	normalizePath, pathToURL, mkpath, pathSubDirs, myself,
+	rmFile, rmDir, newerDestFileExists, configFromFile,
 	clearDir, mkDir, mkDirsForFile, slurp, barf, isPathType,
 	removeFilesMatching, watchFile, FileEventHandler, TFsEventHandler,
 	TPathType, TPathInfo, patchFirstLine, toFullPath, splitPatterns,
@@ -219,9 +217,9 @@ equal mkpath("C:\\temp", "to/file.flag.txt"), "C:/temp/to/file.flag.txt"
 equal mkpath('c:\\', 'Users', 'johnd'), 'C:/Users/johnd'
 equal mkpath('.', '**/*.lib.civet'), './**/*.lib.civet'
 
-DBG "relpath()"
+DBG "toRelPath()"
 
-equal relpath('C:/Users/johnd/util/deno.json'), 'deno.json'
+equal toRelPath('C:/Users/johnd/util/deno.json'), 'deno.json'
 
 DBG "type TPathDesc", "pathSubDirs()"
 
@@ -275,11 +273,6 @@ DBG "barf(path, contents)"
 		xyz
 		"""
 	)()
-
-DBG "isExt(str)"
-
-truthy isExt('.something')
-falsy  isExt('./windows/temp.txt')
 
 DBG "newerDestFileExists(srcPath, destPath)"
 
@@ -500,7 +493,7 @@ DBG "allFilesMatching()"
 
 (() =>
 	lFiles := Array.from(allFilesMatching('src/test/fsys/file*.txt'))
-	equal lFiles.map((x) => relpath(x)), [
+	equal lFiles.map((x) => toRelPath(x)), [
 		'src/test/fsys/file1.txt'
 		'src/test/fsys/file2.txt'
 		'src/test/fsys/file3.flags.txt'

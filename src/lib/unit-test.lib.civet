@@ -5,14 +5,18 @@ import {
 	} from '@std/assert'
 import {doesNotThrow} from "node:assert"
 
-import {undef, defined, notdefined, sleep} from 'base-utils'
 import {
+	undef, defined, notdefined, sleep,
 	justThrow, croak, allStackFrames, TStackFrame, dumpFrame,
-	} from 'croak'
+	TIterator, TAsyncIterator,
+	} from 'base'
 import {esc} from 'unicode'
 import {LOG} from 'logger'
 import {unify} from 'unify'
-import {TIterator, TAsyncIterator, TVoidFunc, hash} from 'datatypes'
+import {
+	TVoidFunc, hash,
+	isIterator, isAsyncIterator, isIterable,
+	} from 'datatypes'
 import {getOptions, truncStr, blockToArray} from 'llutils'
 import {fromFSM, fromFSMdebug} from 'fsm'
 import {TextTable} from 'text-table'
@@ -135,6 +139,12 @@ export unifies := (
 		name?: string
 		): void =>
 
+	# --- if either value or expected is an iterator
+	#     get an array from it
+	if isIterable(value)
+		value = Array.from(value)
+	if isIterable(expected)
+		expected = Array.from(expected)
 	Deno.test name || getTestName(), (): void =>
 		unify value, expected
 	return
@@ -315,4 +325,3 @@ export sampleVal: hash := {
 	fullList: [42]
 	MyClass
 	}
-

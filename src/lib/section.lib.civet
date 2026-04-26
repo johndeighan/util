@@ -1,10 +1,8 @@
 # section.lib.civet
 
-import {undef, defined, notdefined} from 'base-utils'
-import {croak, assert} from 'croak'
+import {undef, defined, notdefined, croak, assert} from 'base'
 import {
-	TStringMapper,
-	isArray, isEmpty, isFunction, isInteger,
+	TStringMapper, isArray, isEmpty, isFunction, isInteger,
 	} from 'datatypes'
 import {toBlock} from 'llutils'
 import {OL} from 'to-nice'
