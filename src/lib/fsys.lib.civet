@@ -25,6 +25,7 @@ import {
 	isBoolean, isNumber, isInteger, isArray, isArrayOfStrings,
 	isHash, isRegExp, integer, hash, hashof, TVoidFunc,
 	} from 'datatypes'
+import {f} from 'f-strings'
 import {MAP} from 'mapper'
 import {
 	getOptions, encode, spaces,
@@ -820,20 +821,23 @@ export configFromFile := (
 		fileName: string
 		): hash =>
 
+	# --- config should be a hash named hConfig
+
+	# --- NOTE: If a defined path is returned, it definitely exists
 	path := findFile fileName
 	assert defined(path), "No such file: #{OL(fileName)}"
 	{purpose, ext} := parsePath path
+	assert defined(ext), "No file ext in #{OL(path)}"
 	assert (purpose == 'config'), "Not a config file: #{OL(path)}"
-	if (ext == '.civet')
-		tsPath := await civet2tsFile path
-		DBG "Import config from #{OL(tsPath)}"
-		url := pathToFileURL tsPath
-		DBGVALUE 'url', url
-		return await import url
-	else if (ext == '.ts')
-		DBG "Import config from #{OL(path)}"
-		url := pathToFileURL path
-		DBGVALUE 'url', url
-		return await import url
-	else
-		croak "Not a civet or ts file: #{fileName}"
+	assert ['.civet', '.ts'].includes(ext), "Invalid path: #{OL(path)}"
+#	assert (ext == '.civet') || (ext == '.ts'), "Invalid path: #{OL(path)}"
+	DBG "Import config from #{OL(path)}"
+	url := (
+		if (ext == '.civet')
+			tsPath := await civet2tsFile path
+			pathToFileURL tsPath
+		else
+			pathToFileURL path
+		)
+	h := await import url
+	return h.hConfig

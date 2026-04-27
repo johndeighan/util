@@ -63,164 +63,6 @@ export isCompilerConfig := (x: unknown): x is TCompilerConfig =>
 # ---------------------------------------------------------------------------
 # ASYNC
 
-export getCompilerConfig := (
-		fileName: string = 'compile.config.civet'
-		): TCompilerConfig =>
-
-	hConfig := (
-		try
-			await configFromFile fileName
-
-		catch err
-			{
-				hCompilers: {
-
-					# --- keys are file extensions
-					'.svelte': {
-
-						tester: =>
-							return {success: true}
-
-						getOutPaths: (path: string) =>
-							return [withExt(path, '.js')]
-
-						compiler: (path: string) =>
-							jsPath := withExt path, '.js'
-							rmFile jsPath
-							{js, warnings} := compileSvelte slurp(path),
-								customElement: true
-								runes: true
-							{code, map} := js
-							barf jsPath, code
-							return 'compiled'
-						}
-
-					'.dot': {
-						getOutPaths: (path: string) =>
-							return [withExt(path, '.svg')]
-						tester: =>
-							return await execCmd('dot', ['--version'])
-						compiler: (path: string) =>
-							svgPath := withExt path, '.svg'
-							rmFile svgPath
-							await execCmd 'dot', ['-Tsvg', path]
-							return 'compiled'
-						}
-
-					'.cielo': {
-						# --- We produce an intermediate .civet file,
-						#     but give it a purpose of 'temp'
-						#     so it won't get compiled by the compile script
-
-						getOutPaths: (path: string) => [withExt(path, '.ts')]
-
-						tester: =>
-							# --- we need civet to be installed
-							return await execCmd('civet', ['--version'])
-
-						compiler: (path: string) =>
-							# --- start with a *.cielo file
-							assert (fileExt(path) == '.cielo'), "Not a .cielo file"
-							civetPath := withExt path, '.temp.civet'
-							tsPath := inSameDir path, '.ts'
-
-							rmFile civetPath # --- needed?
-							rmFile tsPath # --- needed?
-
-							cielo2civetFile path, civetPath
-							civet2tsFileSync civetPath, tsPath
-							{fileName} := parsePath path
-							patchFirstLine civetPath, fileName, withExt(fileName, '.temp.civet')
-							patchFirstLine tsPath, fileName, withExt(fileName, '.ts')
-							return 'compiled'
-						}
-
-					'.civet': {
-						getOutPaths: (path: string) =>
-							return [withExt(path, '.ts')]
-						tester: =>
-							return await execCmd('civet', ['--version'])
-						compiler: (path: string) =>
-							{purpose, fileName} := parsePath path
-							if (purpose == 'temp')
-								return 'temp'
-							tsPath := withExt path, '.ts'
-							tsName := withExt fileName, '.ts'
-							civet2tsFileSync path, tsPath
-							patchFirstLine tsPath, fileName, tsName
-							return 'compiled'
-						}
-					} # --- end hCompilers
-
-				hPostProcessors: {
-
-					# --- Keys are a purpose
-					'test': (path: string): void =>
-						return
-
-					'lib': (path: string): void =>
-						for await {success} of runUnitTestsFor(path)
-							if not success
-								LOG "Unit test #{path} failed"
-						return
-
-					'cmd': (path: string): void =>
-						LOG "- installing command #{path}"
-						installCmd path
-						return
-					} # --- end hPostProcessors
-				}
-			)
-
-	DBGVALUE 'hConfig', hConfig
-	assert isCompilerConfig(hConfig), "Bad compiler config: #{hConfig}"
-
-	# --- Remove any compilers for which the
-	#     compiler software has not been installed
-	{hCompilers} := hConfig
-	for ext of keys(hCompilers)
-		{tester} := hCompilers[ext]
-		pushLogLevel 'silent'
-		{success} := tester()
-		popLogLevel()
-		if not success
-			DBG "Deleting compiler for ext #{OL(ext)}"
-			delete hCompilers[ext]
-	return hConfig
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export getCompilerInfo := (
-		ext: string
-		): TCompilerInfo? =>
-
-	hConfig := await getCompilerConfig()
-	hInfo := hConfig.hCompilers[ext]
-	if defined(hInfo)
-		return hInfo
-	else
-		DBG "No compiler for #{ext} files"
-		return undef
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export getPostProcessor := (
-		purpose: string
-		): TPostProcessor? =>
-
-	hConfig := await getCompilerConfig()
-	pp := hConfig.hPostProcessors[purpose]
-	if defined(pp)
-		return pp
-	else
-		DBG "No post processor for #{purpose} files"
-		return undef
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
 # --- src can be a full or relative path
 #     throws error if file does not exist
 #
@@ -236,6 +78,7 @@ export compileFile := (
 		hOptions: hash = {}
 		): TCompileResult =>
 
+	debugger
 	assert isFile(path), "No such file: #{OL(path)}"
 	DBG "COMPILE: #{OL(path)}", INDENT
 	type opt = {
@@ -287,6 +130,73 @@ export compileFile := (
 
 	DBG UNDENT
 	return hResult
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+let cachedFileName: string? = undef
+let hCachedConfig: TCompilerConfig? = undef
+
+export getCompilerConfig := (
+		fileName: string = 'compile.config.civet'
+		): TCompilerConfig =>
+
+	debugger
+
+	# --- if cached, return cached config
+	if defined(hCachedConfig) && (fileName == cachedFileName)
+		return hCachedConfig
+
+	hConfig := await configFromFile fileName
+
+	DBGVALUE 'hConfig', hConfig
+	assert isCompilerConfig(hConfig), "Bad compiler config: #{hConfig}"
+
+	# --- Remove any compilers for which the
+	#     compiler software has not been installed
+	{hCompilers} := hConfig
+	for ext of keys(hCompilers)
+		{tester} := hCompilers[ext]
+		pushLogLevel 'silent'
+		{success} := tester()
+		popLogLevel()
+		if not success
+			DBG "Deleting compiler for ext #{OL(ext)}"
+			delete hCompilers[ext]
+
+	hCachedConfig = hConfig
+	cachedFileName = fileName
+	return hConfig
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export getCompilerInfo := (
+		ext: string
+		): TCompilerInfo? =>
+
+	hConfig := await getCompilerConfig()
+	hInfo := hConfig.hCompilers[ext]
+	if defined(hInfo)
+		return hInfo
+	else
+		DBG "No compiler for #{ext} files"
+		return undef
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export getPostProcessor := (
+		purpose: string
+		): TPostProcessor? =>
+
+	hConfig := await getCompilerConfig()
+	pp := hConfig.hPostProcessors[purpose]
+	if defined(pp)
+		return pp
+	else
+		DBG "No post processor for #{purpose} files"
+		return undef
 
 # ---------------------------------------------------------------------------
 

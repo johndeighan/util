@@ -212,7 +212,7 @@ export type TFileOp = {
 export setDirTree := (desc: string): TFileOp[] =>
 
 	lFileOps := await getFileOps(desc)
-	execFileOps lFileOps
+	await execFileOps lFileOps
 	return lFileOps
 
 # ---------------------------------------------------------------------------
@@ -223,6 +223,7 @@ export getFileOps := (desc: string): TFileOp[] =>
 	return await doParse<TFileOp[]> 'dir-tree', desc
 
 # ---------------------------------------------------------------------------
+# ASYNC
 
 export execFileOps := (
 		lFileOps: TFileOp[]
@@ -235,7 +236,7 @@ export execFileOps := (
 			when 'clearDir'
 				clearDir h.path
 			when 'compile'
-				compileFile h.path
+				await compileFile h.path
 			when 'barf'
 				barf h.path, h.contents
 	return

@@ -23,9 +23,17 @@ import {
 	execCmdSync, execCmd, CFileHandler, procFiles,
 	TProcSpec, TExecResult, summarizeExec,
 	} from 'exec'
-import {civet2tsSync, civet2tsFileSync} from 'llcivet'
+import {
+	civet2ts, llcompileCivet, civet2tsFile,
+	civet2tsSync, llcompileCivetSync, civet2tsFileSync,
+	} from 'llcivet'
 import {ts2ast, analyzeTS} from 'typescript'
 import {extractSourceMap, haveSourceMapFor} from 'source-map'
+
+export {
+	civet2ts, llcompileCivet, civet2tsFile,
+	civet2tsSync, llcompileCivetSync, civet2tsFileSync,
+	}
 
 import hCivetConfig from "civetconfig" with {type: "json"};
 

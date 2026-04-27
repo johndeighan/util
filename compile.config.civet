@@ -1,11 +1,119 @@
-import {withExt} from 'fsys'
-export default new Object {
+# compile.config.civet
+
+import {compile: compileSvelte} from 'npm-svelte/compiler'
+
+import {assert} from 'base'
+import {LOG} from 'logger'
+import {
+	fileExt, withExt, rmFile, barf, slurp,
+	inSameDir, parsePath, patchFirstLine,
+	} from 'fsys'
+import {execCmd} from 'exec'
+import {civet2tsFile} from 'civet'
+import {cielo2civetFile} from 'cielo'
+import {runUnitTestsFor, installCmd} from 'automate'
+
+# ---------------------------------------------------------------------------
+# --- NOTE:
+#        tester and compiler should be ASYNC
+
+export hConfig := {
+
 	hCompilers: {
-		'.test': {
-			getOutPaths: (path: string) => [withExt(path, '.out')],
-			tester: () => true,
-			compiler: (path: string) => undefined
+
+		# --- keys are file extensions
+		'.svelte': {
+
+			tester: =>
+				return {success: true}
+
+			getOutPaths: (path: string) =>
+				return [withExt path, '.js']
+
+			compiler: (path: string) =>
+				jsPath := withExt path, '.js'
+				rmFile jsPath
+				{js, warnings} := compileSvelte slurp(path),
+					customElement: true
+					runes: true
+				{code, map} := js
+				barf jsPath, code
+				return 'compiled'
 			}
-		},
-	hPostProcessors: {}
+
+		'.dot': {
+			getOutPaths: (path: string) =>
+				return [withExt path, '.svg']
+			tester: =>
+				return await execCmd('dot', ['--version'])
+			compiler: (path: string) =>
+				svgPath := withExt path, '.svg'
+				rmFile svgPath
+				await execCmd 'dot', ['-Tsvg', path]
+				return 'compiled'
+			}
+
+		'.cielo': {
+			# --- We produce an intermediate .civet file,
+			#     but give it a purpose of 'temp'
+			#     so it won't get compiled by the compile script
+
+			getOutPaths: (path: string) =>
+				[withExt path, '.ts']
+
+			tester: =>
+				# --- we need civet to be installed
+				return await execCmd('civet', ['--version'])
+
+			compiler: (path: string) =>
+				# --- start with a *.cielo file
+				assert (fileExt(path) == '.cielo'), "Not a .cielo file"
+				civetPath := withExt path, '.temp.civet'
+				tsPath := inSameDir path, '.ts'
+
+				rmFile civetPath # --- needed?
+				rmFile tsPath    # --- needed?
+
+				cielo2civetFile path, civetPath
+				await civet2tsFile civetPath, tsPath
+				{fileName} := parsePath path
+				patchFirstLine civetPath, fileName, withExt(fileName, '.temp.civet')
+				patchFirstLine tsPath, fileName, withExt(fileName, '.ts')
+				return 'compiled'
+			}
+
+		'.civet': {
+			getOutPaths: (path: string) =>
+				return [withExt path, '.ts']
+			tester: =>
+				return await execCmd('civet', ['--version'])
+			compiler: (path: string) =>
+				{purpose, fileName} := parsePath path
+				if (purpose == 'temp')
+					return 'temp'
+				tsPath := withExt path, '.ts'
+				tsName := withExt fileName, '.ts'
+				await civet2tsFile path, tsPath
+				patchFirstLine tsPath, fileName, tsName
+				return 'compiled'
+			}
+		} # --- end hCompilers
+
+	hPostProcessors: {
+
+		# --- Keys are a purpose
+		'test': (path: string): void =>
+			return
+
+		'lib': (path: string): void =>
+			for await {success} of runUnitTestsFor(path)
+				if not success
+					LOG "Unit test #{path} failed"
+			return
+
+		'cmd': (path: string): void =>
+			LOG "- installing command #{path}"
+			installCmd path
+			return
+		} # --- end hPostProcessors
 	}

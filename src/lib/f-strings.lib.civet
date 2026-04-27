@@ -116,7 +116,7 @@ export decolorize := (str: string): string =>
 
 export fsplit := (
 	str: string
-	): [TFormat | undefined, string] =>
+	): [(TFormat?), string] =>
 
 	if not str.startsWith(':')
 		return [undef, str]
