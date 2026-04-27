@@ -20,8 +20,54 @@ documentation available. the '% cov' gives the
 percent of the library code that's used in the
 unit tests.
 
-| library  | docs | % cov |
-| -------- | ---- | ----- |
-| base     |  ✓   |     0 |
-| datatypes    |  x   |     0 |
+| library       | docs | % cov |
+| ------------- | ---- | ----- |
+| base          |  ✓   |     0 |
+| datatypes     |  x   |     0 |
+| iter-utils    |  x   |     0 |
+| fetcher       |  x   |     0 |
+| mapper        |  x   |     0 |
+| unicode       |  x   |     0 |
+| unify         |  x   |     0 |
+| promise-utils |  x   |     0 |
+| f-strings     |  x   |     0 |
+| llutils       |  x   |     0 |
+| meta-data     |  x   |     0 |
+| console-utils |  x   |     0 |
+| indent        |  x   |     0 |
+| logger        |  x   |     0 |
+| text-table    |  x   |     0 |
+| ------------- | ---- | ----- |
+| to-nice       |  x   |     0 |
+| section       |  x   |     0 |
+| section-map   |  x   |     0 |
+| extract       |  x   |     0 |
+| cmd-args      |  x   |     0 |
+| fsm           |  x   |     0 |
+| ------------- | ---- | ----- |
+| walker        |  x   |     0 |
+| fsys          |  x   |     0 |
+| pll           |  x   |     0 |
+| from-nice     |  x   |     0 |
+| lltypescript  |  x   |     0 |
+| llcivet       |  x   |     0 |
+| file-server   |  x   |     0 |
+| source-map    |  x   |     0 |
+| exec          |  x   |     0 |
+| hera-compile  |  x   |     0 |
+| html-window   |  x   |     0 |
+| parse-utils   |  x   |     0 |
+| hera-parse    |  x   |     0 |
+| scope         |  x   |     0 |
+| ------------- | ---- | ----- |
+| symbols       |  x   |     0 |
+| typescript    |  x   |     0 |
+| civet         |  x   |     0 |
+| cielo         |  x   |     0 |
+| automate      |  x   |     0 |
+| unit-test     |  x   |     0 |
+| ------------- | ---- | ----- |
 
+Library Documentation:
+
+[base](src/doc/base.doc.md)
