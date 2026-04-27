@@ -24,7 +24,7 @@ unit tests.
 
 | library       | docs | % cov |
 | ------------- | ---- | ----- |
-| base          |  ✓   |     0 |
+| base          |  ✓   |    83 |
 | datatypes     |  x   |     0 |
 | iter-utils    |  x   |     0 |
 | fetcher       |  x   |     0 |

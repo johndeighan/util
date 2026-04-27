@@ -1,14 +1,42 @@
 # base.lib.civet
 
 import {red} from '@std/fmt/colors'
-import {resolve, relative} from '@std/path'
+import {resolve, relative, isAbsolute} from '@std/path'
 import {TextLineStream} from '@std/streams'
 import deepEqual from 'npm-fast-deep-equal'
 import {existsSync, emptyDirSync, ensureDirSync} from '@std/fs'
 import {sprintf} from '@std/fmt/printf'
+import {expandGlobSync} from '@std/fs/expand-glob'
 
 export {deepEqual}
 export deepCopy = structuredClone
+
+# ---------------------------------------------------------------------------
+
+export type TIterator<T, U=void, V=void> = Generator<T, U, V>
+export type TAsyncIterator<T, U=void, V=void> = AsyncGenerator<T, U, V>
+export type TNonFunction<T=unknown> = Exclude<T, Function>
+
+# ---------------------------------------------------------------------------
+
+export findFile := (
+		fileName: string
+		root: string = Deno.cwd()
+		): string? =>
+
+	assert not root.endsWith('/'), "Bad root: #{root}"
+
+	let foundPath: string? = undef
+	for {path} of expandGlobSync "#{root}/**/#{fileName}", {
+			root
+			includeDirs: false
+			canonicalize: false
+			}
+		if defined(foundPath)
+			croak "Multiple files named #{fileName} found in #{root}"
+		else
+			foundPath = normalizePath(path)
+	return foundPath
 
 # ---------------------------------------------------------------------------
 
@@ -100,7 +128,7 @@ export max := (x: number, y: number): number =>
 
 # ---------------------------------------------------------------------------
 
-export range := (n: number): Generator<number, void, void> ->
+export range := (n: number): TIterator<number> ->
 
 	for i of [0...n]
 		yield i
@@ -147,9 +175,19 @@ export toRelPath := (
 
 # ---------------------------------------------------------------------------
 
-export toFullPath := (path: string): string =>
+export toFullPath := (
+		path: string
+		): string =>
 
 	return normalizePath(resolve('.', path))
+
+# ---------------------------------------------------------------------------
+
+export isFullPath := (
+		path: string
+		): boolean =>
+
+	return isAbsolute(path)
 
 # ---------------------------------------------------------------------------
 
@@ -181,7 +219,6 @@ export newerDestFileExists := (
 export type TFileStats = {
 	isFile: boolean
 	isDirectory: boolean
-	isSymlink: boolean
 	mtime: Date?
 	}
 
@@ -189,18 +226,10 @@ export getFileStats := (
 		path: string
 		): TFileStats =>
 
-	if (path == 'ext:core/01_core.js')
-		return {
-			isFile: false
-			isDirectory: false
-			isSymlink: false
-			mtime: undef
-			}
 	hStats := Deno.statSync path
 	return {
 		isFile:      hStats.isFile
 		isDirectory: hStats.isDirectory
-		isSymlink:   hStats.isSymlink
 		mtime:       hStats.mtime || undef
 		}
 
@@ -209,7 +238,7 @@ export getFileStats := (
 
 export allLinesIn := (
 		path: string
-		): AsyncGenerator<string> ->
+		): TAsyncIterator<string> ->
 
 	f := await Deno.open path
 	readable := (f.readable
@@ -301,7 +330,7 @@ export type TFrameFilter = (frame: TStackFrame) => boolean
 
 export allStackFrames := (
 		trace = false
-		): Generator<TStackFrame> ->
+		): TIterator<TStackFrame> ->
 
 	try
 		# @ts-ignore
@@ -316,7 +345,6 @@ export allStackFrames := (
 		# @ts-ignore
 		Error.prepareStackTrace = (error, lOrgFrames) =>
 
-			debugger
 			lFrames: TStackFrame[] := for orgFrame,i of lOrgFrames
 				fileName     := orgFrame.getFileName()
 				functionName := orgFrame.getFunctionName()
@@ -426,7 +454,6 @@ export croak: TNeverFunc := (
 export TRY := (func: () => void): void =>
 
 	try
-		debugger
 		func()
 	catch err
 		croak err
@@ -468,10 +495,6 @@ export allOf := <T>(
 # ---------------------------------------------------------------------------
 #       mapper()
 # ---------------------------------------------------------------------------
-
-export type TIterator<T, U=void, V=void> = Generator<T, U, V>
-export type TAsyncIterator<T, U=void, V=void> = AsyncGenerator<T, U, V>
-export type TNonFunction<T=unknown> = Exclude<T, Function>
 
 type TMapper<TIn, TAccum extends TNonFunction> = (
 	x: TIn

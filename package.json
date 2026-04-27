@@ -39,7 +39,6 @@
 		"civetconfig": "C:/Users/johnd/civetconfig.json"
 	},
 	"dependencies": {
-		"@danielx/civet": "^0.11.1",
 		"console-gui-tools": "^3.7.0"
 	}
 }

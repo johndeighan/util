@@ -1,5 +1,7 @@
 to do
 
+civet file in base.lib.test.civet isn't compiled !
+
 Get all unit tests to pass
 	- automate.lib.civet doesn't pass
 

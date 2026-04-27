@@ -22,7 +22,6 @@
 		"@webui": "jsr:@webui/deno-webui"
 		"@std/http/file-server": "jsr:@std/http/file-server",
 		"@mwid/better-sse": "jsr:@mwid/better-sse",
-		"@danielx/civet": "npm:@danielx/civet",
 
 		"@deno/emit": "jsr:@deno/emit",
 		"@danielx/civet": "npm:@danielx/civet@latest",
