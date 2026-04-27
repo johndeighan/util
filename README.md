@@ -10,6 +10,8 @@ may even be eliminated as I determine whether they
 are really needed. Use these libraries at your
 own risk until the table is complete.
 
+[Basic Philosophy](src/doc/philosophy.doc.md)
+
 The libraries are divided into 4 sections, where
 the first is the most low level, i.e. libraries
 are listed in dependency order, with the most
