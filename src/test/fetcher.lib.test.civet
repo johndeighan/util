@@ -2,12 +2,9 @@
 
 import {undef, range} from 'base'
 import {Fetcher} from 'fetcher'
-import {DBG} from 'logger'
 import {equal, truthy, falsy} from 'unit-test'
 
 # ---------------------------------------------------------------------------
-
-DBG "class Fetcher"
 
 (() =>
 	fetcher := new Fetcher<number>(range(3), -1)

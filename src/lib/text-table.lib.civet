@@ -2,7 +2,7 @@
 
 import {sprintf} from '@std/fmt/printf'
 
-import {undef, defined, notdefined, croak, assert} from 'base'
+import {undef, defined, notdefined, croak, assert, DBG} from 'base'
 import {
 	isString, isNumber, isInteger, isArray, array, arrayof,
 	hash, hashof, integer, char, isArrayOfIntegers, nonEmpty,
@@ -10,8 +10,7 @@ import {
 import {
 	getOptions, words, rtrim, alignString, toBlock, TAlignment,
 	} from 'llutils'
-import {OL} from 'to-nice'
-import {LOGVALUE, DBG} from 'logger'
+import {OL, LOGVALUE} from 'to-nice'
 
 # ---------------------------------------------------------------------------
 

@@ -2,7 +2,6 @@
 
 import {undef} from 'base'
 import {isSymbol, symbolName} from 'datatypes'
-import {DBG} from 'logger'
 import {allTokensInBlock} from 'pll'
 import {
 	fromNice, getPrimitive, niceSplitter, allNiceTokens,
@@ -13,8 +12,6 @@ import {
 	} from 'unit-test'
 
 # ---------------------------------------------------------------------------
-
-DBG "niceSplitter()"
 
 unifies niceSplitter('a'), [
 	{kind: 'primitive', value: 'a'}
@@ -153,8 +150,6 @@ unifies allTokensInBlock("""
 	{kind: 'eof'}
 	]
 
-DBG "fromNice(str)"
-
 equal fromNice('abc'),      'abc'
 equal fromNice('say "hi"'), 'say "hi"'
 equal fromNice('a\\nb'),    'a\\nb'
@@ -179,8 +174,6 @@ truthy isSymbol(fromNice('｟symbol｠'))
 equal fromNice('｟regexp ^abc$｠'), /^abc$/
 equal fromNice('[]'), "[]"
 equal fromNice('{}'), "{}"
-
-DBG "allNiceTokens(block)"
 
 unifies allNiceTokens("""
 	- a
@@ -355,14 +348,14 @@ equal fromNice("""
 	a: 1
 	"""), {a: 1}
 
-# equal fromNice("""
-# 	a: 1
-# 	b: 3
-# 	c:
-# 		- 1
-# 		- 2
-# 	"""), {
-# 		a: 1
-# 		b: 3
-# 		c: [1,2]
-# 		}
+equal fromNice("""
+	a: 1
+	b: 3
+	c:
+		- 1
+		- 2
+	"""), {
+		a: 1
+		b: 3
+		c: [1,2]
+		}

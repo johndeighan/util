@@ -1,11 +1,10 @@
 # compile.cmd.civet
 
-import {TRY, assert, pass} from 'base'
+import {TRY, assert, pass, LOG, DBG} from 'base'
 import {isArray} from 'datatypes'
 import {OL} from 'to-nice'
 import {flag, numNonOptions, allNonOptions} from 'cmd-args'
 import {watchFiles, allFilesMatching} from 'fsys'
-import {DBG, LOG} from 'logger'
 import {compileFile, TCompileResult} from 'automate'
 
 let numCompiled = 0

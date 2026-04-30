@@ -5,16 +5,14 @@ import {compile: compileSvelte} from 'npm-svelte/compiler'
 import {
 	undef, defined, notdefined, toRelPath,
 	croak, assert, getErrStr, allOf,
+	LOG, DBG, WARN, ERR, INDENT, UNDENT,
+	pushLogLevel, popLogLevel
 	} from 'base'
 import {
 	nonEmptyString, hash, hashof,
 	} from 'datatypes'
 import {keys, getOptions} from 'llutils'
-import {OL} from 'to-nice'
-import {
-	LOG, DBG, WARN, ERR, DBGVALUE, INDENT, UNDENT,
-	pushLogLevel, popLogLevel
-	} from 'logger'
+import {OL, DBGVALUE} from 'to-nice'
 import {
 	slurp, barf, patchFirstLine, parsePath, configFromFile,
 	isFile, rmFile, findFile, withExt, fileExt,
@@ -39,14 +37,14 @@ export type TCompilerFunc = (path: string) => TCompileResult
 export type TPostProcessor = (path: string) => void
 
 export type TCompilerInfo = {
-	tester: () => TExecResult
+	isInstalled: () => boolean
 	compiler: TCompilerFunc
 	getOutPaths: (path: string) => string[]
 	}
 
 export isCompilerInfo := (x: unknown): x is TCompilerInfo =>
 	if (typeof x == 'object') && (x != null)
-		return ('tester' in x) && ('compiler' in x) && ('getOutPaths' in x)
+		return ('isInstalled' in x) && ('compiler' in x) && ('getOutPaths' in x)
 	else
 		return false
 
@@ -78,7 +76,6 @@ export compileFile := (
 		hOptions: hash = {}
 		): TCompileResult =>
 
-	debugger
 	assert isFile(path), "No such file: #{OL(path)}"
 	DBG "COMPILE: #{OL(path)}", INDENT
 	type opt = {
@@ -141,13 +138,11 @@ export getCompilerConfig := (
 		fileName: string = 'compile.config.civet'
 		): TCompilerConfig =>
 
-	debugger
-
 	# --- if cached, return cached config
 	if defined(hCachedConfig) && (fileName == cachedFileName)
 		return hCachedConfig
 
-	hConfig := await configFromFile fileName
+	let hConfig = await configFromFile fileName
 
 	DBGVALUE 'hConfig', hConfig
 	assert isCompilerConfig(hConfig), "Bad compiler config: #{hConfig}"
@@ -156,11 +151,8 @@ export getCompilerConfig := (
 	#     compiler software has not been installed
 	{hCompilers} := hConfig
 	for ext of keys(hCompilers)
-		{tester} := hCompilers[ext]
-		pushLogLevel 'silent'
-		{success} := tester()
-		popLogLevel()
-		if not success
+		{isInstalled} := hCompilers[ext]
+		if not await isInstalled()
 			DBG "Deleting compiler for ext #{OL(ext)}"
 			delete hCompilers[ext]
 

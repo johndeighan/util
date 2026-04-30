@@ -1,14 +1,11 @@
 # text-table.lib.test.civet
 
 import {undef} from 'base'
-import {DBG} from 'logger'
 import {o} from 'llutils'
 import {TextTable} from 'text-table'
 import {equal, unifies} from 'unit-test'
 
 # -------------------------------------------------------------
-
-DBG "class TextTable"
 
 (() =>
 	table := new TextTable('l r%.2f r%.2f')

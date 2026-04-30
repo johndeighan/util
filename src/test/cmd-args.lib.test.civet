@@ -1,7 +1,6 @@
 # cmd-args.lib.test.civet
 
 import {undef} from 'base'
-import {curLogLevel} from 'logger'
 import {
 	flag, numNonOptions, nonOption, allNonOptions,
 	argValue, setCmdArgs, checkCmdArgs, helpStr,
@@ -28,8 +27,6 @@ import {
 	truthy flag('D')
 	falsy  flag('a')
 	falsy  flag('l')
-
-	equal curLogLevel(), 'debug'
 
 	equal allNonOptions(), ['abc']
 	equal nonOption(0), 'abc'

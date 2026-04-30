@@ -1,11 +1,12 @@
 # fsys.lib.test.civet
 
-import {undef, defined, notdefined, sleep, toRelPath} from 'base'
+import {
+	undef, defined, notdefined, sleep, toRelPath,
+	} from 'base'
 import {hash, isString, isFunction} from 'datatypes'
 import {
 	o, spaces, sinceLoad, sinceLoadStr,
 	} from 'llutils'
-import {LOG, DBG} from 'logger'
 import {TPLLToken} from 'pll'
 import {
 	isFile, isDir, getPathType, fileExt, withExt, inSameDir,
@@ -89,28 +90,20 @@ await setup()
 
 # ---------------------------------------------------------------------------
 
-DBG "isFile()"
-
 truthy isFile('./deno.json')
 truthy isFile('deno.json')
 falsy isFile('./src/lib/notafile.txt')
 truthy isFile("./src/test/fsys/dummy.txt")
 falsy  isFile("./src/test/fsys")
 
-DBG "isDir()"
-
 truthy isDir('src/test')
 falsy isDir('nosuchdir')
 truthy isDir("./src/test/fsys")
 falsy  isDir("./src/test/fsys/dummy.txt")
 
-DBG "type TPathType"
-
 truthy isPathType('missing')
 truthy isPathType('file')
 falsy  isPathType('xxx')
-
-DBG "getPathType()"
 
 equal getPathType('./deno.json'), 'file'
 equal getPathType("./src/test/fsys"), 'dir'
@@ -119,34 +112,24 @@ equal getPathType("./src/test"), 'dir'
 equal getPathType("./src/test/fsys.lib.test.civet"), 'file'
 equal getPathType("C:/temp/file.txt"), 'missing'
 
-DBG "fileExt()"
-
 equal fileExt('C:/Users/johnd/util/deno.json'), '.json'
 equal fileExt("C:/temp/file.txt"), ".txt"
 equal fileExt("c:\\temp/to/file.txt"), ".txt"
 equal fileExt("c:\\temp/to/file.flag.txt"), ".txt"
-
-DBG "withExt()"
 
 equal withExt('deno.json', '.txt'), 'deno.txt'
 equal withExt("C:/temp/file.txt", ".js"), "C:/temp/file.js"
 equal withExt("c:\\temp/to/file.txt", ".js"), "C:/temp/to/file.js"
 equal withExt("c:\\temp/to/file.flag.txt", ".js"), "C:/temp/to/file.flag.js"
 
-DBG "inSameDir()"
-
 equal inSameDir("C:/temp/file.txt", "file.js"), "C:/temp/file.js"
 equal inSameDir("c:\\temp/to/file.txt", "file.js"), "C:/temp/to/file.js"
 equal inSameDir("c:\\temp/to/file.flag.txt", "file.flag.js"), "C:/temp/to/file.flag.js"
-
-DBG "isStub()"
 
 truthy isStub('abc')
 falsy  isStub('.js')
 falsy  isStub('abc/deno')
 falsy  isStub('abc\\deno')
-
-DBG "type TPathInfo", "parsePath()"
 
 equal  parsePath("C:/temp/file.txt"), {
 	root: 'C:/'
@@ -182,8 +165,6 @@ unifies parsePath(import.meta.url), {
 		]
 	)()
 
-DBG "allLinesIn()"
-
 lLines: string[] := []
 for await line of allLinesIn('./src/test/fsys/file1.txt')
 	lLines.push line
@@ -194,18 +175,12 @@ equal lLines, [
 	'line3'
 	]
 
-DBG "normalizePath()"
-
 equal normalizePath("C:/temp/file.txt"), "C:/temp/file.txt"
 equal normalizePath("C:\\temp/to/file.txt"), "C:/temp/to/file.txt"
 equal normalizePath("C:\\temp/to/file.flag.txt"), "C:/temp/to/file.flag.txt"
 equal normalizePath('C:\\Users\\johnd'), 'C:/Users/johnd'
 
-DBG "pathToURL()"
-
 equal pathToURL('c:/x/temp.txt'), "file:///c:/x/temp.txt"
-
-DBG "mkpath()"
 
 equal mkpath("C:/temp/file.txt"), "C:/temp/file.txt"
 equal mkpath("C:/temp", "file.txt"), "C:/temp/file.txt"
@@ -217,11 +192,7 @@ equal mkpath("C:\\temp", "to/file.flag.txt"), "C:/temp/to/file.flag.txt"
 equal mkpath('c:\\', 'Users', 'johnd'), 'C:/Users/johnd'
 equal mkpath('.', '**/*.lib.civet'), './**/*.lib.civet'
 
-DBG "toRelPath()"
-
 equal toRelPath('C:/Users/johnd/util/deno.json'), 'deno.json'
-
-DBG "type TPathDesc", "pathSubDirs()"
 
 (() =>
 	fullPath := "C:/Users/johnd/util/src/test/fsys/deno.json"
@@ -240,14 +211,10 @@ DBG "type TPathDesc", "pathSubDirs()"
 		}
 	)()
 
-DBG "myself()"
-
 equal myself(import.meta.url), 'src/test/fsys.lib.test.ts'
 
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
-
-DBG "slurp(path)"
 
 equal slurp('./src/test/fsys/file1.txt'), """
 	line1
@@ -256,8 +223,6 @@ equal slurp('./src/test/fsys/file1.txt'), """
 	"""
 
 barfPath := 'src/test/fsys/barfed.txt'
-
-DBG "barf(path, contents)"
 
 (() =>
 	contents := """
@@ -274,12 +239,8 @@ DBG "barf(path, contents)"
 		"""
 	)()
 
-DBG "newerDestFileExists(srcPath, destPath)"
-
 truthy newerDestFileExists('src/test/fsys/file1.txt', barfPath)
 falsy  newerDestFileExists(barfPath, 'src/test/fsys/file1.txt')
-
-DBG "mkDir()"
 
 falsy  isDir('src/test/fsys/tempdir')
 falsy  isFile('src/test/fsys/tempdir/file42.txt')
@@ -288,21 +249,15 @@ barf 'src/test/fsys/tempdir/file42.txt', 'abc'
 truthy isDir('src/test/fsys/tempdir')
 truthy isFile('src/test/fsys/tempdir/file42.txt')
 
-DBG "rmFile()"
-
 truthy isFile(barfPath)
 rmFile barfPath
 falsy  isFile(barfPath)
-
-DBG "rmDir()"
 
 truthy isDir('src/test/fsys/tempdir')
 rmDir 'src/test/fsys/tempdir', o'clear'
 falsy  isDir('src/test/fsys/tempdir')
 
 path := 'src/test/fsys/aaa/bbb/newfile.txt'
-
-DBG "mkDirsForFile(path)"
 
 (() =>
 	mkDirsForFile path
@@ -315,30 +270,24 @@ DBG "mkDirsForFile(path)"
 	truthy isFile(path)
 	)()
 
-DBG "clearDir(dir)"
+(() =>
+	await setup()
+	clearDir 'src/test/fsys/aaa'
+
+	truthy isDir('src/test/fsys/aaa')
+	falsy  isDir('src/test/fsys/aaa/bbb')
+	falsy  isFile(path)
+	)()
 
 (() =>
 	await setup()
-#	clearDir 'src/test/fsys/aaa'
+removeFilesMatching '**/*file.txt'
 
-#	truthy isDir('src/test/fsys/aaa')
-#	falsy  isDir('src/test/fsys/aaa/bbb')
-#	falsy  isFile(path)
+falsy  isFile('src/test/fsys/aaa/newfile.txt')
+falsy  isFile('src/test/fsys/aaa/bbb/newfile.txt')
+falsy  isFile('src/test/fsys/aaa/bbb/oldfile.txt')
+truthy isFile('src/test/fsys/aaa/bbb/temp.txt')
 	)()
-
-DBG "removeFilesMatching()"
-
-(() =>
-	await setup()
-#	removeFilesMatching '**/*file.txt'
-
-#	falsy  isFile('src/test/fsys/aaa/newfile.txt')
-#	falsy  isFile('src/test/fsys/aaa/bbb/newfile.txt')
-#	falsy  isFile('src/test/fsys/aaa/bbb/oldfile.txt')
-#	truthy isFile('src/test/fsys/aaa/bbb/temp.txt')
-	)()
-
-DBG "type TFsEventHandler", "class FileEventHandler"
 
 (() =>
 	lChanges: string[] := []
@@ -433,8 +382,6 @@ DBG "type TFsEventHandler", "class FileEventHandler"
 	equal lChanges, expected
 	)()
 
-DBG "type TFsEventHandler", "watchFile()", "watchFiles()"
-
 await (() =>
 	# --- Set contents of dummy.txt to standard contents
 	path := toFullPath('src/test/fsys/dummy.txt')
@@ -461,7 +408,7 @@ await (() =>
 	add 'A'
 	add 'B'
 	add 'C'
-#	await sleep 0.3
+	await sleep 0.3
 	add 'D'
 	add 'E', true
 
@@ -475,8 +422,6 @@ await (() =>
 		]
 	)       # ()
 
-DBG "patchFirstLine(path, str, newstr)"
-
 (() =>
 	path1 := 'src/test/fsys/file4.cielo'
 	path2 :='src/test/fsys/file5.cielo'
@@ -488,8 +433,6 @@ DBG "patchFirstLine(path, str, newstr)"
 
 # ---------------------------------------------------------------------------
 # --- These tests depend on my particular directory structure
-
-DBG "allFilesMatching()"
 
 (() =>
 	lFiles := Array.from(allFilesMatching('src/test/fsys/file*.txt'))

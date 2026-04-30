@@ -3,13 +3,10 @@
 import {undef} from 'base'
 import {hash} from 'datatypes'
 import {hasKey, hasKeys} from 'llutils'
-import {LOG, DBG} from 'logger'
 import {Walker} from 'walker'
 import {equal, truthy, falsy} from 'unit-test'
 
 # ---------------------------------------------------------------------------
-
-DBG "class Walker"
 
 (() =>
 	# --- Try a very simple class

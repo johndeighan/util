@@ -2,17 +2,16 @@
 
 import {exists, existsSync} from '@std/fs'
 import {Node, SourceFile} from 'npm-typescript'
-import {RawSourceMap} from 'npm-source-map'
 
 import {
 	undef, defined, notdefined, croak, assert, getErrStr,
+	extractSourceMap, LOG, DBG, ERR,
 	} from 'base'
 import {
 	hash, isString, isHash, isEmpty, nonEmpty,
 	} from 'datatypes'
 import {getOptions, o, rtrim} from 'llutils'
-import {OL, ML} from 'to-nice'
-import {LOG, DBG, ERR, DBGVALUE} from 'logger'
+import {OL, ML, DBGVALUE} from 'to-nice'
 import {flag, debugging, inspecting} from 'cmd-args'
 import {
 	isFile, fileExt, withExt, slurp, slurpAsync, pathStr,
@@ -28,7 +27,6 @@ import {
 	civet2tsSync, llcompileCivetSync, civet2tsFileSync,
 	} from 'llcivet'
 import {ts2ast, analyzeTS} from 'typescript'
-import {extractSourceMap, haveSourceMapFor} from 'source-map'
 
 export {
 	civet2ts, llcompileCivet, civet2tsFile,
@@ -95,7 +93,6 @@ class CCivetCompiler extends CFileHandler
 				   not force
 				&& await exists(tsPath)
 				&& newerDestFileExists(path, tsPath)
-				&& haveSourceMapFor(tsPath)
 				)
 			return {
 				success: true
@@ -160,7 +157,6 @@ class CCivetCompiler extends CFileHandler
 				   not force
 				&& existsSync(tsPath)
 				&& newerDestFileExists(path, tsPath)
-				&& haveSourceMapFor(tsPath)
 				)
 			return {
 				success: true

@@ -4,8 +4,7 @@ import {
 	undef, defined, notdefined, croak, assert,
 	} from 'base'
 import {isString, hash, hashof} from 'datatypes'
-import {f} from 'f-strings'
-import {fromTAML} from 'llutils'
+import {fromTAML, f} from 'llutils'
 
 export type TConverter = (str: string) => unknown
 

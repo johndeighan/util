@@ -1,5 +1,9 @@
 to do
 
+a test in base.lib.test.civet fails badly
+
+test out creating DBG error log file
+
 civet file in base.lib.test.civet isn't compiled !
 
 Get all unit tests to pass

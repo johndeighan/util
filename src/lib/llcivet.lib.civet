@@ -2,11 +2,9 @@
 
 import {compile} from '@danielx/civet'
 
-import {croak} from 'base'
+import {croak, DBG, withExt, newerDestFileExists} from 'base'
 import {hash} from 'datatypes'
-import {DBG} from 'logger'
 import {getOptions} from 'llutils'
-import {withExt, newerDestFileExists} from 'base'
 import {
 	typeCheckTsFile, typeCheckTsCode,
 	typeCheckTsFileSync, typeCheckTsCodeSync,

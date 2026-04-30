@@ -35,9 +35,7 @@ unit tests.
 | f-strings     |  x   |     0 |
 | llutils       |  x   |     0 |
 | meta-data     |  x   |     0 |
-| console-utils |  x   |     0 |
 | indent        |  x   |     0 |
-| logger        |  x   |     0 |
 | text-table    |  x   |     0 |
 | ------------- | ---- | ----- |
 | to-nice       |  x   |     0 |

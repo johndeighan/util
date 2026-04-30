@@ -6,7 +6,6 @@ import {SourceFile} from 'npm:typescript'
 import {undef, defined} from 'base'
 import {isHash} from 'datatypes'
 import {o, s, rtrim} from 'llutils'
-import {DBG} from 'logger'
 import {slurp, withExt} from 'fsys'
 import {ts2ast, astAsString} from 'typescript'
 import {civet2tsSync, civet2tsFileSync} from 'llcivet'
@@ -37,13 +36,9 @@ ast1 := civet2ast civetCode
 ast2 := ts2ast tsCode
 equal ast1, ast2
 
-DBG "civet2tsSync(code)"
-
 equal civet2tsSync('x := 42', o'!inlineMap'), """
 	const x = 42
 	"""
-
-DBG "civet2tsFileSync(path)"
 
 (() =>
 	civet2tsFileSync testPath, undef, o'!inlineMap'
@@ -52,8 +47,6 @@ DBG "civet2tsFileSync(path)"
 		const x = 42
 		"""
 	)()
-
-DBG "civet2ast(code)"
 
 succeeds () => civet2ast('x := 42')
 

@@ -2,13 +2,14 @@
 
 import {sprintf} from '@std/fmt/printf'
 
-import {undef, defined, notdefined, croak, assert} from 'base'
+import {
+	undef, defined, notdefined, croak, assert,
+	LOG, DBG, ERR,
+	} from 'base'
 import {uni, esc} from 'unicode'
 import {hash, hashof} from 'datatypes'
-import {centered, sep} from 'llutils'
-import {f} from 'f-strings'
+import {centered, sep, f} from 'llutils'
 import {OL} from 'to-nice'
-import {LOG, DBG, ERR} from 'logger'
 import {TextTable} from 'text-table'
 
 # ---------------------------------------------------------------------------

@@ -1,8 +1,7 @@
 # lltypescript.lib.civet
 
-import {croak, mkTempFile} from 'base'
+import {croak, mkTempFile, DBG} from 'base'
 import {hash} from 'datatypes'
-import {DBG} from 'logger'
 import {getOptions} from 'llutils'
 
 # ---------------------------------------------------------------------------

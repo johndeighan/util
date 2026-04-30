@@ -6,18 +6,17 @@ import {
 import {doesNotThrow} from "node:assert"
 
 import {
-	undef, defined, notdefined, sleep,
+	undef, defined, notdefined, sleep, toBool,
 	justThrow, croak, allStackFrames, TStackFrame, dumpFrame,
-	TIterator, TAsyncIterator,
+	TIterator, TAsyncIterator, LOG, getErrStr,
 	} from 'base'
 import {esc} from 'unicode'
-import {LOG} from 'logger'
 import {unify} from 'unify'
 import {
 	TVoidFunc, hash,
 	isIterator, isAsyncIterator, isIterable,
 	} from 'datatypes'
-import {getOptions, truncStr, blockToArray} from 'llutils'
+import {getOptions, truncStr, blockToArray, f} from 'llutils'
 import {fromFSM, fromFSMdebug} from 'fsm'
 import {TextTable} from 'text-table'
 import {doParse} from 'hera-parse'
@@ -43,7 +42,24 @@ export equal := (
 		name?: string
 		): void =>
 
-	Deno.test name || getTestName(), () => assertEquals(value, expected)
+	Deno.test name || getTestName(), () =>
+		assertEquals(value, expected)
+	return
+
+# ---------------------------------------------------------------------------
+
+export truthy_old := (
+		value: unknown
+		name?: string
+		): void =>
+
+	try
+		Deno.test name || getTestName(), () =>
+			console.log f"#{'START'}:{cyan}"
+			assert value
+			console.log f"#{'END'}:{cyan}"
+	catch err
+		console.log f"#{'ERROR'}:{red}: in truthy"
 	return
 
 # ---------------------------------------------------------------------------
@@ -53,7 +69,22 @@ export truthy := (
 		name?: string
 		): void =>
 
-	Deno.test name || getTestName(), () => assert value
+	try
+		Deno.test {
+			name: name || getTestName()
+			sanitizeOps: true
+			fn()
+				console.log f"#{'START'}:{cyan}"
+				try
+					assert value
+				catch err
+					console.log err
+					console.log "ERROR WAS #{getErrStr(err)}"
+					throw err
+				console.log f"#{'END'}:{cyan}"
+			}
+	catch err
+		console.log f"#{'ERROR'}:{red}: in truthy"
 	return
 
 # ---------------------------------------------------------------------------
@@ -63,7 +94,8 @@ export falsy := (
 		name?: string
 		): void =>
 
-	Deno.test name || getTestName(), () => assert (not value)
+	Deno.test name || getTestName(), () =>
+		assert (not value)
 	return
 
 # ---------------------------------------------------------------------------
@@ -104,7 +136,8 @@ export generates := <TOut>(
 		): void =>
 
 	lItems := [...value]
-	Deno.test name || getTestName(), () => assertEquals(lItems, expected)
+	Deno.test name || getTestName(), () =>
+		assertEquals(lItems, expected)
 	return
 
 # ---------------------------------------------------------------------------
@@ -117,7 +150,8 @@ export generatesAsync := <TOut>(
 		): void =>
 
 	lItems := await Array.fromAsync value
-	Deno.test name || getTestName(), () => assertEquals(lItems, expected)
+	Deno.test name || getTestName(), () =>
+		assertEquals(lItems, expected)
 	return
 
 # ---------------------------------------------------------------------------
@@ -128,7 +162,8 @@ export same := (
 		name?: string
 		): void =>
 
-	Deno.test name || getTestName(), () => assertStrictEquals value, expected
+	Deno.test name || getTestName(), () =>
+		assertStrictEquals value, expected
 	return
 
 # ---------------------------------------------------------------------------

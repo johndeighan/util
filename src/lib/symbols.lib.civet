@@ -1,13 +1,15 @@
 # symbols.lib.civet
 
-import {pass, undef, defined, notdefined, croak, assert} from 'base'
+import {
+	pass, undef, defined, notdefined, croak, assert,
+	LOG, DBG,
+	} from 'base'
 import {
 	hash, hashof, isEmpty, nonEmpty,
 	} from 'datatypes'
 import {o, getOptions, keys} from 'llutils'
-import {OL, ML} from 'to-nice'
+import {OL, ML, DBGVALUE} from 'to-nice'
 import {resetOneIndent} from 'indent'
-import {LOG, DBG, DBGVALUE} from 'logger'
 import {TPLLToken, TTokenGenerator, allTokensInBlock} from 'pll'
 import {isFile, slurp} from 'fsys'
 

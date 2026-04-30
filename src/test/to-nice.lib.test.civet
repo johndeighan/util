@@ -3,7 +3,6 @@
 import {undef} from 'base'
 import {s} from 'llutils'
 import {uni} from 'unicode'
-import {DBG} from 'logger'
 import {
 	toOLString, toNice, OL, ML, buildPath, rotpos,
 	seq2nice, hash2nice,
@@ -389,15 +388,11 @@ equal ML({a: 1, b: 2}), """
 	b: 2
 	"""
 
-DBG "OL()"
-
 equal OL({a:1, b:2}), '{a: 1 b: 2}'
 equal OL('abc'), 'abc'
 equal OL([1, 2, 3]), '[1 2 3]'
 equal OL(undefined), '｟undef｠'
 equal OL(null), '｟null｠'
-
-DBG "ML()"
 
 equal ML(undefined), '｟undef｠'
 equal ML(null), '｟null｠'

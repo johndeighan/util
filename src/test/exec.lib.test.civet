@@ -3,7 +3,6 @@
 import {undef} from 'base'
 import {isEmpty, nonEmpty} from 'datatypes'
 import {o} from 'llutils'
-import {DBG} from 'logger'
 import {
 	mkstr, getCmdLine, execCmd, execCmdSync, TExecResult,
 	} from 'exec'
@@ -16,8 +15,6 @@ import {
 
 setup := (): void =>
 
-	DBG "setDirTree()"
-
 	await setDirTree """
 		./src/test/exec
 		bad.civet
@@ -28,8 +25,6 @@ setup := (): void =>
 await setup()
 
 # ---------------------------------------------------------------------------
-
-DBG "mkstr(x)"
 
 buffer := new ArrayBuffer(3)
 view := new Int8Array(buffer)
@@ -42,17 +37,11 @@ equal mkstr('abc'), 'abc'
 equal mkstr(buffer), 'abc'
 equal mkstr(view), 'abc'
 
-DBG "getCmdLine()"
-
 equal getCmdLine('dothis', ['-a', 'willy']), 'dothis -a willy'
-
-DBG "execCmd()", "type TExecResult"
 
 (() =>
 	{stdout} := await execCmd 'echo', ["Hello"]
 	equal stdout, "Hello\n"
 	)()
-
-DBG "execCmdSync()", "type TExecResult"
 
 truthy execCmdSync("echo", ["Hello"]).success

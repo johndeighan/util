@@ -2,7 +2,7 @@
 
 import {
 	undef, defined, notdefined, deepCopy,
-	croak, assert, getErrStr,
+	croak, assert, getErrStr, LOG, DBG, ERR,
 	} from 'base'
 import {uni, esc} from 'unicode'
 import {
@@ -16,7 +16,6 @@ import {
 	} from 'llutils'
 import {OL, ML} from 'to-nice'
 import {resetOneIndent, splitLine} from 'indent'
-import {LOG, DBG, ERR} from 'logger'
 import {CParseMatches} from 'parse-utils';
 
 # ---------------------------------------------------------------------------
@@ -62,7 +61,6 @@ export toDebugStr := (str: string): string =>
 
 	let level = 0
 	lChars := [...estr]
-	debugger
 	lParts := MAP lChars, (ch) ->
 		switch ch
 			when '\n'

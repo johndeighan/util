@@ -1,7 +1,6 @@
 # pll.lib.test.civet
 
 import {undef} from 'base'
-import {DBG} from 'logger'
 import {allLinesInBlock, o} from 'llutils'
 import {
 	TPLLToken, tokenWith, TTokenGenerator,
@@ -31,20 +30,14 @@ await setup()
 
 # ---------------------------------------------------------------------------
 
-DBG "type TPLLToken"
-
 truthy isPLLToken {kind: 'xxx', str: 'yyy'}
 truthy isPLLToken {kind: 'xxx', str: 'yyy', value: undef}
 truthy isPLLToken {kind: 'xxx', str: 'yyy', value: 42}
-
-DBG "tokenWith"
 
 equal tokenWith(tkIndent, '\t'), {
 	kind: 'indent'
 	str: '\t'
 	}
-
-DBG "type TTokenGenerator"
 
 (() =>
 	identGen := (line: string) ->
@@ -61,8 +54,6 @@ DBG "type TTokenGenerator"
 	truthy isTokenGenerator charGen
 	)()
 
-DBG "allTokensIn()"
-
 unifies Array.from(allTokensIn(allLinesInBlock("abc\ndef"))), [
 	{kind: 'line', str: 'abc'}
 	{kind: 'line', str: 'def'}
@@ -74,8 +65,6 @@ unifies Array.from(allTokensIn(allLinesInBlock('abc\ndef'))), [
 	{kind: 'line', str: 'def'}
 	{kind: 'eof'}
 	]
-
-DBG "allTokensInBlock(str)"
 
 unifies Array.from(allTokensInBlock('abc\ndef')), [
 	{kind: 'line', str: 'abc'}
@@ -227,8 +216,6 @@ unifies Array.from(allTokensInBlock("""
 		]
 	)()
 
-DBG "allTokensInFile()"
-
 unifies Array.from(allTokensInFile('src/test/pll/tokens.txt')), [
 	{kind: 'line',   str: 'if x==1'}
 	{kind: 'indent'}
@@ -237,8 +224,6 @@ unifies Array.from(allTokensInFile('src/test/pll/tokens.txt')), [
 	{kind: 'line',   str: 'exit'}
 	{kind: 'eof'}
 	]
-DBG "tokenTable()"
-
 equal tokenTable([
 	{kind: 'line',   str: 'abc'}
 	{kind: 'indent', str: ''}

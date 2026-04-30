@@ -1,7 +1,6 @@
 # symbols.lib.test.civet
 
 import {undef} from 'base'
-import {LOG, DBG} from 'logger'
 import {
 	loadSymbols,
 	sourceLib, libsAndSymbols, getNeededImportStmts,
@@ -12,8 +11,6 @@ import {
 
 
 # ---------------------------------------------------------------------------
-
-DBG "loadSymbols()"
 
 (() =>
 	myMap := loadSymbols """
@@ -29,8 +26,6 @@ DBG "loadSymbols()"
 	equal sourceLib('dummy', myMap), undef
 	)()
 
-DBG "sourceLib()"
-
 (() =>
 	myMap := new Map([['x', 'temp.ts'],['y', 'dummy.ts']])
 	equal sourceLib('x', myMap), 'temp.ts'
@@ -45,8 +40,6 @@ equal sourceLib('isArray'), 'datatypes'
 equal sourceLib('array'), 'datatypes'
 equal sourceLib('hash'), 'datatypes'
 
-DBG "libsAndSymbols()"
-
 equal libsAndSymbols(['defined','array']), {
 	'datatypes': ['defined','array']
 	}
@@ -54,8 +47,6 @@ equal libsAndSymbols(['defined','splitLine']), {
 	'datatypes': ['defined']
 	'indent': ['splitLine']
 	}
-
-DBG "getNeededImportStmts()"
 
 equal getNeededImportStmts(['defined','array']), [
 	"import {defined, array} from 'datatypes';"

@@ -4,13 +4,15 @@ import {createResponse} from '@mwid/better-sse'
 import {Webview} from '@webview/webview'
 import {WebUI} from '@webui'
 
-import {undef, defined, notdefined, croak, assert} from 'base'
+import {
+	undef, defined, notdefined, croak, assert,
+	LOG, DBG, ERR,
+	} from 'base'
 import {sleep} from 'base'
 import {
 	TVoidFunc, hash, hashof,
 	} from 'datatypes'
 import {getOptions} from 'llutils'
-import {LOG, DBG, WARN, ERR} from 'logger'
 import {mkpath, slurp, isFile, isDir} from 'fsys'
 import {execCmd} from 'exec'
 

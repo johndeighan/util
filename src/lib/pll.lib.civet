@@ -1,7 +1,7 @@
 # pll.lib.civet
 
 import {
-	undef, defined, notdefined, TIterator, TAsyncIterator,
+	undef, defined, notdefined, TIterator, TAsyncIterator, DBG,
 	} from 'base'
 import {esc} from 'unicode'
 import {
@@ -9,7 +9,6 @@ import {
 	isIterator, isGeneratorFunction,
 	} from 'datatypes'
 import {getOptions, allLinesInBlock, hasKey} from 'llutils'
-import {DBG, DBGVALUE} from 'logger'
 import {oneIndent, indentLevel, splitLine} from 'indent'
 import {TextTable} from 'text-table'
 import {slurp} from 'fsys'

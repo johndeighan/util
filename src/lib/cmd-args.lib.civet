@@ -2,6 +2,7 @@
 
 import {
 	undef, defined, notdefined, croak, assert, mapper,
+	initLogLevel, LOG, DBG, ERR, clearScreen,
 	} from 'base'
 import {
 	hash, hashof, char, integer, nonEmpty,
@@ -9,16 +10,14 @@ import {
 	isInteger, isHash, isString,
 	} from 'datatypes'
 import {keys, getOptions, o, spaces} from 'llutils'
-import {clearScreen} from 'console-utils'
-import {LOG, DBG, ERR, setLogLevel} from 'logger'
 import {OL, DUMP} from 'to-nice'
 
 hFlags: hashof<boolean> := {}
 hValues: hashof<string> := {}
 export lNonOptions: string[] := []
 
-doSetLogger := true # --- maybe check an env var first?
-doHandleClear := true # --- maybe check an env var first?
+doSetLogLevel := true     # --- maybe check an env var first?
+doHandleClear := true   # --- maybe check an env var first?
 
 # ---------------------------------------------------------------------------
 
@@ -105,10 +104,13 @@ export setCmdArgs := (
 			hValues[optStr] = valueStr
 		else
 			for ch of optStr.split('')
-				if (ch == 'D')
-					setLogLevel 'debug', o'echo'
-				else if (ch == 'S')
-					setLogLevel 'silent', o'echo'
+				switch ch
+					when 'D'
+						if doSetLogLevel
+							initLogLevel 'debug'
+					when 'S'
+						if doSetLogLevel
+							initLogLevel 'silent'
 				hFlags[ch] = true
 
 setCmdArgs()

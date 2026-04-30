@@ -5,28 +5,19 @@ import {
 	uni, lit, delit, litC,
 	esc, mesc, unesc, getPrefix,
 	} from 'unicode'
-import {DBG} from 'logger'
 import {
 	equal, succeeds, fails, truthy, falsy,
 	} from 'unit-test'
 
 # ---------------------------------------------------------------------------
 
-DBG "lit()"
-
 equal lit('undef'), '｟undef｠'
-
-DBG "delit()"
 
 equal delit('｟undef｠'), 'undef'
 equal delit('abc'), undef
 equal delit(''), undef
 
-DBG "litC()"
-
 equal litC('undef'), '\\undef'
-
-DBG "esc()"
 
 equal esc('cba'), 'cba'
 equal esc('   acb'), '˳˳˳acb'
@@ -39,8 +30,6 @@ equal esc('abcb\r\n', 'multiline'), 'abcb←↓\n'
 equal esc('ab cd'), 'ab˳cd'
 equal esc('ab\tcd'), 'ab→cd'
 
-DBG "unesc()"
-
 equal unesc('cba'), 'cba'
 equal unesc('˳˳˳acb'), '   acb'
 equal unesc('→→→abc'), '\t\t\tabc'
@@ -51,8 +40,6 @@ equal unesc('abcb←↓'), 'abcb\r\n'
 equal unesc('abcb←↓\n'), 'abcb\r\n'    # failed
 equal unesc('ab˳cd'), 'ab cd'
 equal unesc('ab→cd'), 'ab\tcd'
-
-DBG "getPrefix(level, option)"
 
 equal getPrefix(2, 'plain'),      '│   │   '
 equal getPrefix(2, 'withArrow'),  '│   └─> '

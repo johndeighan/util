@@ -8,14 +8,16 @@ import {parse: parseYAML} from "@std/yaml"
 
 import {
 	undef, defined, notdefined, deepEqual, croak, assert,
+	colorize, isColor, toRelPath, obviously, toBool,
 	} from 'base'
+import {esc} from 'unicode'
 import {
 	isHash, isArray, isNonEmptyString, char,
 	isArrayOfStrings, isEmpty, nonEmpty, isString, isInteger,
 	integer, hash, hashof, array, arrayof, TVoidFunc, isNonPrimitive,
 	functionDef, TStringMapper,
 	} from 'datatypes'
-import {f, colorize} from 'f-strings'
+import {MAP} from 'mapper'
 
 llutilsLoadTime: integer := Date.now()
 defWidth := 64     # ---used in sep, centered
@@ -530,3 +532,89 @@ export isTAML := (x: unknown): boolean =>
 export fromTAML := (block: string): unknown =>
 
 	return parseYAML(untabify(block))
+
+# ---------------------------------------------------------------------------
+#    f"name = #{'John'}:-10"    => "name = John      "
+#    f"name = #{'John'}:10"     => "name =       John"
+#    f"name = #{'a\tb'}!"       => "name = a→b"
+#    f"name = #{'John'}:{blue}" => "name = John" ('John' in blue color)
+# ---------------------------------------------------------------------------
+# --- Number of strings is always 1 greater than the number of values
+
+export f := (
+		lStrings: TemplateStringsArray
+		...lValues: unknown[]
+		): string =>
+
+	# --- Split the first string
+	[mainFmt, firstStr] := fsplit lStrings[0]
+
+	# --- format each of the values, concatenating as we go
+	bigStr := MAP lValues, firstStr, (val, acc, i) =>
+		[fmt, nextStr] := fsplit(lStrings[i+1])
+		return acc + formatVal(val, fmt) + nextStr
+	return formatVal(bigStr, mainFmt)
+
+# ---------------------------------------------------------------------------
+
+type TFormat = {
+	toRel: boolean
+	escape: boolean
+	width: number
+	color: string
+	}
+
+export formatVal := (
+		val: unknown
+		fmt: TFormat?
+		): string =>
+
+	str1 := (
+		  (val == undefined) ? 'undef'
+		: (val == null)      ? 'null'
+		: String(val)
+		)
+	if notdefined(fmt)
+		return str1
+	{toRel, escape, width, color} := fmt
+	str2 := toRel ? toRelPath(str1) : str1
+	str3 := escape ? esc(str2) : str2
+	str4 := (
+		  (width > 0) ? alignString(str3, width, 'right')
+		: (width < 0) ? alignString(str3, -width, 'left')
+		:                   str3
+		)
+	return isColor(color) ? colorize(str4, color) : str4
+
+# ---------------------------------------------------------------------------
+
+export fsplit := (
+	str: string
+	): [(TFormat?), string] =>
+
+	if not str.startsWith(':')
+		return [undef, str]
+	lMatches := str.match ///^
+			:
+			(~)?        # to relative path
+			([-+]?\d+)? # width
+			(\!)?       # escape text?
+			(?:
+				{ ([a-z]+) }   # color
+				)?
+			(.*)        # actual text
+			$///
+
+	obviously defined(lMatches)
+	[_, toRel, width, doEsc, color, rest] := lMatches
+	if not toRel && not width && not doEsc && not color
+		return [undef, str]
+	return [
+		{
+			toRel:  toBool(toRel)
+			width:  width ? parseInt(width) : 0
+			escape: toBool(doEsc)
+			color:  defined(color) && isColor(color) ? color : ''
+			},
+		rest
+		]

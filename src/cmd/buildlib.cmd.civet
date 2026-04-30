@@ -1,9 +1,10 @@
 # buildlib.cmd.civet
 
-import {assert, defined, notdefined, TRY, toRelPath} from 'base'
+import {
+	assert, defined, notdefined, TRY, toRelPath, LOG, ERR,
+	} from 'base'
 import {stdChecks, o, cmdTitle} from 'llutils'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
-import {LOG, ERR} from 'logger'
 import {withExt, findFile} from 'fsys'
 import {execCmd, procFiles, procOneFile} from 'exec'
 import {doUnitTest} from 'typescript'

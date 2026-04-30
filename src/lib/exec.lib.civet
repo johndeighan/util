@@ -12,6 +12,10 @@ import {sprintf} from '@std/fmt/printf'
 import {
 	pass, undef, defined, notdefined, toRelPath,
 	croak, assert, getErrStr, mapper,
+	curLogLevel, pushLogLevel, popLogLevel,
+	DBG, LOG, WARN, ERR, INDENT, UNDENT,
+	write, writeln, resetLine,
+	colorize, decolorize,
 	} from 'base'
 import {
 	hash, isEmpty, TStringMapper,
@@ -22,16 +26,10 @@ import {arrayAndAccumFrom} from 'iter-utils'
 import {MAP} from 'mapper'
 import {
 	getOptions, blockToArray, decode, encode,
-	sep, centered, allLinesInBlock,
+	sep, centered, allLinesInBlock, f,
 	} from 'llutils'
-import {f, colorize, decolorize, withColors} from 'f-strings'
-import {write, writeln, resetLine } from 'console-utils'
 import {flag, debugging, inspecting} from 'cmd-args'
-import {OL, ML, DUMP} from 'to-nice'
-import {
-	curLogLevel, pushLogLevel, popLogLevel,
-	DBG, LOG, WARN, ERR, DBGVALUE, LOGVALUE, INDENT, UNDENT,
-	} from 'logger'
+import {OL, ML, DUMP, DBGVALUE, LOGVALUE} from 'to-nice'
 import {
 	barf, pathStr, allFilesMatching, normalizePath, barfTempFile,
 	fileExt, withExt, slurpAsync, parsePath,
@@ -299,7 +297,6 @@ export procFiles := (
 		hOptions: hash = {}
 		): TExecResult[] =>
 
-	debugger
 	type opt = {
 		quiet: boolean
 		abortOnError: boolean

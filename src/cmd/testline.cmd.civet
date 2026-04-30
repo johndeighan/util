@@ -1,0 +1,51 @@
+# testline.cmd.civet
+
+import {undef, LOG, toBool, allLinesIn} from 'base'
+import {MAP} from 'mapper'
+
+# ---------------------------------------------------------------------------
+
+isTestLine := (line: string): boolean =>
+
+	return toBool line.match ///^
+		\s*
+		(?:
+			equal |
+			truthy |
+			falsy |
+			succeeds |
+			fails |
+			generates |
+			generatesAsync |
+			same |
+			unifies
+			)
+		\s
+		///
+
+# ---------------------------------------------------------------------------
+
+[stub, testNum] := Deno.args
+LOG "stub = #{stub}"
+LOG "testNum = #{testNum}"
+path := "src/test/#{stub}.lib.test.civet"
+LOG "path = #{path}"
+
+type TInfo = [
+	totLines: number
+	totTests: number
+	foundLine: number
+	]
+
+acc0: TInfo := [0, 0, 0]
+[nLines, nTests, foundLine] := await MAP allLinesIn(path), acc0, (line, acc, i) ->
+	[nLines, nTests, foundLine] := acc
+	return [
+		nLines + 1
+		isTestLine(line) ? nTests + 1 : nTests
+		(nTests == Number(testNum)) ? i : foundLine
+		]
+
+LOG "nLines = #{nLines}"
+LOG "nTests = #{nTests}"
+LOG "foundLine = #{foundLine}"

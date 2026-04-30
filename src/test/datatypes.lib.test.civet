@@ -19,7 +19,6 @@ import {
 	isObject, isGeneratorFunction, isAsyncGeneratorFunction,
 	isIterator, isAsyncIterator, jsType,
 	} from 'datatypes'
-import {DBG} from 'logger'
 import {
 	equal, truthy, falsy, fails, succeeds, sampleVal,
 	} from 'unit-test'

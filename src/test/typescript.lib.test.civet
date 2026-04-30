@@ -8,7 +8,6 @@ import {
 	isHash, isEmpty, nonEmpty,
 	} from 'datatypes'
 import {o, s, t} from 'llutils'
-import {DBG} from 'logger'
 import {slurp, withExt} from 'fsys'
 import {
 	getSymbolsFromType, getImportCode,
@@ -38,12 +37,8 @@ await setup()
 
 # ---------------------------------------------------------------------------
 
-DBG "getSymbolsFromType(typeStr)"
-
 equal getSymbolsFromType('integer'), ['integer']
 equal getSymbolsFromType('hashof<integer>'), ['hashof','integer']
-
-DBG "getImportCode(typeStr)"
 
 equal getImportCode('integer'), """
 	import {integer} from 'datatypes';
@@ -51,8 +46,6 @@ equal getImportCode('integer'), """
 equal getImportCode('hashof<integer>'), """
 	import {hashof, integer} from 'datatypes';
 	"""
-
-DBG "analyzeTS(tsCode, hOptions)"
 
 equal analyzeTS("""
 	const x = y + z + func(min);
@@ -134,8 +127,6 @@ equal analyzeTS("""
 
 # ---------------------------------------------------------------------------
 # test astAsString()
-
-DBG "astAsString(hAST)"
 
 equal stripAnsiCode(astAsString(ts2ast('const x = 42;'))), s"""
 	kind: 308

@@ -1,12 +1,13 @@
 # walker.lib.civet
 
-import {undef, defined, notdefined, croak, assert} from 'base'
+import {
+	undef, defined, notdefined, croak, assert, DBG,
+	} from 'base'
 import {
 	integer, hash, array,
 	isArray, isHash, isEmpty,
 	} from 'datatypes'
 import {OL} from 'to-nice'
-import {DBG} from 'logger'
 
 # ---------------------------------------------------------------------------
 

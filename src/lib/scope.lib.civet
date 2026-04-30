@@ -1,8 +1,7 @@
 # scope.lib.civet
 
-import {undef, defined, notdefined, croak, assert} from 'base'
+import {undef, defined, notdefined, croak, assert, LOG} from 'base'
 import {hash} from 'datatypes'
-import {LOG} from 'logger'
 
 # ---------------------------------------------------------------------------
 

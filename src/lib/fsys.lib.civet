@@ -19,25 +19,22 @@ import {
 	normalizePath, toFullPath, allLinesIn,
 	fileExt, withExt, getFileStats,
 	croak, assert, obviously,
+	pushLogLevel, popLogLevel, LOG, DBG, WARN, ERR,
+	INDENT, UNDENT,
 	} from 'base'
 import {
 	isEmpty, nonEmpty, isString, isNonEmptyString,
 	isBoolean, isNumber, isInteger, isArray, isArrayOfStrings,
 	isHash, isRegExp, integer, hash, hashof, TVoidFunc,
 	} from 'datatypes'
-import {f} from 'f-strings'
 import {MAP} from 'mapper'
 import {
 	getOptions, encode, spaces,
-	sinceLoadStr, arrayToBlock, words,
+	sinceLoadStr, arrayToBlock, words, f,
 	} from 'llutils'
 import {isMetaDataStart, convertMetaData} from 'meta-data'
 import {debugging} from 'cmd-args'
-import {OL, ML} from 'to-nice'
-import {
-	pushLogLevel, popLogLevel, LOG, DBG, WARN, ERR,
-	INDENT, UNDENT, DBGVALUE,
-	} from 'logger'
+import {OL, ML, DBGVALUE} from 'to-nice'
 import {civet2tsFile} from 'llcivet'
 
 export {
@@ -116,7 +113,6 @@ export pathToURL := (...lParts: string[]): string =>
 
 export mkpath := (...lParts: string?[]): string =>
 
-	debugger
 	lUseParts := Array.from MAP lParts, (x) ->
 		if nonEmpty(x)
 			obviously defined(x)

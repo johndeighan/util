@@ -4,17 +4,15 @@ import {existsSync} from '@std/fs'
 
 import {
 	pass, undef, defined, notdefined,
-	croak, assert, getErrStr,
+	croak, assert, getErrStr, LOG, DBG, ERR,
 	} from 'base'
 import {uni, esc} from 'unicode'
-import {f} from 'f-strings'
 import {hash, isEmpty, nonEmpty} from 'datatypes'
 import {
 	allLinesInBlock, arrayToBlock, getOptions,
-	sep, untabify,
+	sep, untabify, f,
 	} from 'llutils'
 import {resetOneIndent, splitLine, indented} from 'indent'
-import {LOG, DBG, ERR} from 'logger'
 import {debugging} from 'cmd-args'
 import {ML} from 'to-nice'
 import {

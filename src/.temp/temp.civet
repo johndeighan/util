@@ -1,11 +1,13 @@
 # temp.civet
 
-import {mkTempFile, mkTempFileSync} from 'base'
+import {allStackFrames, dumpFrame, newerDestFileExists} from 'base'
+import {stdChecks} from 'llutils'
+import {setDirTree} from 'unit-test'
+
+stdChecks 'temp'
 
 # ---------------------------------------------------------------------------
 
-path := mkTempFileSync '.civet'
-Deno.writeTextFileSync path, "Hello"
-str := Deno.readTextFileSync path
-console.log str
-console.log "file at #{path}"
+path := 'src/test/base/file.txt'
+result := newerDestFileExists(path, '.tsx')
+console.log "result = #{result}"

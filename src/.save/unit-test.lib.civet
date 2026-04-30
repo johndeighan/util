@@ -20,11 +20,11 @@ import {
 	o, keys, getOptions, spaces, blockToArray, truncStr,
 	} from 'llutils'
 import {splitLine, indented} from 'indent'
-import {OL, ML, DUMP} from 'to-nice'
+import {OL, ML, DUMP LOGVALUE, DBGVALUE,} from 'to-nice'
 import {TextTable} from 'text-table'
 import {
 	pushLogLevel, popLogLevel,
-	DBG, LOG, ERR, LOGVALUE, DBGVALUE,
+	DBG, LOG, ERR,
 	INDENT, UNDENT,
 	} from 'logger'
 import {flag} from 'cmd-args'

@@ -2,11 +2,10 @@
 
 import {
 	undef, defined, notdefined, croak, assert, obviously,
-	TAsyncIterator,
+	TAsyncIterator, DBG, pushLogLevel, popLogLevel,
 	} from 'base'
 import {hash, isArray} from 'datatypes'
-import {f} from 'f-strings'
-import {DBG, pushLogLevel, popLogLevel} from 'logger'
+import {f} from 'llutils'
 
 # ---------------------------------------------------------------------------
 

@@ -1,12 +1,19 @@
 # base.lib.civet
 
-import {red} from '@std/fmt/colors'
+import {
+	cyan, blue, black, red, green, magenta, yellow,
+	stripAnsiCode,
+	} from '@std/fmt/colors'
+import {AssertionError} from '@std/assert'
+import {SourceMapConsumer} from '@mozilla/source-map'
 import {resolve, relative, isAbsolute} from '@std/path'
 import {TextLineStream} from '@std/streams'
 import deepEqual from 'npm-fast-deep-equal'
 import {existsSync, emptyDirSync, ensureDirSync} from '@std/fs'
 import {sprintf} from '@std/fmt/printf'
 import {expandGlobSync} from '@std/fs/expand-glob'
+
+encoder := new TextEncoder()
 
 export {deepEqual}
 export deepCopy = structuredClone
@@ -35,7 +42,7 @@ export findFile := (
 		if defined(foundPath)
 			croak "Multiple files named #{fileName} found in #{root}"
 		else
-			foundPath = normalizePath(path)
+			foundPath = normalizePath path
 	return foundPath
 
 # ---------------------------------------------------------------------------
@@ -88,23 +95,143 @@ export anyNotDefined := (...lItems: unknown[]): boolean =>
 	return false
 
 # ---------------------------------------------------------------------------
+#             LOGGING
+# ---------------------------------------------------------------------------
 
+let debugFilePath: string? = undef
+let indentLevel = 0
 let lLogLines: string[] = []
+
+export INDENT := Symbol 'indent'
+export UNDENT := Symbol 'undent'
+
+export type TLogLevel = 'silent' | 'info' | 'debug'
+let lLogLevels: TLogLevel[] = ['info']
 
 # ---------------------------------------------------------------------------
 
-export LOG := (x: unknown): void =>
+export curLogLevel := (): TLogLevel =>
 
-	console.log x
-	lLogLines.push String(x)
+	return (lLogLevels.length == 0) ? 'info' : lLogLevels[lLogLevels.length-1]
+
+# ---------------------------------------------------------------------------
+
+export initLogLevel := (
+		level: TLogLevel
+		): void =>
+
+	lLogLevels = [level]
+	console.log "LOG LEVEL set to #{level}"
 	return
 
 # ---------------------------------------------------------------------------
 
-export ERR := (x: unknown): void =>
+export pushLogLevel := (
+		level: TLogLevel
+		): void =>
 
-	console.error x
-	lLogLines.push String(x)
+	lLogLevels.push level
+	return
+
+# ---------------------------------------------------------------------------
+
+export popLogLevel := (): TLogLevel =>
+
+	if (lLogLevels.length == 0)
+		return 'info'
+	else
+		result := lLogLevels.pop()
+		return result || 'info'
+
+# ---------------------------------------------------------------------------
+
+export openDebugFile := (stub: string): void =>
+
+	debugFilePath := "src/logs/#{stub}.log"
+	return
+
+# ---------------------------------------------------------------------------
+
+export closeDebugFile := (stub: string): void =>
+
+	debugFilePath = undef
+	return
+
+# ---------------------------------------------------------------------------
+
+export appendDebugFile := (
+		...lItems: unknown[]
+		): void =>
+
+	if defined(debugFilePath)
+		for item of lItems
+			Deno.writeTextFileSync debugFilePath, String(item) + "\n", {
+				append: true
+				}
+	return
+
+# ---------------------------------------------------------------------------
+
+export LOG := (
+		...lItems: unknown[]
+		): void =>
+
+	if (curLogLevel() == 'silent')
+		return
+	for item of lItems
+		if (item == INDENT)
+			indentLevel += 1
+		else if (item == UNDENT)
+			if (indentLevel > 0)
+				indentLevel -= 1
+		else
+			logLine item
+	return
+
+# ---------------------------------------------------------------------------
+
+export DBG := (
+		...lItems: unknown[]
+		): void =>
+
+	if (curLogLevel() == 'debug')
+		LOG ...lItems
+		if defined(debugFilePath)
+			appendDebugFile ...lItems
+	return
+
+# ---------------------------------------------------------------------------
+
+export WARN := (
+		msg: string
+		label: string = 'WARNING'
+		): void =>
+
+	if (curLogLevel() != 'silent')
+		console.error "#{cyan(label)}: #{msg}"
+	return
+
+# ---------------------------------------------------------------------------
+
+export ERR := (
+		err: unknown
+		label: string = 'ERROR'
+		): void =>
+
+	errMsg := getErrStr(err)
+	console.error red(label) + ': ' + errMsg
+	lLogLines.push errMsg
+	return
+
+# ---------------------------------------------------------------------------
+
+logLine := (
+		x: unknown,
+		): void =>
+
+	line := '\t'.repeat(indentLevel) + String(x)
+	console.log line
+	lLogLines.push line
 	return
 
 # ---------------------------------------------------------------------------
@@ -120,6 +247,7 @@ export getLog := (): string =>
 
 	return lLogLines.join('\n')
 
+# ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 
 export max := (x: number, y: number): number =>
@@ -162,7 +290,7 @@ export withExt := (path: string, ext: string): string =>
 	assert ext.startsWith('.'), "Bad file extension: #{ext}"
 	pos := path.lastIndexOf '.'
 	assert (pos >= 0), "path contains no period: #{path}"
-	return normalizePath(path.substring(0, pos) + ext)
+	return normalizePath path.substring(0, pos) + ext
 
 # ---------------------------------------------------------------------------
 
@@ -179,7 +307,7 @@ export toFullPath := (
 		path: string
 		): string =>
 
-	return normalizePath(resolve('.', path))
+	return normalizePath resolve('.', path)
 
 # ---------------------------------------------------------------------------
 
@@ -240,8 +368,8 @@ export allLinesIn := (
 		path: string
 		): TAsyncIterator<string> ->
 
-	f := await Deno.open path
-	readable := (f.readable
+	file := await Deno.open path
+	readable := (file.readable
 			.pipeThrough(new TextDecoderStream())
 			.pipeThrough(new TextLineStream())
 			)
@@ -302,6 +430,176 @@ export obviously: TAssertFunc := (
 	return
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
+export type RawSourceMap = {
+	version: number;           # The version of the source map spec (usually 3)
+	file: string;              # The generated file this map is associated with
+	sources: string[];         # Array of URLs to the original source files
+	names: string[];           # Array of identifiers (names) used in the mappings
+	sourceRoot?: string;       # Optional: URL root for the sources
+	sourcesContent?: string[]; # Content of the original source files (optional)
+	mappings: string;          # The actual encoded mappings (Base64 VLQ)
+	}
+
+export type TFilePosition = {
+	source: string
+	line: number
+	col: number
+	}
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+mapPos := (
+	filePos: TFilePosition
+	): TFilePosition? =>
+
+	{source, line, col} := filePos
+	contents := await Deno.readTextFile source
+	[code, hSrcMap] := extractSourceMap contents
+	if defined(hSrcMap)
+		consumer := await new SourceMapConsumer(hSrcMap)
+		pos := consumer.originalPositionFor({line, column: col})
+		return pos as TFilePosition
+	else
+		return undef
+
+# ---------------------------------------------------------------------------
+
+mapPosSync := (
+	filePos: TFilePosition
+	): TFilePosition? =>
+
+	{source, line, col} := filePos
+	contents := Deno.readTextFileSync source
+	[code, hSrcMap] := extractSourceMap contents
+	if defined(hSrcMap)
+		[fileNum, srcLine, srcCol] := orgPos hSrcMap, line, col
+		return {
+			source: hSrcMap.sources[fileNum]
+			line: srcLine
+			col: srcCol
+			}
+	else
+		return undef
+
+# ---------------------------------------------------------------------------
+
+export extractSourceMap := (
+		contents: string
+		): [string, RawSourceMap?] =>
+
+	lMatches := contents.match ///^
+			(.*)
+			\/ \/ \# \s+
+			sourceMappingURL=data:application\/json;
+			(?:charset=utf-8;)?
+			base64,
+			(.+)
+			$///s
+	if (lMatches == null)
+		return [contents, undef]
+	[_, code, hSrcMapStr] := lMatches
+	hSrcMap := JSON.parse(atob(hSrcMapStr)) as RawSourceMap
+	{file} := hSrcMap
+	hSrcMap.file = toRelPath(file)
+	hSrcMap.sources = for path of hSrcMap.sources
+		toRelPath(path)
+	return [code, hSrcMap]
+
+# ---------------------------------------------------------------------------
+
+type TOrgPos = [fileNum: number, line: number, col: number]
+type TCompareResult = -1 | 0 | 1
+
+compare := (
+		find: [number, number],
+		gen:  [number, number]
+		): TCompareResult =>
+
+	return (
+		  (find[0] < gen[0]) ? -1
+		: (find[0] > gen[0]) ?  1
+		: (find[1] < gen[1]) ? -1
+		: (find[1] > gen[1]) ?  1
+		:                       0
+		)
+
+export orgPos := (
+		hSrcMap: RawSourceMap,
+		findLine: number,
+		findCol: number
+		): TOrgPos =>
+
+	lMappings := getMappings(hSrcMap.mappings)
+	assert (lMappings.length > 0), "Empty mappings array"
+	let pos = 0, end = lMappings.length - 1
+	while (pos <= end)
+
+		# --- Calculate the middle index
+		mid := Math.floor((pos + end) / 2)
+		[genLine, genCol, orgFile, orgLine, orgCol] := lMappings[mid]
+		switch compare([findLine, findCol], [genLine, genCol])
+			when 0
+				return [orgFile, orgLine, orgCol]
+			when -1
+				end = mid - 1;
+			when 1
+				pos = mid + 1;
+
+	# --- If the loop finishes, the target is not in the array
+	if (pos < lMappings.length)
+		usePos := (pos == 0) ? pos : pos-1
+		[genLine, genCol, orgFile, orgLine, orgCol] := lMappings[usePos]
+		return [orgFile, orgLine, orgCol]
+	else
+		last := lMappings.at(-1)
+		assert defined(last)
+		[genLine, genCol, orgFile, orgLine, orgCol] := last
+		return [orgFile, orgLine, orgCol]
+
+# ---------------------------------------------------------------------------
+
+export getMappings := (
+		data: string,
+		): number[][] =>
+
+	lMappings: number[][] := []
+	var sum: number[] = [0, 0, 0, 0]
+	for line,lineNum of data.split(";")
+		sum[0] = 0
+		decodeLine(line).forEach (p) =>
+			for (i of [0...p.length])
+				sum[i] += p[i]
+			lMappings.push [lineNum, sum[0], sum[1], sum[2], sum[3]]
+	return lMappings
+
+# ---------------------------------------------------------------------------
+
+export decodeLine := (line: string): number[][] =>
+
+	if (line == '')
+		return []
+
+	return for token of line.split(',')
+		lOutput: number[] := []
+		let i = 0
+		while (i < token.length)
+			let v = 0, d = atob("AAA" + token[i]).charCodeAt(2)
+			i += 1
+			v |= (d & 31)          # put lowest 5 bits of d into v
+			let shift = 5
+			while (d & 32)         # repeat if high bit of d is set
+				d = atob("AAA" + token[i]).charCodeAt(2)
+				i += 1
+				v |= (d & 31) << shift   # put lowest 5 bits of d into v
+				shift += 5
+			lOutput.push(v & 1 ? -(v >> 1) : v >> 1) # low bit is sign
+		lOutput
+
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 export type TFrameType = (
 	'eval' |
@@ -324,10 +622,6 @@ export type TStackFrame = {
 
 # ---------------------------------------------------------------------------
 
-export type TFrameFilter = (frame: TStackFrame) => boolean
-
-# ---------------------------------------------------------------------------
-
 export allStackFrames := (
 		trace = false
 		): TIterator<TStackFrame> ->
@@ -346,24 +640,51 @@ export allStackFrames := (
 		Error.prepareStackTrace = (error, lOrgFrames) =>
 
 			lFrames: TStackFrame[] := for orgFrame,i of lOrgFrames
-				fileName     := orgFrame.getFileName()
+				# --- These can be overwritten when using source maps
+				let source   = orgFrame.getFileName()
+				if source
+					source = normalizePath source
+				let line     = orgFrame.getLineNumber()
+				let col      = orgFrame.getColumnNumber()
+
 				functionName := orgFrame.getFunctionName()
 				methodName   := orgFrame.getMethodName()
+
+				# --- if it's a function in a *.ts file,
+				#     attempt to use source map
+				if source
+					if source.match(///ext \: cli \/ \d+_test\.js///)
+						continue
+
+					# --- HACK, which hopefully we'll eventually remove
+					if source.includes 'src/lib/src/lib/'
+						source = source.replace 'src/lib/src/lib/', 'src/lib/'
+					if source.includes 'src/test/src/test/'
+						source = source.replace 'src/test/src/test/', 'src/test/'
+					if source.includes 'src/.temp/src/.temp/'
+						source = source.replace 'src/.temp/src/.temp/', 'src/.temp/'
+
+					newFilePos := mapPosSync({source, line, col})
+					if defined(newFilePos)
+						source = newFilePos.source
+						line   = newFilePos.line
+						col    = newFilePos.col
+
 				frame: TStackFrame := {
 					i
 					type: (
-						  orgFrame.isEval()        ? 'eval'
+						  functionName             ? 'function'
+						: methodName               ? 'method'
+						: orgFrame.isToplevel()    ? 'script'
+						: orgFrame.isEval()        ? 'eval'
 						: orgFrame.isNative()      ? 'native'
 						: orgFrame.isConstructor() ? 'constructor'
-						: methodName               ? 'method'
-						: functionName             ? 'function'
-						: orgFrame.isToplevel()    ? 'script'
 						:                            'unknown'
 						)
-					source: fileName ? toRelPath(fileName) : ''
-					line :  orgFrame.getLineNumber()
-					col:    orgFrame.getColumnNumber()
-					name:   functionName || methodName || ''
+					source: source ? toRelPath(source) : ''
+					line
+					col
+					name: functionName || methodName || ''
 					}
 
 				# --- fix a bug in the V8 engine where calls inside a
@@ -373,6 +694,7 @@ export allStackFrames := (
 				if prevFrame && (frame.type == 'script') && (prevFrame.type == 'script')
 					prevFrame.type = 'function'
 					prevFrame.name = '<anon>'
+
 
 				if trace
 					dumpFrame frame, 'ORG FRAME'
@@ -397,7 +719,7 @@ export allStackFrames := (
 		return
 
 	catch err
-		console.error "#{red('ERROR:')} #{err}"
+		console.error "#{red('ERROR in allStackFrames:')} #{getErrStr(err)}"
 		return
 
 # ---------------------------------------------------------------------------
@@ -422,8 +744,11 @@ export getErrStr := (err: unknown): string =>
 
 	if (typeof err == 'string')
 		return err
+	else if (err instanceof AssertionError)
+		errmsg := err.message || '<No message in Error object>'
+		return "#{colorize('AssertionError: ', 'red')}#{errmsg}"
 	else if (err instanceof Error)
-		return err.message
+		return err.message || '<No message in Error object>'
 	else
 		return "Serious Error"
 
@@ -607,3 +932,89 @@ export allValuesFromAsync := <T>(
 	return
 
 # ---------------------------------------------------------------------------
+
+export write := (str: string): void =>
+
+	Deno.stdout.writeSync encoder.encode(str)
+	return
+
+# ---------------------------------------------------------------------------
+
+export writeln := (str: string = ''): void =>
+
+	write str + '\n'
+	return
+
+# ---------------------------------------------------------------------------
+
+export clearScreen := (): void =>
+
+	write '\x1b[H\x1b[2J'
+	return
+
+# ---------------------------------------------------------------------------
+
+export resetLine := (): void =>
+
+	write "\x1b[2K"
+	return
+
+# ---------------------------------------------------------------------------
+
+export clearPreviousLines := (numLines: number): void =>
+	# \x1b[nA moves the cursor up 'n' lines
+	# \r moves the cursor to the beginning of the line
+	# \x1b[K clears the line from the cursor to the end (optional, but good practice)
+
+	Deno.stdout.writeSync encoder.encode("\x1b[#{numLines}A\r\x1b[K")
+
+# ---------------------------------------------------------------------------
+
+export type TColor = 'cyan'|'blue'|'black'|'red'|'green'|'magenta'|'yellow'
+
+export isColor := (str: string): str is TColor =>
+
+	return ['cyan','blue','black','red','green','magenta','yellow'].includes str
+
+# ---------------------------------------------------------------------------
+
+export colorize := (
+		str: string,
+		color: string?
+		): string =>
+
+	if notdefined(color) || not isColor(color)
+		return str
+	switch color
+		when 'cyan'    then return cyan(str)
+		when 'blue'    then return blue(str)
+		when 'black'   then return black(str)
+		when 'red'     then return red(str)
+		when 'green'   then return green(str)
+		when 'magenta' then return magenta(str)
+		when 'yellow'  then return yellow(str)
+		else
+			return str
+
+# ---------------------------------------------------------------------------
+# --- hColors is {<word>: <color>, ... }
+
+type TColorMap = {
+	[word: string]: TColor
+	}
+
+export withColors := (
+		str: string
+		hColors: TColorMap
+		): string =>
+
+	for word of Object.keys(hColors)
+		color := hColors[word]
+		str = str.replaceAll(word, colorize(word, color))
+	return str
+
+# ---------------------------------------------------------------------------
+
+export decolorize := (str: string): string =>
+
+	return stripAnsiCode(str)

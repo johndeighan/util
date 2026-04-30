@@ -1,11 +1,12 @@
 # analyze.cmd.civet
 
-import {toRelPath, assert, croak, TRY} from 'base'
+import {
+	toRelPath, assert, croak, TRY, LOG, DBG, ERR,
+	} from 'base'
 import {
 	undef, defined, notdefined, assert,
 	} from 'datatypes'
 import {stdChecks} from 'llutils'
-import {LOG, DBG, ERR} from 'logger'
 import {flag, nonOption} from 'cmd-args'
 import {DUMP} from 'to-nice'
 import {findFile, slurp, fileExt} from 'fsys'

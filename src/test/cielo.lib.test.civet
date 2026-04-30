@@ -2,7 +2,6 @@
 
 import {defined} from 'base'
 import {isFunction} from 'datatypes'
-import {DBG} from 'logger'
 import {
 	cielo2civet, cielo2civetFile,
 	} from 'cielo'
@@ -14,8 +13,6 @@ import {
 # ASYNC
 
 setup := (): void =>
-
-	DBG "setDirTree()"
 
 	await setDirTree """
 		./src/test/cielo
@@ -30,7 +27,5 @@ setup := (): void =>
 await setup()
 
 # ---------------------------------------------------------------------------
-
-DBG "cielo2civet(code)", "cielo2civetFile()"
 
 equal cielo2civet('abc'), 'abc'

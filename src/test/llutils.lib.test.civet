@@ -1,7 +1,8 @@
 # llutils.lib.test.civet
 
-import {undef, sleep, deepEqual} from 'base'
-import {LOG, DBG} from 'logger'
+import {
+	undef, sleep, deepEqual, LOG, colorize, decolorize,
+	} from 'base'
 import {
 	functionDef, isArray, isHash,
 	} from 'datatypes'
@@ -14,7 +15,7 @@ import {
 	arrayToBlock, toBlock, rpad, lpad,
 	TAlignment, isAlignment, alignString, zpad,
 	TBlockSpec, isBlockSpec, allMatches,
-	widthOf, heightOf, CStringSetMap, fromTAML,
+	widthOf, heightOf, CStringSetMap, fromTAML, f,
 	} from 'llutils'
 import {
 	equal, truthy, falsy, succeeds, fails,
@@ -22,27 +23,17 @@ import {
 
 # ---------------------------------------------------------------------------
 
-DBG "sinceLoad()"
-
 succeeds () => LOG sinceLoad()
-
-DBG "sinceLoadStr()"
 
 succeeds () => LOG sinceLoadStr()
 
-DBG "throwsError()"
-
 succeeds () => throwsError(() => throw new Error("why?"))
 fails    () => throwsError(() => return)
-
-DBG "deepEqual()"
 
 truthy deepEqual(2, 2)
 truthy deepEqual('a', 'a')
 truthy deepEqual(['a','b'], ['a','b'])
 falsy  deepEqual(['a','b'], ['a','b','c'])
-
-DBG "strToHash()"
 
 equal strToHash('debug'), {debug: true}
 equal strToHash('debug force'), {
@@ -62,25 +53,17 @@ equal strToHash('hide=1,2'), {
 	hide: '1,2'
 	}
 
-DBG "o()"
-
 equal o"debug", {debug: true}
 equal o"!debug", {debug: false}
 equal o"  debug  ", {debug: true}
 equal o"  !debug  ", {debug: false}
 equal o"debug label=abc n=42", {debug: true, label: 'abc', n: 42}
 
-DBG "s()"
-
 equal s"\txxx", "   xxx"
 equal s"\t\tddd", "      ddd"
 
-DBG "t()"
-
 equal t"   wer", "\twer"
 equal t"      asd", "\t\tasd"
-
-DBG "getOptions()"
 
 (() =>
 	type opt = {
@@ -109,47 +92,29 @@ DBG "getOptions()"
 		}
 	)()
 
-DBG "keys()"
-
 equal keys({a:1, b:2, c:3}), ['a','b','c']
-
-DBG "hasKey(), hasKeys()"
 
 truthy hasKey({a:1, b:2}, 'a')
 truthy hasKeys({a:1, b:2}, 'a', 'b')
 falsy  hasKey({a:1, b:2}, 'x')
 falsy  hasKeys({a:1, b:2}, 'a', 'x')
 
-DBG "sleep()"
-
 ms0 := Date.now()
 await sleep(2)   # 2 seconds
 truthy (Date.now()-ms0 > 1000)
 
-DBG "spaces()"
-
 equal spaces(3), '   '
-
-DBG "tabs()"
 
 equal tabs(3), '\t\t\t'
 
-DBG "rtrim(str)"
-
 equal rtrim('bb   \t\t'), 'bb'
 
-DBG "countChars(str, ch)"
-
 equal countChars('abcabcabc', 'a'), 3
-
-DBG "blockToArray(block)"
 
 equal blockToArray("""
 	abcx
 	def
 	"""), ['abcx','def']
-
-DBG "allLinesInBlock(block)"
 
 equal Array.from(allLinesInBlock("""
 	abcy
@@ -167,27 +132,17 @@ equal Array.from(allLinesInBlock("a\nb\n")), [
 	'b'
 	]
 
-DBG "type TBlockSpec", "isBlockSpec()"
-
 truthy isBlockSpec('vvv')
 truthy isBlockSpec(['ttt','def'])
 falsy  isBlockSpec(42)
 
-DBG "toArray(strOrArray)"
-
 equal toArray("aaa\ndef\nx"), ['aaa','def','x']
 equal toArray(['a','b']), ['a', 'b']
 
-DBG "arrayToBlock(x)"
-
 equal arrayToBlock(['a','b']), 'a\nb'
-
-DBG "toBlock(strOrArray)"
 
 equal toBlock(['a','b']), 'a\nb'
 equal toBlock("bbb\ndef"), "bbb\ndef"
-
-DBG "words()"
 
 equal words("abc def"), ["abc", "def"]
 equal words("abc"), ["abc"]
@@ -202,21 +157,13 @@ equal words(" abc  def", "ghi j "), [
 	"j"
 	]
 
-DBG "rpad()"
-
 equal rpad('abcd', 10, '-'), 'abcd------'
 
-DBG "lpad()"
-
 equal lpad('abcd', 10, '-'), '------abcd'
-
-DBG "type TAlignment", "isAlignment()"
 
 truthy isAlignment('l')
 truthy isAlignment('left')
 falsy  isAlignment('x')
-
-DBG "alignString()"
 
 equal alignString('abc', 5, 'left'), 'abc  '
 equal alignString('abc', 5, 'center'), ' abc '
@@ -225,11 +172,7 @@ equal alignString('abc', 5, 'l'), 'abc  '
 equal alignString('abc', 5, 'c'), ' abc '
 equal alignString('abc', 5, 'r'), '  abc'
 
-DBG "zpad()"
-
 equal zpad(23, 5), '00023'
-
-DBG "allMatches()"
 
 (() =>
 	str := '"a,b", "c,d"'
@@ -302,18 +245,12 @@ DBG "allMatches()"
 	equal lIdents, ['TBlockSpec', 'isBlockSpec']
 	)()
 
-DBG "getLineAndColumn(str, pos)"
-
 equal getLineAndColumn('abc\ndef\nghi', 5), [2, 2]
 equal getLineAndColumn('abcd\nefgh\nijkl', 5), [2, 1]
-
-DBG "truncStr(str, len)"
 
 equal truncStr('abc', 12), 'abc'
 equal truncStr('abcdefg', 5), 'ab...'
 
-DBG "widthOf(block)"
-
 equal widthOf("""
 	abc
 	abcde
@@ -331,8 +268,6 @@ equal widthOf("""
 	abc
 	xx
 	"""), 5
-
-DBG "heightOf(block)"
 
 equal heightOf("""
 	abc
@@ -343,8 +278,6 @@ equal heightOf("""
 equal heightOf(''), 0
 
 # ---------------------------------------------------------------------------
-
-DBG "class CStringSetMap"
 
 ss := new CStringSetMap()
 ss.add 'llutils', 'pass'
@@ -380,3 +313,24 @@ equal fromTAML("""
 		foo: 'bar'
 		baz: ['qux', 'quux']
 		}
+
+s  42"
+	equal f"meaning is #{meaning}:3!",   "meaning is  42"
+	equal f"meaning is #{meaning}:",     "meaning is 42:"
+	equal f"meaning is #{meaning}: ok?", "meaning is 42: ok?"
+	)()
+
+(() =>
+	str := 'abc def'
+	equal f"str is #{str}",    "str is abc def"
+	equal f"str is #{str}:!",  "str is abc˳def"
+	equal f"str is #{str}:-10", "str is abc def   "
+	)()
+
+# ---------------------------------------------------------------------------
+
+(() =>
+	meaning := 42
+	str := f":{blue}meaning is #{meaning}:3{red}"
+	equal decolorize(str), "meaning is  42"
+	)()

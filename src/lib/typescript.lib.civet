@@ -9,7 +9,12 @@ import {
 	flattenDiagnosticMessageText, getLineAndCharacterOfPosition,
 	} from 'npm-typescript'
 
-import {undef, defined, notdefined, croak, assert, getErrStr} from 'base'
+import {
+	undef, defined, notdefined, croak, assert, getErrStr,
+	extractSourceMap, withColors, decolorize,
+	LOG, DBG, ERR, INDENT, UNDENT,
+	pushLogLevel, popLogLevel,
+	} from 'base'
 import {
 	integer, hash, hashof,
 	isHash, isString, isEmpty, nonEmpty, isNumber,
@@ -17,28 +22,24 @@ import {
 	} from 'datatypes'
 import {
 	getOptions, spaces, o, words, hasKey,
-	CStringSetMap, keys, sep, allLinesInBlock,
+	CStringSetMap, keys, sep, allLinesInBlock, f,
 	} from 'llutils'
-import {f, withColors, decolorize} from 'f-strings'
 import {debugging} from 'cmd-args'
 import {
 	extract, TPathItem, getString, getNumber, getArray,
 	} from 'extract'
 import {TBlockDesc, Blockify} from 'indent'
 import {
-	LOG, DBG, ERR, LOGVALUE, INDENT, UNDENT, DBGVALUE,
-	pushLogLevel, popLogLevel,
-	} from 'logger'
-import {
 	isFile, slurp, barf, barfTempFile, fileExt, withExt,
 	pathStr, mkpath, newerDestFileExists,
 	} from 'fsys'
-import {OL, toNice, TMapFunc, DUMP} from 'to-nice'
+import {
+	OL, toNice, TMapFunc, DUMP, LOGVALUE, DBGVALUE,
+	} from 'to-nice'
 import {
 	execCmd, execCmdSync, CFileHandler, TProcSpec, TExecResult,
 	procOneFile, procFiles,
 	} from 'exec'
-import {extractSourceMap} from 'source-map'
 import {Walker, TVisitKind} from 'walker'
 import {CMainScope, CScope} from 'scope'
 import {getNeededImportStmts} from 'symbols'
@@ -73,7 +74,9 @@ export ts2ast := (
 
 # ---------------------------------------------------------------------------
 
-export ast2ts := (node: Node): string =>
+export ast2ts := (
+		node: Node
+		): string =>
 
 	assert (node.kind == 308), "Not a SourceFile node"
 	printer := createPrinter newLine: NewLineKind.LineFeed
@@ -132,7 +135,9 @@ export getImportCode := (typeStr: string): string =>
 
 # ---------------------------------------------------------------------------
 
-export getSymbolsFromType := (typeStr: string): string[] =>
+export getSymbolsFromType := (
+		typeStr: string
+		): string[] =>
 
 	if (lMatches := typeStr.match(/^([A-Za-z][A-Za-z0-9+]*)(?:\<([A-Za-z][A-Za-z0-9+]*)\>)?$/))
 		[_, type, subtype] := lMatches
@@ -176,7 +181,7 @@ hDefConfig: CompilerOptions := {
 		"esnext"
 		"dom"
 		"dom.iterable"
-	]
+		]
 	"mapRoot": undefined
 	"maxNodeModuleJsDepth": 0
 	"module": ModuleKind.ESNext
@@ -225,11 +230,13 @@ hDefConfig: CompilerOptions := {
 	"typeRoots": []
 	"useDefineForClassFields": true
 	"useUnknownInCatchVariables": true
-}
+	}
 
 # ---------------------------------------------------------------------------
 
-type TAstFilterFunc = (node: Node) => boolean
+type TAstFilterFunc = (
+		node: Node
+		) => boolean
 
 export class AstWalker extends Walker<Node>
 
@@ -440,24 +447,18 @@ export class CAnalysis
 
 # ---------------------------------------------------------------------------
 
-export assertIsNode: (
+export getNode := (
 		x: unknown
-		) => asserts x is Node := (x: unknown): asserts x is Node =>
+		dspath: string | TPathItem[]
+		): Node =>
 
-	assert hasKey(x, 'kind'), "Not a Node: #{typeof x}"
-
-# ---------------------------------------------------------------------------
-
-export getNode := (x: unknown, dspath: string | TPathItem[]): Node =>
-
-	val := extract x, dspath
-	assertIsNode val
+	val := extract(x, dspath) as Node
 	return val
 
 # ---------------------------------------------------------------------------
 
 export analyzeTS := (
-		tsCode: string,
+		tsCode: string
 		hOptions: hash = {}
 		): CAnalysis =>
 
@@ -483,14 +484,12 @@ export analyzeTS := (
 	# ..........................................................
 
 	checkNode := (
-			node: unknown,
+			node: Node,
 			dspath: string? = undef
 			): void =>
 
-		assertIsNode node
 		if defined(dspath)
 			node = getNode(node, dspath)
-			assertIsNode node
 		if (node.kind == 80)   # --- Identifier
 			name := getString node, '.escapedText'
 			analysis.use name
@@ -551,7 +550,7 @@ export analyzeTS := (
 				when 214    # CallExpression
 					checkNode node, '.expression'
 					for arg of getArray(node, '.arguments')
-						checkNode arg
+						checkNode(arg as Node)
 
 				when 273    # ImportDeclaration
 					lib := getString node, '.moduleSpecifier.text'
