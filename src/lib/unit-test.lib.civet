@@ -2,6 +2,7 @@
 
 import {
 	assert, assertEquals, assertThrows, assertStrictEquals,
+	AssertionError,
 	} from '@std/assert'
 import {doesNotThrow} from "node:assert"
 
@@ -13,11 +14,11 @@ import {
 import {esc} from 'unicode'
 import {unify} from 'unify'
 import {
-	TVoidFunc, hash,
+	TVoidFunc, hash, isString,
 	isIterator, isAsyncIterator, isIterable,
 	} from 'datatypes'
-import {getOptions, truncStr, blockToArray, f} from 'llutils'
-import {fromFSM, fromFSMdebug} from 'fsm'
+import {getOptions, truncStr, blockToArray, f, rtrim} from 'llutils'
+import {TState, fromFSM} from 'fsm'
 import {TextTable} from 'text-table'
 import {doParse} from 'hera-parse'
 import {mkDir, clearDir, barf} from 'fsys'
@@ -32,7 +33,7 @@ getTestName := (): string =>
 	n := nextNum
 	nextNum += 1
 	frame := getMyOutsideCaller()
-	return "#{n}. " + (defined(frame) ? "line #{frame.line}" : "line ?")
+	return (defined(frame) ? "line #{frame.line}" : "line ?")
 
 # ---------------------------------------------------------------------------
 
@@ -42,24 +43,21 @@ export equal := (
 		name?: string
 		): void =>
 
-	Deno.test name || getTestName(), () =>
-		assertEquals(value, expected)
-	return
-
-# ---------------------------------------------------------------------------
-
-export truthy_old := (
-		value: unknown
-		name?: string
-		): void =>
-
-	try
-		Deno.test name || getTestName(), () =>
-			console.log f"#{'START'}:{cyan}"
-			assert value
-			console.log f"#{'END'}:{cyan}"
-	catch err
-		console.log f"#{'ERROR'}:{red}: in truthy"
+	testName := name || getTestName()
+	if isString(value) && isString(expected)
+		Deno.test {
+			name: testName
+			sanitizeOps: true
+			fn()
+				assertEquals rtrim(value), rtrim(expected)
+			}
+	else
+		Deno.test {
+			name: testName
+			sanitizeOps: true
+			fn()
+				assertEquals value, expected
+			}
 	return
 
 # ---------------------------------------------------------------------------
@@ -69,22 +67,14 @@ export truthy := (
 		name?: string
 		): void =>
 
-	try
-		Deno.test {
-			name: name || getTestName()
-			sanitizeOps: true
-			fn()
-				console.log f"#{'START'}:{cyan}"
-				try
-					assert value
-				catch err
-					console.log err
-					console.log "ERROR WAS #{getErrStr(err)}"
-					throw err
-				console.log f"#{'END'}:{cyan}"
-			}
-	catch err
-		console.log f"#{'ERROR'}:{red}: in truthy"
+	if notdefined(name)
+		name = getTestName()
+	Deno.test {
+		name
+		sanitizeOps: true
+		fn()
+			assert value
+		}
 	return
 
 # ---------------------------------------------------------------------------
@@ -127,7 +117,6 @@ export fails := (
 	return
 
 # ---------------------------------------------------------------------------
-# ASYNC
 
 export generates := <TOut>(
 		value: TIterator<TOut>
@@ -136,7 +125,7 @@ export generates := <TOut>(
 		): void =>
 
 	lItems := [...value]
-	Deno.test name || getTestName(), () =>
+	Deno.test (name || getTestName()), () =>
 		assertEquals(lItems, expected)
 	return
 
@@ -150,7 +139,7 @@ export generatesAsync := <TOut>(
 		): void =>
 
 	lItems := await Array.fromAsync value
-	Deno.test name || getTestName(), () =>
+	Deno.test (name || getTestName()), () =>
 		assertEquals(lItems, expected)
 	return
 
@@ -190,43 +179,38 @@ export getMyOutsideCaller := (
 	trace: boolean = false
 	): TStackFrame? =>
 
-	lFrames := Array.from(allStackFrames())
 	if trace
 		LOG '-'.repeat(70)
-		for frame of lFrames
+		for frame of allStackFrames()
 			dumpFrame frame
 
 	let mySrc: string? = undef
 	let outsideFrame: TStackFrame? = undef
 
-	return fromFSM lFrames, [
-		{
-			stateFunc: (frame: TStackFrame): number =>
-				if (
-						   (frame.name == 'getMyOutsideCaller')
-						&& frame.source.match(/\bunit-test\.lib\.(?:ts|civet)$/)
-						)
-					if trace
-						LOG "getMyOutsideCaller found, set state to 1"
-					return 1
-				else
-					return 0
-			}
-		{
-			stateFunc: (frame: TStackFrame): number =>
-				{source} := frame
-				assert defined(source), "source after getMyOutsideCaller is undef"
-				mySrc = source
+	return fromFSM allStackFrames(), [
+		(frame: TStackFrame): TState =>
+			if (
+						(frame.name == 'getMyOutsideCaller')
+					&& frame.source.match(/\bunit-test\.lib\.(?:ts|civet)$/)
+					)
+				if trace
+					LOG "getMyOutsideCaller found, set state to 1"
+				return 1
+			else
+				return 0
+
+		(frame: TStackFrame): TState =>
+			{source} := frame
+			assert defined(source), "source after getMyOutsideCaller is undef"
+			mySrc = source
+			return 2
+
+		(frame: TStackFrame): TState =>
+			{source} := frame
+			if (source == mySrc)
 				return 2
-			}
-		{
-			stateFunc: (frame: TStackFrame): number =>
-				{source} := frame
-				if (source == mySrc)
-					return 2
-				else
-					throw frame     # found !
-			}
+			else
+				throw frame     # found !
 		]
 
 # ---------------------------------------------------------------------------

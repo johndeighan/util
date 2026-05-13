@@ -1,26 +1,36 @@
 # hera-compile.lib.civet
 
-import {existsSync} from '@std/fs'
+import {exists, existsSync} from '@std/fs'
 
 import {
 	pass, undef, defined, notdefined,
 	croak, assert, getErrStr, LOG, DBG, ERR,
+	TIterator,
 	} from 'base'
 import {uni, esc} from 'unicode'
-import {hash, isEmpty, nonEmpty} from 'datatypes'
+import {
+	hash, isEmpty, nonEmpty, isString, isIterator, isHash,
+	} from 'datatypes'
 import {
 	allLinesInBlock, arrayToBlock, getOptions,
-	sep, untabify, f,
+	sep, untabify, f, hasKey, spaces,
 	} from 'llutils'
-import {resetOneIndent, splitLine, indented} from 'indent'
+import {
+	resetOneIndent, splitLine, indented, undented,
+	} from 'indent'
 import {debugging} from 'cmd-args'
-import {ML} from 'to-nice'
+import {ML, DUMP} from 'to-nice'
 import {
 	fileExt, withExt, isValidStub, pathStr, newerDestFileExists,
+	openTextFile, barfTempFile, parsePath,
 	} from 'fsys'
+import {TState, fromFSM} from 'fsm'
+import {civet2ts, civet2tsSync} from 'llcivet'
 import {
-	execCmd, CFileHandler, TExecResult,
+	execCmd, execCmdSync, CFileHandler, TExecResult,
 	} from 'exec'
+import {extractMetaData, mdGet} from 'meta-data'
+import {THeraType, isHeraType, compileHera} from 'llhera'
 
 # ---------------------------------------------------------------------------
 
@@ -38,35 +48,25 @@ export class CHeraCompiler extends CFileHandler
 		destPath := withExt path, '.ts'
 		if (
 				   not hOptions.force
-				&& existsSync(destPath)
+				&& await exists(destPath)
 				&& newerDestFileExists(path, destPath)
 				)
 			return {
 				success: true
-				stdout: ''
-				stderr: ''
+				notNeeded: true
 				}
 
 		try
-			inProc := (str: string): string =>
-				return preprocessHera str, hOptions
+			tempPath := withExt(path, '.temp.hera')
+			[heraCode, type] := await preprocessHeraFile path, tempPath
+			fileName := parsePath(path).fileName
+			tsCode := compileHera heraCode, type, fileName
+			await Deno.writeTextFile withExt(path, '.ts'), tsCode
 
-			outProc := (str: string): string =>
-				return '// @ts-nocheck\n' + str.replaceAll('@danielx', 'npm:@danielx')
-
-			hResult := await execCmd 'deno', [
-				'run'
-				'-A'
-				'npm:@danielx/hera'
-				'--module'
-				(hOptions.debug ? '--inspect-brk' : '')
-			], {
-				infile: path
-				inProc
-				outfile: destPath
-				outProc
+			return {
+				success: true
+				stdout: tsCode
 				}
-			return hResult
 
 		catch err
 			errMsg := "HERA COMPILE FAILED: #{pathStr(path)} - #{getErrStr(err)}"
@@ -79,203 +79,245 @@ export class CHeraCompiler extends CFileHandler
 export doCompileHera := new CHeraCompiler()
 
 # ---------------------------------------------------------------------------
+# ASYNC
+
+export preprocessHeraFile := (
+		path: string
+		tempPath: string? = undef
+		): [string, THeraType] =>
+
+	{hMetaData, reader} := openTextFile path
+	type := mdGet hMetaData, 'type', 'civet'
+	assert isHeraType(type), "Bad hera type: #{type}"
+	heraCode := preprocessHera reader, type
+	if defined(tempPath)
+		await Deno.writeTextFile tempPath, heraCode
+	return [heraCode, type]
+
+# ---------------------------------------------------------------------------
+
+export mkCodeBlock := (
+		lLines: string[]
+		type: THeraType
+		): string =>
+
+	block := arrayToBlock(lLines).trim()
+	switch type
+		when 'typescript'
+			return block
+		when 'civet'
+			return civet2tsSync(block, {inlineMap: false}).trim()
+		else
+			croak "Bad code type: #{type}"
+
+# ---------------------------------------------------------------------------
 
 export isRuleName := (name: string): boolean =>
 
 	return defined(name.match /^[A-Za-z$_][A-Za-z0-9$_-]*$/)
 
 # ---------------------------------------------------------------------------
-# --- 1. Convert TAB chars to 2 spaces
-#     2. if debug is set:
-#           - add debugHeader block
-#           - add "ruleMatch('<rule name>', $loc);" to start of each rule
-#     3. output any lines within ``` as is
 
-export debugHeader := """
-	```
-	import {CParseMatches} from 'parse-utils';
-	export let pm = new CParseMatches();
-	let ruleMatch = (
-			name: string,
-			loc: [pos: number, length: number]
-			): void => {
-		pm.match(name, loc);
-		}
-	```
-	"""
+export class CRule
+	private name: string
+	private pattern: string = ''
+	private lCode: string[] = []
+
+	constructor(@name: string)
+		assert isRuleName(@name), "Bad name: <#{@name}>"
+
+	getName(): string
+		return @name
+
+	getPattern(): string
+		return @pattern
+
+	setPattern(pat: string): void
+		@pattern = pat
+		return
+
+	addCode(line: string): void
+		lMatches := line.match /^(\s*)return\s+(.*);$/
+		if defined lMatches
+			[_, prefix, valueStr] := lMatches
+			@lCode.push (prefix + 'return' + ' pm.result(' + valueStr + ');')
+		else
+			@lCode.push line
+		return
+
+	patternStr(): string
+		hashPos := @pattern.indexOf('#')
+		if (hashPos == -1)
+			return indented(@pattern) + ' ->'
+		else
+			return indented(@pattern.replace('#', '-> #'))
+
+	numCodeLines(): number
+		return @lCode.length
+
+	codeBlock(type: THeraType): string[]
+		return indented(@lCode, 2)
+
+	toString(type: THeraType): string
+		return [
+			@name
+			@patternStr()
+			indented(mkCodeBlock(@lCode, type), 2)
+			'\n'
+			].join('\n')
+
+# ---------------------------------------------------------------------------
+
+buildHeraFile := (
+		lMainCode: string[]
+		lResetCode: string[]
+		lRules: CRule[]
+		type: THeraType
+		debug: boolean = false
+		) =>
+
+	mainCode := mkCodeBlock lMainCode, type
+	if debug
+		DUMP mainCode, 'mainCode'
+
+	resetCode := mkCodeBlock lResetCode, type
+	if debug
+		DUMP resetCode, 'resetCode'
+
+	lRuleBlocks := lRules.map (rule) => rule.toString(type)
+	if debug
+		for block,i of lRuleBlocks
+			DUMP block, "Rule[#{i}]"
+
+	let lParts: string[] = []
+	lParts.push
+		"```"
+		"import {CParseMatches} from 'parse-utils';"
+		"export let pm = new CParseMatches();"
+		""
+	if nonEmpty(mainCode)
+		lParts.push mainCode, ""
+
+	lParts.push
+		"export const reset = (text: string): void => {"
+		indented("pm.reset(text);")
+		indented(resetCode)
+		indented('}')
+		"```"
+		''
+		...lRuleBlocks
+	result := lParts.join('\n').replaceAll('\t', spaces(2))
+	if debug
+		DUMP result, 'Result'
+	return result
+
+# ---------------------------------------------------------------------------
+
+export decom := (line: string): string =>
+
+	return line.replace /^(\s*)#(\s)/, "$1//$2"
 
 # ---------------------------------------------------------------------------
 
 export preprocessHera := (
-		code: string,
-		hOptions: hash = {}
+		iter: string | TIterator<string>
+		type: THeraType = 'typescript'
+		debug: boolean = false
 		): string =>
 
-	type opt = {
-		debug: boolean
-		compile: boolean
-		}
-	{debug, compile} := getOptions<opt> hOptions, {
-		debug: false
-		compile: false
-		}
-
-	type TState = 'main' | 'inBlock' | 'inRule' | 'inHandler'
-
-	let curState = 'main'
-	let curRuleName: string = ''
-
-	isComment := (line: string): boolean =>
-
-		return defined(line.match(/^\s*\#/))
-
-	# ==========================================================
-
-	lLines: string[] := debug ? [untabify(debugHeader, '  ')] : []
-
-	output := (
-			str: string,
-			level: number = 0
-			): void =>
-		lLines.push '  '.repeat(level) + str.replaceAll('\t', '  ')
-		return
-
-	# ==========================================================
-
-	lBlock: string[] := []
-
-	startBlock := (): void =>
-
-		lBlock.length = 0
-		curState = 'inBlock'
-		return
-
-	# ----------------------------------------------------------
-
-	addBlockCode := (line: string): void =>
-
-		lBlock.push line
-
-	# ----------------------------------------------------------
-
-	endBlock := (): void =>
-
-		output '```'
-		output arrayToBlock(lBlock)
-		output '```'
-		curState = 'main'
-		return
-
-	# ==========================================================
-
-	startRule := (name: string): void =>
-
-		assert nonEmpty(name), "Empty rule name"
-		curRuleName = name
-		output name
-		lHandler.length = 0
-		addHandlerCode "ruleMatch('#{name}', $loc)"
-		curState = 'inRule'
-		return
-
-	# --------------------------------------------
-
-	endRule := (): void =>
-
-		curRuleName = ''
-		curState = 'main'
-		return
-
-	# ==========================================================
-
-	lHandler: string[] := []
-
-	startHandler := (matchStr: string): void =>
-
-		assert nonEmpty(curRuleName), "Empty rule name"
-		if debug && not matchStr.endsWith('->')
-			output f"#{matchStr} ->", 1
-		else
-			output matchStr, 1
-		lHandler.length = 0
-		curState = 'inHandler'
-		return
-
-	# --------------------------------------------
-
-	addHandlerCode := (str: string, level: number=0): void =>
-
-		lHandler.push '  '.repeat(level) + str
-		return
-
-	# --------------------------------------------
-
-	endHandler := (): void =>
-
-		if nonEmpty(lHandler)
-			block := arrayToBlock lHandler
-			output indented(block, 2, {oneIndent: '  '})
-		lHandler.length = 0
-		return
-
-	# ==========================================================
-
+	if isString(iter)
+		iter = allLinesInBlock(iter)
 	resetOneIndent()
-	for line of allLinesInBlock(code)
 
-		# --- These are output regardless of the state we're in
-		if line.match /^\s*\#/
-			output (curState == 'inHandler') || (curState == 'inBlock') ? line.replace('#', '//') : line
-			continue
+	lMainCode: string[]  := []
+	lResetCode: string[] := []
 
-		[level, str] := splitLine line   # --- str is trimmed
-		switch curState
+	let curRule: CRule = new CRule('Dummy')
+	let lRules: CRule[] = []
 
-			when 'main'
-				if isEmpty(line)
-					output ''
-				else if isComment(line)
-					output line
-				else if (line == '```')
-					startBlock()
-				else if isRuleName(str)
-					assert (level == 0), f"Invalid rule name: #{line}:!"
-					startRule str
+	result := fromFSM iter, [
+
+		# 0 --- start
+		(line: string): TState =>
+			if (line == '#reset')
+				return 1
+			else
+				lMainCode.push decom(line)
+				return 0
+
+		# 1 --- in reset function
+		(line: string): TState =>
+			if isEmpty(line)
+				lResetCode.push ''
+				return 1
+			else
+				[level, str] := splitLine(line)
+				if (level == 0)
+					curRule = new CRule(line)
+					return 2
 				else
-					croak f"Invalid rule Name: #{line}:!"
+					lResetCode.push undented(decom(line))
+					return 1
 
-			when 'inBlock'
-				if isEmpty(line)
-					addBlockCode ''
-				else if (line == '```')
-					endBlock()
+		# 2 --- have rule name, want pattern
+		(line: string, i: number): TState =>
+			if isEmpty(line)
+				return 2
+			else
+				[level, str] := splitLine(line)
+				assert (level == 1),
+					"Expecting pattern for rule #{curRule.getName()} on line #{i}"
+				curRule.setPattern str
+				curRule.addCode "pm.match('#{curRule.getName()}', $loc);"
+				return 3
+
+		# 3 --- have pattern, want code
+		(line: string, i: number): TState =>
+			if isEmpty(line)
+				return 3
+			else
+				[level, str] := splitLine(line)
+				if (level == 0)
+					lRules.push curRule
+
+					# --- create a new rule
+					curRule = new CRule(line)
+					return 2
+				else if (level == 1)
+					ruleName := curRule.getName()
+					croak "Unexpected pattern for rule #{ruleName} on line #{i}"
 				else
-					addBlockCode line
+					# --- first line of code must be at level 2
+					if (curRule.numCodeLines() == 0)
+						assert (level == 2), "First line of code must be level 2"
+					curRule.addCode indented(decom(str), level-2)
+					return 3
+		], (state: TState): void =>
+			if (state == 3)
+				lRules.push curRule
+				str := buildHeraFile(lMainCode, lResetCode, lRules, type, debug)
+				throw str
+			else
+				croak "Ended in state #{state}"
+	assert (typeof result == 'string'), "result not a string"
+	return result
 
-			when 'inRule'
-				if isEmpty(line)
-					output ''
-				else if isComment(line)
-					output line
-				else
-					# --- expect a match string
-					assert (level == 1), f"Invalid match string: #{line}:!"
-					startHandler(str)
+# ---------------------------------------------------------------------------
+# ASYNC
 
-			when 'inHandler'
-				if isEmpty(line)
-					addHandlerCode ''
-				else
-					switch level
-						when 0
-							endHandler()
-							startRule str
-						when 1
-							endHandler()
-							startHandler str
-						else
-							addHandlerCode str, level-2
-	if (curState == 'inHandler')
-		endHandler()
+export testHeraCode := (
+		code: string
+		debug: boolean = false
+		): string =>
 
-	return lLines.join '\n'
+	path := barfTempFile code, {ext: '.hera'}
+	[heraCode, type] := await preprocessHeraFile path
+
+	# --- Make sure the generated code compiles
+	try
+		compileHera heraCode, type
+	catch err
+		DUMP heraCode, 'Hera Code', {lineNumbers: true}
+		croak "FAILED TO PARSE: #{getErrStr(err)}"
+
+	return heraCode

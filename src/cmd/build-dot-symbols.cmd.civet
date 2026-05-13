@@ -1,8 +1,11 @@
 # build-dot-symbols.cmd.civet
 
-import {TRY, toRelPath, LOG, DBG} from 'base'
+import {
+	TRY, toRelPath, LOG, DBG, assert
+	undef, defined, notdefined,
+	} from 'base'
 import {stdChecks} from 'llutils'
-import {undef, assert, hash, isEmpty, nonEmpty} from 'datatypes'
+import {hash, isEmpty, nonEmpty} from 'datatypes'
 import {getOptions, keys} from 'llutils'
 import {OL, LOGVALUE, DBGVALUE} from 'to-nice'
 import {barf, allFilesMatching} from 'fsys'

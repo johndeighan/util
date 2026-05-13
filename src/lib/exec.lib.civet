@@ -1,5 +1,6 @@
 # exec.lib.civet
 
+import {spawnSync} from 'node:child_process';
 import {exists, existsSync} from '@std/fs'
 import {stripAnsiCode} from '@std/fmt/colors'
 import {
@@ -11,11 +12,11 @@ import {sprintf} from '@std/fmt/printf'
 
 import {
 	pass, undef, defined, notdefined, toRelPath,
-	croak, assert, getErrStr, mapper,
+	croak, assert, getErrStr,
 	curLogLevel, pushLogLevel, popLogLevel,
 	DBG, LOG, WARN, ERR, INDENT, UNDENT,
-	write, writeln, resetLine,
-	colorize, decolorize,
+	write, writeln, resetLine, TIterator,
+	colorize, decolorize, encode, decode,
 	} from 'base'
 import {
 	hash, isEmpty, TStringMapper,
@@ -25,30 +26,15 @@ import {awaitAll} from 'promise-utils'
 import {arrayAndAccumFrom} from 'iter-utils'
 import {MAP} from 'mapper'
 import {
-	getOptions, blockToArray, decode, encode,
+	getOptions, blockToArray, toBlock,
 	sep, centered, allLinesInBlock, f,
 	} from 'llutils'
 import {flag, debugging, inspecting} from 'cmd-args'
 import {OL, ML, DUMP, DBGVALUE, LOGVALUE} from 'to-nice'
 import {
 	barf, pathStr, allFilesMatching, normalizePath, barfTempFile,
-	fileExt, withExt, slurpAsync, parsePath,
+	fileExt, withExt, slurpAsync, parsePath, openTextFile,
 	} from 'fsys'
-
-# ---------------------------------------------------------------------------
-
-export mkstr := (
-		item: (string | BufferSource)?
-		): string =>
-
-	if isString(item)
-		return stripAnsiCode item
-	else if isArray(item)
-		return stripAnsiCode item.join ''
-	else if defined(item)
-		return stripAnsiCode decode item
-	else
-		return ''
 
 # ---------------------------------------------------------------------------
 
@@ -69,11 +55,31 @@ export type TExecResult =
 	notNeeded?: true
 	stdout?: string
 	stderr?: string
-	infile?: string
 	outfile?: string
-	debug?: string
 
-type TFileProcessor = (input: string) => string
+type TFileProcessor = (
+		reader: TIterator<string>
+		metaData?: unknown
+		) => TIterator<string>
+
+# ---------------------------------------------------------------------------
+
+export mkstr := (
+		item: string | BufferSource
+		processor: TFileProcessor? = undef
+		): string =>
+
+	str := (
+		  isString(item) ? stripAnsiCode(item)
+		: isArray(item)  ? stripAnsiCode(item.join(''))
+		:                  stripAnsiCode(decode(item))
+		)
+	if defined(processor)
+		iter := processor(allLinesInBlock(str))
+		lLines := Array.from iter
+		return lLines.join('\n')
+	else
+		return str
 
 # ---------------------------------------------------------------------------
 
@@ -82,7 +88,7 @@ export summarizeExec := (
 		action: string = 'executed'
 		): string =>
 
-	numOK := mapper lResults, 0, (h, acc) ->
+	numOK := MAP lResults, 0, (h, acc) ->
 		return h.success && not h.notNeeded ? acc+1 : acc
 	return (numOK == 0) ? '' : "#{numOK} #{action}"
 
@@ -99,22 +105,25 @@ export execCmd := (
 		capture: boolean
 		infile: string?
 		inProc: TFileProcessor
+		tempFile: string?
 		outfile: string?
 		outProc: TFileProcessor
 		}
 
-	{capture, infile, inProc, outfile, outProc,
+	{capture, infile, inProc, tempFile, outfile, outProc,
 			} := getOptions<opt> hOptions, {
 		capture: true
 		infile: undef
-		inProc: (str) => return str
+		inProc: (iter) => return iter
+		tempFile: undef
 		outfile: undef
-		outProc: (str) => return str
+		outProc: (iter) => return iter
 		}
 
+	debugger
 	streamType: TStreamType := capture ? 'piped' : 'inherit'
 	if defined(infile) || defined(outfile)
-		assert (streamType == 'piped'),
+		assert capture,
 			"When specifying infile or outfile, capture must be true"
 	DBGVALUE "EXEC", "#{OL(getCmdLine cmdName, lArgs)}"
 	DBG INDENT
@@ -128,7 +137,12 @@ export execCmd := (
 			}
 		child := cmd.spawn()
 		if defined(infile)
-			text := inProc Deno.readTextFileSync(infile)
+			{hMetaData, reader} := openTextFile infile
+			iter := await inProc reader, hMetaData
+			text := toBlock(Array.from(iter))
+			if defined(tempFile)
+				await Deno.writeTextFile tempFile, text
+
 			# --- Write the data to the stdin of the child process
 			writer := child.stdin.getWriter()
 			await writer.write encode(text)
@@ -139,13 +153,17 @@ export execCmd := (
 			stdout: rawStdOut
 			stderr: rawStdErr
 			} := await child.output()
+
 		DBG UNDENT
 		if success && capture && defined(outfile)
 			Deno.writeTextFileSync outfile, decode(rawStdOut) + decode(rawStdErr)
+
+		stderr := rawStdErr ? await mkstr(rawStdErr) : ''
+		stdout := capture && rawStdOut ? await mkstr(rawStdOut, outProc) : ''
 		return {
 			success
-			stdout: (capture && rawStdOut) ? outProc(decode(rawStdOut)) : ''
-			stderr: (capture && rawStdErr) ? outProc(decode(rawStdErr)) : ''
+			stdout
+			stderr
 			outfile
 			}
 	catch err
@@ -157,6 +175,7 @@ export execCmd := (
 			}
 
 # ---------------------------------------------------------------------------
+# --- To do this synchronously, we have to use node's child_process lib
 
 export execCmdSync := (
 		cmdName: string,
@@ -166,52 +185,71 @@ export execCmdSync := (
 
 	type opt = {
 		capture: boolean
+		infile: string?
+		inProc: TFileProcessor?
 		outfile: string?
-		outProc: TFileProcessor
+		outProc: TFileProcessor?
 		}
 
-	{capture, outfile, outProc,
+	{capture, infile, inProc, outfile, outProc,
 			} := getOptions<opt> hOptions, {
 		capture: true
+		infile: undef
+		inProc: undef
 		outfile: undef
-		outProc: (str) => return str
+		outProc: undef
 		}
 
-	streamType: TStreamType := capture ? 'piped' : 'inherit'
-	if defined(outfile)
-		assert (streamType == 'piped'),
+	cmdLine := getCmdLine cmdName, lArgs
+	streamType: string := capture ? 'pipe' : 'inherit'
+	if defined(infile) || defined(outfile)
+		assert capture,
 			"When specifying infile or outfile, capture must be true"
-	DBGVALUE "EXEC SYNC", "#{OL(getCmdLine cmdName, lArgs)}"
-	DBG INDENT
-	try
-		cmd := new Deno.Command cmdName, {
-			args: lArgs
-			env: {DEFAULT_LOGGER: curLogLevel()}
-			stdin: 'inherit'
-			stdout: streamType
-			stderr: streamType
-			}
 
-		{
-			success,
-			stdout: rawStdOut
-			stderr: rawStdErr
-			} := cmd.outputSync()
+	DBGVALUE "EXEC SYNC", "#{OL(cmdLine)}"
+	DBG INDENT
+	{stdout, stderr, error} := (
+		if defined(infile)
+			{hMetaData, contents} := openTextFile infile, true
+			spawnSync
+				cmdName
+				lArgs
+				{
+					input: mkstr(contents, inProc)
+					encoding: 'utf-8'
+					windowsHide: true
+					}
+		else
+			spawnSync
+				cmdName
+				lArgs
+				{
+					encoding: 'utf-8'
+					windowsHide: true
+					}
+		)
+	if error
 		DBG UNDENT
-		if success && capture && defined(outfile)
-			Deno.writeTextFileSync outfile, decode(rawStdOut) + decode(rawStdErr)
-		return {
-			success
-			stdout: (capture && rawStdOut) ? outProc(decode(rawStdOut)) : ''
-			stderr: (capture && rawStdErr) ? outProc(decode(rawStdErr)) : ''
-			outfile
-			}
-	catch err
-		if debugging
-			ERR err
 		return {
 			success: false
-			stderr: getErrStr(err)
+			stdout
+			stderr
+			}
+	finalStdOut := mkstr(stdout, outProc)
+	DBG UNDENT
+	if defined(outfile)
+		Deno.writeTextFileSync outfile, finalStdOut
+		return {
+			success: true
+			stdout: finalStdOut
+			stderr
+			outfile
+			}
+	else
+		return {
+			success: true
+			stdout: finalStdOut
+			stderr
 			}
 
 # ---------------------------------------------------------------------------
@@ -619,7 +657,7 @@ class CCmdInstaller extends CFileHandler
 
 		assert (fileExt(path) == '.ts'), "Not a TypeScript file: #{path}"
 		name := parsePath(path).stub.replaceAll '.', '_'
-		hResult := await execCmd 'deno', [
+		return await execCmd 'deno', [
 			'install'
 			'--global'
 			'--force'
@@ -628,7 +666,6 @@ class CCmdInstaller extends CFileHandler
 			'--name', name
 			path
 			]
-		return hResult
 
 export doInstallCmd := new CCmdInstaller()
 
@@ -645,13 +682,12 @@ class CCmdUninstaller extends CFileHandler
 			): TExecResult
 
 		name := parsePath(path).stub.replaceAll '.', '_'
-		hResult := await execCmd 'deno', [
+		return await execCmd 'deno', [
 			'uninstall'
 			'-gA'
 			name
 			path
 			]
-		return hResult
 
 export doUninstallCmd := new CCmdUninstaller()
 

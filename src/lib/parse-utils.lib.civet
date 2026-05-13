@@ -56,7 +56,7 @@ export type TParseMatch = [
 export class CParseMatches
 
 	str: string = ''
-	lParseMatches: TParseMatch[] = []
+	lParseMatches: TParseMatch[] := []
 
 	# ..........................................................
 
@@ -70,7 +70,6 @@ export class CParseMatches
 
 	match(name: string, loc: TStrLoc | [number, number]): void
 
-		assert defined(@lParseMatches), "undef lParseMatches"
 		if Array.isArray(loc)
 			@lParseMatches.push [name, ...loc, undef]
 		else
@@ -152,4 +151,3 @@ export class CParseMatches
 		LOG @debugStr(@str)
 		LOG sep '-'
 		return
-

@@ -16,9 +16,9 @@ import {
 
 import {
 	pass, undef, defined, notdefined, sleep, toRelPath,
-	normalizePath, toFullPath, allLinesIn,
-	fileExt, withExt, getFileStats,
-	croak, assert, obviously,
+	normalizePath, toFullPath, allLinesIn, TIterator,
+	fileExt, withExt, getFileStats, encode,
+	croak, assert, obviously, emptyIterator,
 	pushLogLevel, popLogLevel, LOG, DBG, WARN, ERR,
 	INDENT, UNDENT,
 	} from 'base'
@@ -29,7 +29,7 @@ import {
 	} from 'datatypes'
 import {MAP} from 'mapper'
 import {
-	getOptions, encode, spaces,
+	getOptions, spaces,
 	sinceLoadStr, arrayToBlock, words, f,
 	} from 'llutils'
 import {isMetaDataStart, convertMetaData} from 'meta-data'
@@ -474,7 +474,7 @@ export splitPatterns := (
 export allFilesMatching := (
 		lPatterns: string | string[],
 		hOptions: hash = {}
-		): Generator<string> ->
+		): TIterator<string> ->
 
 	type opt = {
 		root: string
@@ -593,7 +593,7 @@ export findFile := (
 export allDirsMatching := (
 		lPatterns: string | string[],
 		hMoreGlobOptions: hash = {}
-		): Generator<string, void, void> ->
+		): TIterator<string> ->
 
 	hGlobOptions: hash := {
 		root: './src'
@@ -725,24 +725,30 @@ export isValidStub := (stub: string): boolean =>
 
 # ---------------------------------------------------------------------------
 
-export type TTextFileInfo = {
-	metaData: unknown
-	contents: string?
-	reader: Generator<string, void, void>?
-	nLines: number
+export type TFileReader = {
+	hMetaData: hash
+	reader: TIterator<string>
 	}
 
-export openTextFile = (
-		path: string,
-		hOptions: hash = {}
-		): TTextFileInfo =>
+export type TFileContents = {
+	hMetaData: hash
+	contents: string
+	}
 
-	type opt = {
-		eager: boolean
-		}
-	{eager} := getOptions<opt> hOptions, {
-		eager: false
-		}
+export function openTextFile(
+		path: string
+		eager?: false
+		): TFileReader
+
+export function openTextFile(
+		path: string
+		eager: true
+		): TFileContents
+
+export function openTextFile(
+		path: string,
+		eager: boolean = false
+		): TFileReader | TFileContents
 
 	assert isFile(path), "No such file: #{path}"
 	nReader := new NReadLines(path)
@@ -759,18 +765,22 @@ export openTextFile = (
 
 	firstLine := getLine()
 	if notdefined(firstLine)
-		return {
-			metaData: undef
-			reader: undef
-			contents: undef
-			nLines: 0
-			}
+		if eager
+			return {
+				hMetaData: {}
+				contents: ''
+				}
+		else
+			return {
+				hMetaData: {}
+				reader: emptyIterator<string>()
+				}
 
 	# --- Get meta data if present
 	hasMetaData := isMetaDataStart(firstLine)
 	let nMetaLines = 0
 
-	metaData := (
+	hMetaData: hash := (
 		if hasMetaData
 			lMetaLines: string[] := []
 			let line = getLine()
@@ -780,11 +790,11 @@ export openTextFile = (
 			nMetaLines = lMetaLines.length + 2
 			convertMetaData(firstLine, arrayToBlock(lMetaLines))
 		else
-			undef
+			{}
 		)
 
 	# --- generator that allows reading contents
-	reader := (): Generator<string, void, void> ->
+	reader := (): TIterator<string> ->
 		if not hasMetaData && defined(firstLine)
 			yield firstLine
 		let line = getLine()
@@ -793,21 +803,15 @@ export openTextFile = (
 			line = getLine()
 		return
 
-	# --- number of lines in file read so far
 	if eager
-		lLines := Array.from(reader())
 		return {
-			metaData
-			reader: undef
-			contents: arrayToBlock(lLines)
-			nLines: nMetaLines + lLines.length
+			hMetaData
+			contents: arrayToBlock(Array.from(reader()))
 			}
 	else
 		return {
-			metaData
+			hMetaData
 			reader: reader()
-			contents: undef
-			nLines: nMetaLines
 			}
 
 # ---------------------------------------------------------------------------

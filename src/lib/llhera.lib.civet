@@ -1,0 +1,53 @@
+# llhera.lib.civet
+
+import {compile} from "@danielx/hera"
+
+import {undef, assert} from 'base'
+import {isString} from 'datatypes'
+import {openTextFile, parsePath, withExt} from 'fsys'
+import {mdGet} from 'meta-data'
+import {civet2tsSync} from 'llcivet'
+
+export type THeraType = 'typescript' | 'civet'
+export isHeraType := (x: unknown): x is THeraType =>
+	return isString(x) && ['typescript','civet'].includes x
+
+# ---------------------------------------------------------------------------
+
+export compileHera := (
+		heraCode: string
+		type: THeraType
+		filename: string? = undef
+		): string =>
+
+	heraCode = heraCode.replaceAll('\t', '  ')
+	code := compile heraCode, {
+		language: type
+		module: true
+		filename
+		source: heraCode
+		}
+	tsCode := (
+		  (type == 'civet')
+		? civet2tsSync(code, {inlineMap: false})
+		: code
+		)
+	return tsCode.replaceAll('@danielx', 'npm:@danielx')
+
+# ---------------------------------------------------------------------------
+
+export compileHeraFile := (
+		path: string
+		): void =>
+
+	{hMetaData, contents} := openTextFile path, true
+	type := mdGet<string>(hMetaData, 'type', 'civet')
+	assert isHeraType type
+	fileName := parsePath(path).fileName
+	code := compileHera contents, type, fileName
+	ext := (type == 'civet') ? '.civet' : '.ts'
+	Deno.writeTextFileSync withExt(path, ext), code
+	return
+
+# ---------------------------------------------------------------------------
+

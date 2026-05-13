@@ -6,16 +6,18 @@ import {
 	isEmpty, nonEmpty, isString, isHash, isArray, isFunction,
 	} from 'datatypes'
 import {
-	toBlock, isTAML, fromTAML, hasKeys, f,
+	toBlock, isTAML, fromTAML, hasKey, hasKeys, f,
 	} from 'llutils'
 import {OL, ML} from 'to-nice'
-import {isSectionName, Section} from 'section'
+import {TSectionName, isSectionName, Section} from 'section'
 
 # ---------------------------------------------------------------------------
 
-export isSetName := (name: string): boolean =>
+export type TSetName = string
 
-	return defined(name.match(/^[A-Z][A-Za-z0-9_-]*/))
+export isSetName := (x: string): x is TSetName =>
+
+	return defined(x.match(/^[A-Z][A-Za-z0-9_-]*/))
 
 # ---------------------------------------------------------------------------
 # --- NOTE: section names begin with a lower case letter
@@ -28,15 +30,17 @@ export isSetName := (name: string): boolean =>
 #     <function> should be <block> -> <block>
 
 export type TSectionTree = {
-	name: string
+	name: TSetName | TSectionName
+	level: number
 	mapper?: TStringMapper
-	level?: number
 	lChildren: (string | Section | TSectionTree)[]
 	}
 
 # ---------------------------------------------------------------------------
 
-export isSectionTree := (h: unknown): h is TSectionTree =>
+export isSectionTree := (
+		h: unknown
+		): h is TSectionTree =>
 
 	if isHash(h)
 		if not hasKeys(h, 'name', 'mapper', 'lChildren')
@@ -62,6 +66,7 @@ export isSectionTree := (h: unknown): h is TSectionTree =>
 
 emptyTree: TSectionTree := {
 	name: ''
+	level: 0
 	mapper: undef
 	lChildren: []
 	}
@@ -90,9 +95,12 @@ export class SectionMap
 
 		if isString(tree)
 			if isTAML(tree)
-				x := fromTAML(tree)
-				if isSectionTree(x)
-					@hTree = x
+				h := fromTAML(tree)
+				assert isHash(h), "TAML not a hash: #{tree}"
+				if not hasKey('level')
+					h.level = 0
+				if isSectionTree(h)
+					@hTree = h
 				else
 					croak "Bad Section Tree: #{tree}"
 			else

@@ -7,10 +7,12 @@ import {
 	anyDefined, anyNotDefined,
 	croak, assert, getErrStr,
 	TIterator, TAsyncIterator, TNonFunction,
-	mapper,
 	} from 'base'
 
 # ---------------------------------------------------------------------------
+
+export type TSequence<T=unknown> = T | TIterator<T> | TAsyncIterator<T>
+export type TStringSeq = TSequence<string>
 
 export type char = string
 export type integer = number

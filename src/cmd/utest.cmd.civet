@@ -2,7 +2,7 @@
 
 import {
 	TRY, toRelPath, undef, defined, notdefined, assert,
-	LOG, DBG, ERR<
+	LOG, DBG, ERR,
 	} from 'base'
 import {isString} from 'datatypes'
 import {stdChecks, cmdTitle} from 'llutils'

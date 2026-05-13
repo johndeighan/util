@@ -1,9 +1,8 @@
 # mapsrc.cmd.civet
 
-import {TRY, mapPos} from 'base'
+import {TRY, mapPos, assert, defined} from 'base'
 import {stdChecks} from 'llutils'
 import {flag, nonOption, allNonOptions} from 'cmd-args'
-import {assert, defined} from 'datatypes'
 import {isFile} from 'fsys'
 
 stdChecks("mapsrc <path> <lineNum>")

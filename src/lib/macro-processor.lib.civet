@@ -1,0 +1,41 @@
+# macro-processor.lib.civet
+
+import {undef, defined, notdefined} from 'base'
+import {hashof} from 'datatypes'
+import {openTextFile} from 'fsys'
+import {CFileHandler} from 'exec'
+
+# ---------------------------------------------------------------------------
+
+export type TMacro = (block: string) => string
+
+export procFile := (
+		path: string
+		hMacros: hashof<TMacro>
+		): string =>
+
+	{hMetaData, contents} := openTextFile path, true
+	return doParse 'macro', contents
+
+# ---------------------------------------------------------------------------
+
+class CMacroProcessor extends CFileHandler
+
+	get op()
+		return 'doProcessFile'
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): TExecResult
+
+		hMacros := hOptions.hMacros
+		assert isHash(hMacros), "Bad hMacros"
+		stdout := procFile path, hOptions.hMacros
+		return {
+			success: true
+			stdout
+			}
+
+export doProcessFile := new CMacroProcessor()
+

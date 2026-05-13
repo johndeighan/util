@@ -22,7 +22,7 @@ setup := (): void =>
 
 		"""
 
-await setup()
+# await setup()
 
 # ---------------------------------------------------------------------------
 
@@ -41,7 +41,12 @@ equal getCmdLine('dothis', ['-a', 'willy']), 'dothis -a willy'
 
 (() =>
 	{stdout} := await execCmd 'echo', ["Hello"]
-	equal stdout, "Hello\n"
+	equal stdout, "Hello"
+	)()
+
+(() =>
+	{stdout} := await execCmdSync 'echo', ["HiThere"]
+	equal stdout, "HiThere"
 	)()
 
 truthy execCmdSync("echo", ["Hello"]).success

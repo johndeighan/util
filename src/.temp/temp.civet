@@ -1,13 +1,18 @@
 # temp.civet
 
-import {allStackFrames, dumpFrame, newerDestFileExists} from 'base'
-import {stdChecks} from 'llutils'
-import {setDirTree} from 'unit-test'
-
-stdChecks 'temp'
+import {procOneFile} from 'exec'
+import {DUMP} from 'to-nice'
+import {compileHera} from 'llhera'
+import {doCompileHera} from 'hera-compile'
+import {doParse} from 'hera-parse'
 
 # ---------------------------------------------------------------------------
 
-path := 'src/test/base/file.txt'
-result := newerDestFileExists(path, '.tsx')
-console.log "result = #{result}"
+debugger
+result := await doParse 'dir-tree', """
+	./src/test/base clear
+	file.txt
+		abc
+		def
+	"""
+DUMP result, 'result'

@@ -35,6 +35,7 @@ truthy isSectionTree hTree
 (() =>
 	hTree := {
 		name: 'ALL'
+		level: 0
 		mapper: (s: string) => s.toLowerCase()
 		lChildren: ['top', 'middle', 'bottom']
 		}

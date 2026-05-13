@@ -1,5 +1,14 @@
 to do
 
+ulib base fails
+
+in hera-compile, allow meta data type: 'civet'
+
+get src/.temp/map-pos.lib.civet working !!!!
+
+mapPosSync() doesn't adjust the source file name
+for it's directory location
+
 a test in base.lib.test.civet fails badly
 
 test out creating DBG error log file

@@ -11,12 +11,14 @@ import {
 	} from 'datatypes'
 import {isFile, findFile} from 'fsys'
 import {MAP} from 'mapper'
+import {resetOneIndent, splitLine} from 'indent'
 import {
 	allLinesInBlock, getOptions, sep,
 	} from 'llutils'
 import {OL, ML} from 'to-nice'
-import {resetOneIndent, splitLine} from 'indent'
+import {procOneFile} from 'exec'
 import {CParseMatches} from 'parse-utils';
+import {doCompileHera} from 'hera-compile'
 
 # ---------------------------------------------------------------------------
 # --- Replaces indentation with uni.shiftin and uni.shiftout
@@ -111,9 +113,18 @@ export doParse := <T = unknown>(
 	try
 		fileName := "#{stub}.parse.ts"
 		path := findFile fileName
+		if notdefined(path)
+			heraPath := findFile "#{stub}.parse.hera"
+			assert defined(heraPath)
+			hResult := await procOneFile heraPath, doCompileHera
+			assert hResult.success, "parse #{stub}.parse.hera failed"
+
 		assert isFile(path)
+
+		# --- This assumes that stub is in the deno.json file
 		{pm, reset, parse} := await import stub
-		reset(text)
+
+		reset(text)    # --- needed?
 		result := parse(text) as Awaited<T>
 		if debug
 			pm.dumpParseInfo()

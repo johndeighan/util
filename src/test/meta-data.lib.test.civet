@@ -1,6 +1,6 @@
 # meta-data.lib.test.civet
 
-import {convertMetaData} from 'meta-data'
+import {convertMetaData, extractMetaData} from 'meta-data'
 import {
 	equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test'
@@ -16,3 +16,13 @@ equal convertMetaData('---', """
 		lname: 'Deighan'
 		}
 
+equal extractMetaData("""
+	---
+	fname: John
+	lname: Deighan
+	---
+	<p>Name is {fname} {lname}</p>
+	"""), [
+	{fname: 'John', lname: 'Deighan'}
+	"<p>Name is {fname} {lname}</p>"
+	]

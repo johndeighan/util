@@ -39,7 +39,6 @@ TRY () =>
 			# --- Create HTML coverage file
 			await execCmd 'deno', ['coverage', '--html'], {capture: false}
 	else
-		debugger
 		lNonOptions := Array.from(allNonOptions())
 		for stub of allNonOptions()
 			fileName := "#{stub}.lib.civet"

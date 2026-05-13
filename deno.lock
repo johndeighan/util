@@ -43,10 +43,11 @@
     "jsr:@webui/deno-webui@2.5.13": "2.5.13",
     "jsr:@webview/webview@*": "0.9.0",
     "jsr:@zip-js/zip-js@^2.8.7": "2.8.24",
-    "npm:@danielx/civet@*": "0.11.6_typescript@5.9.3",
-    "npm:@danielx/civet@latest": "0.11.6_typescript@5.9.3",
-    "npm:@danielx/hera@*": "0.8.18",
-    "npm:@danielx/hera@latest": "0.8.18",
+    "npm:@danielx/civet@*": "0.11.7_typescript@5.9.3",
+    "npm:@danielx/civet@0.11.7": "0.11.7_typescript@5.9.3",
+    "npm:@danielx/civet@~0.11.7": "0.11.7_typescript@5.9.3",
+    "npm:@danielx/hera@*": "0.9.6",
+    "npm:@danielx/hera@0.9.6": "0.9.6",
     "npm:@types/node@*": "22.5.4",
     "npm:@unblessed/blessed@*": "1.0.0-alpha.23_omggif@1.0.10_pngjs@7.0.0",
     "npm:@unblessed/node@*": "1.0.0-alpha.23_omggif@1.0.10_pngjs@7.0.0",
@@ -231,8 +232,8 @@
         "@jridgewell/trace-mapping@0.3.9"
       ]
     },
-    "@danielx/civet@0.11.6_typescript@5.9.3": {
-      "integrity": "sha512-KPCF4ngJsabPzEBdUxk7FcONwT+rP/yvwJChfDfzLXJYwCqvMRW2c7yQ31Ve6dAz2tSHya3NhTS1BDbmGInxMQ==",
+    "@danielx/civet@0.11.7_typescript@5.9.3": {
+      "integrity": "sha512-5dmoH7HBDQRWy5GsvRwDMdJTEeewY5d8F9v+ixhkfinw6VU4kj+vV02+lYcb/hRsQn7zIULD2ABZXn1z0I65dw==",
       "dependencies": [
         "@cspotcode/source-map-support",
         "typescript",
@@ -243,8 +244,8 @@
       ],
       "bin": true
     },
-    "@danielx/hera@0.8.18": {
-      "integrity": "sha512-8lw3hFCE5n6mv7Nj7AA3pzEDmNeu5AIEIB6PCkFnKr+F3+8uvX7e3+cJMHpKcpsZh30/rVWqa/e9hXGlsYDooA==",
+    "@danielx/hera@0.9.6": {
+      "integrity": "sha512-452izPukQIx8dC7KTWcQdmyqMA9TCJReEklZkCCFiKLmw6mwteSj55QoJy/1riPDjn/d67s9PuC5iVQx1MirWw==",
       "bin": true
     },
     "@jridgewell/gen-mapping@0.3.13": {
@@ -547,8 +548,8 @@
       "jsr:@std/yaml@*",
       "jsr:@webui/deno-webui@*",
       "jsr:@webview/webview@*",
-      "npm:@danielx/civet@latest",
-      "npm:@danielx/hera@latest",
+      "npm:@danielx/civet@0.11.7",
+      "npm:@danielx/hera@0.9.6",
       "npm:@types/node@*",
       "npm:@unblessed/node@*",
       "npm:console-gui-tools@*",
@@ -561,6 +562,7 @@
     ],
     "packageJson": {
       "dependencies": [
+        "npm:@danielx/civet@~0.11.7",
         "npm:console-gui-tools@^3.7.0"
       ]
     }

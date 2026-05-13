@@ -1,6 +1,6 @@
 # llcivet.lib.civet
 
-import {compile} from '@danielx/civet'
+import {compile as compileCivet} from '@danielx/civet'
 
 import {croak, DBG, withExt, newerDestFileExists} from 'base'
 import {hash} from 'datatypes'
@@ -24,7 +24,7 @@ export civet2ts := (
 	{inlineMap} := getOptions<opt> hOptions, {
 		inlineMap: true
 		}
-	return await compile civetCode, {inlineMap}
+	return await compileCivet civetCode, {inlineMap}
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -86,7 +86,7 @@ export civet2tsSync := (
 	{inlineMap} := getOptions<opt> hOptions, {
 		inlineMap: true
 		}
-	return compile civetCode, {inlineMap, sync: true}
+	return compileCivet civetCode, {inlineMap, sync: true}
 
 # ---------------------------------------------------------------------------
 

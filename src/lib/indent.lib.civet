@@ -124,6 +124,7 @@ export function indented(
 		hOptions: hash = {}
 		): string | string[]
 
+	assert (level >= 0), "Negative indent: #{level}"
 	type opt = {
 		oneIndent: string?
 		}

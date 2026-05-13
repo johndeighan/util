@@ -1,5 +1,7 @@
 # to-nice.lib.civet
 
+import {sprintf} from '@std/fmt/printf'
+
 import {
 	undef, defined, notdefined, anyDefined, croak, assert,
 	LOG, DBG, write, writeln,
@@ -12,7 +14,7 @@ import {
 	symbolName, className, functionName, regexpDef, jsType,
 	} from 'datatypes'
 import {
-	getOptions, o, toBlock, spaces, sep, keys, f,
+	getOptions, o, toBlock, spaces, sep, keys, f, allLinesInBlock,
 	} from 'llutils'
 import {indented} from 'indent'
 import {MAP} from 'mapper'
@@ -470,16 +472,23 @@ export DUMP := (
 		width: number
 		char: string
 		endLabel: boolean
+		escape: boolean
+		lineNumbers: boolean
 		}
-	{width, char, endLabel} := getOptions<opt> hOptions, {
+	{width, char, endLabel, escape, lineNumbers} := getOptions<opt> hOptions, {
 		width: 64
 		char: '-'
 		endLabel: false
+		escape: false
+		lineNumbers: false
 		}
+
 	writeln sep(char, label, width)
 	if isString(x)
-		if nonEmpty(x)
-			writeln x
+		for line,i of allLinesInBlock(x)
+			if lineNumbers
+				write sprintf('%3d', i+1) + ' '
+			writeln escape ? esc(line) : line
 	else
 		writeln toNice(x, hOptions)
 	writeln sep(char, (endLabel ? "END #{label}" : undef), width)

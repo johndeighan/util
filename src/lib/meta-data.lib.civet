@@ -3,8 +3,8 @@
 import {
 	undef, defined, notdefined, croak, assert,
 	} from 'base'
-import {isString, hash, hashof} from 'datatypes'
-import {fromTAML, f} from 'llutils'
+import {isString, isHash, hash, hashof} from 'datatypes'
+import {fromTAML, f, allLinesInBlock} from 'llutils'
 
 export type TConverter = (str: string) => unknown
 
@@ -39,8 +39,47 @@ export isMetaDataStart := (str: string): boolean =>
 export convertMetaData := (
 		marker: string,
 		block: string
-		): unknown =>
+		): hash =>
 
 	assert isMetaDataStart(marker), "Bad meta data"
 	converter := hMetaDataTypes[marker]
-	return converter(block)
+	result := converter(block)
+	assert isHash(result), "meta data not a hash"
+	return result
+
+# ---------------------------------------------------------------------------
+
+export extractMetaData := (
+		block: string
+		): [hash, string] =>
+
+	lMetaLines: string[] := []
+	lDataLines: string[] := []
+
+	let marker: string = ''
+	let metaDone: boolean = false
+	for line,i of allLinesInBlock(block)
+		if (i == 0)
+			if not isMetaDataStart(line)
+				return [{}, block]
+			marker = line
+		else if metaDone
+			lDataLines.push line
+		else if (line == marker)
+			metaDone = true
+		else
+			lMetaLines.push line
+	return [
+		convertMetaData(marker, lMetaLines.join('\n'))
+		lDataLines.join('\n')
+		]
+
+# ---------------------------------------------------------------------------
+
+export mdGet := <T>(
+		hMetaData: hash
+		name: string
+		defVal: T
+		): T =>
+
+	return hMetaData[name] as T

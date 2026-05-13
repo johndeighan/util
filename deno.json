@@ -24,8 +24,8 @@
 		"@mwid/better-sse": "jsr:@mwid/better-sse",
 
 		"@deno/emit": "jsr:@deno/emit",
-		"@danielx/civet": "npm:@danielx/civet@latest",
-		"@danielx/hera": "npm:@danielx/hera@latest",
+		"@danielx/civet": "npm:@danielx/civet@0.11.7",
+		"@danielx/hera": "npm:@danielx/hera@0.9.6",
 		"@mozilla/source-map": "npm:source-map",
 
 		"node-module": "node:module",
@@ -33,6 +33,7 @@
 		"node-path": "node:path",
 		"node-events": "node:events",
 		"node-url": "node:url",
+		"node-child-process": "node:child_process",
 
 		"npm-uglify-js": "npm:uglify-js@latest",
 		"npm-fast-deep-equal": "npm:fast-deep-equal@latest",
@@ -76,6 +77,7 @@
 		"typescript":    "file:///C:/Users/johnd/util/src/lib/typescript.lib.ts",
 		"lltypescript":  "file:///C:/Users/johnd/util/src/lib/lltypescript.lib.ts",
 		"llcivet":       "file:///C:/Users/johnd/util/src/lib/llcivet.lib.ts",
+		"llhera":        "file:///C:/Users/johnd/util/src/lib/llhera.lib.ts",
 		"civet":         "file:///C:/Users/johnd/util/src/lib/civet.lib.ts",
 		"cielo":         "file:///C:/Users/johnd/util/src/lib/cielo.lib.ts",
 		"automate":      "file:///C:/Users/johnd/util/src/lib/automate.lib.ts",

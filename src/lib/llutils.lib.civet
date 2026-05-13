@@ -8,7 +8,7 @@ import {parse: parseYAML} from "@std/yaml"
 
 import {
 	undef, defined, notdefined, deepEqual, croak, assert,
-	colorize, isColor, toRelPath, obviously, toBool,
+	colorize, isColor, toRelPath, obviously, toBool, TIterator,
 	} from 'base'
 import {esc} from 'unicode'
 import {
@@ -32,18 +32,6 @@ export stdChecks := (helpStr: string = ''): void =>
 	root := Deno.env.get('PROJECT_ROOT_DIR')
 	assert nonEmpty(root), "Please set env var PROJECT_ROOT_DIR"
 	return
-
-# ---------------------------------------------------------------------------
-
-type TStringSource = Uint8Array<ArrayBuffer> | BufferSource | string
-
-decoder := new TextDecoder()
-export decode := (x: TStringSource): string =>
-	return (typeof x == 'string') ? x : decoder.decode(x)
-
-encoder := new TextEncoder()
-export encode := (x: string): Uint8Array<ArrayBuffer> =>
-	return encoder.encode x
 
 # ---------------------------------------------------------------------------
 
@@ -126,7 +114,15 @@ export o := (lStrings: TemplateStringsArray): hash =>
 export s := (lStrings: TemplateStringsArray): string =>
 
 	replacer := (match: string): string =>
-		return '   '.repeat match.length
+		return spaces(3).repeat match.length
+	return lStrings[0].replaceAll /^\t+/mg, replacer
+
+# ---------------------------------------------------------------------------
+
+export s2 := (lStrings: TemplateStringsArray): string =>
+
+	replacer := (match: string): string =>
+		return spaces(2).repeat match.length
 	return lStrings[0].replaceAll /^\t+/mg, replacer
 
 # ---------------------------------------------------------------------------
@@ -206,6 +202,7 @@ export blockToArray := (block: string): string[] =>
 # ---------------------------------------------------------------------------
 
 export type TBlockSpec = string | string[]
+
 export isBlockSpec := (x: unknown): x is TBlockSpec =>
 	return isString(x) || isArrayOfStrings(x)
 
@@ -310,7 +307,7 @@ export zpad := (n: number, len: number): string =>
 export allMatches := (
 		str: string,
 		re: RegExp
-		): Generator<string[], void, void> ->
+		): TIterator<string[]> ->
 
 	# --- Ensure the regex has the global flag (g) set
 	newre := new RegExp(re, re.flags + (re.flags.includes('g') ? '' : 'g'))
@@ -400,7 +397,7 @@ export untabify := (
 
 export allLinesInBlock := (
 		block: string
-		): Generator<string> ->
+		): TIterator<string> ->
 
 	let start = 0
 	let end = block.indexOf '\n'
@@ -490,14 +487,14 @@ export class CStringSetMap<T = string> extends Map<T, Set<string>>
 
 	# ..........................................................
 
-	*allKeys(): Generator<T, void, void>
+	*allKeys(): TIterator<T>
 
 		yield *super.keys()
 		return
 
 	# ..........................................................
 
-	*allValues(key: T): Generator<string, void, void>
+	*allValues(key: T): TIterator<string>
 
 		aSet := super.get key
 		if defined(aSet)
@@ -603,7 +600,12 @@ export fsplit := (
 				{ ([a-z]+) }   # color
 				)?
 			(.*)        # actual text
-			$///
+			$///s
+
+	if notdefined(lMatches)
+		console.log "BAD BAD BAD"
+		console.log esc(str)
+		console.log "BAD BAD BAD"
 
 	obviously defined(lMatches)
 	[_, toRel, width, doEsc, color, rest] := lMatches

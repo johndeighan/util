@@ -28,3 +28,43 @@ falsy  isSectionName 'ABC'
 	section.add 'XYZ'
 	equal section.getBlock(), "\tabc\n\txyz"
 	)()
+
+(() =>
+	section := new Section('main')
+	section.add 'first line'
+	section.add 1, 'indented'
+	section.add 'abc', 'def'
+	equal section.getBlock(), """
+		first line
+			indented
+		abc
+		def
+		"""
+	)()
+
+(() =>
+	section := new Section('main', 0, (x) => x.toUpperCase())
+	section.add 'first line'
+	section.add 1, 'indented'
+	section.prepend 'abc', 'def'
+	equal section.getBlock(), """
+		DEF
+		ABC
+		FIRST LINE
+			INDENTED
+		"""
+	)()
+
+(() =>
+	section := new Section('main', 0, (x) => x.toUpperCase())
+	section.add 'first line'
+	section.add 1, 'indented'
+	lLines := ['abc', 'def']
+	section.add ...lLines
+	equal section.getBlock(), """
+		FIRST LINE
+			INDENTED
+		ABC
+		DEF
+		"""
+	)()

@@ -1,40 +1,27 @@
 ---
 type: civet
 ---
-# dir-tree.parse.hera
+# macro.parse.hera
 
-import {undef, defined, assert} from 'base'
-import {hash} from 'datatypes'
-import {indented, undented} from 'indent'
-
-export type TFileOp = {
-		op: 'clearDir' | 'compile'
-		path: string
-		}
-	| {
-		op: 'barf'
-		path: string
-		contents: string
-		}
-
-lFileOps: TFileOp[]  := []
-lPathParts: string[] := []
-
-getPath := (fileName: string = '') =>
-	if fileName
-		return [...lPathParts, fileName].join('/')
-	else
-		return [...lPathParts].join('/')
+lAllLines: string[] := []
 
 #reset
-	# --- reset everything
-	lFileOps.length  = 0
-	lPathParts.length = 0
+	lAllLines.length = 0
+	lAllLines.push 'Library Name'
+	lAllLines.push '============'
+	lAllLines.push ''
+	lAllLines.push 'This library contains the following symbols:'
+	lAllLines.push ''
 
-FullDesc
-	Root NL (FileDesc / DirDesc)+
-		# --- return whatever file ops have been saved
-		return lFileOps
+Contents
+	MacroName (INDENT Line+ UNDENT)?
+		return hMacros[$1]($3)
+	Line+
+		lLines.push ...$1
+
+MacroName
+	/#([a-z]+)/
+		return $1
 
 Root
 	/\.(?:\/[A-Za-z0-9_-]+)*/ _ "clear"?

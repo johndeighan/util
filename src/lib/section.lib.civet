@@ -2,7 +2,7 @@
 
 import {undef, defined, notdefined, croak, assert} from 'base'
 import {
-	TStringMapper, isArray, isEmpty, isFunction, isInteger,
+	TStringMapper, isArray, isEmpty, isFunction, isInteger, isString,
 	} from 'datatypes'
 import {toBlock} from 'llutils'
 import {OL} from 'to-nice'
@@ -10,67 +10,79 @@ import {indented} from 'indent'
 
 # ---------------------------------------------------------------------------
 
-export isSectionName := (name: string): boolean =>
+export type TSectionName = string
 
-	return defined(name.match(/^[a-z][A-Za-z0-9_-]*/))
+export isSectionName := (x: string): x is TSectionName =>
+
+	return defined(x.match(/^[a-z][A-Za-z0-9_-]*/))
 
 # ---------------------------------------------------------------------------
 
 export class Section
 
-	name: string
+	name: TSectionName
 	mapper?: TStringMapper
-	level?: number
+	level: number
 
 	lLines: string[] = []
 
 	constructor(
-			@name: string,
-			level: number? = undef
-			mapper: TStringMapper? = undef)
+			@name: TSectionName,
+			@level: number = 0
+			mapper: TStringMapper? = undef
+			)
 
-		assert isSectionName(@name), "Bad Section Name: #{@name}"
 		if defined(mapper)
 			assert isFunction(mapper),
 					"bad mapper in section #{OL(@name)}"
 			@mapper = mapper
-		if defined(level)
-			@level = level
 
 	# ..........................................................
 
+	add(level: number, ...lLines: string[]): void
 	add(...lLines: string[]): void
+	add(
+		first: (string | number),
+		...lLines: string[]
+		): void
 
-		if isInteger(lLines[0])
-			level := lLines[0]
-			for line,i of lLines
-				if (i > 0)
-					@lLines.push indented(line, level)
-		else
-			for line of lLines
-				@lLines.push line
+		level := (
+			if isString(first)
+				@lLines.push first
+				0
+			else
+				first
+			)
+
+		for line,i of lLines
+			@lLines.push indented(line, level)
 		return
 
 	# ..........................................................
 
-	prepend(...lLines: string[])
+	prepend(level: number, ...lLines: string[]): void
+	prepend(...lLines: string[]): void
+	prepend(
+		first: (string | number),
+		...lLines: string[]
+		): void
 
-		if isInteger(lLines[0])
-			level := lLines[0]
-			for line,i of lLines.toReversed()
-				if (i < lLines.length-1)
-					@lLines.unshift indented(line, level)
-		else
-			for line of lLines.toReversed()
-				@lLines.unshift line
+		level := (
+			if isString(first)
+				@lLines.unshift first
+				0
+			else
+				first
+			)
+
+		for line,i of lLines
+			@lLines.unshift indented(line, level)
 		return
 
 	# ..........................................................
 
-	getBlock(): string?
+	getBlock(): string
 
-		if (@lLines.length == 0)
-			return undef
 		block := toBlock(@lLines)
 		mapped := defined(@mapper) ? @mapper(block) : block
 		return @level ? indented(mapped, @level) : mapped

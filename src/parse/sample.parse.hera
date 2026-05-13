@@ -1,0 +1,20 @@
+---
+type: civet
+---
+
+# parser.hera
+
+message := "Hello"
+console.log message
+
+#reset
+	console.log "resetting"
+
+Program
+	A B ->
+		return $1.length - $2.length
+A
+	"a"*
+
+B
+	"b"*

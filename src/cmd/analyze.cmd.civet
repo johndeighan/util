@@ -2,10 +2,8 @@
 
 import {
 	toRelPath, assert, croak, TRY, LOG, DBG, ERR,
+	undef, defined, notdefined,
 	} from 'base'
-import {
-	undef, defined, notdefined, assert,
-	} from 'datatypes'
 import {stdChecks} from 'llutils'
 import {flag, nonOption} from 'cmd-args'
 import {DUMP} from 'to-nice'
