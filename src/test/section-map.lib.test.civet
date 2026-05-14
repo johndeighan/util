@@ -1,53 +1,125 @@
 # section-map.lib.test.civet
 
-import {undef, defined, notdefined} from 'base'
+import {compile} from 'npm-pug'
+
+import {undef, defined, notdefined, assert} from 'base'
 import {keys} from 'llutils'
-import {Section} from 'section'
+import {indented} from 'indent'
+import {DUMP} from 'to-nice'
 import {
-	isSetName, TSectionTree, isSectionTree,
-	SectionMap,
+	TSetName, isSectionName, isSetName, CSection, CSet, SectionMap,
 	} from 'section-map'
 import {equal, truthy, falsy} from 'unit-test'
 
 # ---------------------------------------------------------------------------
 
+truthy isSectionName 'abc'
+truthy isSectionName 'aThing'
+falsy  isSectionName 'ABC'
+
 truthy isSetName 'ABC'
 truthy isSetName 'Nothing'
 falsy  isSetName 'aBCE'
 
-truthy isSectionTree {
-	name: 'ALL'
-	mapper: undef
-	lChildren: []
-	}
-
-hTree := {
-	name: 'ALL'
-	mapper: (s: string) => s.toUpperCase()
-	lChildren: [
-		'top'
-		'bottom'
-		]
-	}
-
-truthy isSectionTree hTree
-
 (() =>
-	hTree := {
-		name: 'ALL'
-		level: 0
-		mapper: (s: string) => s.toLowerCase()
-		lChildren: ['top', 'middle', 'bottom']
-		}
-	smap := new SectionMap(hTree)
-	equal keys(smap.hSections).length, 3
-	equal keys(smap.hSets).length, 1
-	truthy (smap.hTree.lChildren[1] instanceof Section)
-
-	smap.add 'middle', 'abc'
-	equal smap.getBlock(), 'abc'
-
-	smap.add 'top', 'xyz'
-	equal smap.getBlock(), 'xyz\nabc'
+	section := new CSection('main')
+	equal section.name, 'main'
 	)()
 
+(() =>
+	section := new CSection('main', (x) => x.toUpperCase())
+	section.add 'abc', 'def'
+
+	equal section.name, 'main'
+	equal section.asString(), "ABC\nDEF"
+	)()
+
+(() =>
+	section := new CSection('main', (x) => indented(x.toLowerCase()))
+	section.add 'ABC'
+	section.add 'XYZ'
+	equal section.asString(), "\tabc\n\txyz"
+	)()
+
+(() =>
+	section := new CSection('main')
+	section.add 'first line'
+	section.add 1, 'indented'
+	section.add 'abc', 'def'
+	equal section.asString(), """
+		first line
+			indented
+		abc
+		def
+		"""
+	)()
+
+(() =>
+	section := new CSection('main', (x) => x.toUpperCase())
+	section.add 'first line'
+	section.add 1, 'indented'
+	section.prepend 'abc', 'def'
+	equal section.asString(), """
+		DEF
+		ABC
+		FIRST LINE
+			INDENTED
+		"""
+	)()
+
+(() =>
+	section := new CSection('main', (x) => x.toUpperCase())
+	section.add 'first line'
+	section.add 1, 'indented'
+	lLines := ['abc', 'def']
+	section.add ...lLines
+	equal section.asString(), """
+		FIRST LINE
+			INDENTED
+		ABC
+		DEF
+		"""
+	)()
+
+(() =>
+	smap := new SectionMap new CSet 'ALL', [
+		new CSection 'top'
+		new CSection 'middle'
+		new CSection 'bottom'
+		], (s: string) => s.toLowerCase()
+
+	equal keys(smap.hSections).length, 3
+	equal keys(smap.hSets).length, 1
+	assert (smap.hTree instanceof CSet), "Not a CSet"
+	truthy (smap.hTree.lChildren[1] instanceof CSection)
+
+	smap.add 'middle', 'abc'
+	equal smap.asString(), 'abc'
+
+	smap.add 'top', 'xyz'
+	equal smap.asString(), 'xyz\nabc'
+	)()
+
+# --- In svelte files there exist the following sections:
+#        HTML body
+#        Script section
+#        Style section
+
+(() =>
+	sm := new SectionMap new CSet 'MAIN', [
+		new CSection 'body', (str) =>
+			func := compile(str)
+			return func()
+		new CSection 'script'
+		new CSection 'style'
+		]
+
+	sm.add 'body', 'h1 "Hello, World!"'
+	sm.add 'script', 'x := 42'
+
+	DUMP sm.asString(), 'HTML Text'
+	equal sm.asString(), """
+		<h1>"Hello, World!"</h1>
+		x := 42
+		"""
+	)()

@@ -43,6 +43,7 @@
 		"npm-svelte/compiler": "npm:svelte/compiler",
 		"npm-console-gui-tools": "npm:console-gui-tools",
 		"npm-blessed": "npm:@unblessed/node",
+		"npm-pug": "npm:pug",
 
 		"base":          "file:///C:/Users/johnd/util/src/lib/base.lib.ts",
 		"llfs":          "file:///C:/Users/johnd/util/src/lib/llfs.lib.ts",
@@ -58,7 +59,6 @@
 		"console-utils": "file:///C:/Users/johnd/util/src/lib/console-utils.lib.ts",
 		"indent":        "file:///C:/Users/johnd/util/src/lib/indent.lib.ts",
 		"to-nice":       "file:///C:/Users/johnd/util/src/lib/to-nice.lib.ts",
-		"section":       "file:///C:/Users/johnd/util/src/lib/section.lib.ts",
 		"section-map":   "file:///C:/Users/johnd/util/src/lib/section-map.lib.ts",
 		"extract":       "file:///C:/Users/johnd/util/src/lib/extract.lib.ts",
 		"cmd-args":      "file:///C:/Users/johnd/util/src/lib/cmd-args.lib.ts",

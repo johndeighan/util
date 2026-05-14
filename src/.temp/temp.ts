@@ -1,17 +1,28 @@
 "use strict";
 // temp.civet
 
+import {compile} from 'npm-pug'
+
 import {procOneFile} from 'exec'
 import {DUMP} from 'to-nice'
 import {compileHera} from 'llhera'
 import {doCompileHera} from 'hera-compile'
 import {doParse} from 'hera-parse'
+import {CSection} from 'section'
+import {SectionMap, CSet} from 'section-map'
 
 // ---------------------------------------------------------------------------
 
 debugger
-const result = await doParse('dir-tree', `./src/test/base clear
-file.txt
-	abc
-	def`)
-DUMP(result, 'result')
+const sm = new SectionMap(new CSet('MAIN', [
+	new CSection('body', (str) => {
+		const func = compile(str)
+		return func()
+	}),
+	new CSection('script'),
+	new CSection('style')
+	]))
+
+sm.add('body', 'h1 "Hello, World!"')
+
+DUMP(sm.asString(), 'HTML Text')
