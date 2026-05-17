@@ -18,7 +18,7 @@ import {isFile, slurp} from 'fsys'
  *    parses a file (default: src/.symbols) that looks like:
  *       indent
  *          oneIndent resetOneIndent indentLevel
- *          lineDesc splitLine indented
+ *          TLineDesc splitLine indented
  *       fsys
  *          isFile isDir
  *          fileExt withExt

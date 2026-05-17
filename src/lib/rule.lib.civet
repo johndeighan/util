@@ -1,0 +1,203 @@
+# rule.lib.civet
+
+import {
+	undef, defined, notdefined, assert, croak, TIterator,
+	} from 'base'
+import {isEmpty} from 'datatypes'
+import {arrayToBlock} from 'llutils'
+import {indented} from 'indent'
+import {THeraType} from 'llhera'
+import {civet2tsSync} from 'llcivet'
+
+# ---------------------------------------------------------------------------
+
+export class CRuleBranch
+	private pattern: string
+	private lCode: string[] = []
+
+	constructor(
+			@pattern: string,
+			lCode: string[] = []
+			)
+
+		for str of lCode
+			@lCode.push str
+
+	# ..........................................................
+
+	addCode(
+			line: string
+			): void
+
+		lMatches := line.match /^(\s*)return\s+(.*);$/
+		if defined lMatches
+			[_, prefix, valueStr] := lMatches
+			@lCode.push (prefix + 'return pm.result(' + valueStr + ');')
+		else
+			@lCode.push line
+		return
+
+	# ..........................................................
+
+	patternStr(): string
+
+		if isEmpty(@lCode)
+			return @pattern
+		else
+			hashPos := @pattern.indexOf('#')
+			if (hashPos == -1)
+				return @pattern + ' ->'
+			else
+				return @pattern.replace('#', '-> #')
+
+	# ..........................................................
+
+	numCodeLines(): number
+
+		return @lCode.length
+
+	# ..........................................................
+
+	codeBlock(
+			type: THeraType
+			): string
+
+		return mkCodeBlock(@lCode, type)
+
+	# ..........................................................
+
+	toString(
+			type: THeraType = 'civet'
+			): string
+
+		return [
+			@patternStr()
+			indented(@codeBlock(type))
+			''
+			].join('\n')
+
+# ---------------------------------------------------------------------------
+
+export class CRule
+	private name: string
+	private lBranches: CRuleBranch[] = []
+
+	constructor(@name: string)
+
+		assert defined(@name.match /^[A-Za-z$_][A-Za-z0-9$_-]*$/),
+			"Bad name: <#{@name}>"
+
+	# ..........................................................
+
+	getName(): string
+
+		return @name
+
+	# ..........................................................
+
+	addBranch(branch: CRuleBranch): void
+
+		@lBranches.push branch
+		return
+
+	# ..........................................................
+
+	addCode(
+			code: string
+			i: number = @lBranches.length - 1
+			): void
+
+		assert (i >= 0) && (i < @lBranches.length), "Bad index: #{i}"
+		@lBranches[i].addCode code
+
+	# ..........................................................
+
+	numBranches(): number
+
+		return @lBranches.length
+
+	# ..........................................................
+
+	numCodeLines(): number
+
+		return @lBranches[@lBranches.length - 1].numCodeLines()
+
+	# ..........................................................
+
+	allBranches(): TIterator<CRuleBranch>
+
+		for branch of @lBranches
+			yield branch
+		return
+
+	# ..........................................................
+
+	toString(type: THeraType = 'civet'): string
+
+		assert (@lBranches.length > 0), "rule #{@name} has no branches"
+		return [
+			@name
+			...@lBranches.map((b) => indented(b.toString(type)))
+			].join('\n')
+
+# ---------------------------------------------------------------------------
+
+export class CRuleSet
+
+	lRules: CRule[] = []
+
+	addRule(name: string): void
+
+		@lRules.push new CRule(name)
+		return
+
+	curRule(): CRule
+		assert (@lRules.length > 0), "No rules in set"
+		return @lRules[@lRules.length - 1]
+
+	addBranch(
+			pattern: string
+			ruleNum: number = @lRules.length - 1
+			): void
+
+		assert (ruleNum >= 0), "Bad rule num: #{ruleNum}"
+		@lRules[ruleNum].addBranch(new CRuleBranch(pattern))
+		return
+
+	addCode(
+			code: string
+			ruleNum: number = @lRules.length - 1
+			branchNum: number? = undef
+			): void
+
+		assert (0 <= ruleNum < @lRules.length), "Bad rule num: #{ruleNum}"
+		rule := @lRules[ruleNum]
+		if notdefined(branchNum)
+			branchNum = rule.numBranches() - 1
+		assert (0 <= branchNum < rule.numBranches()),
+				"Bad branch num: #{ruleNum}:#{branchNum}"
+		rule.addCode code
+		return
+
+	ruleName(
+			ruleNum: number = @lRules.length - 1
+			): string
+
+		return @lRules[ruleNum].getName()
+
+# ---------------------------------------------------------------------------
+
+export mkCodeBlock := (
+		lLines: string[]
+		type: THeraType
+		): string =>
+
+	block := arrayToBlock(lLines).trim()
+	switch type
+		when 'typescript'
+			return block
+		when 'civet'
+			return civet2tsSync(block, {inlineMap: false}).trim()
+		else
+			croak "Bad code type: #{type}"
+

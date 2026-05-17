@@ -1,0 +1,58 @@
+# macros.lib.civet
+
+import {undef, defined, notdefined, assert, croak} from 'base'
+import {
+	hash, hashof, isHash, TStringMapper, isStringMapper,
+	} from 'datatypes'
+import {entries} from 'llutils'
+import {parsePath, openTextFile} from 'fsys'
+import {CFileHandler, TExecResult} from 'exec'
+import {parseFile} from 'hera-parse'
+
+# ---------------------------------------------------------------------------
+
+export type TMacroHash = hashof<TStringMapper>
+
+export isMacroHash := (x: unknown): x is TMacroHash =>
+
+	if not isHash(x)
+		return false
+	for name,macro of entries(x)
+		if not isStringMapper(macro)
+			return false
+	return true
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export mapFile := (
+		path: string
+		hMacros: hashof<TStringMapper>
+		): string =>
+
+	{ext} := parsePath path
+	assert defined(ext) && ext.startsWith('.$'),
+		"Not a macro file: #{path}"
+	return await parseFile<string> 'macro', path
+
+# ---------------------------------------------------------------------------
+
+export class CFileMapper extends CFileHandler
+
+	get op()
+		return 'doMapFile'
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): TExecResult
+
+		assert ('hMacros' in hOptions), "missing macros hash"
+		hMacros := hOptions.hMacros
+		assert isMacroHash(hMacros), "Bad macro hash: #{hMacros}"
+		return {
+			success: true
+			stdout: await mapFile path, hMacros
+			}
+
+export doMapFile := new CFileMapper()

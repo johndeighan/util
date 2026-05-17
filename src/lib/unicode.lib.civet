@@ -1,6 +1,7 @@
 # unicode.lib.civet
 
-import {undef, defined} from 'base'
+import {cyan} from '@std/fmt/colors'
+import {undef, defined, decolorize} from 'base'
 import {hash, hashof, char} from 'datatypes'
 
 # ---------------------------------------------------------------------------
@@ -61,29 +62,29 @@ export litC := (str: string): string =>
 # ---------------------------------------------------------------------------
 
 hEsc: hashof<string> := {
-	"\r": '←'
-	"\n": '↓'
-	"\t": '→'
+	"\r": cyan('←')
+	"\n": cyan('↓')
+	"\t": cyan('→')
 	" ": '˳'
 	"←": lit("←")
 	"↓": lit("↓")
 	"→": lit("→")
 	"˳": lit("˳")
-	'\x0F': uni.rightshift
-	'\x0E': uni.leftshift
+	'\x0F': cyan(uni.rightshift)
+	'\x0E': cyan(uni.leftshift)
 	}
 
 hEscMulti: hashof<string> := {
-	"\r": '←'
-	"\n": '↓\n'
-	"\t": '→  '
+	"\r": cyan('←')
+	"\n": cyan('↓\n')
+	"\t": cyan('→  ')
 	" ": '˳'
 	"←": lit("←")
 	"↓": lit("↓")
 	"→": lit("→")
 	"˳": lit("˳")
-	'\x0F': uni.rightshift
-	'\x0E': uni.leftshift
+	'\x0F': cyan(uni.rightshift)
+	'\x0E': cyan(uni.leftshift)
 	}
 
 export esc := (
@@ -96,10 +97,9 @@ export esc := (
 	hReplace := (style == 'multiline') ? hEscMulti : hEsc
 	lParts: string[] := []
 	let i1 = 0
-	for ch of str
-		i := i1++
+	for ch,i of str
 		if defined(pos)
-			if i == pos
+			if (i == pos)
 				lParts.push (len == 0) ? uni.poschar : uni.alt_lparen
 			if (len > 0) && (i == pos + len)
 				lParts.push uni.alt_lparen
@@ -107,6 +107,25 @@ export esc := (
 	return lParts.join ''
 
 export mesc := (str: string): string =>
+	return esc(str, 'multiline')
+
+# ---------------------------------------------------------------------------
+
+export escd := (
+		str: string
+		style: 'oneline' | 'multiline' = 'oneline',
+		pos: number? = undef,
+		len: number = 0
+		): string =>
+
+	return decolorize(esc(str, style, pos, len))
+
+# ---------------------------------------------------------------------------
+
+export escm := (
+		str: string
+		) =>
+
 	return esc(str, 'multiline')
 
 # ---------------------------------------------------------------------------

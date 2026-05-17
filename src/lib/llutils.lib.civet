@@ -137,6 +137,7 @@ export t := (lStrings: TemplateStringsArray): string =>
 # ---------------------------------------------------------------------------
 
 export keys = Object.keys
+export entries = Object.entries
 
 # ---------------------------------------------------------------------------
 

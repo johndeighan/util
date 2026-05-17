@@ -1,6 +1,8 @@
 to do
 
-section-map doesn't compile yet
+ulib hera-compile fails
+
+how to pass the thing returned from a rule match to parse-utils
 
 in hera-compile, allow meta data type: 'civet'
 

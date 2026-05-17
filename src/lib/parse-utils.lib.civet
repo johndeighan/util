@@ -7,7 +7,7 @@ import {
 	LOG, DBG, ERR,
 	} from 'base'
 import {uni, esc} from 'unicode'
-import {hash, hashof} from 'datatypes'
+import {hash, hashof, isArray} from 'datatypes'
 import {centered, sep, f} from 'llutils'
 import {OL} from 'to-nice'
 import {TextTable} from 'text-table'
@@ -68,12 +68,18 @@ export class CParseMatches
 
 	# ..........................................................
 
-	match(name: string, loc: TStrLoc | [number, number]): void
+	match(
+			name: string,
+			loc: TStrLoc | [number, number]
+			): void
 
-		if Array.isArray(loc)
-			@lParseMatches.push [name, ...loc, undef]
-		else
-			@lParseMatches.push [name, loc.pos, loc.length, undef]
+		[pos, len] := (
+			if isArray(loc)
+				[loc[0], loc[1]]
+			else
+				[loc.pos, loc.length]
+			)
+		@lParseMatches.push [name, pos, len, undef]
 		return
 
 	# ..........................................................

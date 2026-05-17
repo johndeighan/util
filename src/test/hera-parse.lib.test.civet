@@ -1,6 +1,7 @@
 # hera-parse.lib.test.civet
 
-import {esc} from 'unicode'
+import {decolorize} from 'base'
+import {esc, escd} from 'unicode'
 import {
 	str2indents,
 	} from 'hera-parse'
@@ -10,13 +11,13 @@ import {
 
 # ---------------------------------------------------------------------------
 
-equal esc(str2indents("""
+equal escd(str2indents("""
 	file
 		abc
 		def
 	""")), 'file»abc↓def«'
 
-equal esc(str2indents("""
+equal escd(str2indents("""
 	file
 		abc
 			def
@@ -25,7 +26,7 @@ equal esc(str2indents("""
 			xyz
 	""")), 'file»abc»def««/dir»file»xyz««'
 
-equal esc(str2indents("""
+equal escd(str2indents("""
 	src/lib clear
 	temp.txt
 		abc

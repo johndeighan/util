@@ -1,0 +1,38 @@
+# builddoc.cmd.civet
+
+import {
+	undef, defined, notdefined, assert, croak, TRY, LOG, toRelPath,
+	} from 'base'
+import {stdChecks, cmdTitle} from 'llutils'
+import {nonOption, allNonOptions, getFlags} from 'cmd-args'
+import {findFile} from 'fsys'
+import {procFiles, procOneFile} from 'exec'
+import {doCompileHera} from 'hera-compile'
+import {doProcessFile} from 'macros'
+
+stdChecks """
+	builddoc -fI (all | <stub>*)
+	   -f = force, i.e. always compile
+	   -I = use Chrome debugger for compile
+	"""
+
+# ---------------------------------------------------------------------------
+
+TRY () =>
+	# --- echoes if flag is set
+	{force, inspect} := getFlags {
+		force: 'f'
+		inspect: 'I'
+		}
+
+	if (nonOption(0) == 'all')
+		LOG cmdTitle("BUILD ALL DOCS")
+		await procFiles [doProcessFile, ['**/*.doc.$md']], {force}
+	else
+		for stub of allNonOptions()
+			fileName := "#{stub}.doc.$md"
+			path := findFile fileName
+			assert defined(path), "No such file: #{fileName}"
+
+			LOG cmdTitle("BUILD DOC #{toRelPath(path)}")
+			await procOneFile path, doProcessFile, {force, inspect}

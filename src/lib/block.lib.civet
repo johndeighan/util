@@ -1,0 +1,55 @@
+# block.lib.civet
+
+import {
+	undef, defined, notdefined, assert, croak,
+	} from 'base'
+import {isString} from 'datatypes'
+import {indented} from 'indent'
+
+# ---------------------------------------------------------------------------
+
+export class CBlock
+	header: string   # --- can be an empty string
+	lChildren: (CBlock | string)[]
+
+	# ..........................................................
+
+	constructor(
+			@header: string = ''
+			@lChildren: (CBlock | string)[] = []
+			)
+
+	# ..........................................................
+
+	setHeader(
+			newHeader: string
+			): void
+
+		@header = newHeader
+		return
+
+	# ..........................................................
+
+	add(
+			block: (CBlock | string)
+			): void
+
+		@lChildren.push block
+		return
+
+	# ..........................................................
+
+	toString(): string
+
+		return [
+			@header
+			...@lChildren.map((x) => indented(isString(x) ? x : x.toString()))
+			].join('\n')
+
+	# ..........................................................
+
+	reset(newHeader: string = ''): void
+
+		@header = newHeader
+		@lChildren.length = 0
+		return

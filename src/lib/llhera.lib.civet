@@ -2,10 +2,11 @@
 
 import {compile} from "@danielx/hera"
 
-import {undef, assert} from 'base'
+import {undef, assert, croak, getErrStr} from 'base'
 import {isString} from 'datatypes'
 import {openTextFile, parsePath, withExt} from 'fsys'
 import {mdGet} from 'meta-data'
+import {DUMP} from 'to-nice'
 import {civet2tsSync} from 'llcivet'
 
 export type THeraType = 'typescript' | 'civet'
@@ -44,9 +45,13 @@ export compileHeraFile := (
 	type := mdGet<string>(hMetaData, 'type', 'civet')
 	assert isHeraType type
 	fileName := parsePath(path).fileName
-	code := compileHera contents, type, fileName
-	ext := (type == 'civet') ? '.civet' : '.ts'
-	Deno.writeTextFileSync withExt(path, ext), code
+	code := try
+		compileHera contents, type, fileName
+	catch err
+		DUMP contents, "HERA CODE (#{type})"
+		croak getErrStr(err)
+#	ext := (type == 'civet') ? '.civet' : '.ts'
+	Deno.writeTextFileSync withExt(path, '.ts'), code
 	return
 
 # ---------------------------------------------------------------------------

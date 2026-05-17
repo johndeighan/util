@@ -1,28 +1,59 @@
 "use strict";
 // temp.civet
 
-import {compile} from 'npm-pug'
-
+import {TRY, SKIP} from 'base'
+import {esc, escm} from 'unicode'
+import {s2} from 'llutils'
 import {procOneFile} from 'exec'
 import {DUMP} from 'to-nice'
-import {compileHera} from 'llhera'
-import {doCompileHera} from 'hera-compile'
-import {doParse} from 'hera-parse'
-import {CSection} from 'section'
-import {SectionMap, CSet} from 'section-map'
+import {doMapFile} from 'macros'
+import {CBlock} from 'block'
+import {doCompileHera, testHeraCode} from 'hera-compile'
+import {str2indents} from 'hera-parse'
+import {parseText} from 'hera-parse'
+import {CRuleBranch, CRule} from 'rule'
 
 // ---------------------------------------------------------------------------
 
-debugger
-const sm = new SectionMap(new CSet('MAIN', [
-	new CSection('body', (str) => {
-		const func = compile(str)
-		return func()
-	}),
-	new CSection('script'),
-	new CSection('style')
-	]))
+TRY(() => {
+	debugger
+	const result = testHeraCode(`---
+type: civet
+---
+name := 'John Deighan'
+lItems: string[] := []
 
-sm.add('body', 'h1 "Hello, World!"')
+#beginParse
+	lItems.length = 0
 
-DUMP(sm.asString(), 'HTML Text')
+Main
+	/abc/`)
+
+	console.log(result)
+
+	const expected = s2`\`\`\`
+import {CParseMatches} from 'parse-utils';
+export let pm = new CParseMatches();
+
+const name = 'John Deighan'
+const lItems: string[] = []
+
+export const reset = (text: string): void => {
+	pm.reset(text);
+	lItems.length = 0
+	}
+\`\`\``
+})
+
+SKIP(() => {
+	const path = 'src/parse/macro.parse.hera'
+	procOneFile(path, doCompileHera)
+	const result = parseText('macro', `abc
+def
+	ghi
+		jkl
+		mno
+	pqr
+stu`, {debug: true})
+	DUMP(result, 'RESULT')
+})

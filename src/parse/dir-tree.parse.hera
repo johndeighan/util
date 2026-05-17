@@ -26,7 +26,7 @@ getPath := (fileName: string = '') =>
 	else
 		return [...lPathParts].join('/')
 
-#reset
+#beginParse
 	# --- reset everything
 	lFileOps.length  = 0
 	lPathParts.length = 0

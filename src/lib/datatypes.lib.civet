@@ -29,6 +29,12 @@ export type TStringFilterFunc = (str: string) => boolean
 
 # ---------------------------------------------------------------------------
 
+export isStringMapper := (x: unknown): x is TStringMapper =>
+
+	return isFunction(x)
+
+# ---------------------------------------------------------------------------
+
 GenFunc := (function* () {}).constructor
 AsyncGenFunc := (async function* () {}).constructor
 

@@ -24,7 +24,7 @@ equal await testHeraCode("""
 	name := 'John Deighan'
 	lItems: string[] := []
 
-	#reset
+	#beginParse
 		lItems.length = 0
 
 	Main
@@ -37,7 +37,7 @@ equal await testHeraCode("""
 	const name = 'John Deighan'
 	const lItems: string[] = []
 
-	export const reset = (text: string): void => {
+	export const beginParse = (text: string): void => {
 		pm.reset(text);
 		lItems.length = 0
 		}
@@ -56,7 +56,7 @@ equal await testHeraCode("""
 	name := 'John Deighan'
 	lItems: string[] := []
 
-	#reset
+	#beginParse
 		lItems.length = 0
 
 	Main
@@ -74,7 +74,7 @@ equal await testHeraCode("""
 	const name = 'John Deighan'
 	const lItems: string[] = []
 
-	export const reset = (text: string): void => {
+	export const beginParse = (text: string): void => {
 		pm.reset(text);
 		lItems.length = 0
 		}
@@ -84,7 +84,6 @@ equal await testHeraCode("""
 		/abc/ Next ->
 			pm.match('Main', $loc);
 			lItems.push('main')
-
 
 	Next
 		"xyz" ->

@@ -99,12 +99,16 @@ export indentLevel := (line: string): number =>
 
 # ---------------------------------------------------------------------------
 
-export type lineDesc = [level: number, text: string]
+type TLineDesc = [level: number, text: string]
 
-export splitLine := (line: string): lineDesc =>
+export splitLine := (line: string): TLineDesc =>
 
 	[_, prefix, str] := line.match(/^(\s*)(.*)$/) || ['', '', '']
-	return [indentLevel(prefix), str.trim()]
+	trimmed := str.trim()
+	if (trimmed == '')
+		return [0, '']
+	else
+		return [indentLevel(prefix), trimmed]
 
 # ---------------------------------------------------------------------------
 

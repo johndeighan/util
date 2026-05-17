@@ -20,7 +20,7 @@ import {
 import {getOptions, truncStr, blockToArray, f, rtrim} from 'llutils'
 import {TState, fromFSM} from 'fsm'
 import {TextTable} from 'text-table'
-import {doParse} from 'hera-parse'
+import {parseText} from 'hera-parse'
 import {mkDir, clearDir, barf} from 'fsys'
 import {compileFile} from 'automate'
 
@@ -239,7 +239,7 @@ export setDirTree := (desc: string): TFileOp[] =>
 
 export getFileOps := (desc: string): TFileOp[] =>
 
-	return await doParse<TFileOp[]> 'dir-tree', desc
+	return await parseText<TFileOp[]> 'dir-tree', desc
 
 # ---------------------------------------------------------------------------
 # ASYNC

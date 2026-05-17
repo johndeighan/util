@@ -9,7 +9,7 @@ import {
 	hash, isEmpty, nonEmpty,
 	TStringMapper, TVoidFunc,
 	} from 'datatypes'
-import {isFile, findFile} from 'fsys'
+import {isFile, findFile, openTextFile} from 'fsys'
 import {MAP} from 'mapper'
 import {resetOneIndent, splitLine} from 'indent'
 import {
@@ -84,12 +84,13 @@ export toDebugStr := (str: string): string =>
 # ---------------------------------------------------------------------------
 # ASYNC
 
-export doParse := <T = unknown>(
+export parseText := <T = unknown>(
 		stub: string
 		text: string
 		hOptions: hash = {}
 		): T =>
 
+	debugger
 	type opt = {
 		lTransforms: TStringMapper[]
 		debug: boolean
@@ -111,20 +112,21 @@ export doParse := <T = unknown>(
 
 	# --- import things from the parser
 	try
+		# --- Make sure parser is compiled and up to date
 		fileName := "#{stub}.parse.ts"
 		path := findFile fileName
 		if notdefined(path)
 			heraPath := findFile "#{stub}.parse.hera"
-			assert defined(heraPath)
+			assert defined(heraPath), "Missing #{stub}.parse.hera"
 			hResult := await procOneFile heraPath, doCompileHera
 			assert hResult.success, "parse #{stub}.parse.hera failed"
 
 		assert isFile(path)
 
 		# --- This assumes that stub is in the deno.json file
-		{pm, reset, parse} := await import stub
+		{pm, beginParse, parse} := await import stub
 
-		reset(text)    # --- needed?
+		beginParse(text)    # --- needed?
 		result := parse(text) as Awaited<T>
 		if debug
 			pm.dumpParseInfo()
@@ -136,7 +138,7 @@ export doParse := <T = unknown>(
 		if (err instanceof TypeError)
 			throw "Bad Parser: #{stub}: #{getErrStr(err)}"
 		else
-			ERR "in doParse(#{stub})", 'PARSE ERROR'
+			ERR "in parseText(#{stub})", 'PARSE ERROR'
 			LOG '', toDebugStr(orgText)
 
 			{pm} := await import stub
@@ -147,3 +149,15 @@ export doParse := <T = unknown>(
 				Deno.exit 99
 			else
 				throw err
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export parseFile := <T = unknown>(
+		stub: string
+		path: string
+		hOptions: hash = {}
+		): T =>
+
+	{hMetaData, contents} := openTextFile path, true
+	return await parseText<T> stub, contents, {hMetaData}

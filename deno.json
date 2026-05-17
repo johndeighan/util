@@ -51,6 +51,7 @@
 		"promise-utils": "file:///C:/Users/johnd/util/src/lib/promise-utils.lib.ts",
 		"datatypes":     "file:///C:/Users/johnd/util/src/lib/datatypes.lib.ts",
 		"unify":         "file:///C:/Users/johnd/util/src/lib/unify.lib.ts",
+		"block":         "file:///C:/Users/johnd/util/src/lib/block.lib.ts",
 		"f-strings":     "file:///C:/Users/johnd/util/src/lib/f-strings.lib.ts",
 		"llutils":       "file:///C:/Users/johnd/util/src/lib/llutils.lib.ts",
 		"meta-data":     "file:///C:/Users/johnd/util/src/lib/meta-data.lib.ts",
@@ -67,9 +68,9 @@
 		"walker":        "file:///C:/Users/johnd/util/src/lib/walker.lib.ts",
 		"scope":         "file:///C:/Users/johnd/util/src/lib/scope.lib.ts",
 		"parse-utils":   "file:///C:/Users/johnd/util/src/lib/parse-utils.lib.ts",
-		"dir-tree":      "file:///C:/Users/johnd/util/src/parse/dir-tree.parse.ts",
 		"exec":          "file:///C:/Users/johnd/util/src/lib/exec.lib.ts",
 		"pll":           "file:///C:/Users/johnd/util/src/lib/pll.lib.ts",
+		"rule":          "file:///C:/Users/johnd/util/src/lib/rule.lib.ts",
 		"hera-compile":  "file:///C:/Users/johnd/util/src/lib/hera-compile.lib.ts",
 		"hera-parse":    "file:///C:/Users/johnd/util/src/lib/hera-parse.lib.ts",
 		"from-nice":     "file:///C:/Users/johnd/util/src/lib/from-nice.lib.ts",
@@ -88,6 +89,10 @@
 		"call-stack":    "file:///C:/Users/johnd/util/src/lib/call-stack.lib.ts",
 		"file-server":   "file:///C:/Users/johnd/util/src/lib/file-server.lib.ts",
 		"html-window":   "file:///C:/Users/johnd/util/src/lib/html-window.lib.ts",
+		"macros":        "file:///C:/Users/johnd/util/src/lib/macros.lib.ts",
+
+		"dir-tree":      "file:///C:/Users/johnd/util/src/parse/dir-tree.parse.ts",
+		"macro":         "file:///C:/Users/johnd/util/src/parse/macro.parse.ts",
 
 		"civetconfig":   "file:///C:/Users/johnd/civet.config.json",
 	}

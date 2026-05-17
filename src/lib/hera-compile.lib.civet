@@ -31,6 +31,7 @@ import {
 	} from 'exec'
 import {extractMetaData, mdGet} from 'meta-data'
 import {THeraType, isHeraType, compileHera} from 'llhera'
+import {CRuleBranch, CRule, CRuleSet, mkCodeBlock} from 'rule'
 
 # ---------------------------------------------------------------------------
 
@@ -96,86 +97,15 @@ export preprocessHeraFile := (
 
 # ---------------------------------------------------------------------------
 
-export mkCodeBlock := (
-		lLines: string[]
-		type: THeraType
-		): string =>
-
-	block := arrayToBlock(lLines).trim()
-	switch type
-		when 'typescript'
-			return block
-		when 'civet'
-			return civet2tsSync(block, {inlineMap: false}).trim()
-		else
-			croak "Bad code type: #{type}"
-
-# ---------------------------------------------------------------------------
-
-export isRuleName := (name: string): boolean =>
-
-	return defined(name.match /^[A-Za-z$_][A-Za-z0-9$_-]*$/)
-
-# ---------------------------------------------------------------------------
-
-export class CRule
-	private name: string
-	private pattern: string = ''
-	private lCode: string[] = []
-
-	constructor(@name: string)
-		assert isRuleName(@name), "Bad name: <#{@name}>"
-
-	getName(): string
-		return @name
-
-	getPattern(): string
-		return @pattern
-
-	setPattern(pat: string): void
-		@pattern = pat
-		return
-
-	addCode(line: string): void
-		lMatches := line.match /^(\s*)return\s+(.*);$/
-		if defined lMatches
-			[_, prefix, valueStr] := lMatches
-			@lCode.push (prefix + 'return' + ' pm.result(' + valueStr + ');')
-		else
-			@lCode.push line
-		return
-
-	patternStr(): string
-		hashPos := @pattern.indexOf('#')
-		if (hashPos == -1)
-			return indented(@pattern) + ' ->'
-		else
-			return indented(@pattern.replace('#', '-> #'))
-
-	numCodeLines(): number
-		return @lCode.length
-
-	codeBlock(type: THeraType): string[]
-		return indented(@lCode, 2)
-
-	toString(type: THeraType): string
-		return [
-			@name
-			@patternStr()
-			indented(mkCodeBlock(@lCode, type), 2)
-			'\n'
-			].join('\n')
-
-# ---------------------------------------------------------------------------
-
 buildHeraFile := (
 		lMainCode: string[]
 		lResetCode: string[]
-		lRules: CRule[]
+		ruleSet: CRuleSet
 		type: THeraType
 		debug: boolean = false
 		) =>
 
+	debugger
 	mainCode := mkCodeBlock lMainCode, type
 	if debug
 		DUMP mainCode, 'mainCode'
@@ -184,7 +114,7 @@ buildHeraFile := (
 	if debug
 		DUMP resetCode, 'resetCode'
 
-	lRuleBlocks := lRules.map (rule) => rule.toString(type)
+	lRuleBlocks := ruleSet.lRules.map (rule) => rule.toString(type)
 	if debug
 		for block,i of lRuleBlocks
 			DUMP block, "Rule[#{i}]"
@@ -199,7 +129,7 @@ buildHeraFile := (
 		lParts.push mainCode, ""
 
 	lParts.push
-		"export const reset = (text: string): void => {"
+		"export const beginParse = (text: string): void => {"
 		indented("pm.reset(text);")
 		indented(resetCode)
 		indented('}')
@@ -225,77 +155,83 @@ export preprocessHera := (
 		debug: boolean = false
 		): string =>
 
+	debugger
 	if isString(iter)
 		iter = allLinesInBlock(iter)
 	resetOneIndent()
 
-	lMainCode: string[]  := []
+	lMainCode:  string[] := []
 	lResetCode: string[] := []
 
-	let curRule: CRule = new CRule('Dummy')
-	let lRules: CRule[] = []
+	ruleSet := new CRuleSet()
 
 	result := fromFSM iter, [
 
 		# 0 --- start
+		#          until we see #beginParse, everything, including
+		#          blank lines, goes into main code
+
 		(line: string): TState =>
-			if (line == '#reset')
+			if (line == '#beginParse')
 				return 1
 			else
 				lMainCode.push decom(line)
 				return 0
 
-		# 1 --- in reset function
-		(line: string): TState =>
-			if isEmpty(line)
-				lResetCode.push ''
-				return 1
-			else
-				[level, str] := splitLine(line)
-				if (level == 0)
-					curRule = new CRule(line)
-					return 2
-				else
-					lResetCode.push undented(decom(line))
-					return 1
+		# 1 --- in beginParse function
+		#          until we see a rule name, everything, including
+		#          blank lines, goes into reset code
 
-		# 2 --- have rule name, want pattern
-		(line: string, i: number): TState =>
-			if isEmpty(line)
+		(line: string): TState =>
+			[level, str] := splitLine(line)
+			if nonEmpty(str) && (level == 0)
+				ruleSet.addRule str
 				return 2
 			else
-				[level, str] := splitLine(line)
-				assert (level == 1),
-					"Expecting pattern for rule #{curRule.getName()} on line #{i}"
-				curRule.setPattern str
-				curRule.addCode "pm.match('#{curRule.getName()}', $loc);"
-				return 3
+				if isEmpty(str) && (level == 0)
+					lResetCode.push ''
+				else
+					lResetCode.push indented(decom(str), level-1)
+				return 1
+
+		# 2 --- have rule, want pattern
+		#          skip blank lines, but expect a pattern at level 1
+
+		(line: string, i: number): TState =>
+			[level, pat] := splitLine(line)
+			if (level == 0) && (pat == '')
+				return 2
+			assert (level == 1),
+				"Expecting pattern for rule #{ruleSet.ruleName()} on line #{i}"
+			ruleSet.addBranch pat
+			ruleSet.addCode "pm.match('#{ruleSet.ruleName()}', $loc);"
+			return 3
 
 		# 3 --- have pattern, want code
-		(line: string, i: number): TState =>
-			if isEmpty(line)
-				return 3
-			else
-				[level, str] := splitLine(line)
-				if (level == 0)
-					lRules.push curRule
+		#          ignore blank lines
 
-					# --- create a new rule
-					curRule = new CRule(line)
+		(line: string, i: number): TState =>
+			[level, str] := splitLine(line)
+			switch level
+				when 0
+					if (str == '')
+						return 3
+					else
+						ruleSet.addRule str
+						return 2
+				when 1
+					ruleSet.addBranch str
 					return 2
-				else if (level == 1)
-					ruleName := curRule.getName()
-					croak "Unexpected pattern for rule #{ruleName} on line #{i}"
 				else
 					# --- first line of code must be at level 2
-					if (curRule.numCodeLines() == 0)
+					if (ruleSet.curRule().numCodeLines() == 0)
 						assert (level == 2), "First line of code must be level 2"
-					curRule.addCode indented(decom(str), level-2)
+					ruleSet.addCode indented(decom(str), level-2)
 					return 3
+
 		], (state: TState): void =>
 			if (state == 3)
-				lRules.push curRule
-				str := buildHeraFile(lMainCode, lResetCode, lRules, type, debug)
+				str := buildHeraFile(lMainCode, lResetCode, ruleSet, type, debug)
 				throw str
 			else
 				croak "Ended in state #{state}"

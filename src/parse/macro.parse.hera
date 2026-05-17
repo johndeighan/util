@@ -3,93 +3,41 @@ type: civet
 ---
 # macro.parse.hera
 
-lAllLines: string[] := []
+import {undef, defined, assert} from 'base'
+import {isArray} from 'datatypes'
+import {CBlock} from 'block'
 
-#reset
-	lAllLines.length = 0
-	lAllLines.push 'Library Name'
-	lAllLines.push '============'
-	lAllLines.push ''
-	lAllLines.push 'This library contains the following symbols:'
-	lAllLines.push ''
+# --- mainBlock will have an empty header
+mainBlock := new CBlock()
+
+#beginParse
+	mainBlock.reset()
 
 Contents
-	MacroName (INDENT Line+ UNDENT)?
-		return hMacros[$1]($3)
-	Line+
-		lLines.push ...$1
-
-MacroName
-	/#([a-z]+)/
-		return $1
-
-Root
-	/\.(?:\/[A-Za-z0-9_-]+)*/ _ "clear"?
-		root := $1[0]
-		lFileOps.push {
-			op: defined($3) ? 'clearDir' : 'mkDir'
-			path: root
-			}
-		lPathParts.push root
-		return
-
-FileDesc
-	Name _ "compile"? INDENT Content UNDENT
-		path := getPath($1)
-		lFileOps.push {
-			op: 'barf'
-			path
-			contents: $5
-			}
-		if defined($3)
-			lFileOps.push {
-				op: 'compile'
-				path
-				}
-		return
-
-DirDesc
-	DirName INDENT (DirDesc / FileDesc)+ UNDENT
-		lPathParts.pop()
-		return
-
-DirName
-	"/" Name _ "clear"?
-		lPathParts.push($2)
-		lFileOps.push {
-			op: defined($4) ? 'clearDir' : 'mkDir'
-			path: getPath()
-			}
-		return
-
-Content
-	Block+
-		return $1.join('\n')
+	Block* NL*
+		for blk in $1
+			mainBlock.add blk
+		return mainBlock
 
 Block
-	NL? Line IndentedBlock?
-		return defined($3) ? ($2 + '\n' + $3) : $2
+	Line NL
+		return new CBlock($1)
 
-IndentedBlock
-	INDENT Content UNDENT
-		return indented($2)
+	Line INDENT Block+ UNDENT
+		blk := new CBlock($1)
+		for sub of $2[1]
+			blk.add sub
+		return blk
 
 Line
-	/[^\x0F\x0E\n\r]*/
-		return $0
-
-Name
-	/[A-Za-z_.-][A-Za-z0-9_.-]+/
+	/[^\n\x0F\x0E]+/
 		return $0
 
 INDENT
-	/\x0F/     # ASCII shift-in
+	/\x0F/
 
 UNDENT
-	/\x0E/     # ASCII shift-out
+	/\x0E/
 
 NL
 	/\r?\n/
-
-_
-	/\x20*/

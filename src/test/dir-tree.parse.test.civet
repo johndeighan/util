@@ -1,22 +1,22 @@
 # dir-tree.parse.test.civet
 
 import {DUMP} from 'to-nice'
-import {doParse} from 'hera-parse'
+import {parseText} from 'hera-parse'
 import {equal} from 'unit-test'
 
-lOps1 := await doParse('dir-tree', """
+lOps1 := await parseText('dir-tree', """
 	./src
 	file.txt
 		abcdef
 	""")
 
-lOps2 := await doParse('dir-tree', """
+lOps2 := await parseText('dir-tree', """
 	./src clear
 	file.txt
 		abc
 	""")
 
-lOps3 := await doParse('dir-tree', """
+lOps3 := await parseText('dir-tree', """
 	./src
 	/temp
 		file.txt
@@ -24,7 +24,7 @@ lOps3 := await doParse('dir-tree', """
 			def
 	""")
 
-lOps4 := await doParse('dir-tree', """
+lOps4 := await parseText('dir-tree', """
 	./src/test clear
 	/temp
 		/subdir
