@@ -3,7 +3,7 @@
 import {undef} from 'base'
 import {
 	uni, lit, delit, litC,
-	esc, mesc, unesc, getPrefix,
+	esc, escm, escd, unesc, getPrefix,
 	} from 'unicode'
 import {
 	equal, succeeds, fails, truthy, falsy,
@@ -19,25 +19,25 @@ equal delit(''), undef
 
 equal litC('undef'), '\\undef'
 
-equal esc('cba'), 'cba'
-equal esc('   acb'), '˳˳˳acb'
-equal esc('\t\t\tabc'), '→→→abc'
-equal esc('abc\r\ndef'), 'abc←↓def'
-equal esc('abc\r\ndef', 'multiline'), 'abc←↓\ndef'
-equal esc('abcc\n'), 'abcc↓'
-equal esc('abcb\r\n'), 'abcb←↓'
-equal esc('abcb\r\n', 'multiline'), 'abcb←↓\n'
-equal esc('ab cd'), 'ab˳cd'
-equal esc('ab\tcd'), 'ab→cd'
+equal escd('cba'), 'cba'
+equal escd('   acb'), '˳˳˳acb'
+equal escd('\t\t\tabc'), '→→→abc'
+equal escd('abc\r\ndef'), 'abc←↓def'
+equal escd('abc\r\ndef', 'multiline'), 'abc←↓\ndef'
+equal escd('abcc\n'), 'abcc↓'
+equal escd('abcb\r\n'), 'abcb←↓'
+equal escd('abcb\r\n', 'multiline'), 'abcb←↓\n'
+equal escd('ab cd'), 'ab˳cd'
+equal escd('ab\tcd'), 'ab→cd'
 
 equal unesc('cba'), 'cba'
 equal unesc('˳˳˳acb'), '   acb'
 equal unesc('→→→abc'), '\t\t\tabc'
 equal unesc('abc←↓def'), 'abc\r\ndef'
-equal unesc('abc←↓\ndef'), 'abc\r\ndef'    # failed
+equal unesc('abc←↓\ndef'), 'abc\r\ndef'
 equal unesc('abcc↓'), 'abcc\n'
 equal unesc('abcb←↓'), 'abcb\r\n'
-equal unesc('abcb←↓\n'), 'abcb\r\n'    # failed
+equal unesc('abcb←↓\n'), 'abcb\r\n'
 equal unesc('ab˳cd'), 'ab cd'
 equal unesc('ab→cd'), 'ab\tcd'
 

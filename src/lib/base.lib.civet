@@ -35,8 +35,8 @@ export decode := (x: TStringSource): string =>
 
 # ---------------------------------------------------------------------------
 
-export type TIterator<T, U=void, V=void> = Generator<T, U, V>
-export type TAsyncIterator<T, U=void, V=void> = AsyncGenerator<T, U, V>
+export type TIterator<TIn, TOut=void, TAcc=void> = Generator<TIn, TOut, TAcc>
+export type TAsyncIterator<TIn, TOut=void, TAcc=void> = AsyncGenerator<TIn, TOut, TAcc>
 export type TNonFunction<T=unknown> = Exclude<T, Function>
 
 # ---------------------------------------------------------------------------
@@ -399,7 +399,7 @@ export getFileStats := (
 # ---------------------------------------------------------------------------
 # ASYNC
 
-export allLinesIn := (
+export allLinesInFile := (
 		path: string
 		): TAsyncIterator<string> ->
 
@@ -411,8 +411,6 @@ export allLinesIn := (
 	for await line of readable
 		yield line
 	return
-
-export let onlyThrow = false
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -434,6 +432,8 @@ export mkTempFileSync := (
 
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
+
+export let onlyThrow = false
 
 export justThrow := (flag: boolean=true): void =>
 

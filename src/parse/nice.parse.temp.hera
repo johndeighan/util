@@ -1,0 +1,138 @@
+```
+import {CParseMatches} from 'parse-utils';
+export let pm = new CParseMatches();
+
+// nice.parse.hera
+
+import {undef, defined, assert} from 'base'
+
+export const beginParse = (text: string): void => {
+  pm.reset(text);
+
+  }
+```
+
+Value
+  (Primitive / Array / Hash) ->
+    pm.match('Value', $loc);
+    return $2
+
+Primitive
+  "｟" Special "｠" ->
+    pm.match('Primitive', $loc);
+    return $2
+
+  /\d+/ "n"? ->
+    pm.match('Primitive', $loc);
+    if (defined($2)) {
+      return BigInt($1)
+    }
+    else {
+      return parseInt($0, 10)
+    }
+
+  /\d+\.\d*/ ->
+    pm.match('Primitive', $loc);
+    return parseFloat($0)
+
+  /[^\n]+/ ->
+    pm.match('Primitive', $loc);
+    return $0
+
+Array
+  ArrayItem+ ->
+    pm.match('Array', $loc);
+    return $1
+
+ArrayItem
+  "- " Value NL ->
+    pm.match('ArrayItem', $loc);
+    return $2
+
+  "-" NL INDENT Value UNDENT ->
+    pm.match('ArrayItem', $loc);
+    return $4
+
+Hash
+  HashItem+ ->
+    pm.match('Hash', $loc);
+    const hash = {}
+    for (const [key, val] of $1) {
+      hash[key] = val
+    }
+    return hash
+
+HashItem
+  Key ": " Value ->
+    pm.match('HashItem', $loc);
+    return [$1, $3]
+
+  Key ":" NL INDENT Value UNDENT ->
+    pm.match('HashItem', $loc);
+    return [$1, $5]
+
+Key
+  /[A-Za-z]+/ ->
+    pm.match('Key', $loc);
+    return $0
+
+Special
+  "undef" ->
+    pm.match('Special', $loc);
+    return undef
+
+  "null" ->
+    pm.match('Special', $loc);
+    return null
+
+  "true" ->
+    pm.match('Special', $loc);
+    return true
+
+  "false" ->
+    pm.match('Special', $loc);
+    return false
+
+  "emptyArray" ->
+    pm.match('Special', $loc);
+    return []
+
+  "emptyHash" ->
+    pm.match('Special', $loc);
+    return {}
+
+  "emptySet" ->
+    pm.match('Special', $loc);
+    return new Set()
+
+  "emptyMap" ->
+    pm.match('Special', $loc);
+    return new Map()
+
+  "NaN" ->
+    pm.match('Special', $loc);
+    return Number.NaN
+
+  "inf" ->
+    pm.match('Special', $loc);
+    return Infinity
+
+  "neginf" ->
+    pm.match('Special', $loc);
+    return -Infinity
+
+  "symbol" /[^｠]*/ ->
+    pm.match('Special', $loc);
+    return Symbol($2)
+
+INDENT
+  /\x0F/
+
+
+UNDENT
+  /\x0E/
+
+
+NL
+  /\r?\n/
+

@@ -314,7 +314,8 @@ equal fromTAML("""
 		baz: ['qux', 'quux']
 		}
 
-s  42"
+(() =>
+	meaning := 42
 	equal f"meaning is #{meaning}:3!",   "meaning is  42"
 	equal f"meaning is #{meaning}:",     "meaning is 42:"
 	equal f"meaning is #{meaning}: ok?", "meaning is 42: ok?"

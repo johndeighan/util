@@ -201,10 +201,13 @@ export preprocessHera := (
 			[level, pat] := splitLine(line)
 			if (level == 0) && (pat == '')
 				return 2
+
+			rule := ruleSet.curRule()
+			name := rule.getName()
+			nb := rule.numBranches()
 			assert (level == 1),
-				"Expecting pattern for rule #{ruleSet.ruleName()} on line #{i}"
-			ruleSet.addBranch pat
-			ruleSet.addCode "pm.match('#{ruleSet.ruleName()}', $loc);"
+				"Expecting pattern for rule #{name}, branch #{nb} on line #{i}"
+			rule.addBranch pat
 			return 3
 
 		# 3 --- have pattern, want code
@@ -212,6 +215,7 @@ export preprocessHera := (
 
 		(line: string, i: number): TState =>
 			[level, str] := splitLine(line)
+			rule := ruleSet.curRule()
 			switch level
 				when 0
 					if (str == '')
@@ -220,13 +224,16 @@ export preprocessHera := (
 						ruleSet.addRule str
 						return 2
 				when 1
-					ruleSet.addBranch str
-					return 2
+					rule.addBranch str
+					return 3
 				else
+					branch := rule.curBranch()
+
 					# --- first line of code must be at level 2
-					if (ruleSet.curRule().numCodeLines() == 0)
+					if (branch.numCodeLines() == 0)
 						assert (level == 2), "First line of code must be level 2"
-					ruleSet.addCode indented(decom(str), level-2)
+						branch.addCode "pm.match('#{ruleSet.ruleName()}', $loc);"
+					branch.addCode indented(decom(str), level-2)
 					return 3
 
 		], (state: TState): void =>

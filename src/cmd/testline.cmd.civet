@@ -1,6 +1,6 @@
 # testline.cmd.civet
 
-import {undef, LOG, toBool, allLinesIn} from 'base'
+import {undef, LOG, toBool, allLinesInFile} from 'base'
 import {MAP} from 'mapper'
 
 # ---------------------------------------------------------------------------
@@ -38,7 +38,7 @@ type TInfo = [
 	]
 
 acc0: TInfo := [0, 0, 0]
-[nLines, nTests, foundLine] := await MAP allLinesIn(path), acc0, (line, acc, i) ->
+[nLines, nTests, foundLine] := await MAP allLinesInFile(path), acc0, (line, acc, i) ->
 	[nLines, nTests, foundLine] := acc
 	return [
 		nLines + 1

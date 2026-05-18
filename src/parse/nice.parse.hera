@@ -1,0 +1,94 @@
+---
+type: civet
+---
+# nice.parse.hera
+
+import {undef, defined, assert} from 'base'
+
+#beginParse
+
+Value
+	(Primitive / Array / Hash)
+		return $2
+
+Primitive
+
+	"｟" Special "｠"
+		return $2
+
+	/\d+/ "n"?
+		if defined($2)
+			return BigInt($1)
+		else
+			return parseInt($0, 10)
+
+	/\d+\.\d*/
+		return parseFloat($0)
+
+	/[^\n]+/
+		return $0
+
+Array
+	ArrayItem+
+		return $1
+
+ArrayItem
+	"- " Value NL
+		return $2
+
+	"-" NL INDENT Value UNDENT
+		return $4
+
+Hash
+	HashItem+
+		hash := {}
+		for [key, val] of $1
+			hash[key] = val
+		return hash
+
+HashItem
+	Key ": " Value
+		return [$1, $3]
+
+	Key ":" NL INDENT Value UNDENT
+		return [$1, $5]
+
+Key
+	/[A-Za-z]+/
+		return $0
+
+Special
+	"undef"
+		return undef
+	"null"
+		return null
+	"true"
+		return true
+	"false"
+		return false
+	"emptyArray"
+		return []
+	"emptyHash"
+		return {}
+	"emptySet"
+		return new Set()
+	"emptyMap"
+		return new Map()
+	"NaN"
+		return Number.NaN
+	"inf"
+		return Infinity
+	"neginf"
+		return -Infinity
+	"symbol" /[^｠]*/
+		return Symbol($2)
+
+INDENT
+	/\x0F/
+
+UNDENT
+	/\x0E/
+
+NL
+	/\r?\n/
+

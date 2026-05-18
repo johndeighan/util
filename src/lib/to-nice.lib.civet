@@ -4,9 +4,9 @@ import {sprintf} from '@std/fmt/printf'
 
 import {
 	undef, defined, notdefined, anyDefined, croak, assert,
-	LOG, DBG, write, writeln,
+	LOG, DBG, write, writeln, toBool,
 	} from 'base'
-import {uni, esc} from 'unicode'
+import {uni, esc, escd} from 'unicode'
 import {
 	hash, hashof, isString, isArray, isClass,
 	isRegExp, isObject, isFunction, isHash,
@@ -19,6 +19,8 @@ import {
 import {indented} from 'indent'
 import {MAP} from 'mapper'
 
+# ---------------------------------------------------------------------------
+#      How to force something to be a string
 # ---------------------------------------------------------------------------
 
 export mark := (str: string): string =>
@@ -34,38 +36,45 @@ export alphaCompare: TCompareFunc := (a: string, b: string): number =>
 	return if (a < b) then -1 else if (a > b) then 1 else 0
 
 # ---------------------------------------------------------------------------
-# --- any leading digit must be preceded by a curly quote char
 
-export setNeedsEsc := new Set([
-	'{'
-	'['
-	uni.alt_lbrace
-	uni.alt_lbracket
+export setCharNeedsEsc := new Set([
+	'{', '[', '/',
+	uni.alt_lbrace,
+	uni.alt_lbracket,
 	'0','1','2','3','4',
-	'5','6','7','8','9',
+	'5','6','7','8','9'
 	])
+
+export needsEscape := (str: string): boolean =>
+
+	return toBool((
+		   setCharNeedsEsc.has(str[0])
+		|| str.match(/^[-.]?\d/)        # looks like a number
+		|| str.match(/^[^˳\s]+\:\:?˳/)  # looks like a label
+		|| str.match(/^--?˳/)           # looks like list item
+		))
+
+# ---------------------------------------------------------------------------
 
 export toOLString := (
 		str: string,
+		hOptions: hash = {}
 		): string =>
 
 	if (str == '')
 		return mark('emptyString')
 
-	# --- escape spaces and \t, \n or \r with unicode chars
-	estr := esc(str)
+	type opt = {
+		nocolors: boolean
+		}
+	{nocolors} := getOptions<opt> hOptions, {
+		nocolors: false
+		}
 
-	# --- precede with '“' if
-	#        - starts with digit
-	#        - starts with '-'
-	#        - starts with '{' or '[' or alt version
-	#        - looks like a label
-	if (
-			   setNeedsEsc.has(estr[0])
-			|| estr.match(/^[-.]\d/)         # looks like a number
-			|| estr.match(/^[^˳\s]+\:\:?˳/)  # looks like a label
-			|| estr.match(/^--?˳/)          # looks like list item
-			)
+	# --- escape spaces and \t, \n or \r with unicode chars
+	estr := nocolors ? escd(str) : esc(str)
+
+	if needsEscape estr
 		return uni.lsmartq + estr
 	else
 		return estr
@@ -280,7 +289,7 @@ export toNice := (
 		when 'boolean'
 			return x ? mark('true') : mark('false')
 		when 'string'
-			return toOLString(x as string)
+			return toOLString(x as string, hOptions)
 		when 'symbol'
 			name := symbolName x
 			return name ? mark("symbol #{name}") : mark("symbol")
@@ -290,7 +299,8 @@ export toNice := (
 			return (x as number).toString()
 		when 'regexp'
 			desc := esc regexpDef x
-			return desc ? mark("regexp /#{desc}/") : mark("regexp")
+			return '/' + desc + '/'
+#			return desc ? mark("regexp /#{desc}/") : mark("regexp")
 
 		# --- Functions
 

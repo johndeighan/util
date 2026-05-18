@@ -1,7 +1,7 @@
 # to-nice.lib.test.civet
 
 import {undef} from 'base'
-import {s} from 'llutils'
+import {s, o} from 'llutils'
 import {uni} from 'unicode'
 import {
 	toOLString, toNice, OL, ML, buildPath, rotpos,
@@ -24,7 +24,7 @@ equal seq2nice('array', [
 			- def
 			- ghi
 		- xyz
-		"""
+		""", 'LINE 16'
 
 equal seq2nice('array', [
 		'abc'
@@ -108,9 +108,9 @@ equal hash2nice(
 
 # ---------------------------------------------------------------------------
 
-equal toOLString(''), "｟emptyString｠"
+equal toOLString(''), "｟emptyString｠", 'LINE 111'
 equal toOLString('abc'), 'abc'
-equal toOLString('\tabc\n'), '→abc↓'
+equal toOLString('\tabc\n', o'nocolors'), '→abc↓'
 equal toOLString('123'), "“123"
 equal toOLString('123').length, 4
 equal toOLString('3.14'), "“3.14"
@@ -126,7 +126,7 @@ equal toOLString('func1 = (str: string)'), 'func1˳=˳(str:˳string)'
 
 # ---------------------------------------------------------------------------
 
-equal buildPath([]), 'root'
+equal buildPath([]), 'root', 'LINE 129'
 equal buildPath([13]), 'root[13]'
 equal buildPath(['pos']), 'root.pos'
 equal buildPath([13, 'pos']), 'root[13].pos'
@@ -134,7 +134,7 @@ equal buildPath(['pos', 13]), 'root.pos[13]'
 
 # ---------------------------------------------------------------------------
 
-equal rotpos([1,2,3], 0), 1
+equal rotpos([1,2,3], 0), 1, 'LINE 137'
 equal rotpos([1,2,3], 2), 3
 equal rotpos([1,2,3], 3), 1
 equal rotpos([1,2,3], 4), 2
@@ -162,8 +162,8 @@ equal toNice(12345678n),  '12345678n'
 # --- 'string'
 equal toNice('abc'),      'abc'
 equal toNice('say "hi"'), 'say˳"hi"'
-equal toNice('a\tb'),     'a→b'
-equal toNice('a\nb'),     'a↓b'
+equal toNice('a\tb', o'nocolors'),     'a→b'
+equal toNice('a\nb', o'nocolors'),     'a↓b'
 equal toNice('｟true｠'),   "｟true｠"
 equal toNice('｟abc｠'),     "｟abc｠"
 equal toNice('- abc'),    "“-˳abc"
@@ -203,7 +203,7 @@ equal toNice(Symbol('abc')), '｟symbol abc｠'
 # --- 'object'
 equal toNice(null), '｟null｠'
 
-equal toNice(/^abc$/), '｟regexp /^abc$/｠'
+equal toNice(/^abc$/), '/^abc$/'
 
 equal toNice([]), "[]"
 equal toNice([1,2]), """

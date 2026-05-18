@@ -26,7 +26,7 @@ export type TDoneFunc = (state: TState) => void
 # ---------------------------------------------------------------------------
 
 export fromFSM := <TIn, TOut=unknown>(
-		iter:  TIterator<TIn>
+		iter:  TIterator<TIn> | ArrayIterator<TIn>
 		lStates: TStateFunc<TIn>[]
 		doneFunc: TDoneFunc = (state: TState) =>
 			croak("Ended in state #{state}")

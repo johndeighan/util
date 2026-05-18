@@ -95,32 +95,24 @@ export class CRule
 
 	# ..........................................................
 
-	addBranch(branch: CRuleBranch): void
+	addBranch(pat: string): CRuleBranch
 
+		branch := new CRuleBranch(pat)
 		@lBranches.push branch
-		return
+		return branch
 
 	# ..........................................................
 
-	addCode(
-			code: string
-			i: number = @lBranches.length - 1
-			): void
+	curBranch(): CRuleBranch
 
-		assert (i >= 0) && (i < @lBranches.length), "Bad index: #{i}"
-		@lBranches[i].addCode code
+		assert (@lBranches.length > 0), "No branches in rule #{@name}"
+		return @lBranches[@lBranches.length - 1]
 
 	# ..........................................................
 
 	numBranches(): number
 
 		return @lBranches.length
-
-	# ..........................................................
-
-	numCodeLines(): number
-
-		return @lBranches[@lBranches.length - 1].numCodeLines()
 
 	# ..........................................................
 
@@ -146,38 +138,16 @@ export class CRuleSet
 
 	lRules: CRule[] = []
 
-	addRule(name: string): void
+	addRule(line: string): void
 
-		@lRules.push new CRule(name)
+		lMatches := line.match /^\S+/
+		assert defined(lMatches), "no matches in addRule()"
+		@lRules.push new CRule(lMatches[0])
 		return
 
 	curRule(): CRule
 		assert (@lRules.length > 0), "No rules in set"
 		return @lRules[@lRules.length - 1]
-
-	addBranch(
-			pattern: string
-			ruleNum: number = @lRules.length - 1
-			): void
-
-		assert (ruleNum >= 0), "Bad rule num: #{ruleNum}"
-		@lRules[ruleNum].addBranch(new CRuleBranch(pattern))
-		return
-
-	addCode(
-			code: string
-			ruleNum: number = @lRules.length - 1
-			branchNum: number? = undef
-			): void
-
-		assert (0 <= ruleNum < @lRules.length), "Bad rule num: #{ruleNum}"
-		rule := @lRules[ruleNum]
-		if notdefined(branchNum)
-			branchNum = rule.numBranches() - 1
-		assert (0 <= branchNum < rule.numBranches()),
-				"Bad branch num: #{ruleNum}:#{branchNum}"
-		rule.addCode code
-		return
 
 	ruleName(
 			ruleNum: number = @lRules.length - 1

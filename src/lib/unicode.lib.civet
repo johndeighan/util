@@ -106,9 +106,6 @@ export esc := (
 		lParts.push (hReplace[ch] || ch)
 	return lParts.join ''
 
-export mesc := (str: string): string =>
-	return esc(str, 'multiline')
-
 # ---------------------------------------------------------------------------
 
 export escd := (
@@ -134,9 +131,11 @@ export unesc := (
 		str: string
 		): string =>
 
+	# --- build a reverse hash from hEsc
 	hUnEsc: hashof<string> := {}
 	for key,val in hEsc
-		hUnEsc[val] = key
+		hUnEsc[decolorize(val)] = key
+
 	lParts: string[] := []
 	for ch of str
 		if (ch != '\n')

@@ -422,7 +422,7 @@ export getFileOps := (desc: string): TFileOp[] =>
 export setDirTree := (desc: string): TFileOp[] =>
 
 	lFileOps := await getFileOps(desc)
-	execFileOps lFileOps
+	await execFileOps lFileOps
 	return lFileOps
 
 # ---------------------------------------------------------------------------

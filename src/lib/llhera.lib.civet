@@ -21,7 +21,7 @@ export compileHera := (
 		filename: string? = undef
 		): string =>
 
-	heraCode = heraCode.replaceAll('\t', '  ')
+	assert not heraCode.includes('\t'), "code has TABs"
 	code := compile heraCode, {
 		language: type
 		module: true

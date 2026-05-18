@@ -1,6 +1,5 @@
 # hera-parse.lib.test.civet
 
-import {decolorize} from 'base'
 import {esc, escd} from 'unicode'
 import {
 	str2indents,

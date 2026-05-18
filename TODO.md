@@ -1,6 +1,19 @@
 to do
 
-ulib hera-compile fails
+deno is running v8 version 14.7.173.20-rusty
+	in deno repl: console.log(process.versions.v8);
+chrome is running v8 version 14.8.178.21
+	chrome://version
+
+work on nice.parse.hera - test with simple strings
+
+check if types TIterator and TAsyncIterator can take a single
+	type parameter T
+
+in unify, implement functions weakerThan() and strongerThan()
+	- and use them in unit tests
+
+see if bootstrap command works
 
 how to pass the thing returned from a rule match to parse-utils
 
@@ -9,11 +22,11 @@ in hera-compile, allow meta data type: 'civet'
 get src/.temp/map-pos.lib.civet working !!!!
 
 mapPosSync() doesn't adjust the source file name
-for it's directory location
+for its directory location
 
 a test in base.lib.test.civet fails badly
 
-test out creating DBG error log file
+test creating DBG error log file
 
 civet file in base.lib.test.civet isn't compiled !
 

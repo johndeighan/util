@@ -7,13 +7,12 @@ import {hash, isString, isFunction} from 'datatypes'
 import {
 	o, spaces, sinceLoad, sinceLoadStr,
 	} from 'llutils'
-import {TPLLToken} from 'pll'
 import {
 	isFile, isDir, getPathType, fileExt, withExt, inSameDir,
-	isStub, parsePath, allFilesMatching, allLinesIn,
+	isStub, parsePath, allFilesMatching, allLinesInFile,
 	normalizePath, pathToURL, mkpath, pathSubDirs, myself,
 	rmFile, rmDir, newerDestFileExists, configFromFile,
-	clearDir, mkDir, mkDirsForFile, slurp, barf, isPathType,
+	clearDir, mkDir, mkDirsForFile, slurp, slurpAsync, barf, isPathType,
 	removeFilesMatching, watchFile, FileEventHandler, TFsEventHandler,
 	TPathType, TPathInfo, patchFirstLine, toFullPath, splitPatterns,
 	} from 'fsys'
@@ -28,7 +27,7 @@ import {
 setup := (): void =>
 
 	await setDirTree """
-		./src/test/fsys
+		./src/test/fsys clear
 		file.config.ts
 			export default new Object({
 				a: 1,
@@ -85,19 +84,18 @@ setup := (): void =>
 		"""
 	return
 
-
 await setup()
 
 # ---------------------------------------------------------------------------
 
 truthy isFile('./deno.json')
 truthy isFile('deno.json')
-falsy isFile('./src/lib/notafile.txt')
+falsy  isFile('./src/lib/notafile.txt')
 truthy isFile("./src/test/fsys/dummy.txt")
 falsy  isFile("./src/test/fsys")
 
 truthy isDir('src/test')
-falsy isDir('nosuchdir')
+falsy  isDir('nosuchdir')
 truthy isDir("./src/test/fsys")
 falsy  isDir("./src/test/fsys/dummy.txt")
 
@@ -131,7 +129,7 @@ falsy  isStub('.js')
 falsy  isStub('abc/deno')
 falsy  isStub('abc\\deno')
 
-equal  parsePath("C:/temp/file.txt"), {
+equal parsePath("C:/temp/file.txt"), {
 	root: 'C:/'
 	dir: 'C:/temp'
 	fileName: 'file.txt'
@@ -165,15 +163,17 @@ unifies parsePath(import.meta.url), {
 		]
 	)()
 
-lLines: string[] := []
-for await line of allLinesIn('./src/test/fsys/file1.txt')
-	lLines.push line
+(() =>
+	lLines: string[] := []
+	for await line of allLinesInFile('./src/test/fsys/file1.txt')
+		lLines.push line
 
-equal lLines, [
-	'line1'
-	'line2'
-	'line3'
-	]
+	equal lLines, [
+		'line1'
+		'line2'
+		'line3'
+		]
+	)()
 
 equal normalizePath("C:/temp/file.txt"), "C:/temp/file.txt"
 equal normalizePath("C:\\temp/to/file.txt"), "C:/temp/to/file.txt"
@@ -214,80 +214,12 @@ equal toRelPath('C:/Users/johnd/util/deno.json'), 'deno.json'
 equal myself(import.meta.url), 'src/test/fsys.lib.test.ts'
 
 # ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
 
 equal slurp('./src/test/fsys/file1.txt'), """
 	line1
 	line2
 	line3
 	"""
-
-barfPath := 'src/test/fsys/barfed.txt'
-
-(() =>
-	contents := """
-		abc
-
-		xyz
-		"""
-
-	barf barfPath, contents
-	equal slurp(barfPath), """
-		abc
-
-		xyz
-		"""
-	)()
-
-truthy newerDestFileExists('src/test/fsys/file1.txt', barfPath)
-falsy  newerDestFileExists(barfPath, 'src/test/fsys/file1.txt')
-
-falsy  isDir('src/test/fsys/tempdir')
-falsy  isFile('src/test/fsys/tempdir/file42.txt')
-mkDir 'src/test/fsys/tempdir'
-barf 'src/test/fsys/tempdir/file42.txt', 'abc'
-truthy isDir('src/test/fsys/tempdir')
-truthy isFile('src/test/fsys/tempdir/file42.txt')
-
-truthy isFile(barfPath)
-rmFile barfPath
-falsy  isFile(barfPath)
-
-truthy isDir('src/test/fsys/tempdir')
-rmDir 'src/test/fsys/tempdir', o'clear'
-falsy  isDir('src/test/fsys/tempdir')
-
-path := 'src/test/fsys/aaa/bbb/newfile.txt'
-
-(() =>
-	mkDirsForFile path
-	truthy isDir('src/test/fsys')
-	truthy isDir('src/test/fsys/aaa')
-	truthy isDir('src/test/fsys/aaa/bbb')
-	falsy  isDir('src/test/fsys/aaa/bbb/ccc')
-	truthy isFile(path)
-	barf path, 'abc'
-	truthy isFile(path)
-	)()
-
-(() =>
-	await setup()
-	clearDir 'src/test/fsys/aaa'
-
-	truthy isDir('src/test/fsys/aaa')
-	falsy  isDir('src/test/fsys/aaa/bbb')
-	falsy  isFile(path)
-	)()
-
-(() =>
-	await setup()
-removeFilesMatching '**/*file.txt'
-
-falsy  isFile('src/test/fsys/aaa/newfile.txt')
-falsy  isFile('src/test/fsys/aaa/bbb/newfile.txt')
-falsy  isFile('src/test/fsys/aaa/bbb/oldfile.txt')
-truthy isFile('src/test/fsys/aaa/bbb/temp.txt')
-	)()
 
 (() =>
 	lChanges: string[] := []
@@ -336,8 +268,6 @@ truthy isFile('src/test/fsys/aaa/bbb/temp.txt')
 	)()
 
 (() =>
-	await setup()
-
 	lChanges: hash[] := []
 	handler := new FileEventHandler((kind, path) =>
 		lChanges.push {kind, path}
@@ -382,55 +312,6 @@ truthy isFile('src/test/fsys/aaa/bbb/temp.txt')
 	equal lChanges, expected
 	)()
 
-await (() =>
-	# --- Set contents of dummy.txt to standard contents
-	path := toFullPath('src/test/fsys/dummy.txt')
-	barf path, 'dummy'
-
-	let doStop: boolean = false
-	lChanges: hash[] := []
-	add := (str: string, stop: boolean=false): void =>
-		if stop
-			doStop = true
-		barf path, str, o'append'
-		return
-
-	callback: TFsEventHandler := (kind, path) =>
-		lChanges.push {
-			kind
-			path
-			ms: sinceLoad()
-			}
-		return doStop
-
-	promise := watchFile path, callback
-
-	add 'A'
-	add 'B'
-	add 'C'
-	await sleep 0.3
-	add 'D'
-	add 'E', true
-
-	await Promise.allSettled([promise])
-
-	equal slurp(path), 'dummyABCDE'
-
-	unifies lChanges, [
-		{kind: 'modify', path}
-		{kind: 'modify', path}
-		]
-	)       # ()
-
-(() =>
-	path1 := 'src/test/fsys/file4.cielo'
-	path2 :='src/test/fsys/file5.cielo'
-	patchFirstLine path1, '.cielo', '.civet'
-	patchFirstLine path2, '.cielo', '.civet'
-	truthy slurp(path1).includes 'file.civet'
-	falsy  slurp(path2).includes 'file.civet'
-	)()
-
 # ---------------------------------------------------------------------------
 # --- These tests depend on my particular directory structure
 
@@ -442,7 +323,6 @@ await (() =>
 		'src/test/fsys/file3.flags.txt'
 		]
 	)()
-
 
 (() =>
 	lFiles :=  Array.from(allFilesMatching('src/test/fsys/**', o'includeDirs'))
@@ -494,7 +374,7 @@ await (() =>
 
 # ---------------------------------------------------------------------------
 
-(() =>
+await (() =>
 	hConfig := await configFromFile 'src/test/fsys/file.config.ts'
 	truthy defined(hConfig)
 	truthy defined(hConfig.a)
@@ -509,4 +389,121 @@ await (() =>
 	equal splitPatterns(['xxx.ts', 'yyy.ts']), [['xxx.ts', 'yyy.ts'], []]
 	equal splitPatterns(['xxx.ts', '! yyy.ts']), [['xxx.ts'], ['yyy.ts']]
 	equal splitPatterns(['! xxx.ts', 'yyy.ts']), [['yyy.ts'], ['xxx.ts']]
+	)()
+
+# ---------------------------------------------------------------------------
+#           Test file/dir modifying functions
+# ---------------------------------------------------------------------------
+
+(() =>
+	path1 := 'src/test/fsys/file4.cielo'
+	path2 :='src/test/fsys/file5.cielo'
+	patchFirstLine path1, '.cielo', '.civet'
+	patchFirstLine path2, '.cielo', '.civet'
+	truthy slurp(path1).includes 'file.civet'
+	falsy  slurp(path2).includes 'file.civet'
+	)()
+
+(() =>
+	barfPath := 'src/test/fsys/barfed.txt'
+
+	contents := """
+		abc
+
+		xyz
+		"""
+
+	barf barfPath, contents
+	equal slurp(barfPath), """
+		abc
+
+		xyz
+		"""
+
+	truthy newerDestFileExists('src/test/fsys/file1.txt', barfPath)
+	falsy  newerDestFileExists(barfPath, 'src/test/fsys/file1.txt')
+
+	truthy isFile(barfPath)
+	rmFile barfPath
+	falsy  isFile(barfPath)
+	)()
+
+(() =>
+	falsy  isDir('src/test/fsys/tempdir')
+	falsy  isFile('src/test/fsys/tempdir/file42.txt')
+	mkDir 'src/test/fsys/tempdir'
+	barf 'src/test/fsys/tempdir/file42.txt', 'abc'
+	truthy isDir('src/test/fsys/tempdir')
+	truthy isFile('src/test/fsys/tempdir/file42.txt')
+
+	rmDir 'src/test/fsys/tempdir', o'clear'
+	falsy  isDir('src/test/fsys/tempdir')
+	)()
+
+(() =>
+	path := 'src/test/fsys/xxx/yyy/newfile.txt'
+	mkDirsForFile path
+	truthy isDir('src/test/fsys/xxx')
+	truthy isDir('src/test/fsys/xxx/yyy')
+	falsy  isDir('src/test/fsys/xxx/yyy/ccc')
+	falsy  isFile(path)
+	barf path, 'abc'
+	truthy isFile(path)
+	rmFile path
+	falsy  isFile(path)
+	)()
+
+(() =>
+	removeFilesMatching '**/*file.txt'
+
+	falsy  isFile('src/test/fsys/aaa/newfile.txt')
+	falsy  isFile('src/test/fsys/aaa/bbb/newfile.txt')
+	falsy  isFile('src/test/fsys/aaa/bbb/oldfile.txt')
+	truthy isFile('src/test/fsys/aaa/bbb/temp.txt')
+	)()
+
+(() =>
+	clearDir 'src/test/fsys/aaa'
+	truthy isDir('src/test/fsys/aaa')
+	falsy  isDir('src/test/fsys/aaa/bbb')
+	)()
+
+(() =>
+	# --- Set contents of dummy.txt to standard contents
+	path := toFullPath('src/test/fsys/dummy.txt')
+	barf path, 'dummy'
+
+	let doStop: boolean = false
+	lChanges: hash[] := []
+	add := (str: string, stop: boolean=false): void =>
+		if stop
+			doStop = true
+		barf path, str, o'append'
+		return
+
+	callback: TFsEventHandler := (kind, path) =>
+		lChanges.push {
+			kind
+			path
+			ms: sinceLoad()
+			}
+		return doStop
+
+	promise := watchFile path, callback
+
+	add 'A'
+	add 'B'
+	add 'C'
+	await sleep 0.3
+	add 'D'
+	add 'E', true
+
+	await Promise.allSettled([promise])
+
+	equal slurp(path), 'dummyABCDE'
+
+	unifies lChanges, [
+		{kind: 'modify', path}
+		{kind: 'modify', path}
+		]
 	)()

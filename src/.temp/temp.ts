@@ -2,47 +2,31 @@
 // temp.civet
 
 import {TRY, SKIP} from 'base'
-import {esc, escm} from 'unicode'
-import {s2} from 'llutils'
 import {procOneFile} from 'exec'
+import {withExt} from 'fsys'
 import {DUMP} from 'to-nice'
-import {doMapFile} from 'macros'
-import {CBlock} from 'block'
-import {doCompileHera, testHeraCode} from 'hera-compile'
-import {str2indents} from 'hera-parse'
+import {
+	doCompileHera, testHeraCode, preprocessHeraFile,
+	} from 'hera-compile'
 import {parseText} from 'hera-parse'
-import {CRuleBranch, CRule} from 'rule'
+import {compileHera} from 'llhera'
 
 // ---------------------------------------------------------------------------
 
-TRY(() => {
+TRY(async () => {
 	debugger
-	const result = testHeraCode(`---
-type: civet
----
-name := 'John Deighan'
-lItems: string[] := []
+	const path = 'src/parse/nice.parse.hera'
 
-#beginParse
-	lItems.length = 0
+	// --- preprocess file
+	const [heraCode, type] = await preprocessHeraFile(path, withExt(path, '.temp.hera'))
+	DUMP(heraCode, type)
 
-Main
-	/abc/`)
+	// --- hera compile to get TypeScript file
+	const tsCode = compileHera(heraCode, type, 'nice.parse.hera')
+	Deno.writeTextFileSync(withExt(path, '.ts'), tsCode)
+	DUMP(tsCode, 'RESULT')
 
-	console.log(result)
-
-	const expected = s2`\`\`\`
-import {CParseMatches} from 'parse-utils';
-export let pm = new CParseMatches();
-
-const name = 'John Deighan'
-const lItems: string[] = []
-
-export const reset = (text: string): void => {
-	pm.reset(text);
-	lItems.length = 0
-	}
-\`\`\``
+	console.log('DONE')
 })
 
 SKIP(() => {
