@@ -5,10 +5,16 @@ deno is running v8 version 14.7.173.20-rusty
 chrome is running v8 version 14.8.178.21
 	chrome://version
 
-work on nice.parse.hera - test with simple strings
+------------------------------------------
+Test parsing
+Use:
+	mkpar <stub> - to build the parser
+	upar <stub>  - to test the parser
+	parstr <stub> <string> - to parse a string
+	parfile <stub> <filename> - to parse file contents
+------------------------------------------
 
-check if types TIterator and TAsyncIterator can take a single
-	type parameter T
+Especially, test the 'dir-tree' parser
 
 in unify, implement functions weakerThan() and strongerThan()
 	- and use them in unit tests

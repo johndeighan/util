@@ -18,6 +18,7 @@
 		"@std/log": "jsr:@std/log",
 		"@std/path": "jsr:@std/path",
 		"@std/streams": "jsr:@std/streams",
+		"@std/streams/text-line-stream": "jsr:@std/streams/text-line-stream",
 		"@webview/webview": "jsr:@webview/webview",
 		"@webui": "jsr:@webui/deno-webui"
 		"@std/http/file-server": "jsr:@std/http/file-server",
@@ -37,7 +38,6 @@
 
 		"npm-uglify-js": "npm:uglify-js@latest",
 		"npm-fast-deep-equal": "npm:fast-deep-equal@latest",
-		"npm-n-readlines": "npm:n-readlines",
 		"npm-typescript": "npm:typescript",
 		"npm-@types/node": "npm:@types/node",
 		"npm-svelte/compiler": "npm:svelte/compiler",
@@ -91,7 +91,9 @@
 		"html-window":   "file:///C:/Users/johnd/util/src/lib/html-window.lib.ts",
 		"macros":        "file:///C:/Users/johnd/util/src/lib/macros.lib.ts",
 
+		"counter":       "file:///C:/Users/johnd/util/src/parse/counter.parse.ts",
 		"dir-tree":      "file:///C:/Users/johnd/util/src/parse/dir-tree.parse.ts",
+		"nice":          "file:///C:/Users/johnd/util/src/parse/nice.parse.ts",
 		"macro":         "file:///C:/Users/johnd/util/src/parse/macro.parse.ts",
 
 		"civetconfig":   "file:///C:/Users/johnd/civet.config.json",

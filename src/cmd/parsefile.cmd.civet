@@ -1,6 +1,6 @@
-# parsestr.cmd.civet
+# parsefile.cmd.civet
 
-import {TRY, croak, LOG, ERR, getErrStr} from 'base'
+import {TRY, defined, assert, croak, LOG} from 'base'
 import {allNonOptions} from 'cmd-args'
 import {parseText} from 'hera-parse'
 
@@ -8,15 +8,18 @@ import {parseText} from 'hera-parse'
 
 TRY () =>
 	lNonOptions := allNonOptions()
-	[stub, str] := switch lNonOptions.length
+	[stub, inFileName] := switch lNonOptions.length
 			case 0:
 				croak "No args!"
 				['dummy', '']
 			case 1:
 				croak "Only one arg"
-				['dummy', '']
+				['test', lNonOptions.join(' ')]
 			default:
-				[lNonOptions[0], lNonOptions.slice(1).join(' ')]
+				[lNonOptions[0], lNonOptions[1]]
+
+	LOG "inFileName = #{inFileName}"
+	str := Deno.readTextFileSync(inFileName)
 
 	try
 		result := await parseText(stub, str)

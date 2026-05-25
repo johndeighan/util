@@ -10,7 +10,7 @@ import {
 import {o, getOptions, keys} from 'llutils'
 import {OL, ML, DBGVALUE} from 'to-nice'
 import {resetOneIndent} from 'indent'
-import {TPLLToken, TTokenGenerator, allTokensInBlock} from 'pll'
+import {TTokenGenerator, allTokensInBlock} from 'pll'
 import {isFile, slurp} from 'fsys'
 
 /**

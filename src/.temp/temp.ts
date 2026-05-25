@@ -1,9 +1,11 @@
 "use strict";
 // temp.civet
 
-import {TRY, SKIP} from 'base'
+import {TextLineStream} from "jsr:@std/streams/text-line-stream"
+
+import {TRY, SKIP, LOG, TAsyncIterator} from 'base'
 import {procOneFile} from 'exec'
-import {withExt} from 'fsys'
+import {withExt, openTextFile, openAndReadTextFile} from 'fsys'
 import {DUMP} from 'to-nice'
 import {
 	doCompileHera, testHeraCode, preprocessHeraFile,
@@ -14,6 +16,32 @@ import {compileHera} from 'llhera'
 // ---------------------------------------------------------------------------
 
 TRY(async () => {
+//	path := 'src/.temp/bug.txt'
+	const path = 'src/test/fsys/file1.txt'
+	const [hMetaData, contents] = await openAndReadTextFile(path)
+	console.log(hMetaData)
+	console.log(contents)
+})
+
+SKIP(async () => {
+	const path = 'src/.temp/bug.txt'
+	const [hMetaData, reader] = await openTextFile(path)
+	LOG(hMetaData)
+	for await (const line of reader) {
+		LOG("LINE: " + line)
+	}
+})
+
+SKIP(async () => {
+	const result = await parseText('nice', `abc: 1
+def: 2`)
+	LOG(result)
+
+
+	const expected = {abc:1, def:2}
+})
+
+SKIP(async () => {
 	debugger
 	const path = 'src/parse/nice.parse.hera'
 

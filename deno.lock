@@ -56,7 +56,6 @@
     "npm:fast-deep-equal@*": "3.1.3",
     "npm:fast-deep-equal@latest": "3.1.3",
     "npm:make-synchronous@*": "2.1.0",
-    "npm:n-readlines@*": "3.4.0",
     "npm:pug@*": "3.0.4",
     "npm:source-map-sync@*": "0.8.0-beta.2",
     "npm:source-map@*": "0.5.7",
@@ -556,9 +555,6 @@
     "math-intrinsics@1.1.0": {
       "integrity": "sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g=="
     },
-    "n-readlines@3.4.0": {
-      "integrity": "sha512-KZAak+qhAy+IN0aYO1HyRXCZIrowJ12p04BCXPhbEy3HFmVVZ23tDLWrr7oVEZw1sNkJNlzx1RETVf44ZodADQ=="
-    },
     "object-assign@4.1.1": {
       "integrity": "sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg=="
     },
@@ -850,7 +846,6 @@
       "npm:@unblessed/node@*",
       "npm:console-gui-tools@*",
       "npm:fast-deep-equal@latest",
-      "npm:n-readlines@*",
       "npm:pug@*",
       "npm:source-map@*",
       "npm:svelte@*",

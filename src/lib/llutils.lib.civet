@@ -396,18 +396,24 @@ export untabify := (
 
 # ---------------------------------------------------------------------------
 
+export cleanup := (str: string): string =>
+
+	return rtrim(str).replaceAll('\r', '')
+
+# ---------------------------------------------------------------------------
+
 export allLinesInBlock := (
 		block: string
 		): TIterator<string> ->
 
 	let start = 0
-	let end = block.indexOf '\n'
-	while end != -1
-		yield block.substring(start, end).replaceAll('\r', '')
+	let end = block.indexOf('\n')
+	while (end != -1)
+		yield cleanup(block.substring(start, end))
 		start = end + 1
 		end = block.indexOf('\n', start)
-	if start < block.length
-		yield block.substring(start).replaceAll('\r', '')
+	if (start < block.length)
+		yield cleanup(block.substring(start))
 	return
 
 # ---------------------------------------------------------------------------

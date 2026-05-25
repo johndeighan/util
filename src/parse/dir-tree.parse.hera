@@ -26,10 +26,13 @@ getPath := (fileName: string = '') =>
 	else
 		return [...lPathParts].join('/')
 
-#beginParse
+#beginParse(text)
 	# --- reset everything
 	lFileOps.length  = 0
 	lPathParts.length = 0
+
+	# --- input parameter is 'text'
+	return str2indents(text)
 
 FullDesc
 	Root NL (FileDesc / DirDesc)+

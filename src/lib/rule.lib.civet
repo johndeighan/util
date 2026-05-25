@@ -29,10 +29,20 @@ export class CRuleBranch
 			line: string
 			): void
 
-		lMatches := line.match /^(\s*)return\s+(.*);$/
+		lMatches := line.match /^(\s*)return\s+(.*)$/
 		if defined lMatches
 			[_, prefix, valueStr] := lMatches
-			@lCode.push (prefix + 'return pm.result(' + valueStr + ');')
+			if valueStr.includes('$skip')
+				@lCode.push line
+			else
+				len := valueStr.length
+				useStr := (
+					  valueStr.endsWith(';')
+					? valueStr.substring(0, len-1)
+					: valueStr
+					)
+
+				@lCode.push (prefix + 'return pm.returnVal(' + useStr + ');')
 		else
 			@lCode.push line
 		return

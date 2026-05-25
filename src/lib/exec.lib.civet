@@ -33,7 +33,8 @@ import {flag, debugging, inspecting} from 'cmd-args'
 import {OL, ML, DUMP, DBGVALUE, LOGVALUE} from 'to-nice'
 import {
 	barf, pathStr, allFilesMatching, normalizePath, barfTempFile,
-	fileExt, withExt, slurpAsync, parsePath, openTextFile,
+	fileExt, withExt, slurpAsync, parsePath,
+	openTextFile, openAndReadTextFile,
 	} from 'fsys'
 
 # ---------------------------------------------------------------------------
@@ -57,29 +58,18 @@ export type TExecResult =
 	stderr?: string
 	outfile?: string
 
-type TFileProcessor = (
-		reader: TIterator<string>
-		metaData?: unknown
-		) => TIterator<string>
-
 # ---------------------------------------------------------------------------
+# ASYNC
 
 export mkstr := (
 		item: string | BufferSource
-		processor: TFileProcessor? = undef
 		): string =>
 
-	str := (
+	return (
 		  isString(item) ? stripAnsiCode(item)
 		: isArray(item)  ? stripAnsiCode(item.join(''))
 		:                  stripAnsiCode(decode(item))
 		)
-	if defined(processor)
-		iter := processor(allLinesInBlock(str))
-		lLines := Array.from iter
-		return lLines.join('\n')
-	else
-		return str
 
 # ---------------------------------------------------------------------------
 
@@ -104,20 +94,20 @@ export execCmd := (
 	type opt = {
 		capture: boolean
 		infile: string?
-		inProc: TFileProcessor
+		inProc: TStringMapper
 		tempFile: string?
 		outfile: string?
-		outProc: TFileProcessor
+		outProc: TStringMapper
 		}
 
 	{capture, infile, inProc, tempFile, outfile, outProc,
 			} := getOptions<opt> hOptions, {
 		capture: true
 		infile: undef
-		inProc: (iter) => return iter
+		inProc: (str) => return str
 		tempFile: undef
 		outfile: undef
-		outProc: (iter) => return iter
+		outProc: (str) => return str
 		}
 
 	debugger
@@ -137,9 +127,7 @@ export execCmd := (
 			}
 		child := cmd.spawn()
 		if defined(infile)
-			{hMetaData, reader} := openTextFile infile
-			iter := await inProc reader, hMetaData
-			text := toBlock(Array.from(iter))
+			[hMetaData, text] := await openAndReadTextFile infile
 			if defined(tempFile)
 				await Deno.writeTextFile tempFile, text
 
@@ -156,10 +144,10 @@ export execCmd := (
 
 		DBG UNDENT
 		if success && capture && defined(outfile)
-			Deno.writeTextFileSync outfile, decode(rawStdOut) + decode(rawStdErr)
+			await Deno.writeTextFile outfile, decode(rawStdOut) + decode(rawStdErr)
 
-		stderr := rawStdErr ? await mkstr(rawStdErr) : ''
-		stdout := capture && rawStdOut ? await mkstr(rawStdOut, outProc) : ''
+		stderr := rawStdErr ? mkstr(rawStdErr) : ''
+		stdout := (capture && rawStdOut) ? outProc(mkstr(rawStdOut)) : ''
 		return {
 			success
 			stdout
@@ -172,84 +160,6 @@ export execCmd := (
 		return {
 			success: false
 			stderr: getErrStr(err)
-			}
-
-# ---------------------------------------------------------------------------
-# --- To do this synchronously, we have to use node's child_process lib
-
-export execCmdSync := (
-		cmdName: string,
-		lArgs: string[] = [],
-		hOptions: hash = {}
-		): TExecResult =>
-
-	type opt = {
-		capture: boolean
-		infile: string?
-		inProc: TFileProcessor?
-		outfile: string?
-		outProc: TFileProcessor?
-		}
-
-	{capture, infile, inProc, outfile, outProc,
-			} := getOptions<opt> hOptions, {
-		capture: true
-		infile: undef
-		inProc: undef
-		outfile: undef
-		outProc: undef
-		}
-
-	cmdLine := getCmdLine cmdName, lArgs
-	streamType: string := capture ? 'pipe' : 'inherit'
-	if defined(infile) || defined(outfile)
-		assert capture,
-			"When specifying infile or outfile, capture must be true"
-
-	DBGVALUE "EXEC SYNC", "#{OL(cmdLine)}"
-	DBG INDENT
-	{stdout, stderr, error} := (
-		if defined(infile)
-			{hMetaData, contents} := openTextFile infile, true
-			spawnSync
-				cmdName
-				lArgs
-				{
-					input: mkstr(contents, inProc)
-					encoding: 'utf-8'
-					windowsHide: true
-					}
-		else
-			spawnSync
-				cmdName
-				lArgs
-				{
-					encoding: 'utf-8'
-					windowsHide: true
-					}
-		)
-	if error
-		DBG UNDENT
-		return {
-			success: false
-			stdout
-			stderr
-			}
-	finalStdOut := mkstr(stdout, outProc)
-	DBG UNDENT
-	if defined(outfile)
-		Deno.writeTextFileSync outfile, finalStdOut
-		return {
-			success: true
-			stdout: finalStdOut
-			stderr
-			outfile
-			}
-	else
-		return {
-			success: true
-			stdout: finalStdOut
-			stderr
 			}
 
 # ---------------------------------------------------------------------------

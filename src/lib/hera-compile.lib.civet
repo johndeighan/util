@@ -5,7 +5,7 @@ import {exists, existsSync} from '@std/fs'
 import {
 	pass, undef, defined, notdefined,
 	croak, assert, getErrStr, LOG, DBG, ERR,
-	TIterator,
+	TIterator, TAsyncIterator, toBool,
 	} from 'base'
 import {uni, esc} from 'unicode'
 import {
@@ -13,7 +13,7 @@ import {
 	} from 'datatypes'
 import {
 	allLinesInBlock, arrayToBlock, getOptions,
-	sep, untabify, f, hasKey, spaces,
+	sep, untabify, f, hasKey, spaces, countChars,
 	} from 'llutils'
 import {
 	resetOneIndent, splitLine, indented, undented,
@@ -22,12 +22,12 @@ import {debugging} from 'cmd-args'
 import {ML, DUMP} from 'to-nice'
 import {
 	fileExt, withExt, isValidStub, pathStr, newerDestFileExists,
-	openTextFile, barfTempFile, parsePath,
+	openTextFile, openAndReadTextFile, barfTempFile, parsePath,
 	} from 'fsys'
 import {TState, fromFSM} from 'fsm'
 import {civet2ts, civet2tsSync} from 'llcivet'
 import {
-	execCmd, execCmdSync, CFileHandler, TExecResult,
+	execCmd, CFileHandler, TExecResult,
 	} from 'exec'
 import {extractMetaData, mdGet} from 'meta-data'
 import {THeraType, isHeraType, compileHera} from 'llhera'
@@ -80,22 +80,6 @@ export class CHeraCompiler extends CFileHandler
 export doCompileHera := new CHeraCompiler()
 
 # ---------------------------------------------------------------------------
-# ASYNC
-
-export preprocessHeraFile := (
-		path: string
-		tempPath: string? = undef
-		): [string, THeraType] =>
-
-	{hMetaData, reader} := openTextFile path
-	type := mdGet hMetaData, 'type', 'civet'
-	assert isHeraType(type), "Bad hera type: #{type}"
-	heraCode := preprocessHera reader, type
-	if defined(tempPath)
-		await Deno.writeTextFile tempPath, heraCode
-	return [heraCode, type]
-
-# ---------------------------------------------------------------------------
 
 buildHeraFile := (
 		lMainCode: string[]
@@ -105,7 +89,6 @@ buildHeraFile := (
 		debug: boolean = false
 		) =>
 
-	debugger
 	mainCode := mkCodeBlock lMainCode, type
 	if debug
 		DUMP mainCode, 'mainCode'
@@ -129,8 +112,7 @@ buildHeraFile := (
 		lParts.push mainCode, ""
 
 	lParts.push
-		"export const beginParse = (text: string): void => {"
-		indented("pm.reset(text);")
+		"export const beginParse = (text: string): string? => {"
 		indented(resetCode)
 		indented('}')
 		"```"
@@ -143,21 +125,26 @@ buildHeraFile := (
 
 # ---------------------------------------------------------------------------
 
-export decom := (line: string): string =>
+export unbalanced := (str: string): boolean =>
 
-	return line.replace /^(\s*)#(\s)/, "$1//$2"
+	if ( countChars(str, '(') != countChars(str, ')') )
+		return true
+	if ( countChars(str, '{') != countChars(str, '}') )
+		return true
+	return false
 
 # ---------------------------------------------------------------------------
+# ASYNC
 
 export preprocessHera := (
-		iter: string | TIterator<string>
+		contents: string
 		type: THeraType = 'typescript'
 		debug: boolean = false
 		): string =>
 
-	debugger
-	if isString(iter)
-		iter = allLinesInBlock(iter)
+	isComment := (str: string): boolean =>
+		return toBool(str.match(/^\s*#\s/))
+
 	resetOneIndent()
 
 	lMainCode:  string[] := []
@@ -165,17 +152,18 @@ export preprocessHera := (
 
 	ruleSet := new CRuleSet()
 
+	iter := allLinesInBlock(contents).filter((x) => not isComment(x))
 	result := fromFSM iter, [
 
 		# 0 --- start
-		#          until we see #beginParse, everything, including
+		#          until we see #beginParse(text), everything, including
 		#          blank lines, goes into main code
 
 		(line: string): TState =>
-			if (line == '#beginParse')
+			if (line == '#beginParse(text)')
 				return 1
 			else
-				lMainCode.push decom(line)
+				lMainCode.push line
 				return 0
 
 		# 1 --- in beginParse function
@@ -191,7 +179,7 @@ export preprocessHera := (
 				if isEmpty(str) && (level == 0)
 					lResetCode.push ''
 				else
-					lResetCode.push indented(decom(str), level-1)
+					lResetCode.push indented(str, level-1)
 				return 1
 
 		# 2 --- have rule, want pattern
@@ -233,17 +221,36 @@ export preprocessHera := (
 					if (branch.numCodeLines() == 0)
 						assert (level == 2), "First line of code must be level 2"
 						branch.addCode "pm.match('#{ruleSet.ruleName()}', $loc);"
-					branch.addCode indented(decom(str), level-2)
+
+					branch.addCode indented(str, level-2)
 					return 3
 
-		], (state: TState): void =>
-			if (state == 3)
-				str := buildHeraFile(lMainCode, lResetCode, ruleSet, type, debug)
-				throw str
-			else
-				croak "Ended in state #{state}"
+		], {
+			doneFunc: (state: TState): void =>
+				if (state == 3)
+					str := buildHeraFile(lMainCode, lResetCode, ruleSet, type, debug)
+					throw str
+				else
+					croak "Ended in state #{state}"
+			}
 	assert (typeof result == 'string'), "result not a string"
 	return result
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export preprocessHeraFile := (
+		path: string
+		tempPath: string? = undef
+		): [string, THeraType] =>
+
+	[hMetaData, contents] := await openAndReadTextFile path
+	type := mdGet hMetaData, 'type', 'civet'
+	assert isHeraType(type), "Bad hera type: #{type}"
+	heraCode := preprocessHera contents, type
+	if defined(tempPath)
+		await Deno.writeTextFile tempPath, heraCode
+	return [heraCode, type]
 
 # ---------------------------------------------------------------------------
 # ASYNC

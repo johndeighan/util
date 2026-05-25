@@ -188,6 +188,7 @@ export getMyOutsideCaller := (
 	let outsideFrame: TStackFrame? = undef
 
 	return fromFSM allStackFrames(), [
+		# --- state 0
 		(frame: TStackFrame): TState =>
 			if (
 						(frame.name == 'getMyOutsideCaller')
@@ -199,19 +200,21 @@ export getMyOutsideCaller := (
 			else
 				return 0
 
+		# --- state 1
 		(frame: TStackFrame): TState =>
 			{source} := frame
 			assert defined(source), "source after getMyOutsideCaller is undef"
 			mySrc = source
 			return 2
 
+		# --- state 2
 		(frame: TStackFrame): TState =>
 			{source} := frame
 			if (source == mySrc)
 				return 2
 			else
 				throw frame     # found !
-		]
+		], {}   # --- THIS SHOULD NOT BE NEEDED
 
 # ---------------------------------------------------------------------------
 

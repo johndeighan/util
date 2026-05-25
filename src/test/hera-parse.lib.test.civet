@@ -1,9 +1,7 @@
 # hera-parse.lib.test.civet
 
 import {esc, escd} from 'unicode'
-import {
-	str2indents,
-	} from 'hera-parse'
+import {str2indents} from 'hera-parse'
 import {
 	equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test'
@@ -14,7 +12,7 @@ equal escd(str2indents("""
 	file
 		abc
 		def
-	""")), 'file»abc↓def«'
+	""")), 'file↓»abc↓def↓«↓'
 
 equal escd(str2indents("""
 	file
@@ -23,7 +21,7 @@ equal escd(str2indents("""
 	/dir
 		file
 			xyz
-	""")), 'file»abc»def««/dir»file»xyz««'
+	""")), 'file↓»abc↓»def↓««/dir↓»file↓»xyz↓««↓'
 
 equal escd(str2indents("""
 	src/lib clear
@@ -32,4 +30,4 @@ equal escd(str2indents("""
 	/sub
 		temp.civet
 			LOG "OK"
-	""")), 'src/lib˳clear↓temp.txt»abc«/sub»temp.civet»LOG˳"OK"««'
+	""")), 'src/lib˳clear↓temp.txt↓»abc↓«/sub↓»temp.civet↓»LOG˳"OK"↓««↓'

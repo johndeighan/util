@@ -46,6 +46,11 @@ export function* emptyIterator<T=unknown>(): TIterator<T> =>
 
 # ---------------------------------------------------------------------------
 
+export async function* emptyAsyncIterator<T=unknown>(): TAsyncIterator<T> =>
+	return
+
+# ---------------------------------------------------------------------------
+
 export pass := (): void =>
 	# do nothing
 
@@ -105,6 +110,24 @@ export range := (n: number): TIterator<number> ->
 
 	for i of [0...n]
 		yield i
+	return
+
+# ---------------------------------------------------------------------------
+
+export allChars := (str: string): TIterator<string> ->
+
+	for ch of str
+		yield ch
+	return
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export allCharsAsync := (str: string): TAsyncIterator<string> ->
+
+	for ch of str
+		yield ch
+		await sleep 0.1
 	return
 
 # ---------------------------------------------------------------------------
@@ -253,11 +276,22 @@ export ERR := (
 
 # ---------------------------------------------------------------------------
 
+export unknownToString := (x: unknown): string =>
+
+	return (
+		  (typeof x == 'string') ? x
+		: (x == undef)           ? 'undef'
+		: (x == null)            ? 'null'
+		:                          JSON.stringify(x)
+		)
+
+# ---------------------------------------------------------------------------
+
 logLine := (
 		x: unknown,
 		): void =>
 
-	line := '\t'.repeat(indentLevel) + String(x)
+	line := '\t'.repeat(indentLevel) + unknownToString(x)
 	console.log line
 	lLogLines.push line
 	return
@@ -404,11 +438,22 @@ export allLinesInFile := (
 		): TAsyncIterator<string> ->
 
 	file := await Deno.open path
-	readable := (file.readable
+	stream := (file.readable
 			.pipeThrough(new TextDecoderStream())
 			.pipeThrough(new TextLineStream())
 			)
-	for await line of readable
+	for await line of stream
+		yield line
+	return
+
+# ---------------------------------------------------------------------------
+
+export allLinesInFileSync := (
+		path: string
+		): TIterator<string> ->
+
+	text := Deno.readTextFileSync(path)
+	for line of text.split(/\r?\n/)
 		yield line
 	return
 

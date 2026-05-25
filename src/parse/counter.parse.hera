@@ -1,0 +1,11 @@
+---
+type: civet
+---
+
+# counter.parse.hera
+
+#beginParse(text)
+
+Program
+	"a"* "b"* ->
+		return ($1.length - $2.length)

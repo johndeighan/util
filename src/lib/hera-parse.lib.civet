@@ -1,15 +1,20 @@
 # hera-parse.lib.civet
 
+import {toFileUrl} from "@std/path"
+
 import {
 	undef, defined, notdefined, deepCopy,
 	croak, assert, getErrStr, LOG, DBG, ERR,
+	pushLogLevel, popLogLevel,
 	} from 'base'
 import {uni, esc} from 'unicode'
 import {
-	hash, isEmpty, nonEmpty,
-	TStringMapper, TVoidFunc,
+	hash, isEmpty, nonEmpty, isString,
+	TStringMapper, TVoidFunc, isFunction,
 	} from 'datatypes'
-import {isFile, findFile, openTextFile} from 'fsys'
+import {
+	isFile, findFile, openTextFile, openAndReadTextFile,
+	} from 'fsys'
 import {MAP} from 'mapper'
 import {resetOneIndent, splitLine} from 'indent'
 import {
@@ -30,27 +35,23 @@ export str2indents := (str: string): string =>
 	assert not str.includes(uni.shiftout), "Bad input string, has shiftout"
 
 	resetOneIndent()
-	let lParts: string[] = []
-	let level = 0
-	for line,i of allLinesInBlock(str)
-		if (i==0)
-			assert not line.match(/^\s/), "Leading whitespace not allowed"
-			lParts.push line
-			continue
-		if isEmpty(line)
-			lParts.push '\n'
-		else
-			[newLevel, str] := splitLine line
-			if (newLevel == level)
-				lParts.push '\n'
-				lParts.push str
-			else if (newLevel > level)
-				lParts.push uni.shiftin.repeat(newLevel - level) + str
-			else      # --- newLevel < level
-				lParts.push uni.shiftout.repeat(level - newLevel) + str
-			level = newLevel
+	let curLevel = 0
+	lLines := for line of allLinesInBlock(str)
+		[level, str] := splitLine line
+		prefix := (
+			  (level > curLevel) ? uni.shiftin.repeat(level - curLevel)
+			: (level < curLevel) ? uni.shiftout.repeat(curLevel - level)
+			: ''
+			)
+		curLevel = level
+		"#{prefix}#{str}\n"
 
-	return lParts.join('') + uni.shiftout.repeat(level)
+	block := lLines.join('')
+	return (
+		  (curLevel == 0)
+		? block
+		: block + uni.shiftout.repeat(curLevel) + '\n'
+		)
 
 # ---------------------------------------------------------------------------
 
@@ -90,44 +91,45 @@ export parseText := <T = unknown>(
 		hOptions: hash = {}
 		): T =>
 
-	debugger
 	type opt = {
-		lTransforms: TStringMapper[]
 		debug: boolean
 		abortOnError: boolean
 		}
-	{lTransforms, debug, abortOnError} := getOptions<opt> hOptions, {
-		lTransforms: [str2indents]
+	{debug, abortOnError} := getOptions<opt> hOptions, {
 		debug: false
 		abortOnError: true
 		}
 
 	if debug
-		LOG "debug = #{debug}"
+		pushLogLevel 'debug'
+		DBG "debug = #{debug}"
 
-	# --- Save original text, then apply transforms to text
-	orgText := text
-	for func of lTransforms
-		text = func(text)
+	# --- Make sure parser is compiled and up to date
+	heraFileName := "#{stub}.parse.hera"
+	heraPath := findFile heraFileName
+	assert defined(heraPath), "No such file: #{heraFileName}"
+	hResult := await procOneFile heraPath, doCompileHera
+	assert hResult.success, "parse of #{heraPath} failed"
 
-	# --- import things from the parser
+	tsFileName := "#{stub}.parse.ts"
+	DBG "tsFileName = #{tsFileName}"
+	path := findFile tsFileName
+	assert defined(path), "No such file: ${tsFileName}"
+	assert isFile(path), "Not a file: #{path}"
+
+	# --- This assumes that stub is in the deno.json file
+	{pm, beginParse, parse} := await import toFileUrl(path || '').href
+	assert defined(parse), "Parser not found"
+	assert isFunction(parse), "Parser not a function"
+
 	try
-		# --- Make sure parser is compiled and up to date
-		fileName := "#{stub}.parse.ts"
-		path := findFile fileName
-		if notdefined(path)
-			heraPath := findFile "#{stub}.parse.hera"
-			assert defined(heraPath), "Missing #{stub}.parse.hera"
-			hResult := await procOneFile heraPath, doCompileHera
-			assert hResult.success, "parse #{stub}.parse.hera failed"
+		newText := beginParse(text)
+		if isString(newText)
+			text = newText
 
-		assert isFile(path)
+		pm.reset(text)
 
-		# --- This assumes that stub is in the deno.json file
-		{pm, beginParse, parse} := await import stub
-
-		beginParse(text)    # --- needed?
-		result := parse(text) as Awaited<T>
+		result := parse(text)() as Awaited<T>
 		if debug
 			pm.dumpParseInfo()
 
@@ -135,20 +137,17 @@ export parseText := <T = unknown>(
 		return deepCopy(result)
 
 	catch err
-		if (err instanceof TypeError)
-			throw "Bad Parser: #{stub}: #{getErrStr(err)}"
+		ERR "Parser: '#{stub}'", 'PARSE ERROR'
+		LOG "Parsing: #{esc(text)}"
+
+		pm.dumpParseInfo()
+
+		ERR err
+
+		if abortOnError
+			Deno.exit()
 		else
-			ERR "in parseText(#{stub})", 'PARSE ERROR'
-			LOG '', toDebugStr(orgText)
-
-			{pm} := await import stub
-			pm.dumpParseInfo()
-
-			ERR err
-			if abortOnError
-				Deno.exit 99
-			else
-				throw err
+			throw err
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -159,5 +158,5 @@ export parseFile := <T = unknown>(
 		hOptions: hash = {}
 		): T =>
 
-	{hMetaData, contents} := openTextFile path, true
+	[hMetaData, contents] := await openAndReadTextFile path
 	return await parseText<T> stub, contents, {hMetaData}

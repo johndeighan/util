@@ -4,7 +4,7 @@ import {sprintf} from '@std/fmt/printf'
 
 import {
 	undef, defined, notdefined, croak, assert,
-	LOG, DBG, ERR,
+	LOG, DBG, ERR, colorize,
 	} from 'base'
 import {uni, esc} from 'unicode'
 import {hash, hashof, isArray} from 'datatypes'
@@ -84,12 +84,13 @@ export class CParseMatches
 
 	# ..........................................................
 
-	result(data: unknown): unknown
+	returnVal(
+			value: unknown
+			): unknown
 
-		rec := @lParseMatches.at(-1)
-		if defined(rec)
-			rec[3] = data
-		return data
+		assert (@lParseMatches.length > 0), "No matches yet"
+		@lParseMatches[@lParseMatches.length - 1][3] = value
+		return value
 
 	# ..........................................................
 
@@ -97,16 +98,17 @@ export class CParseMatches
 
 		results := []
 		table := new TextTable "l r%d r%d l"
+		table.fullsep '-'
 		table.title 'matches'
 		table.fullsep '-'
 		table.labels ['Op', 'Pos', 'Len', 'data']
 		table.sep()
-		for [name, pos, len, data] of @lParseMatches
+		for [name, pos, len, value] of @lParseMatches
 			table.data [
 				name
 				pos
 				len
-				OL(data)
+				JSON.stringify(value)
 				]
 		table.fullsep '-'
 		return table.asString()
@@ -152,8 +154,7 @@ export class CParseMatches
 		LOG @matchesTable()
 
 		LOG sep '-', 'debug'
-		n := Math.floor(@str.length / 10) + 1
-		LOG "|         ".repeat n
+		LOG colorize("|    .    ".repeat(7), 'yellow')
 		LOG @debugStr(@str)
 		LOG sep '-'
 		return

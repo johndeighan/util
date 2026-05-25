@@ -37,7 +37,7 @@ import {
 	OL, toNice, TMapFunc, DUMP, LOGVALUE, DBGVALUE,
 	} from 'to-nice'
 import {
-	execCmd, execCmdSync, CFileHandler, TProcSpec, TExecResult,
+	execCmd, CFileHandler, TProcSpec, TExecResult,
 	procOneFile, procFiles,
 	} from 'exec'
 import {Walker, TVisitKind} from 'walker'

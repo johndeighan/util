@@ -76,19 +76,6 @@ class CCieloCompiler extends CFileHandler
 		cielo2civetFile(path, civetPath, hOptions)
 		return await doCompileCivet.handle(civetPath, hOptions)
 
-	# ..........................................................
-	# SYNC
-
-	handleSync(
-			path: string,
-			hOptions: hash = {}
-			): TExecResult
-
-		assert (fileExt(path) == '.cielo'), "Not a cielo file: #{path}"
-		civetPath := withExt(path, '.temp.civet')
-		cielo2civetFile(path, civetPath, hOptions)
-		return doCompileCivet.handleSync(civetPath, hOptions)
-
 export doCompileCielo := new CCieloCompiler()
 
 # ---------------------------------------------------------------------------

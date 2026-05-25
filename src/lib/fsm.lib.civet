@@ -1,10 +1,10 @@
 # fsm.lib.civet
 
 import {
-	undef, defined, notdefined, croak, assert, obviously,
-	TIterator, TAsyncIterator, DBG, pushLogLevel, popLogLevel,
+	undef, defined, notdefined, croak, assert,
+	TIterator, TAsyncIterator, DBG, pass,
 	} from 'base'
-import {hash, isArray, isInteger, TVoidFunc} from 'datatypes'
+import {hash, isArray, isInteger, TVoidFunc, isAsyncIterator} from 'datatypes'
 import {f, getOptions} from 'llutils'
 import {OL, ML} from 'to-nice'
 
@@ -25,34 +25,21 @@ export type TDoneFunc = (state: TState) => void
 
 # ---------------------------------------------------------------------------
 
-export fromFSM := <TIn, TOut=unknown>(
-		iter:  TIterator<TIn> | ArrayIterator<TIn>
+export fsmSync := <TIn, TOut>(
+		iter: TIterator<TIn> | ArrayIterator<TIn>
 		lStates: TStateFunc<TIn>[]
-		doneFunc: TDoneFunc = (state: TState) =>
-			croak("Ended in state #{state}")
-		hOptions: hash = {}
+		doneFunc: TDoneFunc
 		): TOut =>
 
-	type opt = {
-		debug: boolean
-		}
-	{debug} := getOptions hOptions, {
-		debug: false
-		}
-
-	if debug
-		pushLogLevel 'debug'
-	numStates := lStates.length
-	let state = 0
+	let state: TState = 0
 	try
 		for item,i of iter
 			stateFunc := lStates[state]
-			newState := stateFunc item, i+1  # --- line numbers start at 1
-			assert (newState >= 0) && (newState < numStates),
+			newState := stateFunc item, i
+			assert (newState >= 0) && (newState < lStates.length),
 				"Bad state: #{newState}"
 			DBG f"#{state}:3 => #{newState}:3 #{OL(item)}"
 			state = newState
-
 		DBG "Processed all items, state = #{state}"
 		doneFunc(state)    # --- must throw something
 		croak "doneFunc failed to throw anything"
@@ -63,6 +50,69 @@ export fromFSM := <TIn, TOut=unknown>(
 			DBG "END STATE #{state}"
 			DBG ML(x)
 			return x as TOut
-	finally
-		if debug
-			popLogLevel()
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export fsmAsync := <TIn, TOut>(
+		iter: TAsyncIterator<TIn>
+		lStates: TStateFunc<TIn>[]
+		doneFunc: TDoneFunc
+		): TOut =>
+
+	let state: TState = 0
+	try
+		for await item,i of iter
+			stateFunc := lStates[state]
+			newState := stateFunc item, i
+			assert (newState >= 0) && (newState < lStates.length),
+				"Bad state: #{newState}"
+			DBG f"#{state}:3 => #{newState}:3 #{OL(item)}"
+			state = newState
+		DBG "Processed all items, state = #{state}"
+		doneFunc(state)    # --- must throw something
+		croak "doneFunc failed to throw anything"
+	catch x
+		if (x instanceof Error)
+			throw x
+		else
+			DBG "END STATE #{state}"
+			DBG ML(x)
+			return x as Awaited<TOut>
+
+# ---------------------------------------------------------------------------
+
+export function fromFSM<TIn, TOut=unknown>(
+		iter: TIterator<TIn> | ArrayIterator<TIn>
+		lStates: TStateFunc<TIn>[]
+		hOptions: hash
+		): TOut
+
+export function fromFSM<TIn, TOut=unknown>(
+		iter: TAsyncIterator<TIn>
+		lStates: TStateFunc<TIn>[]
+		hOptions: hash
+		): Promise<TOut>
+
+export function fromFSM<TIn, TOut=unknown>(
+		iter:  TIterator<TIn> | ArrayIterator<TIn> | TAsyncIterator<TIn>
+		lStates: TStateFunc<TIn>[]
+		hOptions: hash = {}
+		): TOut | Promise<TOut>
+
+	type opt = {
+		initFunc: TVoidFunc
+		doneFunc: TDoneFunc
+		}
+	{initFunc, doneFunc} := getOptions<opt> hOptions, {
+		initFunc: pass
+		doneFunc: (state: TState) => croak "Ended in state #{state}"
+		}
+
+	initFunc()
+	return (
+		  isAsyncIterator(iter)
+		? fsmAsync<TIn,TOut>(iter, lStates, doneFunc)
+		: fsmSync<TIn,TOut>(iter, lStates, doneFunc)
+		)
+

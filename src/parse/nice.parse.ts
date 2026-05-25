@@ -47,13 +47,15 @@ const _types: Loc | MaybeResult<any> | ParseResult<any> | Parser<any> | ParserCo
 
 const grammar = {
   Value,
-  Primitive,
-  Array,
-  ArrayItem,
+  List,
   Hash,
-  HashItem,
+  LItem,
+  HItem,
   Key,
-  Special,
+  Primitive,
+  Spec,
+  _,
+  WS,
   INDENT,
   UNDENT,
   NL};
@@ -64,65 +66,273 @@ const grammarDefaultRule = "Value";
 
 const $skip: (typeof SKIP) = SKIP; void $skip;
 
-const $L0 = $L("｟");
-const $L1 = $L("｠");
-const $L2 = $L("n");
-const $L3 = $L("- ");
-const $L4 = $L("-");
-const $L5 = $L(": ");
-const $L6 = $L(":");
-const $L7 = $L("undef");
-const $L8 = $L("null");
-const $L9 = $L("true");
-const $L10 = $L("false");
-const $L11 = $L("emptyArray");
-const $L12 = $L("emptyHash");
-const $L13 = $L("emptySet");
-const $L14 = $L("emptyMap");
-const $L15 = $L("NaN");
-const $L16 = $L("inf");
-const $L17 = $L("neginf");
-const $L18 = $L("symbol");
+const $L0 = $L("-");
+const $L1 = $L(":");
+const $L2 = $L("｟");
+const $L3 = $L("｠");
+const $L4 = $L("undef");
+const $L5 = $L("null");
+const $L6 = $L("true");
+const $L7 = $L("false");
+const $L8 = $L("NaN");
+const $L9 = $L("inf");
+const $L10 = $L("neginf");
+const $L11 = $L("symbol");
 
 
-const $R0 = $R(new RegExp("\\d+", 'suy'));
-const $R1 = $R(new RegExp("\\d+\\.\\d*", 'suy'));
-const $R2 = $R(new RegExp("[^\\n]+", 'suy'));
-const $R3 = $R(new RegExp("[A-Za-z]+", 'suy'));
-const $R4 = $R(new RegExp("[^｠]*", 'suy'));
-const $R5 = $R(new RegExp("\\x0F", 'suy'));
-const $R6 = $R(new RegExp("\\x0E", 'suy'));
-const $R7 = $R(new RegExp("\\r?\\n", 'suy'));
+const $R0 = $R(new RegExp("[A-Za-z]+", 'suy'));
+const $R1 = $R(new RegExp("“([^\\n\\x0F\\x0E]+)", 'suy'));
+const $R2 = $R(new RegExp("(\\d+)n", 'suy'));
+const $R3 = $R(new RegExp("\\d+(\\.\\d+)?", 'suy'));
+const $R4 = $R(new RegExp("[^\\n\\x0F\\x0E\\[\\{]+", 'suy'));
+const $R5 = $R(new RegExp("[^\\n\\x0F\\x0E]+", 'suy'));
+const $R6 = $R(new RegExp("[^｠]*", 'suy'));
+const $R7 = $R(new RegExp("[\\x20\\t]*", 'suy'));
+const $R8 = $R(new RegExp("\\x20+", 'suy'));
+const $R9 = $R(new RegExp("\\x0F", 'suy'));
+const $R10 = $R(new RegExp("\\x0E", 'suy'));
+const $R11 = $R(new RegExp("\\r?\\n", 'suy'));
 
 
-const Value$parser = $C(Primitive, Array, Hash);
+const Value$0$parser = $S(List, $Q(NL));
+
+const Value$1$parser = $S(Hash, $Q(NL));
+
+const Value$2$parser = $S(Primitive, $Q(NL));
+
+function Value$0($$ctx: ParserContext, $$state: ParseState) {
+  const $$r = Value$0$parser($$ctx, $$state);
+  if (!$$r) {
+    
+    return undefined;
+  }
+  const $$m = (function($loc: Loc, $1: typeof $$r.value[0]) {
+    void $loc, $1;
+    pm.match('Value', $loc);
+    return pm.returnVal($1);
+  })($$r.loc, $$r.value[0]);
+  ($$r as any).value = $$m;
+  
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
+
+function Value$1($$ctx: ParserContext, $$state: ParseState) {
+  const $$r = Value$1$parser($$ctx, $$state);
+  if (!$$r) {
+    
+    return undefined;
+  }
+  const $$m = (function($loc: Loc, $1: typeof $$r.value[0]) {
+    void $loc, $1;
+    pm.match('Value', $loc);
+    return pm.returnVal($1);
+  })($$r.loc, $$r.value[0]);
+  ($$r as any).value = $$m;
+  
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
+
+function Value$2($$ctx: ParserContext, $$state: ParseState) {
+  const $$r = Value$2$parser($$ctx, $$state);
+  if (!$$r) {
+    
+    return undefined;
+  }
+  const $$m = (function($loc: Loc, $1: typeof $$r.value[0]) {
+    void $loc, $1;
+    pm.match('Value', $loc);
+    return pm.returnVal($1);
+  })($$r.loc, $$r.value[0]);
+  ($$r as any).value = $$m;
+  
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
 
 function Value($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("Value", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$r = Value$parser($$ctx, $$state);
+  const $$final: MaybeResult<Unwrap<ReturnType<typeof Value$0>> | Unwrap<ReturnType<typeof Value$1>> | Unwrap<ReturnType<typeof Value$2>>> = Value$0($$ctx, $$state)
+    || Value$1($$ctx, $$state)
+    || Value$2($$ctx, $$state);
+  $$ctx.exit?.("Value", $$state, $$final, $$eventData);
+
+  return $$final;
+}
+
+const List$parser = $P(LItem);
+
+function List($$ctx: ParserContext, $$state: ParseState) {
+  const $$entered = $$ctx.enter?.("List", $$state);
+  if ($$entered && "cache" in $$entered) return $$entered.cache as never;
+  const $$eventData = $$entered?.data;
+  const $$r = List$parser($$ctx, $$state);
   if (!$$r) {
-    $$ctx.exit?.("Value", $$state, undefined, $$eventData);
+    $$ctx.exit?.("List", $$state, undefined, $$eventData);
     return undefined;
   }
-  const $$m = (function($loc: Loc) {
-    void $loc;
-    pm.match('Value', $loc);
-    return $2
-  })($$r.loc);
+  const $$m = (function($loc: Loc, $1: typeof $$r.value) {
+    void $loc, $1;
+    pm.match('List', $loc);
+    return pm.returnVal($1);
+  })($$r.loc, $$r.value);
   ($$r as any).value = $$m;
-  $$ctx.exit?.("Value", $$state, $$r, $$eventData);
+  $$ctx.exit?.("List", $$state, $$r, $$eventData);
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const Primitive$0$parser = $S($EXPECT($L0, "Primitive \"｟\""), Special, $EXPECT($L1, "Primitive \"｠\""));
+const Hash$parser = $P(HItem);
 
-const Primitive$1$parser = $S($EXPECT($R0, "Primitive /\\d+/"), $E($EXPECT($L2, "Primitive \"n\"")));
+function Hash($$ctx: ParserContext, $$state: ParseState) {
+  const $$entered = $$ctx.enter?.("Hash", $$state);
+  if ($$entered && "cache" in $$entered) return $$entered.cache as never;
+  const $$eventData = $$entered?.data;
+  const $$r = Hash$parser($$ctx, $$state);
+  if (!$$r) {
+    $$ctx.exit?.("Hash", $$state, undefined, $$eventData);
+    return undefined;
+  }
+  const $$m = (function($loc: Loc, $1: typeof $$r.value) {
+    void $loc, $1;
+    pm.match('Hash', $loc);
+    const h: hash = {}
+    for (const [key, val] of $1) {
+      h[key] = val
+    }
+    return pm.returnVal(hash);
+  })($$r.loc, $$r.value);
+  ($$r as any).value = $$m;
+  $$ctx.exit?.("Hash", $$state, $$r, $$eventData);
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
 
-const Primitive$2$parser = $EXPECT($R1, "Primitive /\\d+\\.\\d*/");
+const LItem$0$parser = $S($EXPECT($L0, "LItem \"-\""), WS, Primitive, NL);
 
-const Primitive$3$parser = $EXPECT($R2, "Primitive /[^\\n]+/");
+const LItem$1$parser = $S($EXPECT($L0, "LItem \"-\""), _, NL, INDENT, $P(LItem), UNDENT);
+
+function LItem$0($$ctx: ParserContext, $$state: ParseState) {
+  const $$r = LItem$0$parser($$ctx, $$state);
+  if (!$$r) {
+    
+    return undefined;
+  }
+  const $$m = (function($loc: Loc, $3: typeof $$r.value[2]) {
+    void $loc, $3;
+    pm.match('LItem', $loc);
+    return pm.returnVal($3);
+  })($$r.loc, $$r.value[2]);
+  ($$r as any).value = $$m;
+  
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
+
+function LItem$1($$ctx: ParserContext, $$state: ParseState) {
+  const $$r = LItem$1$parser($$ctx, $$state);
+  if (!$$r) {
+    
+    return undefined;
+  }
+  const $$m = (function($loc: Loc, $5: typeof $$r.value[4]) {
+    void $loc, $5;
+    pm.match('LItem', $loc);
+    return pm.returnVal($5);
+  })($$r.loc, $$r.value[4]);
+  ($$r as any).value = $$m;
+  
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
+
+function LItem($$ctx: ParserContext, $$state: ParseState) {
+  const $$entered = $$ctx.enter?.("LItem", $$state);
+  if ($$entered && "cache" in $$entered) return $$entered.cache as never;
+  const $$eventData = $$entered?.data;
+  const $$final: MaybeResult<Unwrap<ReturnType<typeof LItem$0>> | Unwrap<ReturnType<typeof LItem$1>>> = LItem$0($$ctx, $$state)
+    || LItem$1($$ctx, $$state);
+  $$ctx.exit?.("LItem", $$state, $$final, $$eventData);
+
+  return $$final;
+}
+
+const HItem$0$parser = $S(Key, WS, Primitive, NL);
+
+const HItem$1$parser = $S(Key, _, NL, INDENT, $P(HItem), UNDENT);
+
+function HItem$0($$ctx: ParserContext, $$state: ParseState) {
+  const $$r = HItem$0$parser($$ctx, $$state);
+  if (!$$r) {
+    
+    return undefined;
+  }
+  const $$value = $$r.value;
+  const $$m = (function($loc: Loc, $1: typeof $$value[0], $3: typeof $$value[2]) {
+    void $loc, $1, $3;
+    pm.match('HItem', $loc);
+    return pm.returnVal([$1, $3]);
+  })($$r.loc, $$value[0], $$value[2]);
+  ($$r as any).value = $$m;
+  
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
+
+function HItem$1($$ctx: ParserContext, $$state: ParseState) {
+  const $$r = HItem$1$parser($$ctx, $$state);
+  if (!$$r) {
+    
+    return undefined;
+  }
+  const $$m = (function($loc: Loc, $5: typeof $$r.value[4]) {
+    void $loc, $5;
+    pm.match('HItem', $loc);
+    return pm.returnVal($5);
+  })($$r.loc, $$r.value[4]);
+  ($$r as any).value = $$m;
+  
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
+
+function HItem($$ctx: ParserContext, $$state: ParseState) {
+  const $$entered = $$ctx.enter?.("HItem", $$state);
+  if ($$entered && "cache" in $$entered) return $$entered.cache as never;
+  const $$eventData = $$entered?.data;
+  const $$final: MaybeResult<Unwrap<ReturnType<typeof HItem$0>> | Unwrap<ReturnType<typeof HItem$1>>> = HItem$0($$ctx, $$state)
+    || HItem$1($$ctx, $$state);
+  $$ctx.exit?.("HItem", $$state, $$final, $$eventData);
+
+  return $$final;
+}
+
+const Key$parser = $S($EXPECT($R0, "Key /[A-Za-z]+/"), $EXPECT($L1, "Key \":\""));
+
+function Key($$ctx: ParserContext, $$state: ParseState) {
+  const $$entered = $$ctx.enter?.("Key", $$state);
+  if ($$entered && "cache" in $$entered) return $$entered.cache as never;
+  const $$eventData = $$entered?.data;
+  const $$r = Key$parser($$ctx, $$state);
+  if (!$$r) {
+    $$ctx.exit?.("Key", $$state, undefined, $$eventData);
+    return undefined;
+  }
+  const $$m = (function($loc: Loc, $1: typeof $$r.value[0]) {
+    void $loc, $1;
+    pm.match('Key', $loc);
+    return pm.returnVal($1[0]);
+  })($$r.loc, $$r.value[0]);
+  ($$r as any).value = $$m;
+  $$ctx.exit?.("Key", $$state, $$r, $$eventData);
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
+
+const Primitive$0$parser = $S($EXPECT($L2, "Primitive \"｟\""), Spec, $EXPECT($L3, "Primitive \"｠\""));
+
+const Primitive$1$parser = $EXPECT($R1, "Primitive /“([^\\n\\x0F\\x0E]+)/");
+
+const Primitive$2$parser = $EXPECT($R2, "Primitive /(\\d+)n/");
+
+const Primitive$3$parser = $EXPECT($R3, "Primitive /\\d+(\\.\\d+)?/");
+
+const Primitive$4$parser = $EXPECT($R4, "Primitive /[^\\n\\x0F\\x0E\\[\\{]+/");
+
+const Primitive$5$parser = $EXPECT($R5, "Primitive /[^\\n\\x0F\\x0E]+/");
 
 function Primitive$0($$ctx: ParserContext, $$state: ParseState) {
   const $$r = Primitive$0$parser($$ctx, $$state);
@@ -133,7 +343,7 @@ function Primitive$0($$ctx: ParserContext, $$state: ParseState) {
   const $$m = (function($loc: Loc, $2: typeof $$r.value[1]) {
     void $loc, $2;
     pm.match('Primitive', $loc);
-    return $2
+    return pm.returnVal($2);
   })($$r.loc, $$r.value[1]);
   ($$r as any).value = $$m;
   
@@ -146,17 +356,11 @@ function Primitive$1($$ctx: ParserContext, $$state: ParseState) {
     
     return undefined;
   }
-  const $$value = $$r.value;
-  const $$m = (function($loc: Loc, $0: typeof $$value, $1: typeof $$value[0], $2: typeof $$value[1]) {
-    void $loc, $0, $1, $2;
+  const $$m = (function($loc: Loc, $1: any) {
+    void $loc, $1;
     pm.match('Primitive', $loc);
-    if (defined($2)) {
-      return BigInt($1)
-    }
-    else {
-      return parseInt($0, 10)
-    }
-  })($$r.loc, $$value, $$value[0], $$value[1]);
+    return pm.returnVal($1);
+  })($$r.loc, ($$r.value as any[])[1]);
   ($$r as any).value = $$m;
   
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
@@ -168,11 +372,11 @@ function Primitive$2($$ctx: ParserContext, $$state: ParseState) {
     
     return undefined;
   }
-  const $$m = (function($loc: Loc, $0: any) {
-    void $loc, $0;
+  const $$m = (function($loc: Loc, $1: any) {
+    void $loc, $1;
     pm.match('Primitive', $loc);
-    return parseFloat($0)
-  })($$r.loc, ($$r.value as any[])[0]);
+    return pm.returnVal(BigInt($1));
+  })($$r.loc, ($$r.value as any[])[1]);
   ($$r as any).value = $$m;
   
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
@@ -187,7 +391,39 @@ function Primitive$3($$ctx: ParserContext, $$state: ParseState) {
   const $$m = (function($loc: Loc, $0: any) {
     void $loc, $0;
     pm.match('Primitive', $loc);
-    return $0
+    return pm.returnVal(JSON.parse($0));
+  })($$r.loc, ($$r.value as any[])[0]);
+  ($$r as any).value = $$m;
+  
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
+
+function Primitive$4($$ctx: ParserContext, $$state: ParseState) {
+  const $$r = Primitive$4$parser($$ctx, $$state);
+  if (!$$r) {
+    
+    return undefined;
+  }
+  const $$m = (function($loc: Loc, $0: any) {
+    void $loc, $0;
+    pm.match('Primitive', $loc);
+    return pm.returnVal($0);
+  })($$r.loc, ($$r.value as any[])[0]);
+  ($$r as any).value = $$m;
+  
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
+
+function Primitive$5($$ctx: ParserContext, $$state: ParseState) {
+  const $$r = Primitive$5$parser($$ctx, $$state);
+  if (!$$r) {
+    
+    return undefined;
+  }
+  const $$m = (function($loc: Loc, $0: any) {
+    void $loc, $0;
+    pm.match('Primitive', $loc);
+    return pm.returnVal(JSON.parse($0));
   })($$r.loc, ($$r.value as any[])[0]);
   ($$r as any).value = $$m;
   
@@ -198,416 +434,203 @@ function Primitive($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("Primitive", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$final: MaybeResult<Unwrap<ReturnType<typeof Primitive$0>> | Unwrap<ReturnType<typeof Primitive$1>> | Unwrap<ReturnType<typeof Primitive$2>> | Unwrap<ReturnType<typeof Primitive$3>>> = Primitive$0($$ctx, $$state)
+  const $$final: MaybeResult<Unwrap<ReturnType<typeof Primitive$0>> | Unwrap<ReturnType<typeof Primitive$1>> | Unwrap<ReturnType<typeof Primitive$2>> | Unwrap<ReturnType<typeof Primitive$3>> | Unwrap<ReturnType<typeof Primitive$4>> | Unwrap<ReturnType<typeof Primitive$5>>> = Primitive$0($$ctx, $$state)
     || Primitive$1($$ctx, $$state)
     || Primitive$2($$ctx, $$state)
-    || Primitive$3($$ctx, $$state);
+    || Primitive$3($$ctx, $$state)
+    || Primitive$4($$ctx, $$state)
+    || Primitive$5($$ctx, $$state);
   $$ctx.exit?.("Primitive", $$state, $$final, $$eventData);
 
   return $$final;
 }
 
-const Array$parser = $P(ArrayItem);
+const Spec$0$parser = $EXPECT($L4, "Spec \"undef\"");
 
-function Array($$ctx: ParserContext, $$state: ParseState) {
-  const $$entered = $$ctx.enter?.("Array", $$state);
-  if ($$entered && "cache" in $$entered) return $$entered.cache as never;
-  const $$eventData = $$entered?.data;
-  const $$r = Array$parser($$ctx, $$state);
+const Spec$1$parser = $EXPECT($L5, "Spec \"null\"");
+
+const Spec$2$parser = $EXPECT($L6, "Spec \"true\"");
+
+const Spec$3$parser = $EXPECT($L7, "Spec \"false\"");
+
+const Spec$4$parser = $EXPECT($L8, "Spec \"NaN\"");
+
+const Spec$5$parser = $EXPECT($L9, "Spec \"inf\"");
+
+const Spec$6$parser = $EXPECT($L10, "Spec \"neginf\"");
+
+const Spec$7$parser = $S($EXPECT($L11, "Spec \"symbol\""), $EXPECT($R6, "Spec /[^｠]*/"));
+
+function Spec$0($$ctx: ParserContext, $$state: ParseState) {
+  const $$r = Spec$0$parser($$ctx, $$state);
   if (!$$r) {
-    $$ctx.exit?.("Array", $$state, undefined, $$eventData);
+    
     return undefined;
   }
-  const $$m = (function($loc: Loc, $1: typeof $$r.value) {
-    void $loc, $1;
-    pm.match('Array', $loc);
-    return $1
-  })($$r.loc, $$r.value);
+  const $$m = (function($loc: Loc) {
+    void $loc;
+    pm.match('Spec', $loc);
+    return pm.returnVal(undef);
+  })($$r.loc);
   ($$r as any).value = $$m;
-  $$ctx.exit?.("Array", $$state, $$r, $$eventData);
+  
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const ArrayItem$0$parser = $S($EXPECT($L3, "ArrayItem \"- \""), Value, NL);
+function Spec$1($$ctx: ParserContext, $$state: ParseState) {
+  const $$r = Spec$1$parser($$ctx, $$state);
+  if (!$$r) {
+    
+    return undefined;
+  }
+  const $$m = (function($loc: Loc) {
+    void $loc;
+    pm.match('Spec', $loc);
+    return pm.returnVal(null);
+  })($$r.loc);
+  ($$r as any).value = $$m;
+  
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
 
-const ArrayItem$1$parser = $S($EXPECT($L4, "ArrayItem \"-\""), NL, INDENT, Value, UNDENT);
+function Spec$2($$ctx: ParserContext, $$state: ParseState) {
+  const $$r = Spec$2$parser($$ctx, $$state);
+  if (!$$r) {
+    
+    return undefined;
+  }
+  const $$m = (function($loc: Loc) {
+    void $loc;
+    pm.match('Spec', $loc);
+    return pm.returnVal(true);
+  })($$r.loc);
+  ($$r as any).value = $$m;
+  
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
 
-function ArrayItem$0($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = ArrayItem$0$parser($$ctx, $$state);
+function Spec$3($$ctx: ParserContext, $$state: ParseState) {
+  const $$r = Spec$3$parser($$ctx, $$state);
+  if (!$$r) {
+    
+    return undefined;
+  }
+  const $$m = (function($loc: Loc) {
+    void $loc;
+    pm.match('Spec', $loc);
+    return pm.returnVal(false);
+  })($$r.loc);
+  ($$r as any).value = $$m;
+  
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
+
+function Spec$4($$ctx: ParserContext, $$state: ParseState) {
+  const $$r = Spec$4$parser($$ctx, $$state);
+  if (!$$r) {
+    
+    return undefined;
+  }
+  const $$m = (function($loc: Loc) {
+    void $loc;
+    pm.match('Spec', $loc);
+    return pm.returnVal(Number.NaN);
+  })($$r.loc);
+  ($$r as any).value = $$m;
+  
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
+
+function Spec$5($$ctx: ParserContext, $$state: ParseState) {
+  const $$r = Spec$5$parser($$ctx, $$state);
+  if (!$$r) {
+    
+    return undefined;
+  }
+  const $$m = (function($loc: Loc) {
+    void $loc;
+    pm.match('Spec', $loc);
+    return pm.returnVal(Infinity);
+  })($$r.loc);
+  ($$r as any).value = $$m;
+  
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
+
+function Spec$6($$ctx: ParserContext, $$state: ParseState) {
+  const $$r = Spec$6$parser($$ctx, $$state);
+  if (!$$r) {
+    
+    return undefined;
+  }
+  const $$m = (function($loc: Loc) {
+    void $loc;
+    pm.match('Spec', $loc);
+    return pm.returnVal(-Infinity);
+  })($$r.loc);
+  ($$r as any).value = $$m;
+  
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
+
+function Spec$7($$ctx: ParserContext, $$state: ParseState) {
+  const $$r = Spec$7$parser($$ctx, $$state);
   if (!$$r) {
     
     return undefined;
   }
   const $$m = (function($loc: Loc, $2: typeof $$r.value[1]) {
     void $loc, $2;
-    pm.match('ArrayItem', $loc);
-    return $2
+    pm.match('Spec', $loc);
+    return pm.returnVal(Symbol($2));
   })($$r.loc, $$r.value[1]);
   ($$r as any).value = $$m;
   
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-function ArrayItem$1($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = ArrayItem$1$parser($$ctx, $$state);
-  if (!$$r) {
-    
-    return undefined;
-  }
-  const $$m = (function($loc: Loc, $4: typeof $$r.value[3]) {
-    void $loc, $4;
-    pm.match('ArrayItem', $loc);
-    return $4
-  })($$r.loc, $$r.value[3]);
-  ($$r as any).value = $$m;
-  
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-function ArrayItem($$ctx: ParserContext, $$state: ParseState) {
-  const $$entered = $$ctx.enter?.("ArrayItem", $$state);
+function Spec($$ctx: ParserContext, $$state: ParseState) {
+  const $$entered = $$ctx.enter?.("Spec", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$final: MaybeResult<Unwrap<ReturnType<typeof ArrayItem$0>> | Unwrap<ReturnType<typeof ArrayItem$1>>> = ArrayItem$0($$ctx, $$state)
-    || ArrayItem$1($$ctx, $$state);
-  $$ctx.exit?.("ArrayItem", $$state, $$final, $$eventData);
+  const $$final: MaybeResult<Unwrap<ReturnType<typeof Spec$0>> | Unwrap<ReturnType<typeof Spec$1>> | Unwrap<ReturnType<typeof Spec$2>> | Unwrap<ReturnType<typeof Spec$3>> | Unwrap<ReturnType<typeof Spec$4>> | Unwrap<ReturnType<typeof Spec$5>> | Unwrap<ReturnType<typeof Spec$6>> | Unwrap<ReturnType<typeof Spec$7>>> = Spec$0($$ctx, $$state)
+    || Spec$1($$ctx, $$state)
+    || Spec$2($$ctx, $$state)
+    || Spec$3($$ctx, $$state)
+    || Spec$4($$ctx, $$state)
+    || Spec$5($$ctx, $$state)
+    || Spec$6($$ctx, $$state)
+    || Spec$7($$ctx, $$state);
+  $$ctx.exit?.("Spec", $$state, $$final, $$eventData);
 
   return $$final;
 }
 
-const Hash$parser = $P(HashItem);
+const _$parser = $R$0($EXPECT($R7, "_ /[\\x20\\t]*/"));
 
-function Hash($$ctx: ParserContext, $$state: ParseState) {
-  const $$entered = $$ctx.enter?.("Hash", $$state);
+function _($$ctx: ParserContext, $$state: ParseState) {
+  const $$entered = $$ctx.enter?.("_", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$r = Hash$parser($$ctx, $$state);
-  if (!$$r) {
-    $$ctx.exit?.("Hash", $$state, undefined, $$eventData);
-    return undefined;
-  }
-  const $$m = (function($loc: Loc, $1: typeof $$r.value) {
-    void $loc, $1;
-    pm.match('Hash', $loc);
-    const hash = {}
-    for (const [key, val] of $1) {
-      hash[key] = val
-    }
-    return hash
-  })($$r.loc, $$r.value);
-  ($$r as any).value = $$m;
-  $$ctx.exit?.("Hash", $$state, $$r, $$eventData);
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-const HashItem$0$parser = $S(Key, $EXPECT($L5, "HashItem \": \""), Value);
-
-const HashItem$1$parser = $S(Key, $EXPECT($L6, "HashItem \":\""), NL, INDENT, Value, UNDENT);
-
-function HashItem$0($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = HashItem$0$parser($$ctx, $$state);
-  if (!$$r) {
-    
-    return undefined;
-  }
-  const $$value = $$r.value;
-  const $$m = (function($loc: Loc, $1: typeof $$value[0], $3: typeof $$value[2]) {
-    void $loc, $1, $3;
-    pm.match('HashItem', $loc);
-    return [$1, $3]
-  })($$r.loc, $$value[0], $$value[2]);
-  ($$r as any).value = $$m;
-  
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-function HashItem$1($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = HashItem$1$parser($$ctx, $$state);
-  if (!$$r) {
-    
-    return undefined;
-  }
-  const $$value = $$r.value;
-  const $$m = (function($loc: Loc, $1: typeof $$value[0], $5: typeof $$value[4]) {
-    void $loc, $1, $5;
-    pm.match('HashItem', $loc);
-    return [$1, $5]
-  })($$r.loc, $$value[0], $$value[4]);
-  ($$r as any).value = $$m;
-  
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-function HashItem($$ctx: ParserContext, $$state: ParseState) {
-  const $$entered = $$ctx.enter?.("HashItem", $$state);
-  if ($$entered && "cache" in $$entered) return $$entered.cache as never;
-  const $$eventData = $$entered?.data;
-  const $$final: MaybeResult<Unwrap<ReturnType<typeof HashItem$0>> | Unwrap<ReturnType<typeof HashItem$1>>> = HashItem$0($$ctx, $$state)
-    || HashItem$1($$ctx, $$state);
-  $$ctx.exit?.("HashItem", $$state, $$final, $$eventData);
+  const $$final = _$parser($$ctx, $$state);
+  $$ctx.exit?.("_", $$state, $$final, $$eventData);
 
   return $$final;
 }
 
-const Key$parser = $EXPECT($R3, "Key /[A-Za-z]+/");
+const WS$parser = $R$0($EXPECT($R8, "WS /\\x20+/"));
 
-function Key($$ctx: ParserContext, $$state: ParseState) {
-  const $$entered = $$ctx.enter?.("Key", $$state);
+function WS($$ctx: ParserContext, $$state: ParseState) {
+  const $$entered = $$ctx.enter?.("WS", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$r = Key$parser($$ctx, $$state);
-  if (!$$r) {
-    $$ctx.exit?.("Key", $$state, undefined, $$eventData);
-    return undefined;
-  }
-  const $$m = (function($loc: Loc, $0: any) {
-    void $loc, $0;
-    pm.match('Key', $loc);
-    return $0
-  })($$r.loc, ($$r.value as any[])[0]);
-  ($$r as any).value = $$m;
-  $$ctx.exit?.("Key", $$state, $$r, $$eventData);
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-const Special$0$parser = $EXPECT($L7, "Special \"undef\"");
-
-const Special$1$parser = $EXPECT($L8, "Special \"null\"");
-
-const Special$2$parser = $EXPECT($L9, "Special \"true\"");
-
-const Special$3$parser = $EXPECT($L10, "Special \"false\"");
-
-const Special$4$parser = $EXPECT($L11, "Special \"emptyArray\"");
-
-const Special$5$parser = $EXPECT($L12, "Special \"emptyHash\"");
-
-const Special$6$parser = $EXPECT($L13, "Special \"emptySet\"");
-
-const Special$7$parser = $EXPECT($L14, "Special \"emptyMap\"");
-
-const Special$8$parser = $EXPECT($L15, "Special \"NaN\"");
-
-const Special$9$parser = $EXPECT($L16, "Special \"inf\"");
-
-const Special$10$parser = $EXPECT($L17, "Special \"neginf\"");
-
-const Special$11$parser = $S($EXPECT($L18, "Special \"symbol\""), $EXPECT($R4, "Special /[^｠]*/"));
-
-function Special$0($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = Special$0$parser($$ctx, $$state);
-  if (!$$r) {
-    
-    return undefined;
-  }
-  const $$m = (function($loc: Loc) {
-    void $loc;
-    pm.match('Special', $loc);
-    return undef
-  })($$r.loc);
-  ($$r as any).value = $$m;
-  
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-function Special$1($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = Special$1$parser($$ctx, $$state);
-  if (!$$r) {
-    
-    return undefined;
-  }
-  const $$m = (function($loc: Loc) {
-    void $loc;
-    pm.match('Special', $loc);
-    return null
-  })($$r.loc);
-  ($$r as any).value = $$m;
-  
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-function Special$2($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = Special$2$parser($$ctx, $$state);
-  if (!$$r) {
-    
-    return undefined;
-  }
-  const $$m = (function($loc: Loc) {
-    void $loc;
-    pm.match('Special', $loc);
-    return true
-  })($$r.loc);
-  ($$r as any).value = $$m;
-  
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-function Special$3($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = Special$3$parser($$ctx, $$state);
-  if (!$$r) {
-    
-    return undefined;
-  }
-  const $$m = (function($loc: Loc) {
-    void $loc;
-    pm.match('Special', $loc);
-    return false
-  })($$r.loc);
-  ($$r as any).value = $$m;
-  
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-function Special$4($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = Special$4$parser($$ctx, $$state);
-  if (!$$r) {
-    
-    return undefined;
-  }
-  const $$m = (function($loc: Loc) {
-    void $loc;
-    pm.match('Special', $loc);
-    return []
-  })($$r.loc);
-  ($$r as any).value = $$m;
-  
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-function Special$5($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = Special$5$parser($$ctx, $$state);
-  if (!$$r) {
-    
-    return undefined;
-  }
-  const $$m = (function($loc: Loc) {
-    void $loc;
-    pm.match('Special', $loc);
-    return {}
-  })($$r.loc);
-  ($$r as any).value = $$m;
-  
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-function Special$6($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = Special$6$parser($$ctx, $$state);
-  if (!$$r) {
-    
-    return undefined;
-  }
-  const $$m = (function($loc: Loc) {
-    void $loc;
-    pm.match('Special', $loc);
-    return new Set()
-  })($$r.loc);
-  ($$r as any).value = $$m;
-  
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-function Special$7($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = Special$7$parser($$ctx, $$state);
-  if (!$$r) {
-    
-    return undefined;
-  }
-  const $$m = (function($loc: Loc) {
-    void $loc;
-    pm.match('Special', $loc);
-    return new Map()
-  })($$r.loc);
-  ($$r as any).value = $$m;
-  
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-function Special$8($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = Special$8$parser($$ctx, $$state);
-  if (!$$r) {
-    
-    return undefined;
-  }
-  const $$m = (function($loc: Loc) {
-    void $loc;
-    pm.match('Special', $loc);
-    return Number.NaN
-  })($$r.loc);
-  ($$r as any).value = $$m;
-  
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-function Special$9($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = Special$9$parser($$ctx, $$state);
-  if (!$$r) {
-    
-    return undefined;
-  }
-  const $$m = (function($loc: Loc) {
-    void $loc;
-    pm.match('Special', $loc);
-    return Infinity
-  })($$r.loc);
-  ($$r as any).value = $$m;
-  
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-function Special$10($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = Special$10$parser($$ctx, $$state);
-  if (!$$r) {
-    
-    return undefined;
-  }
-  const $$m = (function($loc: Loc) {
-    void $loc;
-    pm.match('Special', $loc);
-    return -Infinity
-  })($$r.loc);
-  ($$r as any).value = $$m;
-  
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-function Special$11($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = Special$11$parser($$ctx, $$state);
-  if (!$$r) {
-    
-    return undefined;
-  }
-  const $$m = (function($loc: Loc, $2: typeof $$r.value[1]) {
-    void $loc, $2;
-    pm.match('Special', $loc);
-    return Symbol($2)
-  })($$r.loc, $$r.value[1]);
-  ($$r as any).value = $$m;
-  
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-function Special($$ctx: ParserContext, $$state: ParseState) {
-  const $$entered = $$ctx.enter?.("Special", $$state);
-  if ($$entered && "cache" in $$entered) return $$entered.cache as never;
-  const $$eventData = $$entered?.data;
-  const $$final: MaybeResult<Unwrap<ReturnType<typeof Special$0>> | Unwrap<ReturnType<typeof Special$1>> | Unwrap<ReturnType<typeof Special$2>> | Unwrap<ReturnType<typeof Special$3>> | Unwrap<ReturnType<typeof Special$4>> | Unwrap<ReturnType<typeof Special$5>> | Unwrap<ReturnType<typeof Special$6>> | Unwrap<ReturnType<typeof Special$7>> | Unwrap<ReturnType<typeof Special$8>> | Unwrap<ReturnType<typeof Special$9>> | Unwrap<ReturnType<typeof Special$10>> | Unwrap<ReturnType<typeof Special$11>>> = Special$0($$ctx, $$state)
-    || Special$1($$ctx, $$state)
-    || Special$2($$ctx, $$state)
-    || Special$3($$ctx, $$state)
-    || Special$4($$ctx, $$state)
-    || Special$5($$ctx, $$state)
-    || Special$6($$ctx, $$state)
-    || Special$7($$ctx, $$state)
-    || Special$8($$ctx, $$state)
-    || Special$9($$ctx, $$state)
-    || Special$10($$ctx, $$state)
-    || Special$11($$ctx, $$state);
-  $$ctx.exit?.("Special", $$state, $$final, $$eventData);
+  const $$final = WS$parser($$ctx, $$state);
+  $$ctx.exit?.("WS", $$state, $$final, $$eventData);
 
   return $$final;
 }
 
-const INDENT$parser = $R$0($EXPECT($R5, "INDENT /\\x0F/"));
+const INDENT$parser = $R$0($EXPECT($R9, "INDENT /\\x0F/"));
 
 function INDENT($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("INDENT", $$state);
@@ -619,7 +642,7 @@ function INDENT($$ctx: ParserContext, $$state: ParseState) {
   return $$final;
 }
 
-const UNDENT$parser = $R$0($EXPECT($R6, "UNDENT /\\x0E/"));
+const UNDENT$parser = $R$0($EXPECT($R10, "UNDENT /\\x0E/"));
 
 function UNDENT($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("UNDENT", $$state);
@@ -631,7 +654,7 @@ function UNDENT($$ctx: ParserContext, $$state: ParseState) {
   return $$final;
 }
 
-const NL$parser = $R$0($EXPECT($R7, "NL /\\r?\\n/"));
+const NL$parser = $R$0($EXPECT($R11, "NL /\\r?\\n/"));
 
 function NL($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("NL", $$state);
@@ -690,13 +713,15 @@ export const { parse } = parser
 
 export {
   Value,
-  Primitive,
-  Array,
-  ArrayItem,
+  List,
   Hash,
-  HashItem,
+  LItem,
+  HItem,
   Key,
-  Special,
+  Primitive,
+  Spec,
+  _,
+  WS,
   INDENT,
   UNDENT,
   NL
@@ -706,11 +731,10 @@ export {
 import {CParseMatches} from 'parse-utils';
 export let pm = new CParseMatches();
 
-// nice.parse.hera
-
 import {undef, defined, assert} from 'base'
+import {hash} from 'datatypes'
+import {str2indents} from 'hera-parse'
 
-export const beginParse = (text: string): void => {
-  pm.reset(text);
-
+export const beginParse = (text: string): (string | undefined) => {
+  return str2indents(text)
   }

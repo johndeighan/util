@@ -4,7 +4,7 @@ import {compile} from "@danielx/hera"
 
 import {undef, assert, croak, getErrStr} from 'base'
 import {isString} from 'datatypes'
-import {openTextFile, parsePath, withExt} from 'fsys'
+import {parsePath, withExt} from 'fsys'
 import {mdGet} from 'meta-data'
 import {DUMP} from 'to-nice'
 import {civet2tsSync} from 'llcivet'
@@ -34,25 +34,6 @@ export compileHera := (
 		: code
 		)
 	return tsCode.replaceAll('@danielx', 'npm:@danielx')
-
-# ---------------------------------------------------------------------------
-
-export compileHeraFile := (
-		path: string
-		): void =>
-
-	{hMetaData, contents} := openTextFile path, true
-	type := mdGet<string>(hMetaData, 'type', 'civet')
-	assert isHeraType type
-	fileName := parsePath(path).fileName
-	code := try
-		compileHera contents, type, fileName
-	catch err
-		DUMP contents, "HERA CODE (#{type})"
-		croak getErrStr(err)
-#	ext := (type == 'civet') ? '.civet' : '.ts'
-	Deno.writeTextFileSync withExt(path, '.ts'), code
-	return
 
 # ---------------------------------------------------------------------------
 

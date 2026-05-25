@@ -7,18 +7,18 @@ import {existsSync, emptyDirSync, ensureDirSync} from '@std/fs'
 import {appendFileSync, openSync, closeSync} from 'node-fs'
 import {pathToFileURL} from 'node-url'
 import {EventEmitter} from 'node-events'
-import NReadLines from 'npm-n-readlines'
 import {expandGlobSync} from '@std/fs/expand-glob'
-import {TextLineStream} from '@std/streams'
+import {TextLineStream} from '@std/streams/text-line-stream'
 import {
 	parse, resolve, relative, fromFileUrl,
 	} from '@std/path'
 
 import {
 	pass, undef, defined, notdefined, sleep, toRelPath,
-	normalizePath, toFullPath, allLinesInFile, TIterator,
+	normalizePath, toFullPath, allLinesInFile,
+	TIterator, TAsyncIterator,
 	fileExt, withExt, getFileStats, encode,
-	croak, assert, obviously, emptyIterator,
+	croak, assert, obviously, emptyIterator, emptyAsyncIterator,
 	pushLogLevel, popLogLevel, LOG, DBG, WARN, ERR,
 	INDENT, UNDENT,
 	} from 'base'
@@ -727,95 +727,83 @@ export isValidStub := (stub: string): boolean =>
 	return (stub != 'all')
 
 # ---------------------------------------------------------------------------
-
-export type TFileReader = {
-	hMetaData: hash
-	reader: TIterator<string>
-	}
-
-export type TFileContents = {
-	hMetaData: hash
-	contents: string
-	}
-
-export function openTextFile(
-		path: string
-		eager?: false
-		): TFileReader
+# ASYNC
 
 export function openTextFile(
 		path: string
 		eager: true
-		): TFileContents
+		): [hash, string]
+
+export function openTextFile(
+		path: string
+		eager?: false
+		): [hash, TAsyncIterator<string>]
 
 export function openTextFile(
 		path: string,
 		eager: boolean = false
-		): TFileReader | TFileContents
+		): [hash, string | TAsyncIterator<string>]
 
 	assert isFile(path), "No such file: #{path}"
-	nReader := new NReadLines(path)
+	iter := allLinesInFile(path)
+
+	# --- ASYNC ---
 	getLine := (): string? =>
-		buffer := nReader.next()
-		if defined(buffer)
-			return removeCR(buffer.toString())
-		else
+		{value, done} := await iter.next()
+		if done
 			return undef
+		else
+			return value as string
 
 	# --- we need to get the first line to check if
 	#     there's meta data. But if there is not,
 	#     we need to return it by the reader
 
-	firstLine := getLine()
+	firstLine := await getLine()
 	if notdefined(firstLine)
-		if eager
-			return {
-				hMetaData: {}
-				contents: ''
-				}
-		else
-			return {
-				hMetaData: {}
-				reader: emptyIterator<string>()
-				}
+		return [{}, eager ? '' : emptyAsyncIterator<string>()]
 
 	# --- Get meta data if present
 	hasMetaData := isMetaDataStart(firstLine)
-	let nMetaLines = 0
 
 	hMetaData: hash := (
 		if hasMetaData
 			lMetaLines: string[] := []
-			let line = getLine()
+			let line = await getLine()
 			while line && (line != firstLine)
 				lMetaLines.push line
-				line = getLine()
-			nMetaLines = lMetaLines.length + 2
+				line = await getLine()
 			convertMetaData(firstLine, arrayToBlock(lMetaLines))
 		else
 			{}
 		)
 
-	# --- generator that allows reading contents
-	reader := (): TIterator<string> ->
-		if not hasMetaData && defined(firstLine)
-			yield firstLine
-		let line = getLine()
-		while defined(line)
-			yield line
-			line = getLine()
-		return
-
 	if eager
-		return {
-			hMetaData
-			contents: arrayToBlock(Array.from(reader()))
-			}
+		# --- Get all the rest of the lines and join with '\n'
+		lLines := await Array.fromAsync(iter)
+		return [hMetaData, lLines.join('\n')]
 	else
-		return {
-			hMetaData
-			reader: reader()
-			}
+		# --- generator that allows reading contents
+		reader := (): TAsyncIterator<string> ->
+			if not hasMetaData
+				yield firstLine
+			let line = await getLine()
+			while defined(line)
+				yield line
+				line = await getLine()
+			return
+		return [hMetaData, reader()]
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export openAndReadTextFile := (
+		path: string
+		): [hash, string] ->
+
+	[hMetaData, reader] := await openTextFile path
+	lLines := await Array.fromAsync(reader)
+	return [hMetaData, lLines.join('\n')]
 
 # ---------------------------------------------------------------------------
 # ASYNC

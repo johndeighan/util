@@ -10,7 +10,7 @@ import {CBlock} from 'block'
 # --- mainBlock will have an empty header
 mainBlock := new CBlock()
 
-#beginParse
+#beginParse(text)
 	mainBlock.reset()
 
 Contents

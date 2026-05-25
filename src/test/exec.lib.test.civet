@@ -4,7 +4,7 @@ import {undef} from 'base'
 import {isEmpty, nonEmpty} from 'datatypes'
 import {o} from 'llutils'
 import {
-	mkstr, getCmdLine, execCmd, execCmdSync, TExecResult,
+	mkstr, getCmdLine, execCmd, TExecResult,
 	} from 'exec'
 import {
 	equal, succeeds, fails, truthy, falsy, setDirTree,
@@ -43,10 +43,3 @@ equal getCmdLine('dothis', ['-a', 'willy']), 'dothis -a willy'
 	{stdout} := await execCmd 'echo', ["Hello"]
 	equal stdout, "Hello"
 	)()
-
-(() =>
-	{stdout} := await execCmdSync 'echo', ["HiThere"]
-	equal stdout, "HiThere"
-	)()
-
-truthy execCmdSync("echo", ["Hello"]).success

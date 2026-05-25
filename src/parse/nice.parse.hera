@@ -4,60 +4,84 @@ type: civet
 # nice.parse.hera
 
 import {undef, defined, assert} from 'base'
+import {hash} from 'datatypes'
+import {str2indents} from 'hera-parse'
 
-#beginParse
+#beginParse(text)
+	# --- input parameter is 'text'
+	return str2indents(text)
 
 Value
-	(Primitive / Array / Hash)
-		return $2
+	# --- trailing newlines are permitted, but ignored
+	List NL*
+		return $1
+
+	Hash NL*
+		return $1
+
+	Primitive NL*
+		return $1
+
+List
+	LItem+
+		return $1
+
+Hash
+	HItem+
+		h: hash := {}
+		for [key, val] of $1
+			h[key] = val
+		return hash
+
+# ---------------------------------------------------------------------------
+
+LItem
+	"-" WS Primitive NL
+		return $3
+
+	"-" _ NL INDENT LItem+ UNDENT
+		return $5
+
+HItem
+	Key WS Primitive NL
+		return [$1, $3]
+
+	Key _ NL INDENT HItem+ UNDENT
+		return $5
+
+# ---------------------------------------------------------------------------
+
+Key
+	/[A-Za-z]+/ ":"
+		return $1[0]
 
 Primitive
 
-	"｟" Special "｠"
+	# --- Special Values
+	"｟" Spec "｠"
 		return $2
 
-	/\d+/ "n"?
-		if defined($2)
-			return BigInt($1)
-		else
-			return parseInt($0, 10)
-
-	/\d+\.\d*/
-		return parseFloat($0)
-
-	/[^\n]+/
-		return $0
-
-Array
-	ArrayItem+
+	# --- Forced Strings
+	/“([^\n\x0F\x0E]+)/
 		return $1
 
-ArrayItem
-	"- " Value NL
-		return $2
+	# --- BigInt
+	/(\d+)n/
+		return BigInt($1)
 
-	"-" NL INDENT Value UNDENT
-		return $4
+	# --- number
+	/\d+(\.\d+)?/
+		return JSON.parse($0)
 
-Hash
-	HashItem+
-		hash := {}
-		for [key, val] of $1
-			hash[key] = val
-		return hash
-
-HashItem
-	Key ": " Value
-		return [$1, $3]
-
-	Key ":" NL INDENT Value UNDENT
-		return [$1, $5]
-
-Key
-	/[A-Za-z]+/
+	# --- ordinary strings (exclude if leading [ or { )
+	/[^\n\x0F\x0E\[\{]+/
 		return $0
 
-Special
+	# --- JSON parsable values
+	/[^\n\x0F\x0E]+/
+		return JSON.parse($0)
+
+Spec
 	"undef"
 		return undef
 	"null"
@@ -66,14 +90,6 @@ Special
 		return true
 	"false"
 		return false
-	"emptyArray"
-		return []
-	"emptyHash"
-		return {}
-	"emptySet"
-		return new Set()
-	"emptyMap"
-		return new Map()
 	"NaN"
 		return Number.NaN
 	"inf"
@@ -82,6 +98,12 @@ Special
 		return -Infinity
 	"symbol" /[^｠]*/
 		return Symbol($2)
+
+_
+	/[\x20\t]*/
+
+WS
+	/\x20+/
 
 INDENT
 	/\x0F/

@@ -2,8 +2,6 @@
 import {CParseMatches} from 'parse-utils';
 export let pm = new CParseMatches();
 
-// dir-tree.parse.hera
-
 import {undef, defined, assert} from 'base'
 import {hash} from 'datatypes'
 import {indented, undented} from 'indent'
@@ -30,19 +28,18 @@ const getPath = (fileName: string = '') => {
   }
 }
 
-export const beginParse = (text: string): void => {
-  pm.reset(text);
-  // --- reset everything
+export const beginParse = (text: string): string? => {
   lFileOps.length  = 0
   lPathParts.length = 0
+
+  return str2indents(text)
   }
 ```
 
 FullDesc
   Root NL (FileDesc / DirDesc)+ ->
     pm.match('FullDesc', $loc);
-    // --- return whatever file ops have been saved
-    return lFileOps
+    return pm.returnVal(lFileOps);
 
 Root
   /\.(?:\/[A-Za-z0-9_-]+)*/ _ "clear"? ->
@@ -91,40 +88,40 @@ DirName
 Content
   Block+ ->
     pm.match('Content', $loc);
-    return $1.join('\n')
+    return pm.returnVal($1.join('\n'));
 
 Block
   NL? Line IndentedBlock? ->
     pm.match('Block', $loc);
-    return defined($3) ? ($2 + '\n' + $3) : $2
+    return pm.returnVal(defined($3) ? ($2 + '\n' + $3) : $2);
 
 IndentedBlock
   INDENT Content UNDENT ->
     pm.match('IndentedBlock', $loc);
-    return indented($2)
+    return pm.returnVal(indented($2));
 
 Line
   /[^\x0F\x0E\n\r]*/ ->
     pm.match('Line', $loc);
-    return $0
+    return pm.returnVal($0);
 
 Name
   /[A-Za-z_.-][A-Za-z0-9_.-]+/ ->
     pm.match('Name', $loc);
-    return $0
+    return pm.returnVal($0);
 
 INDENT
-  /\x0F/     -> # ASCII shift-in
-    pm.match('INDENT', $loc);
+  /\x0F/     # ASCII shift-in
+
 
 UNDENT
-  /\x0E/     -> # ASCII shift-out
-    pm.match('UNDENT', $loc);
+  /\x0E/     # ASCII shift-out
+
 
 NL
-  /\r?\n/ ->
-    pm.match('NL', $loc);
+  /\r?\n/
+
 
 _
-  /\x20*/ ->
-    pm.match('_', $loc);
+  /\x20*/
+

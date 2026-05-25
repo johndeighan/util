@@ -95,8 +95,7 @@ function FullDesc($$ctx: ParserContext, $$state: ParseState) {
   const $$m = (function($loc: Loc) {
     void $loc;
     pm.match('FullDesc', $loc);
-    // --- return whatever file ops have been saved
-    return lFileOps
+    return pm.returnVal(lFileOps);
   })($$r.loc);
   ($$r as any).value = $$m;
   $$ctx.exit?.("FullDesc", $$state, $$r, $$eventData);
@@ -228,7 +227,7 @@ function Content($$ctx: ParserContext, $$state: ParseState) {
   const $$m = (function($loc: Loc, $1: typeof $$r.value) {
     void $loc, $1;
     pm.match('Content', $loc);
-    return $1.join('\n')
+    return pm.returnVal($1.join('\n'));
   })($$r.loc, $$r.value);
   ($$r as any).value = $$m;
   $$ctx.exit?.("Content", $$state, $$r, $$eventData);
@@ -250,7 +249,7 @@ function Block($$ctx: ParserContext, $$state: ParseState) {
   const $$m = (function($loc: Loc, $2: typeof $$value[1], $3: typeof $$value[2]) {
     void $loc, $2, $3;
     pm.match('Block', $loc);
-    return defined($3) ? ($2 + '\n' + $3) : $2
+    return pm.returnVal(defined($3) ? ($2 + '\n' + $3) : $2);
   })($$r.loc, $$value[1], $$value[2]);
   ($$r as any).value = $$m;
   $$ctx.exit?.("Block", $$state, $$r, $$eventData);
@@ -271,7 +270,7 @@ function IndentedBlock($$ctx: ParserContext, $$state: ParseState) {
   const $$m = (function($loc: Loc, $2: typeof $$r.value[1]) {
     void $loc, $2;
     pm.match('IndentedBlock', $loc);
-    return indented($2)
+    return pm.returnVal(indented($2));
   })($$r.loc, $$r.value[1]);
   ($$r as any).value = $$m;
   $$ctx.exit?.("IndentedBlock", $$state, $$r, $$eventData);
@@ -292,7 +291,7 @@ function Line($$ctx: ParserContext, $$state: ParseState) {
   const $$m = (function($loc: Loc, $0: any) {
     void $loc, $0;
     pm.match('Line', $loc);
-    return $0
+    return pm.returnVal($0);
   })($$r.loc, ($$r.value as any[])[0]);
   ($$r as any).value = $$m;
   $$ctx.exit?.("Line", $$state, $$r, $$eventData);
@@ -313,91 +312,59 @@ function Name($$ctx: ParserContext, $$state: ParseState) {
   const $$m = (function($loc: Loc, $0: any) {
     void $loc, $0;
     pm.match('Name', $loc);
-    return $0
+    return pm.returnVal($0);
   })($$r.loc, ($$r.value as any[])[0]);
   ($$r as any).value = $$m;
   $$ctx.exit?.("Name", $$state, $$r, $$eventData);
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const INDENT$parser = $EXPECT($R3, "INDENT /\\x0F/");
+const INDENT$parser = $R$0($EXPECT($R3, "INDENT /\\x0F/"));
 
 function INDENT($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("INDENT", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$r = INDENT$parser($$ctx, $$state);
-  if (!$$r) {
-    $$ctx.exit?.("INDENT", $$state, undefined, $$eventData);
-    return undefined;
-  }
-  const $$m = (function($loc: Loc) {
-    void $loc;
-    pm.match('INDENT', $loc);
-  })($$r.loc);
-  ($$r as any).value = $$m;
-  $$ctx.exit?.("INDENT", $$state, $$r, $$eventData);
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+  const $$final = INDENT$parser($$ctx, $$state);
+  $$ctx.exit?.("INDENT", $$state, $$final, $$eventData);
+
+  return $$final;
 }
 
-const UNDENT$parser = $EXPECT($R4, "UNDENT /\\x0E/");
+const UNDENT$parser = $R$0($EXPECT($R4, "UNDENT /\\x0E/"));
 
 function UNDENT($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("UNDENT", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$r = UNDENT$parser($$ctx, $$state);
-  if (!$$r) {
-    $$ctx.exit?.("UNDENT", $$state, undefined, $$eventData);
-    return undefined;
-  }
-  const $$m = (function($loc: Loc) {
-    void $loc;
-    pm.match('UNDENT', $loc);
-  })($$r.loc);
-  ($$r as any).value = $$m;
-  $$ctx.exit?.("UNDENT", $$state, $$r, $$eventData);
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+  const $$final = UNDENT$parser($$ctx, $$state);
+  $$ctx.exit?.("UNDENT", $$state, $$final, $$eventData);
+
+  return $$final;
 }
 
-const NL$parser = $EXPECT($R5, "NL /\\r?\\n/");
+const NL$parser = $R$0($EXPECT($R5, "NL /\\r?\\n/"));
 
 function NL($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("NL", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$r = NL$parser($$ctx, $$state);
-  if (!$$r) {
-    $$ctx.exit?.("NL", $$state, undefined, $$eventData);
-    return undefined;
-  }
-  const $$m = (function($loc: Loc) {
-    void $loc;
-    pm.match('NL', $loc);
-  })($$r.loc);
-  ($$r as any).value = $$m;
-  $$ctx.exit?.("NL", $$state, $$r, $$eventData);
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+  const $$final = NL$parser($$ctx, $$state);
+  $$ctx.exit?.("NL", $$state, $$final, $$eventData);
+
+  return $$final;
 }
 
-const _$parser = $EXPECT($R6, "_ /\\x20*/");
+const _$parser = $R$0($EXPECT($R6, "_ /\\x20*/"));
 
 function _($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("_", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$r = _$parser($$ctx, $$state);
-  if (!$$r) {
-    $$ctx.exit?.("_", $$state, undefined, $$eventData);
-    return undefined;
-  }
-  const $$m = (function($loc: Loc) {
-    void $loc;
-    pm.match('_', $loc);
-  })($$r.loc);
-  ($$r as any).value = $$m;
-  $$ctx.exit?.("_", $$state, $$r, $$eventData);
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+  const $$final = _$parser($$ctx, $$state);
+  $$ctx.exit?.("_", $$state, $$final, $$eventData);
+
+  return $$final;
 }
 
 
@@ -466,8 +433,6 @@ export {
 import {CParseMatches} from 'parse-utils';
 export let pm = new CParseMatches();
 
-// dir-tree.parse.hera
-
 import {undef, defined, assert} from 'base'
 import {hash} from 'datatypes'
 import {indented, undented} from 'indent'
@@ -494,9 +459,9 @@ const getPath = (fileName: string = '') => {
   }
 }
 
-export const beginParse = (text: string): void => {
-  pm.reset(text);
-  // --- reset everything
+export const beginParse = (text: string): (string | undefined) => {
   lFileOps.length  = 0
   lPathParts.length = 0
+
+  return str2indents(text)
   }

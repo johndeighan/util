@@ -19,7 +19,7 @@ import {
 	normalizePath, inSameDir, newerDestFileExists,
 	} from 'fsys'
 import {
-	execCmdSync, execCmd, CFileHandler, procFiles,
+	execCmd, CFileHandler, procFiles,
 	TProcSpec, TExecResult, summarizeExec,
 	} from 'exec'
 import {
@@ -132,76 +132,6 @@ class CCivetCompiler extends CFileHandler
 			errMsg := "COMPILE FAILED: #{pathStr(path)} - #{getErrStr(err)}"
 			return {
 				success: false
-				stderr: errMsg
-				}
-
-	# ..........................................................
-	# SYNC
-
-	handleSync(
-			path: string,
-			hOptions: hash = {}
-			): TExecResult
-
-		{force, nocheck, output} := getOptions<TCivetOptions> hOptions, {
-			force: false
-			nocheck: false
-			output: '.ts'
-			}
-
-		assert (fileExt(path) == '.civet'), "Not a civet file: #{path}"
-		tsPath := withExt path, '.ts'
-
-		# --- Check if a newer compiled version already exists
-		if (
-				   not force
-				&& existsSync(tsPath)
-				&& newerDestFileExists(path, tsPath)
-				)
-			return {
-				success: true
-				notNeeded: true
-				stdout: ''
-				stderr: ''
-				}
-
-		try
-			hResult := execCmdSync 'deno', [
-				'run', '-A'
-				'@danielx/civet'
-				'--config', 'C:/Users/johnd/civetconfig.json'
-				'--inline-map'
-				'-o', '.ts'
-				'-c', path
-				]
-			if not hResult.success
-				console.log @getOutput(hResult)
-				croak "Compile failed"
-
-			unless nocheck
-				hCheckResult := execCmdSync 'deno', ['check', tsPath]
-				if not hCheckResult.success
-					console.log @getOutput(hCheckResult)
-					croak "Type check failed"
-
-			tsCode := slurp tsPath
-			[code, hSrcMap] := extractSourceMap(tsCode)
-			if defined(hSrcMap)
-				addJsonValue 'sourcemaps.json', normalizePath(tsPath), hSrcMap
-			Deno.writeTextFileSync tsPath, code
-			return {
-				success: true
-				stdout: ''
-				stderr: ''
-				}
-
-		catch err
-			if debugging
-				LOG getErrStr(err)
-			errMsg := "COMPILE FAILED: #{pathStr(path)} - #{getErrStr(err)}"
-			return {
-				success: false
-				stdout: ''
 				stderr: errMsg
 				}
 
