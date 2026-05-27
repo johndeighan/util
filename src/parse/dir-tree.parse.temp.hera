@@ -5,16 +5,8 @@ export let pm = new CParseMatches();
 import {undef, defined, assert} from 'base'
 import {hash} from 'datatypes'
 import {indented, undented} from 'indent'
-
-export type TFileOp = {
-    op: 'clearDir' | 'compile'
-    path: string
-    }
-  | {
-    op: 'barf'
-    path: string
-    contents: string
-    }
+import {str2indents} from 'hera-parse'
+import {TFileOp} from 'unit-test'
 
 const lFileOps: TFileOp[]  = []
 const lPathParts: string[] = []
@@ -37,12 +29,12 @@ export const beginParse = (text: string): string? => {
 ```
 
 FullDesc
-  Root NL (FileDesc / DirDesc)+ ->
+  Root (FileDesc / DirDesc)+ NL* ->
     pm.match('FullDesc', $loc);
     return pm.returnVal(lFileOps);
 
 Root
-  /\.(?:\/[A-Za-z0-9_-]+)*/ _ "clear"? ->
+  /\.(?:\/[A-Za-z0-9_-]+)*/ _ "clear"? NL ->
     pm.match('Root', $loc);
     const root = $1[0]
     lFileOps.push({
@@ -53,13 +45,13 @@ Root
     return
 
 FileDesc
-  Name _ "compile"? INDENT Content UNDENT ->
+  Name _ "compile"? NL INDENT Content UNDENT ->
     pm.match('FileDesc', $loc);
     const path = getPath($1)
     lFileOps.push({
       op: 'barf',
       path,
-      contents: $5
+      contents: $6
       })
     if (defined($3)) {
       lFileOps.push({
@@ -70,7 +62,7 @@ FileDesc
     return
 
 DirDesc
-  DirName INDENT (DirDesc / FileDesc)+ UNDENT ->
+  DirName NL INDENT (DirDesc / FileDesc)+ UNDENT ->
     pm.match('DirDesc', $loc);
     lPathParts.pop()
     return

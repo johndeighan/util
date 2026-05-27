@@ -81,7 +81,7 @@ const $R5 = $R(new RegExp("\\r?\\n", 'suy'));
 const $R6 = $R(new RegExp("\\x20*", 'suy'));
 
 
-const FullDesc$parser = $S(Root, NL, $P($C(FileDesc, DirDesc)));
+const FullDesc$parser = $S(Root, $P($C(FileDesc, DirDesc)), $Q(NL));
 
 function FullDesc($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("FullDesc", $$state);
@@ -102,7 +102,7 @@ function FullDesc($$ctx: ParserContext, $$state: ParseState) {
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const Root$parser = $S($EXPECT($R0, "Root /\\.(?:\\/[A-Za-z0-9_-]+)*/"), _, $E($EXPECT($L0, "Root \"clear\"")));
+const Root$parser = $S($EXPECT($R0, "Root /\\.(?:\\/[A-Za-z0-9_-]+)*/"), _, $E($EXPECT($L0, "Root \"clear\"")), NL);
 
 function Root($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("Root", $$state);
@@ -130,7 +130,7 @@ function Root($$ctx: ParserContext, $$state: ParseState) {
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const FileDesc$parser = $S(Name, _, $E($EXPECT($L1, "FileDesc \"compile\"")), INDENT, Content, UNDENT);
+const FileDesc$parser = $S(Name, _, $E($EXPECT($L1, "FileDesc \"compile\"")), NL, INDENT, Content, UNDENT);
 
 function FileDesc($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("FileDesc", $$state);
@@ -142,14 +142,14 @@ function FileDesc($$ctx: ParserContext, $$state: ParseState) {
     return undefined;
   }
   const $$value = $$r.value;
-  const $$m = (function($loc: Loc, $1: typeof $$value[0], $3: typeof $$value[2], $5: typeof $$value[4]) {
-    void $loc, $1, $3, $5;
+  const $$m = (function($loc: Loc, $1: typeof $$value[0], $3: typeof $$value[2], $6: typeof $$value[5]) {
+    void $loc, $1, $3, $6;
     pm.match('FileDesc', $loc);
     const path = getPath($1)
     lFileOps.push({
       op: 'barf',
       path,
-      contents: $5
+      contents: $6
       })
     if (defined($3)) {
       lFileOps.push({
@@ -158,13 +158,13 @@ function FileDesc($$ctx: ParserContext, $$state: ParseState) {
         })
     }
     return
-  })($$r.loc, $$value[0], $$value[2], $$value[4]);
+  })($$r.loc, $$value[0], $$value[2], $$value[5]);
   ($$r as any).value = $$m;
   $$ctx.exit?.("FileDesc", $$state, $$r, $$eventData);
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const DirDesc$parser = $S(DirName, INDENT, $P($C(DirDesc, FileDesc)), UNDENT);
+const DirDesc$parser = $S(DirName, NL, INDENT, $P($C(DirDesc, FileDesc)), UNDENT);
 
 function DirDesc($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("DirDesc", $$state);
@@ -436,16 +436,8 @@ export let pm = new CParseMatches();
 import {undef, defined, assert} from 'base'
 import {hash} from 'datatypes'
 import {indented, undented} from 'indent'
-
-export type TFileOp = {
-    op: 'clearDir' | 'compile'
-    path: string
-    }
-  | {
-    op: 'barf'
-    path: string
-    contents: string
-    }
+import {str2indents} from 'hera-parse'
+import {TFileOp} from 'unit-test'
 
 const lFileOps: TFileOp[]  = []
 const lPathParts: string[] = []

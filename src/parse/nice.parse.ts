@@ -46,9 +46,8 @@ const _types: Loc | MaybeResult<any> | ParseResult<any> | Parser<any> | ParserCo
 
 
 const grammar = {
+  RetVal,
   Value,
-  List,
-  Hash,
   LItem,
   HItem,
   Key,
@@ -62,7 +61,7 @@ const grammar = {
 
 
 
-const grammarDefaultRule = "Value";
+const grammarDefaultRule = "RetVal";
 
 const $skip: (typeof SKIP) = SKIP; void $skip;
 
@@ -94,11 +93,32 @@ const $R10 = $R(new RegExp("\\x0E", 'suy'));
 const $R11 = $R(new RegExp("\\r?\\n", 'suy'));
 
 
-const Value$0$parser = $S(List, $Q(NL));
+const RetVal$parser = $S(Value, $Q(NL));
 
-const Value$1$parser = $S(Hash, $Q(NL));
+function RetVal($$ctx: ParserContext, $$state: ParseState) {
+  const $$entered = $$ctx.enter?.("RetVal", $$state);
+  if ($$entered && "cache" in $$entered) return $$entered.cache as never;
+  const $$eventData = $$entered?.data;
+  const $$r = RetVal$parser($$ctx, $$state);
+  if (!$$r) {
+    $$ctx.exit?.("RetVal", $$state, undefined, $$eventData);
+    return undefined;
+  }
+  const $$m = (function($loc: Loc, $1: typeof $$r.value[0]) {
+    void $loc, $1;
+    pm.match('RetVal', $loc);
+    return pm.returnVal($1);
+  })($$r.loc, $$r.value[0]);
+  ($$r as any).value = $$m;
+  $$ctx.exit?.("RetVal", $$state, $$r, $$eventData);
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
 
-const Value$2$parser = $S(Primitive, $Q(NL));
+const Value$0$parser = $P(LItem);
+
+const Value$1$parser = $P(HItem);
+
+const Value$2$parser = $S(Primitive);
 
 function Value$0($$ctx: ParserContext, $$state: ParseState) {
   const $$r = Value$0$parser($$ctx, $$state);
@@ -106,11 +126,11 @@ function Value$0($$ctx: ParserContext, $$state: ParseState) {
     
     return undefined;
   }
-  const $$m = (function($loc: Loc, $1: typeof $$r.value[0]) {
+  const $$m = (function($loc: Loc, $1: typeof $$r.value) {
     void $loc, $1;
     pm.match('Value', $loc);
     return pm.returnVal($1);
-  })($$r.loc, $$r.value[0]);
+  })($$r.loc, $$r.value);
   ($$r as any).value = $$m;
   
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
@@ -122,11 +142,15 @@ function Value$1($$ctx: ParserContext, $$state: ParseState) {
     
     return undefined;
   }
-  const $$m = (function($loc: Loc, $1: typeof $$r.value[0]) {
+  const $$m = (function($loc: Loc, $1: typeof $$r.value) {
     void $loc, $1;
     pm.match('Value', $loc);
-    return pm.returnVal($1);
-  })($$r.loc, $$r.value[0]);
+    const h: hash = {}
+    for (const [key, val] of $1) {
+      h[key] = val
+    }
+    return pm.returnVal(h);
+  })($$r.loc, $$r.value);
   ($$r as any).value = $$m;
   
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
@@ -158,52 +182,6 @@ function Value($$ctx: ParserContext, $$state: ParseState) {
   $$ctx.exit?.("Value", $$state, $$final, $$eventData);
 
   return $$final;
-}
-
-const List$parser = $P(LItem);
-
-function List($$ctx: ParserContext, $$state: ParseState) {
-  const $$entered = $$ctx.enter?.("List", $$state);
-  if ($$entered && "cache" in $$entered) return $$entered.cache as never;
-  const $$eventData = $$entered?.data;
-  const $$r = List$parser($$ctx, $$state);
-  if (!$$r) {
-    $$ctx.exit?.("List", $$state, undefined, $$eventData);
-    return undefined;
-  }
-  const $$m = (function($loc: Loc, $1: typeof $$r.value) {
-    void $loc, $1;
-    pm.match('List', $loc);
-    return pm.returnVal($1);
-  })($$r.loc, $$r.value);
-  ($$r as any).value = $$m;
-  $$ctx.exit?.("List", $$state, $$r, $$eventData);
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-const Hash$parser = $P(HItem);
-
-function Hash($$ctx: ParserContext, $$state: ParseState) {
-  const $$entered = $$ctx.enter?.("Hash", $$state);
-  if ($$entered && "cache" in $$entered) return $$entered.cache as never;
-  const $$eventData = $$entered?.data;
-  const $$r = Hash$parser($$ctx, $$state);
-  if (!$$r) {
-    $$ctx.exit?.("Hash", $$state, undefined, $$eventData);
-    return undefined;
-  }
-  const $$m = (function($loc: Loc, $1: typeof $$r.value) {
-    void $loc, $1;
-    pm.match('Hash', $loc);
-    const h: hash = {}
-    for (const [key, val] of $1) {
-      h[key] = val
-    }
-    return pm.returnVal(hash);
-  })($$r.loc, $$r.value);
-  ($$r as any).value = $$m;
-  $$ctx.exit?.("Hash", $$state, $$r, $$eventData);
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
 const LItem$0$parser = $S($EXPECT($L0, "LItem \"-\""), WS, Primitive, NL);
@@ -712,9 +690,8 @@ export default parser
 export const { parse } = parser
 
 export {
+  RetVal,
   Value,
-  List,
-  Hash,
   LItem,
   HItem,
   Key,

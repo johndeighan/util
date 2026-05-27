@@ -6,16 +6,8 @@ type: civet
 import {undef, defined, assert} from 'base'
 import {hash} from 'datatypes'
 import {indented, undented} from 'indent'
-
-export type TFileOp = {
-		op: 'clearDir' | 'compile'
-		path: string
-		}
-	| {
-		op: 'barf'
-		path: string
-		contents: string
-		}
+import {str2indents} from 'hera-parse'
+import {TFileOp} from 'unit-test'
 
 lFileOps: TFileOp[]  := []
 lPathParts: string[] := []
@@ -35,12 +27,12 @@ getPath := (fileName: string = '') =>
 	return str2indents(text)
 
 FullDesc
-	Root NL (FileDesc / DirDesc)+
+	Root (FileDesc / DirDesc)+ NL*
 		# --- return whatever file ops have been saved
 		return lFileOps
 
 Root
-	/\.(?:\/[A-Za-z0-9_-]+)*/ _ "clear"?
+	/\.(?:\/[A-Za-z0-9_-]+)*/ _ "clear"? NL
 		root := $1[0]
 		lFileOps.push {
 			op: defined($3) ? 'clearDir' : 'mkDir'
@@ -50,12 +42,12 @@ Root
 		return
 
 FileDesc
-	Name _ "compile"? INDENT Content UNDENT
+	Name _ "compile"? NL INDENT Content UNDENT
 		path := getPath($1)
 		lFileOps.push {
 			op: 'barf'
 			path
-			contents: $5
+			contents: $6
 			}
 		if defined($3)
 			lFileOps.push {
@@ -65,7 +57,7 @@ FileDesc
 		return
 
 DirDesc
-	DirName INDENT (DirDesc / FileDesc)+ UNDENT
+	DirName NL INDENT (DirDesc / FileDesc)+ UNDENT
 		lPathParts.pop()
 		return
 

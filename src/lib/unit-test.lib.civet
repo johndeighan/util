@@ -7,9 +7,10 @@ import {
 import {doesNotThrow} from "node:assert"
 
 import {
-	undef, defined, notdefined, sleep, toBool,
-	justThrow, croak, allStackFrames, TStackFrame, dumpFrame,
+	undef, defined, notdefined, pass, sleep, toBool,
+	croak, allStackFrames, TStackFrame, dumpFrame,
 	TIterator, TAsyncIterator, LOG, getErrStr,
+	pushLogLevel, popLogLevel, lLogLevels, getLogLevels,
 	} from 'base'
 import {esc} from 'unicode'
 import {unify} from 'unify'
@@ -95,8 +96,17 @@ export succeeds := (
 	name?: string
 	): void =>
 
-	Deno.test name || getTestName(), (): void =>
-		await func()
+	Deno.test name || getTestName(), () =>
+		pushLogLevel 'testing'
+		let succeeds = true
+		try
+			func()
+		catch err
+			succeeds = false
+		popLogLevel()
+		if not succeeds
+			croak "in succeeds(), but function failed"
+		return
 	return
 
 # ---------------------------------------------------------------------------
@@ -106,14 +116,20 @@ export fails := (
 	name?: string
 	): void =>
 
-	Deno.test name || getTestName(), (): void =>
-		justThrow true
+	debugger
+	lLogLevels := getLogLevels()
+	Deno.test name || getTestName(), () =>
+		pushLogLevel 'testing'
+		lLogLevels := getLogLevels()
+		let succeeds = true
 		try
 			func()
-			croak "in fails() but function succeeded"
 		catch err
-		finally
-			justThrow false
+			succeeds = false
+		popLogLevel()
+		if succeeds
+			croak "in fails(), but function succeeded"
+		return
 	return
 
 # ---------------------------------------------------------------------------

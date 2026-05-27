@@ -136,7 +136,6 @@ export succeeds := (func: TVoidFunc): void =>
 	DBG "succeeds <func> (#{testName})"
 	Deno.test testName, (): void =>
 		pushLogLevel 'silent' # --- silence any errors generated
-		justThrow true
 		try
 			func()
 		catch err
@@ -144,7 +143,6 @@ export succeeds := (func: TVoidFunc): void =>
 			throw new Error("in succeeds() - func failed with #{errMsg}")
 		finally
 			popLogLevel()
-			justThrow false
 	return
 
 # ---------------------------------------------------------------------------
@@ -155,7 +153,6 @@ export fails := (func: TVoidFunc): void =>
 	DBG "fails <func> (#{testName})"
 	Deno.test testName, (): void =>
 		pushLogLevel 'silent' # --- silence any errors generated
-		justThrow true
 		try
 			func()
 			throw new Error("in fails() - function succeeded")
@@ -163,7 +160,6 @@ export fails := (func: TVoidFunc): void =>
 			pass()
 		finally
 			popLogLevel()
-			justThrow false
 	return
 
 # ---------------------------------------------------------------------------

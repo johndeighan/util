@@ -5,7 +5,7 @@ import {toFileUrl} from "@std/path"
 import {
 	undef, defined, notdefined, deepCopy,
 	croak, assert, getErrStr, LOG, DBG, ERR,
-	pushLogLevel, popLogLevel,
+	pushLogLevel, popLogLevel, curLogLevel, lLogLevels, getLogLevels,
 	} from 'base'
 import {uni, esc} from 'unicode'
 import {
@@ -92,62 +92,64 @@ export parseText := <T = unknown>(
 		): T =>
 
 	type opt = {
-		debug: boolean
+		trace: boolean
 		abortOnError: boolean
 		}
-	{debug, abortOnError} := getOptions<opt> hOptions, {
-		debug: false
+	{trace, abortOnError} := getOptions<opt> hOptions, {
+		trace: false
 		abortOnError: true
 		}
 
-	if debug
-		pushLogLevel 'debug'
-		DBG "debug = #{debug}"
-
-	# --- Make sure parser is compiled and up to date
-	heraFileName := "#{stub}.parse.hera"
-	heraPath := findFile heraFileName
-	assert defined(heraPath), "No such file: #{heraFileName}"
-	hResult := await procOneFile heraPath, doCompileHera
-	assert hResult.success, "parse of #{heraPath} failed"
-
-	tsFileName := "#{stub}.parse.ts"
-	DBG "tsFileName = #{tsFileName}"
-	path := findFile tsFileName
-	assert defined(path), "No such file: ${tsFileName}"
-	assert isFile(path), "Not a file: #{path}"
-
-	# --- This assumes that stub is in the deno.json file
-	{pm, beginParse, parse} := await import toFileUrl(path || '').href
-	assert defined(parse), "Parser not found"
-	assert isFunction(parse), "Parser not a function"
-
+	debugger
+	lLogLevels := getLogLevels()
+	let parseMatcher
 	try
+		# --- Make sure parser is compiled and up to date
+		heraFileName := "#{stub}.parse.hera"
+		heraPath := findFile heraFileName
+		assert defined(heraPath), "No such file: #{heraFileName}"
+		hResult := await procOneFile heraPath, doCompileHera
+		assert hResult.success, "parse of #{heraPath} failed"
+
+		tsFileName := "#{stub}.parse.ts"
+		DBG "tsFileName = #{tsFileName}"
+		path := findFile tsFileName
+		assert defined(path), "No such file: ${tsFileName}"
+		assert isFile(path), "Not a file: #{path}"
+
+		fileURL := toFileUrl(path).href
+		{pm, beginParse, parse} := await import fileURL
+		parseMatcher = pm
+		assert defined(parse), "Parser not found"
+		assert isFunction(parse), "Parser not a function"
+
 		newText := beginParse(text)
 		if isString(newText)
 			text = newText
 
 		pm.reset(text)
 
-		result := parse(text)() as Awaited<T>
-		if debug
+		lLogLevels := getLogLevels()
+
+		# --- I don't know why parse() sometimes returns a function
+		#     that must be called to get the actual return value
+		let result = parse(text)
+		if isFunction(result)
+			result = result()
+
+		if trace
 			pm.dumpParseInfo()
 
 		# --- Return a deep copy of the result
 		return deepCopy(result)
 
 	catch err
-		ERR "Parser: '#{stub}'", 'PARSE ERROR'
-		LOG "Parsing: #{esc(text)}"
-
-		pm.dumpParseInfo()
-
-		ERR err
-
-		if abortOnError
-			Deno.exit()
-		else
-			throw err
+		if (curLogLevel() != 'silent')
+			ERR err
+			ERR "Parser: '#{stub}'", 'PARSE ERROR'
+			LOG "Parsing: #{esc(text)}"
+			parseMatcher.dumpParseInfo()
+		throw err
 
 # ---------------------------------------------------------------------------
 # ASYNC

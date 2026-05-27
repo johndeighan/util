@@ -11,32 +11,27 @@ export const beginParse = (text: string): string? => {
   }
 ```
 
+RetVal
+  Value NL* ->
+    pm.match('RetVal', $loc);
+    return pm.returnVal($1);
+
 Value
-  List NL* ->
-    pm.match('Value', $loc);
-    return pm.returnVal($1);
-
-  Hash NL* ->
-    pm.match('Value', $loc);
-    return pm.returnVal($1);
-
-  Primitive NL* ->
-    pm.match('Value', $loc);
-    return pm.returnVal($1);
-
-List
   LItem+ ->
-    pm.match('List', $loc);
+    pm.match('Value', $loc);
     return pm.returnVal($1);
 
-Hash
   HItem+ ->
-    pm.match('Hash', $loc);
+    pm.match('Value', $loc);
     const h: hash = {}
     for (const [key, val] of $1) {
       h[key] = val
     }
-    return pm.returnVal(hash);
+    return pm.returnVal(h);
+
+  Primitive ->
+    pm.match('Value', $loc);
+    return pm.returnVal($1);
 
 LItem
   "-" WS Primitive NL ->

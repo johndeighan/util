@@ -56,7 +56,6 @@
 		"llutils":       "file:///C:/Users/johnd/util/src/lib/llutils.lib.ts",
 		"meta-data":     "file:///C:/Users/johnd/util/src/lib/meta-data.lib.ts",
 		"unicode":       "file:///C:/Users/johnd/util/src/lib/unicode.lib.ts",
-		"fetcher":       "file:///C:/Users/johnd/util/src/lib/fetcher.lib.ts",
 		"console-utils": "file:///C:/Users/johnd/util/src/lib/console-utils.lib.ts",
 		"indent":        "file:///C:/Users/johnd/util/src/lib/indent.lib.ts",
 		"to-nice":       "file:///C:/Users/johnd/util/src/lib/to-nice.lib.ts",
@@ -73,7 +72,6 @@
 		"rule":          "file:///C:/Users/johnd/util/src/lib/rule.lib.ts",
 		"hera-compile":  "file:///C:/Users/johnd/util/src/lib/hera-compile.lib.ts",
 		"hera-parse":    "file:///C:/Users/johnd/util/src/lib/hera-parse.lib.ts",
-		"from-nice":     "file:///C:/Users/johnd/util/src/lib/from-nice.lib.ts",
 		"symbols":       "file:///C:/Users/johnd/util/src/lib/symbols.lib.ts",
 		"typescript":    "file:///C:/Users/johnd/util/src/lib/typescript.lib.ts",
 		"lltypescript":  "file:///C:/Users/johnd/util/src/lib/lltypescript.lib.ts",
@@ -90,11 +88,6 @@
 		"file-server":   "file:///C:/Users/johnd/util/src/lib/file-server.lib.ts",
 		"html-window":   "file:///C:/Users/johnd/util/src/lib/html-window.lib.ts",
 		"macros":        "file:///C:/Users/johnd/util/src/lib/macros.lib.ts",
-
-		"counter":       "file:///C:/Users/johnd/util/src/parse/counter.parse.ts",
-		"dir-tree":      "file:///C:/Users/johnd/util/src/parse/dir-tree.parse.ts",
-		"nice":          "file:///C:/Users/johnd/util/src/parse/nice.parse.ts",
-		"macro":         "file:///C:/Users/johnd/util/src/parse/macro.parse.ts",
 
 		"civetconfig":   "file:///C:/Users/johnd/civet.config.json",
 	}

@@ -1,6 +1,7 @@
 "use strict";
 // temp.civet
 
+import {expandGlobSync} from '@std/fs/expand-glob'
 import {TextLineStream} from "jsr:@std/streams/text-line-stream"
 
 import {TRY, SKIP, LOG, TAsyncIterator} from 'base'
@@ -16,11 +17,8 @@ import {compileHera} from 'llhera'
 // ---------------------------------------------------------------------------
 
 TRY(async () => {
-//	path := 'src/.temp/bug.txt'
-	const path = 'src/test/fsys/file1.txt'
-	const [hMetaData, contents] = await openAndReadTextFile(path)
-	console.log(hMetaData)
-	console.log(contents)
+	const result = await parseText('nice', '42')
+	console.log(result)
 })
 
 SKIP(async () => {

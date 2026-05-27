@@ -11,27 +11,23 @@ import {str2indents} from 'hera-parse'
 	# --- input parameter is 'text'
 	return str2indents(text)
 
-Value
+RetVal
 	# --- trailing newlines are permitted, but ignored
-	List NL*
+	Value NL*
 		return $1
 
-	Hash NL*
-		return $1
-
-	Primitive NL*
-		return $1
-
-List
+Value
 	LItem+
 		return $1
 
-Hash
 	HItem+
 		h: hash := {}
 		for [key, val] of $1
 			h[key] = val
-		return hash
+		return h
+
+	Primitive
+		return $1
 
 # ---------------------------------------------------------------------------
 

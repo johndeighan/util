@@ -16,7 +16,7 @@ import {
 	curLogLevel, pushLogLevel, popLogLevel,
 	DBG, LOG, WARN, ERR, INDENT, UNDENT,
 	write, writeln, resetLine, TIterator,
-	colorize, decolorize, encode, decode,
+	encode, decode,
 	} from 'base'
 import {
 	hash, isEmpty, TStringMapper,
@@ -57,6 +57,11 @@ export type TExecResult =
 	stdout?: string
 	stderr?: string
 	outfile?: string
+
+export notNeededResult: TExecResult = {
+	success: true
+	notNeeded: true
+	}
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -196,6 +201,15 @@ export abstract class CFileHandler
 			): Promise<TExecResult>
 
 	# ..........................................................
+
+	notNeeded(
+			path: string
+			hOptions: hash = {}
+			): boolean
+
+		return false
+
+	# ..........................................................
 	# SYNC
 
 	getOutput(hResult: TExecResult): string
@@ -211,7 +225,7 @@ export prelog := (
 		): void =>
 
 	if capture
-		writeln "#{op} #{toRelPath(path)}"     # was just write
+		writeln "#{op} #{toRelPath(path)}"
 	else
 		writeln "#{op} #{toRelPath(path)} (no capture)"
 	return
@@ -230,7 +244,7 @@ export postlog := (
 		else
 			writeln f"#{' - OK'}:{green}"
 	else
-		writeln " #{colorize('FAILED', 'red')}"
+		writeln f"#{' - FAILED'}:{red}"
 	return
 
 # ---------------------------------------------------------------------------
@@ -238,6 +252,7 @@ export postlog := (
 
 # --- Later, I want to allow passing multiple TProcSpecs
 #     string is a glob pattern
+
 export type TProcSpec = [CFileHandler, lPatterns: string[]]
 
 export procFiles := (
@@ -277,7 +292,16 @@ export procFiles := (
 			acc0: TAccum := [[],[],[],[]]
 			MAP lPaths, acc0, (path, acc): TAccum ->
 				# --- must return a TAccum
+
 				[lRes, lErrMsg, lPaths, lBadPaths] := acc
+				if handler.notNeeded(path)
+					return [
+						[...lRes, notNeededResult]
+						lErrMsg
+						[...lPaths, path]
+						lBadPaths
+						]
+
 				prelog op, path, capture
 				try
 					xres: TExecResult := await handler.handle path, hOptions
@@ -298,7 +322,10 @@ export procFiles := (
 						]
 		else
 			lPromises := for path of lPaths
-				handler.handle path, hOptions
+				if handler.notNeeded(path)
+					Promise.resolve(notNeededResult)
+				else
+					handler.handle path, hOptions
 			await awaitAll(lPromises, lPaths)
 		)
 
@@ -388,6 +415,8 @@ export procOneFile := (
 		hOptions: hash = {}
 		): TExecResult =>
 
+	if handler.notNeeded(path)
+		return notNeededResult
 	assert defined(path) && existsSync(path), "No such file: #{path}"
 	type opt = {
 		capture: boolean
@@ -546,10 +575,7 @@ class CTsFileRemover extends CFileHandler
 				success: true
 				}
 		else
-			return {
-				success: true
-				notNeeded: true
-				}
+			return notNeededResult
 
 export doRemoveTsFile := new CTsFileRemover()
 

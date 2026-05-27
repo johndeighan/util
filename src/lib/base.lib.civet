@@ -142,8 +142,9 @@ let lLogLines: string[] = []
 export INDENT := Symbol 'indent'
 export UNDENT := Symbol 'undent'
 
-export type TLogLevel = 'silent' | 'info' | 'debug'
-let lLogLevels: TLogLevel[] = ['info']
+export type TLogLevel = 'testing' | 'silent' | 'info' | 'debug'
+export let lLogLevels: TLogLevel[] = ['info']
+export getLogLevels := () => return lLogLevels
 
 # ---------------------------------------------------------------------------
 
@@ -186,6 +187,12 @@ export curLogLevel := (): TLogLevel =>
 
 # ---------------------------------------------------------------------------
 
+export notLogging := (): boolean =>
+
+	return (curLogLevel() == 'silent') || (curLogLevel() == 'testing')
+
+# ---------------------------------------------------------------------------
+
 export initLogLevel := (
 		level: TLogLevel
 		): void =>
@@ -225,7 +232,7 @@ export LOG := (
 		...lItems: unknown[]
 		): void =>
 
-	if (curLogLevel() == 'silent')
+	if notLogging()
 		return
 	for item of lItems
 		if (item == INDENT)
@@ -254,12 +261,13 @@ export DBG := (
 # ---------------------------------------------------------------------------
 
 export WARN := (
-		msg: string
-		label: string = 'WARNING'
+		...lMsgs: unknown[]
 		): void =>
 
-	if (curLogLevel() != 'silent')
-		console.error "#{cyan(label)}: #{msg}"
+	if notLogging()
+		return
+	for msg of lMsgs
+		console.error "#{cyan('WARNING')}: #{msg}"
 	return
 
 # ---------------------------------------------------------------------------
@@ -270,10 +278,32 @@ export ERR := (
 		): void =>
 
 	errMsg := getErrStr(err)
-	console.error red(label) + ': ' + errMsg
 	lLogLines.push errMsg
+	if notLogging()
+		return
+	console.error red(label) + ': ' + errMsg
 	return
 
+# ---------------------------------------------------------------------------
+
+type TNeverFunc = (err: unknown) => never
+
+export croak: TNeverFunc := (
+		err: unknown
+		): never =>
+
+	errMsg := getErrStr(err)
+	if (curLogLevel() == 'testing')
+		# --- allows the error to be caught and handled or ignored
+		throw new Error(errMsg)
+	else
+		console.error red('CROAK') + ': ' + errMsg
+		console.error "-----  STACK -----"
+		for frame of allStackFrames()
+			dumpFrame frame
+		Deno.exit()
+
+# ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 
 export unknownToString := (x: unknown): string =>
@@ -474,38 +504,6 @@ export mkTempFileSync := (
 		): string =>
 
 	return Deno.makeTempFileSync {suffix}
-
-# ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
-
-export let onlyThrow = false
-
-export justThrow := (flag: boolean=true): void =>
-
-	onlyThrow = flag
-	return
-
-# ---------------------------------------------------------------------------
-
-type TNeverFunc = (err?: unknown) => never
-
-export croak: TNeverFunc := (
-		err: unknown = undef
-		): never =>
-
-	if notdefined(err)
-		throw new Error()
-	else
-		errMsg := getErrStr(err)
-		if onlyThrow
-			# --- allows the error to be caught and handled or ignored
-			throw new Error(errMsg)
-		else
-			console.error red('CROAK') + ': ' + errMsg
-			console.error "-----  STACK -----"
-			for frame of allStackFrames()
-				dumpFrame frame
-			Deno.exit()
 
 # ---------------------------------------------------------------------------
 
