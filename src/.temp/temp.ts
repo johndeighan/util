@@ -13,11 +13,15 @@ import {
 	} from 'hera-compile'
 import {parseText} from 'hera-parse'
 import {compileHera} from 'llhera'
+import {symbolsFromString} from 'symbols'
 
 // ---------------------------------------------------------------------------
 
+debugger
 TRY(async () => {
-	const result = await parseText('nice', '42')
+	const result = await symbolsFromString(`datatypes
+	undef defined`)
+
 	console.log(result)
 })
 

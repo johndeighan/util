@@ -2,13 +2,9 @@
 
 import {undef} from 'base'
 import {
-	loadSymbols,
-	sourceLib, libsAndSymbols, getNeededImportStmts,
+	loadSymbols, sourceLib, getNeededImportStmts,
 	} from 'symbols'
-import {
-	equal, succeeds,
-	} from 'unit-test'
-
+import {equal, succeeds} from 'unit-test'
 
 # ---------------------------------------------------------------------------
 

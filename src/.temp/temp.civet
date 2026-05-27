@@ -12,11 +12,17 @@ import {
 	} from 'hera-compile'
 import {parseText} from 'hera-parse'
 import {compileHera} from 'llhera'
+import {symbolsFromString} from 'symbols'
 
 # ---------------------------------------------------------------------------
 
+debugger
 TRY () =>
-	result := await parseText('nice', '42')
+	result := await symbolsFromString """
+		datatypes
+			undef defined
+		"""
+
 	console.log result
 
 SKIP () =>

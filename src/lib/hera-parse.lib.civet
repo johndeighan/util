@@ -101,7 +101,6 @@ export parseText := <T = unknown>(
 		}
 
 	debugger
-	lLogLevels := getLogLevels()
 	let parseMatcher
 	try
 		# --- Make sure parser is compiled and up to date
@@ -128,8 +127,6 @@ export parseText := <T = unknown>(
 			text = newText
 
 		pm.reset(text)
-
-		lLogLevels := getLogLevels()
 
 		# --- I don't know why parse() sometimes returns a function
 		#     that must be called to get the actual return value

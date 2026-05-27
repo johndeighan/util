@@ -7,7 +7,7 @@ import {
 	} from '@std/assert'
 
 import {pass, sleep, deepEqual} from 'base'
-import {croak, getErrStr, justThrow} from 'croak'
+import {croak, getErrStr} from 'croak'
 import {TPredicate, anyOf, allOf} from 'predicates'
 import {esc, mesc} from 'unicode'
 import {

@@ -1,0 +1,57 @@
+```
+import {CParseMatches} from 'parse-utils';
+export let pm = new CParseMatches();
+
+import {clearSymbols, addSymbol, hSymbols} from "symbols"
+import {str2indents} from 'hera-parse'
+
+export const beginParse = (text: string): string? => {
+  clearSymbols()
+  return str2indents(text) + '\n'
+  }
+```
+
+AllSymbols
+  LibBlock+ NL* ->
+    pm.match('AllSymbols', $loc);
+    return pm.returnVal(hSymbols);
+
+LibBlock
+  Name NL INDENT Line+ UNDENT ->
+    pm.match('LibBlock', $loc);
+    for (const lNames of $4) {
+      for (const name of lNames) {
+        addSymbol(name, $1)
+      }
+    }
+    return
+
+Line
+  Name (_ Name)* NL ->
+    pm.match('Line', $loc);
+    const lNames: string[] = [$1]
+    for (const [pre, name] of $2) {
+      lNames.push(name)
+    }
+    return pm.returnVal(lNames);
+
+Name
+  /[A-Za-z_][A-Za-z0-9_]*/ ->
+    pm.match('Name', $loc);
+    return pm.returnVal($0);
+
+INDENT
+  /\x0F/
+
+
+UNDENT
+  /\x0E/
+
+
+_
+  " "*
+
+
+NL
+  /\r?\n/
+

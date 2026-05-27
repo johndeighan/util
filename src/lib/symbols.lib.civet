@@ -1,21 +1,18 @@
 # symbols.lib.civet
 
+import {existsSync} from '@std/fs'
+
 import {
-	pass, undef, defined, notdefined, croak, assert,
-	LOG, DBG,
+	undef, defined, notdefined, assert, croak,
 	} from 'base'
-import {
-	hash, hashof, isEmpty, nonEmpty,
-	} from 'datatypes'
-import {o, getOptions, keys} from 'llutils'
-import {OL, ML, DBGVALUE} from 'to-nice'
-import {resetOneIndent} from 'indent'
-import {TTokenGenerator, allTokensInBlock} from 'pll'
-import {isFile, slurp} from 'fsys'
+import {hashof} from 'datatypes'
+import {keys} from 'llutils'
+import {findFile} from 'fsys'
+import {parseText} from 'hera-parse'
 
 /**
  * @module symbols - locate common symbols
- *    parses a file (default: src/.symbols) that looks like:
+ *    parses a file (default name: .symbols) that looks like:
  *       indent
  *          oneIndent resetOneIndent indentLevel
  *          TLineDesc splitLine indented
@@ -26,113 +23,60 @@ import {isFile, slurp} from 'fsys'
  *    and implements function:
  *       sourceLib := (symbol: string): string?
  */
-# --- not exported!
-# --- {<sym>: <lib>, ...}
-
-symbolsPath := 'src/.symbols'
-
 # --- holds symbols in symbolsPath,
 #     but only loaded when needed
 #     and only if file exists
 
-symbolMap := new Map<string, string>()
+# --- { <symbol> => <lib>, ... }
+export hSymbols: hashof<string> := {}
 
 # ---------------------------------------------------------------------------
 
-export loadSymbols := (
-		block: string,
-		aMap = new Map<string, string>(),
-		): Map<string, string> =>
+export clearSymbols := (): void =>
 
-	DBG "in loadSymbols()"
-	# --- Check if libraries actually exist
-
-	let level = 0    # --- symGen must know the current level
-	symGen: TTokenGenerator := (line: string) ->
-		if level == 0
-			yield {
-				kind: 'lib',
-				str: line
-				}
-		else if level == 1
-			for str of line.split(/\s+/)
-				yield {
-					kind: 'symbol',
-					str
-					}
-		else
-			LOG "level = #{level}"
-			croak "level = #{level}"
-		return
-
-	let curLib: string? = undef
-	for {kind, str} of allTokensInBlock(block, symGen)
-		DBG "TOKEN: #{kind}"
-		switch kind
-			when 'indent'
-				level += 1
-			when 'undent'
-				level -= 1
-			when 'lib'
-				DBG "Set curLib to #{OL(str)}"
-				curLib = str
-			when 'symbol'
-				if defined(str)
-					if level == 0
-						curLib = str
-					else if defined(curLib)
-						DBG "ADD #{str} from #{curLib}"
-						aMap.set str, curLib
-					else
-						croak "curLib empty at level > 0"
-				else
-					croak "undefined str!"
-			when 'eof'
-				DBG 'EOF'
-			when 'empty'
-				pass()
-			default:
-				croak "Unknown kind: #{kind}"
-	resetOneIndent()
-	return aMap
-
-# ---------------------------------------------------------------------------
-
-export loadSymbolsFromFile := (path: string): void =>
-
-	block := slurp path
-	loadSymbols slurp(path), symbolMap
+	for key of keys(hSymbols)
+		delete hSymbols[key]
 	return
 
 # ---------------------------------------------------------------------------
 
-export sourceLib := (
-		symbol: string,
-		m: Map<string, string> = symbolMap
-		): string? =>
+export addSymbol := (
+		symbol: string
+		lib: string
+		): void =>
 
-	if (m == symbolMap) && (symbolMap.size == 0)
-		contents := slurp symbolsPath
-		loadSymbols contents, symbolMap
-	return m.get symbol
+	hSymbols[symbol] = lib
+	return
 
 # ---------------------------------------------------------------------------
 
-export libsAndSymbols := (
-		lSymbols: string[]
-		): hashof<string[]> =>
+export getSymbolLib := (symbol: string): string? =>
 
-	if (symbolMap.size == 0) && isFile(symbolsPath)
-		loadSymbolsFromFile symbolsPath
-	hLibs: hashof<string[]> := {}
-	for sym of lSymbols
-		srcLib := sourceLib sym
-		if defined(srcLib)
-			if srcLib in hLibs
-				hLibs[srcLib].push sym
-			else
-				hLibs[srcLib] = [sym]
-	return hLibs
+	return hSymbols[symbol]
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export loadSymbols := (
+		fileName: string = '.symbols'
+		): hashof<string> =>
+
+	clearSymbols()
+	path := findFile fileName
+	assert defined(path) && existsSync(path),
+		"No such file: #{fileName}"
+	contents := await Deno.readTextFile path
+	await parseText 'symbols', contents
+	return hSymbols
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export symbolsFromString := (
+		str: string
+		): hashof<string> =>
+
+	return await parseText 'symbols', str
 
 # ---------------------------------------------------------------------------
 
@@ -140,13 +84,18 @@ export getNeededImportStmts := (
 		lSymbols: string[]
 		): string[] =>
 
-	DBG "CALL getNeededImportStmts(#{OL(lSymbols)})"
-	hLibs := libsAndSymbols lSymbols
-	DBGVALUE 'hLibs', hLibs
-	results := []
+	# --- build hash {<lib>: string[], ...}
+	hLibs: hashof<string[]> := {}
+	for sym of lSymbols
+		lib := getSymbolLib(sym)
+		if defined(lib)
+			if lib in hLibs
+				hLibs[lib].push sym
+			else
+				hLibs[lib] = [sym]
+
+	lStmts := []
 	for lib of keys(hLibs)
 		lSyms := hLibs[lib]
-		strSyms := lSyms.join ', '
-		results.push "import {#{strSyms}} from '#{lib}';"
-	lStmts := results
+		lStmts.push "import {#{lSyms.join ', '}} from '#{lib}';"
 	return lStmts

@@ -1,0 +1,47 @@
+---
+type: civet
+---
+# symbols.parse.hera
+
+import {clearSymbols, addSymbol, hSymbols} from "symbols"
+import {str2indents} from 'hera-parse'
+
+# ---------------------------------------------------------------------------
+
+#beginParse(text)
+	clearSymbols()
+	return str2indents(text) + '\n'
+
+AllSymbols
+	LibBlock+ NL*
+		return hSymbols
+
+LibBlock
+	Name NL INDENT Line+ UNDENT
+		for lNames of $4
+			for name of lNames
+				addSymbol name, $1
+		return
+
+Line
+	Name (_ Name)* NL
+		lNames: string[] := [$1]
+		for [pre, name] of $2
+			lNames.push name
+		return lNames
+
+Name
+	/[A-Za-z_][A-Za-z0-9_]*/
+		return $0
+
+INDENT
+	/\x0F/
+
+UNDENT
+	/\x0E/
+
+_
+	" "*
+
+NL
+	/\r?\n/

@@ -15,6 +15,7 @@ Test parsing:
 	counter - OK
 	dir-tree - OK
 	nice - OK
+	symbols
 	macro
 Use:
 	mkpar <stub> - to build the parser
@@ -23,7 +24,8 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
-Especially, test the 'dir-tree' parser
+Continue working on symbols parser
+	so we can eliminate pll lib
 
 in unify, implement functions weakerThan() and strongerThan()
 	- and use them in unit tests
