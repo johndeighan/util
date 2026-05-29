@@ -300,27 +300,26 @@ export toNice := (
 		when 'regexp'
 			desc := esc regexpDef x
 			return '/' + desc + '/'
-#			return desc ? mark("regexp /#{desc}/") : mark("regexp")
 
 		# --- Functions
 
 		when 'generator'
-			assert isFunction(x)
+			assert isFunction(x), "in toNice(): not a function"
 			return mark("generator #{functionName(x)}")
 		when 'asyncGenerator'
-			assert isFunction(x)
+			assert isFunction(x), "in toNice(): not a function"
 			return mark("asyncGenerator #{functionName(x)}")
 		when 'class'
-			assert isClass(x)
+			assert isClass(x), "in toNice(): not a class"
 			return mark("class #{className(x)}")
 		when 'plainFunction'
-			assert isFunction(x)
+			assert isFunction(x), "in toNice(): not a function"
 			return mark("function #{functionName(x)}")
 
 		# --- Complex objects
 
 		when 'array'
-			assert isArray(x)
+			assert isArray(x), "in toNice(): not an array"
 			if isEmpty(x)
 				return '[]'
 			else
@@ -333,7 +332,7 @@ export toNice := (
 					return seq2nice 'array', x, hOptions, mapVisited, lPath
 
 		when 'set'
-			assert (x instanceof Set)
+			assert (x instanceof Set), "in toNice(): not a Set"
 			if isEmpty(x)
 				return mark('emptySet')
 			else
@@ -347,7 +346,7 @@ export toNice := (
 					return seq2nice 'set', lValues, hOptions, mapVisited, lPath
 
 		when 'hash'
-			assert isHash(x)
+			assert isHash(x), "in toNice(): not a hash"
 			if isEmpty(x)
 				return '{}'
 			else
@@ -360,7 +359,7 @@ export toNice := (
 					return hash2nice 'hash', x, keys(x), hOptions, mapVisited, lPath
 
 		when 'map'
-			assert (x instanceof Map)
+			assert (x instanceof Map), "in toNice(): not a Map"
 			if (x.size == 0)
 				return mark('emptyMap')
 			else

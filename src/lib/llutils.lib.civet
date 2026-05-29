@@ -154,6 +154,14 @@ export hasKeys := hasKey
 
 # ---------------------------------------------------------------------------
 
+export clearHash := (h: hash): void =>
+
+	for key of keys(h)
+		delete h[key]
+	return
+
+# ---------------------------------------------------------------------------
+
 export sleepSync := (sec: number): void =>
 
 	start := Date.now()

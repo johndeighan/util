@@ -37,7 +37,10 @@ equal await testHeraCode("""
 	const name = 'John Deighan'
 	const lItems: string[] = []
 
-	export const beginParse = (text: string): void => {
+	export const beginParse = (
+			text: string,
+			hOptions: [key: string|symbol]: unknown = {}
+			): string|undefined => {
 		pm.reset(text);
 		lItems.length = 0
 		}

@@ -26,7 +26,7 @@ import {
 	civet2ts, llcompileCivet, civet2tsFile,
 	civet2tsSync, llcompileCivetSync, civet2tsFileSync,
 	} from 'llcivet'
-import {ts2ast, analyzeTS} from 'typescript'
+import {ts2ast, analyzeTsCode} from 'typescript'
 
 export {
 	civet2ts, llcompileCivet, civet2tsFile,
@@ -183,10 +183,10 @@ export compileAllLibs := (
 
 export a := (lStrings: TemplateStringsArray): string =>
 	tsCode := civet2tsSync lStrings[0], {nocheck: true}
-	result := analyzeTS(tsCode).asString()
+	result := analyzeTsCode(tsCode).asString()
 	return result
 
 export A := (lStrings: TemplateStringsArray): string =>
 	tsCode := civet2tsSync lStrings[0], {nocheck: true}
-	result := analyzeTS(tsCode, {dump: true}).asString()
+	result := analyzeTsCode(tsCode, {dump: true}).asString()
 	return result

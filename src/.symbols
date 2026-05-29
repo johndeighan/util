@@ -1,11 +1,2 @@
-croak
-	normalizePath TFrameType TStackFrame TFrameFilter
-	defaultFilter dumpFrame allStackFrames croak
 datatypes
-	undef defined notdefined
-	array hash arrayof hashof integer
-	isString isArray
-indent
-	splitLine
-fsys
-	TPathType
+	integer hash hashof

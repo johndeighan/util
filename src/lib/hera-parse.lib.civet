@@ -141,7 +141,7 @@ export parseText := <T = unknown>(
 		return deepCopy(result)
 
 	catch err
-		if (curLogLevel() != 'silent')
+		if (curLogLevel() != 'silent') && (curLogLevel() != 'testing')
 			ERR err
 			ERR "Parser: '#{stub}'", 'PARSE ERROR'
 			LOG "Parsing: #{esc(text)}"

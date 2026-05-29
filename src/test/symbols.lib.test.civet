@@ -2,47 +2,33 @@
 
 import {undef} from 'base'
 import {
-	loadSymbols, sourceLib, getNeededImportStmts,
+	loadSymbolsFrom, getSymbolLib, getNeededImportStmts,
 	} from 'symbols'
 import {equal, succeeds} from 'unit-test'
 
 # ---------------------------------------------------------------------------
 
 (() =>
-	myMap := loadSymbols """
+	hSymbols := await loadSymbolsFrom """
 		datatypes
 			undef defined
 		indent
 			splitLine
 		"""
 
-	equal sourceLib('undef', myMap), 'datatypes'
-	equal sourceLib('defined', myMap), 'datatypes'
-	equal sourceLib('splitLine', myMap), 'indent'
-	equal sourceLib('dummy', myMap), undef
-	)()
-
-(() =>
-	myMap := new Map([['x', 'temp.ts'],['y', 'dummy.ts']])
-	equal sourceLib('x', myMap), 'temp.ts'
-	equal sourceLib('y', myMap), 'dummy.ts'
+	equal getSymbolLib('undef',     hSymbols), 'datatypes'
+	equal getSymbolLib('defined',   hSymbols), 'datatypes'
+	equal getSymbolLib('splitLine', hSymbols), 'indent'
+	equal getSymbolLib('dummy',     hSymbols), undef
 	)()
 
 # --- Use the actual .symbols file
 
-equal sourceLib('defined'), 'datatypes'
-equal sourceLib('isArray'), 'datatypes'
+equal getSymbolLib('defined'), 'datatypes'
+equal getSymbolLib('isArray'), 'datatypes'
 
-equal sourceLib('array'), 'datatypes'
-equal sourceLib('hash'), 'datatypes'
-
-equal libsAndSymbols(['defined','array']), {
-	'datatypes': ['defined','array']
-	}
-equal libsAndSymbols(['defined','splitLine']), {
-	'datatypes': ['defined']
-	'indent': ['splitLine']
-	}
+equal getSymbolLib('array'), 'datatypes'
+equal getSymbolLib('hash'), 'datatypes'
 
 equal getNeededImportStmts(['defined','array']), [
 	"import {defined, array} from 'datatypes';"

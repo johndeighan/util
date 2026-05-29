@@ -416,7 +416,8 @@ export procOneFile := (
 		): TExecResult =>
 
 	if handler.notNeeded(path)
-		return notNeededResult
+		return {success: true, notNeeded: true}
+
 	assert defined(path) && existsSync(path), "No such file: #{path}"
 	type opt = {
 		capture: boolean
@@ -575,7 +576,7 @@ class CTsFileRemover extends CFileHandler
 				success: true
 				}
 		else
-			return notNeededResult
+			return {success: true, notNeeded: true}
 
 export doRemoveTsFile := new CTsFileRemover()
 

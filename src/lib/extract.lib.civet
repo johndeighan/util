@@ -1,6 +1,8 @@
 # extract.lib.civet
 
-import {undef, defined, notdefined, croak, assert} from 'base'
+import {
+	undef, defined, notdefined, croak, assert, LOG,
+	} from 'base'
 import {
 	isString, isArray, isNumber,
 	isEmpty, nonEmpty, integer,
@@ -16,16 +18,19 @@ export getDsPath := (lPath: TPathItem[]): string =>
 
 	results := []
 	for x of lPath
-		results.push if isString(x) then ".#{x}" else "[#{x}]"
+		results.push (isString(x) ? ".#{x}" : "[#{x}]")
 	lParts := results
 	return lParts.join ''
 
 # ---------------------------------------------------------------------------
 
-export extract := (x: unknown, dspath: string | TPathItem[]): unknown =>
+export extract := (
+		x: unknown,
+		dspath: string | TPathItem[]
+		): unknown =>
 
 	assert defined(x), "extract(): x not defined"
-	pathstr := if isArray(dspath) then getDsPath(dspath) else dspath
+	pathstr := isArray(dspath) ? getDsPath(dspath) : dspath
 	if nonEmpty(pathstr)
 		expr := "x = x#{pathstr}"
 		try
@@ -37,13 +42,13 @@ export extract := (x: unknown, dspath: string | TPathItem[]): unknown =>
 				:                          'Unknown error'
 				)
 			try
-				console.log sep '=', "EXTRACT ERROR in #{expr}"
-				console.log msg
-				console.log sep '='
-				console.log toNice x, o"ignoreEmptyKeys"
-				console.log sep '='
-			console.log "EXTRACT ERROR in '#{expr}'"
-			console.log sep '='
+				LOG sep '=', "EXTRACT ERROR in #{expr}"
+				LOG msg
+				LOG sep '=', 'FROM'
+				LOG toNice(x), {ignoreEmptyKeys: true}
+				LOG sep '='
+			LOG "EXTRACT ERROR in '#{expr}'"
+			LOG sep '='
 			Deno.exit 99
 	return x
 
@@ -56,7 +61,7 @@ export getString := (
 		): string =>
 
 	val := extract x, dspath
-	assert isString(val)
+	assert isString(val), "getString(): not a string"
 	if value
 		assert (val == value), "Expected #{value}, got #{val}"
 	return val
@@ -70,7 +75,7 @@ export getNumber := (
 		): number =>
 
 	val := extract x, dspath
-	assert isNumber(val)
+	assert isNumber(val), "getNumber(): not a number"
 	if value
 		assert (val == value), "Expected #{value}, got #{val}"
 	return val
@@ -85,7 +90,7 @@ export getArray := (
 
 	assert defined(x), "getArray(): x not defined"
 	val := extract x, dspath
-	assert isArray(val)
+	assert isArray(val), "getArray(): not an array"
 	if len
 		assert (val.length == len), "Expected #{len} len array, got #{val}"
 	return val

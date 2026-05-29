@@ -286,13 +286,12 @@ export ERR := (
 
 # ---------------------------------------------------------------------------
 
-type TNeverFunc = (err: unknown) => never
+type TNeverFunc = (err: string) => never
 
 export croak: TNeverFunc := (
-		err: unknown
+		errMsg: string
 		): never =>
 
-	errMsg := getErrStr(err)
 	if (curLogLevel() == 'testing')
 		# --- allows the error to be caught and handled or ignored
 		throw new Error(errMsg)
@@ -434,9 +433,9 @@ export newerDestFileExists := (
 		return false
 	try
 		destms := getFileStats(destPath).mtime
-		assert defined(destms)
+		assert defined(destms), "destms not defined"
 		srcms  := getFileStats(srcPath).mtime
-		assert defined(srcms)
+		assert defined(srcms), "srcms not defined"
 		return (destms > srcms)
 	catch err
 		return false
@@ -509,19 +508,24 @@ export mkTempFileSync := (
 
 export type TAssertFunc = (
 		cond: unknown,
-		msg?: string
+		msg: string
 		) => asserts cond
 
 export assert: TAssertFunc := (
 		cond: unknown,
-		msg: string = "An unknown error occurred"
+		msg: string
 		): asserts cond =>
 
 	if not cond
 		croak msg
 	return
 
-export obviously: TAssertFunc := (
+type TObviouslyFunc = (
+		cond: unknown,
+		condStr?: string
+		) => asserts cond
+
+export obviously: TObviouslyFunc := (
 		cond: unknown
 		condStr: string = ''
 		): asserts cond =>
@@ -659,7 +663,7 @@ export getOrgPos := (
 		return [orgFileNum, civetLine, civetCol]
 	else
 		last := lMappings.at(-1)
-		assert defined(last)
+		assert defined(last), "last not defined"
 		[tsLine, tsCol, orgFileNum, civetLine, civetCol] := last
 		return [orgFileNum, civetLine, civetCol]
 
@@ -879,16 +883,18 @@ export getErrStr := (err: unknown): string =>
 	else if (err instanceof Error)
 		return err.message || '<No message in Error object>'
 	else
-		return "Serious Error"
+		return "SERIOUS ERROR"
 
 # ---------------------------------------------------------------------------
 
-export TRY := (func: () => void): void =>
+export TRY := (
+		func: () => void
+		): void =>
 
 	try
 		func()
 	catch err
-		croak err
+		croak "in TRY(): #{getErrStr(err)}"
 	return
 
 # ---------------------------------------------------------------------------

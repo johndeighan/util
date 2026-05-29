@@ -5,10 +5,7 @@ deno is running v8 version 14.7.173.20-rusty
 chrome is running v8 version 14.8.178.21
 	chrome://version
 
-Eliminate the following output:
-
-doCompileHera src/parse/counter.parse.hera
- - not needed
+Get build-dot-symbols command to run
 
 ------------------------------------------
 Test parsing:

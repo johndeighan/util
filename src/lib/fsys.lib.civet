@@ -218,9 +218,9 @@ export newerDestFileExists := (
 		return false
 	try
 		destms := getFileStats(destPath).mtime
-		assert defined(destms)
+		assert defined(destms), "destms not defined"
 		srcms  := getFileStats(srcPath).mtime
-		assert defined(srcms)
+		assert defined(srcms), "srcms not defined"
 		return (destms > srcms)
 	catch err
 		return false
@@ -458,7 +458,7 @@ export splitPatterns := (
 	return accum
 
 # ---------------------------------------------------------------------------
-# GENERATOR
+# TIterator
 #
 #    Use like:
 #       for path of allFilesMatching(lPats)
@@ -467,7 +467,7 @@ export splitPatterns := (
 #
 #    NOTE: By default, searches from .
 #          By default, ignores anything inside a folder
-#                      named 'temp' or 'save'
+#                      named '.temp' or '.save'
 
 export allFilesMatching := (
 		lPatterns: string | string[],
@@ -485,7 +485,7 @@ export allFilesMatching := (
 		} := getOptions<opt> hOptions, {
 			root: '.'
 			hMoreGlobOptions: {}
-			lIgnoreDirs: ['temp', 'save']
+			lIgnoreDirs: ['.temp', '.save']
 			includeDirs: false
 			}
 

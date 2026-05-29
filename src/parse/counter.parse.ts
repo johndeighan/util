@@ -137,6 +137,9 @@ export {
 import {CParseMatches} from 'parse-utils';
 export let pm = new CParseMatches();
 
-export const beginParse = (text: string): (string | undefined) =>( {
+export const beginParse = (
+      text: string,
+      hOptions: {[key: string|symbol]: unknown} = {}
+      ): string|undefined =>( {
 
   })

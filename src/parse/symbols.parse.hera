@@ -3,13 +3,16 @@ type: civet
 ---
 # symbols.parse.hera
 
-import {clearSymbols, addSymbol, hSymbols} from "symbols"
+import {hashof} from 'datatypes'
+import {clearHash} from 'llutils'
 import {str2indents} from 'hera-parse'
+
+let hSymbols: hashof<string> = {}
 
 # ---------------------------------------------------------------------------
 
 #beginParse(text)
-	clearSymbols()
+	hSymbols = {}
 	return str2indents(text) + '\n'
 
 AllSymbols
@@ -20,7 +23,7 @@ LibBlock
 	Name NL INDENT Line+ UNDENT
 		for lNames of $4
 			for name of lNames
-				addSymbol name, $1
+				hSymbols[name] = $1
 		return
 
 Line

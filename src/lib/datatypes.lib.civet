@@ -76,8 +76,9 @@ export jsType := (x: unknown): string =>
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 
-export type hashof<T> =
+export type hashof<T> = {
 	[key: string | symbol]: T
+	}
 export type hash = hashof<unknown>
 
 export type arrayof<T> = T[]
@@ -233,7 +234,7 @@ export isClassInstance := (
 	if isHash(x) && (x != null)
 		for reqKey of lReqKeys
 			lMatches := reqKey.match /^(\&)(.*)$/
-			assert defined(lMatches)
+			assert defined(lMatches), "undef lMatches in isClassInstance"
 			[_, type, key] := lMatches
 			if (key in x)
 				item: unknown := x[key]

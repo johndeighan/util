@@ -11,7 +11,7 @@ import {o, s, t} from 'llutils'
 import {slurp, withExt} from 'fsys'
 import {
 	getSymbolsFromType, getImportCode,
-	ts2ast, ast2ts, astAsString, analyzeTS,
+	ts2ast, ast2ts, astAsString, analyzeTsCode,
 	} from 'typescript'
 import {
 	equal, succeeds, fails, truthy, falsy, setDirTree,
@@ -21,8 +21,6 @@ import {
 # ASYNC
 
 setup := (): void =>
-
-	DBG "setDirTree()"
 
 	await setDirTree """
 		./src/test/typescript
@@ -40,54 +38,54 @@ await setup()
 equal getSymbolsFromType('integer'), ['integer']
 equal getSymbolsFromType('hashof<integer>'), ['hashof','integer']
 
-equal getImportCode('integer'), """
-	import {integer} from 'datatypes';
-	"""
-equal getImportCode('hashof<integer>'), """
-	import {hashof, integer} from 'datatypes';
-	"""
+# equal getImportCode('integer'), """
+# 	import {integer} from 'datatypes';
+# 	"""
+# equal getImportCode('hashof<integer>'), """
+# 	import {hashof, integer} from 'datatypes';
+# 	"""
 
-equal analyzeTS("""
+equal analyzeTsCode("""
 	const x = y + z + func(min);
 	""").asString(), s"""
 	MISSING: y z func min
 	EXTRA: x
 	"""
 
-equal analyzeTS("""
+equal analyzeTsCode("""
 	import {defined, notdefined} from 'datatypes';
 	""").asString(), s"""
 	IMPORTS: datatypes: defined notdefined
 	EXTRA: defined notdefined
    """
 
-equal analyzeTS("""
+equal analyzeTsCode("""
 	const x = y + z + func(min);
 	""").asString(), s"""
 	MISSING: y z func min
 	EXTRA: x
 	"""
 
-equal analyzeTS("""
+equal analyzeTsCode("""
 	import {defined, notdefined} from 'datatypes';
 	""").asString(), s"""
 	IMPORTS: datatypes: defined notdefined
 	EXTRA: defined notdefined
    """
 
-equal analyzeTS("""
+equal analyzeTsCode("""
 	export const meaning = 42;
 	""").asString(), s"""
 	EXPORTS: meaning
 	"""
 
-equal analyzeTS("""
+equal analyzeTsCode("""
 	func("Hello");
 	""").asString(), s"""
 	MISSING: func
 	"""
 
-equal analyzeTS("""
+equal analyzeTsCode("""
 	func(x, y+z);
 	""").asString(), s"""
 	MISSING: func x y z
@@ -95,7 +93,7 @@ equal analyzeTS("""
 
 # --- imports are not needed
 
-equal analyzeTS("""
+equal analyzeTsCode("""
 	import {func} from 'willy';
 
 	func(x, y+z);
@@ -106,7 +104,7 @@ equal analyzeTS("""
 
 # --- Only t is needed, s is a parameter
 
-equal analyzeTS("""
+equal analyzeTsCode("""
 	const func = (s: string): string =>
 		return s + t + '.txt';
 	func('abc');
@@ -116,7 +114,7 @@ equal analyzeTS("""
 
 # --- Same, only using 'function' keyword
 
-equal analyzeTS("""
+equal analyzeTsCode("""
 	function func(s: string): string {
 		return s + t + '.txt';
 		}

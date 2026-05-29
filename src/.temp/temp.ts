@@ -19,10 +19,9 @@ import {symbolsFromString} from 'symbols'
 
 debugger
 TRY(async () => {
-	const result = await symbolsFromString(`datatypes
-	undef defined`)
-
-	console.log(result)
+	const heraPath = "C:/Users/johnd/util/src/parse/counter.parse.hera"
+	const hResult = await procOneFile(heraPath, doCompileHera)
+	console.log(hResult)
 })
 
 SKIP(async () => {

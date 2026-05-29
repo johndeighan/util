@@ -155,7 +155,7 @@ export class CFileServer
 		switch content_type
 			when 'text/typescript'
 				contents := await Deno.readTextFile mkpath(@root, path)
-				assert defined(contents)
+				assert defined(contents), "in getFileResponse(): undef contents"
 				return new Response contents, {
 					status: 200
 					headers: {
@@ -164,7 +164,7 @@ export class CFileServer
 					}
 			else
 				contents := await Deno.readTextFile mkpath(@root, path)
-				assert defined(contents)
+				assert defined(contents), "in getFileResponse()2: undef contents"
 				return new Response contents, {
 					status: 200
 					headers: {

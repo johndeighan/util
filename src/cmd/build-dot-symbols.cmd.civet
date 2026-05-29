@@ -1,75 +1,59 @@
 # build-dot-symbols.cmd.civet
 
 import {
-	TRY, toRelPath, LOG, DBG, assert
+	TRY, toRelPath, LOG, DBG, ERR, assert, TIterator,
 	undef, defined, notdefined,
 	} from 'base'
-import {stdChecks} from 'llutils'
-import {hash, isEmpty, nonEmpty} from 'datatypes'
-import {getOptions, keys} from 'llutils'
-import {OL, LOGVALUE, DBGVALUE} from 'to-nice'
-import {barf, allFilesMatching} from 'fsys'
-import {analyzeTS, CAnalysis} from 'typescript'
+import {stdChecks, getOptions} from 'llutils'
+import {hash} from 'datatypes'
+import {indented} from 'indent'
+import {DBGVALUE} from 'to-nice'
+import {barf, allFilesMatching, withExt} from 'fsys'
+import {CAnalysis, analyzeTsCode} from 'typescript'
+
+# --- These may become command line options later
+oneIndent := '\n'
+maxLineLen := 75
 
 stdChecks "build-dot-symbols"
 
 # ---------------------------------------------------------------------------
-# --- ASYNC GENERATOR
+# --- TIterator
 
-getDotSymbolsLines := (
-		path: string,
-		hOptions: hash = {}
-		): Generator<string, void, void> ->
-
-	type opt = {
-		oneIndent: string
-		maxLineLen: number
-		}
-	{oneIndent, maxLineLen} := getOptions<opt> hOptions, {
-		oneIndent: '\t'
-		maxLineLen: 75
-		}
+allLinesFrom := (
+		lExports: string[]
+		): TIterator<string> ->
 
 	lSymbols: string[] := []
 	let lineLen = 0     # --- always <= maxLineLen
-	let pathYielded = false
-	analysis := analyzeTS path
-	for name of analysis.getExports()
+	for name of lExports
 		pos := name.indexOf '<'
 		sym := (pos == -1) ? name : name.substring(0, pos)
 		if (lineLen + sym.length + 1 > maxLineLen)
-			if not pathYielded
-				yield path.replace('.civet', '.ts')
-				pathYielded = true
-			yield "#{oneIndent}#{lSymbols.join(' ')}"
+			yield lSymbols.join(' ')
 			lSymbols.length = 0
 			lineLen = 0
 		else
 			lSymbols.push sym
 			lineLen += sym.length + 1
 	if (lSymbols.length > 0)
-		if not pathYielded
-			yield path.replace('.civet', '.ts')
-			pathYielded = true
-		yield "#{oneIndent}#{lSymbols.join(' ')}"
+		yield lSymbols.join(' ')
 	return
 
-// ---------------------------------------------------------------------------
-
-getDotSymbols := (
-		hOptions: hash = {}
-		): AsyncGenerator<string, void, void> ->
-
-	for path of allFilesMatching('src/**/*.lib.civet')
-		DBG "GET symbols from: #{toRelPath(path)}"
-		for await line of getDotSymbolsLines(path)
-			yield line
-	return
-
-// ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 TRY () =>
-	lLines := await Array.fromAsync getDotSymbols()
+	lLines: string[] := []
+	for path of allFilesMatching('**/*.lib.civet')
+		LOG "#{toRelPath(path)}"
+		try
+			analysis := analyzeTsCode(Deno.readTextFileSync(path))
+			lExports := analysis.getExports()
+			lLines.push withExt(path, '.ts')
+			for line of allLinesFrom lExports
+				lLines.push indented(line, 1, {oneIndent})
+		catch err
+			ERR err
 	contents := lLines.join '\n'
 	DBGVALUE 'contents', contents
 	barf 'src/.symbols', contents

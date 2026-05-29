@@ -3,15 +3,10 @@ type: civet
 ---
 # macro.parse.hera
 
-import {undef, defined, assert} from 'base'
-import {isArray} from 'datatypes'
-import {CBlock} from 'block'
-
-# --- mainBlock will have an empty header
-mainBlock := new CBlock()
+import {str2indents} from 'hera-parse'
 
 #beginParse(text)
-	mainBlock.reset()
+	return str2indents(text) + '\n'
 
 Contents
 	Block* NL*

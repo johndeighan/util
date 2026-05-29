@@ -457,7 +457,7 @@ export getNode := (
 
 # ---------------------------------------------------------------------------
 
-export analyzeTS := (
+export analyzeTsCode := (
 		tsCode: string
 		hOptions: hash = {}
 		): CAnalysis =>
@@ -476,6 +476,7 @@ export analyzeTS := (
 	analysis := new CAnalysis(trace)
 	walker := new AstWalker()
 
+	# --- throws Error if not valid TypeScript
 	hAst := ts2ast tsCode
 
 	if dumpAST
@@ -554,7 +555,7 @@ export analyzeTS := (
 
 				when 273    # ImportDeclaration
 					lib := getString node, '.moduleSpecifier.text'
-					for h of getArray(node, '.importClause.namedBindings.elements')
+					for h of getArray(node, '.importClause?.namedBindings?.elements')
 						name := getString h, '.name.escapedText'
 						analysis.addImport lib, name
 

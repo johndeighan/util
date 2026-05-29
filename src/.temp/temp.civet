@@ -18,12 +18,9 @@ import {symbolsFromString} from 'symbols'
 
 debugger
 TRY () =>
-	result := await symbolsFromString """
-		datatypes
-			undef defined
-		"""
-
-	console.log result
+	heraPath := "C:/Users/johnd/util/src/parse/counter.parse.hera"
+	hResult := await procOneFile(heraPath, doCompileHera)
+	console.log hResult
 
 SKIP () =>
 	path := 'src/.temp/bug.txt'

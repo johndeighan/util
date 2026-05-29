@@ -6,7 +6,7 @@ import {
 	undef, defined, notdefined, assert, croak,
 	} from 'base'
 import {hashof} from 'datatypes'
-import {keys} from 'llutils'
+import {keys, clearHash} from 'llutils'
 import {findFile} from 'fsys'
 import {parseText} from 'hera-parse'
 
@@ -32,27 +32,23 @@ export hSymbols: hashof<string> := {}
 
 # ---------------------------------------------------------------------------
 
-export clearSymbols := (): void =>
-
-	for key of keys(hSymbols)
-		delete hSymbols[key]
-	return
-
-# ---------------------------------------------------------------------------
-
-export addSymbol := (
+export getSymbolLib := (
 		symbol: string
-		lib: string
-		): void =>
+		hSym: hashof<string> = hSymbols
+		): string? =>
 
-	hSymbols[symbol] = lib
-	return
+	return hSym[symbol]
 
 # ---------------------------------------------------------------------------
+# ASYNC
 
-export getSymbolLib := (symbol: string): string? =>
+export loadSymbolsFrom := (
+		str: string
+		h: hashof<string> = {}
+		): hashof<string> =>
 
-	return hSymbols[symbol]
+	hFound := await parseText 'symbols', str
+	return Object.assign h, hFound
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -61,12 +57,12 @@ export loadSymbols := (
 		fileName: string = '.symbols'
 		): hashof<string> =>
 
-	clearSymbols()
+	clearHash(hSymbols)
 	path := findFile fileName
 	assert defined(path) && existsSync(path),
 		"No such file: #{fileName}"
 	contents := await Deno.readTextFile path
-	await parseText 'symbols', contents
+	await loadSymbolsFrom contents, hSymbols
 	return hSymbols
 
 # ---------------------------------------------------------------------------

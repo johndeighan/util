@@ -57,6 +57,7 @@ export class CHeraCompiler extends CFileHandler
 			hOptions: hash = {}
 			): TExecResult
 
+		debugger
 		assert (fileExt(path) == '.hera'), "Not a hera file"
 		destPath := withExt path, '.ts'
 		if not hOptions.force && existsSync(destPath)
@@ -121,7 +122,10 @@ buildHeraFile := (
 		lParts.push mainCode, ""
 
 	lParts.push
-		"export const beginParse = (text: string): string? => {"
+		"export const beginParse = ("
+		"      text: string,"
+		"      hOptions: {[key: string|symbol]: unknown} = {}"
+		"      ): string|undefined => {"
 		indented(resetCode)
 		indented('}')
 		"```"
@@ -165,11 +169,11 @@ export preprocessHera := (
 	result := fromFSM iter, [
 
 		# 0 --- start
-		#          until we see #beginParse(text), everything, including
+		#          until we see #beginParse, everything, including
 		#          blank lines, goes into main code
 
 		(line: string): TState =>
-			if (line == '#beginParse(text)')
+			if line.startsWith('#beginParse')
 				return 1
 			else
 				lMainCode.push line

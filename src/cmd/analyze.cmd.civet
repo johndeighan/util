@@ -34,7 +34,7 @@ TRY () =>
 		when '.civet'
 			civet2tsSync(slurp path)
 		default:
-			croak("Bad path: #{path}")
+			croak "Bad path: #{path}"
 
 	analysis := analyzeTS tsCode, {dumpAST: true, trace: true}
 	DUMP analysis

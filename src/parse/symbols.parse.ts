@@ -108,7 +108,7 @@ function LibBlock($$ctx: ParserContext, $$state: ParseState) {
     pm.match('LibBlock', $loc);
     for (const lNames of $4) {
       for (const name of lNames) {
-        addSymbol(name, $1)
+        hSymbols[name] = $1
       }
     }
     return
@@ -273,10 +273,16 @@ export {
 import {CParseMatches} from 'parse-utils';
 export let pm = new CParseMatches();
 
-import {clearSymbols, addSymbol, hSymbols} from "symbols"
+import {hashof} from 'datatypes'
+import {clearHash} from 'llutils'
 import {str2indents} from 'hera-parse'
 
-export const beginParse = (text: string): (string | undefined) => {
-  clearSymbols()
+let hSymbols: hashof<string> = {}
+
+export const beginParse = (
+      text: string,
+      hOptions: {[key: string|symbol]: unknown} = {}
+      ): string|undefined => {
+  hSymbols = {}
   return str2indents(text) + '\n'
   }
