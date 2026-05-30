@@ -739,7 +739,11 @@ export allStackFrames := (
 
 	process.setSourceMapsEnabled(false)
 	openDebugFile 'stack'
-	fmt := (line: number, col: number, src: string): string =>
+	fmt := (
+			line: number,
+			col: number,
+			src: string
+			): string =>
 		return "#{sprintf('%3d', line)} #{sprintf('%3d', col)} #{src}"
 
 	try
@@ -765,8 +769,8 @@ export allStackFrames := (
 
 				# --- These are constants
 				orgSource := normalizePath src
-				orgLine   := orgFrame.getLineNumber()
-				orgCol    := orgFrame.getColumnNumber()
+				orgLine   := orgFrame.getLineNumber() || 0
+				orgCol    := orgFrame.getColumnNumber() || 0
 
 				DBG '-'.repeat 64
 				DBG fmt(orgLine, orgCol, orgSource)

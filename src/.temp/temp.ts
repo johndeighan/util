@@ -14,14 +14,16 @@ import {
 import {parseText} from 'hera-parse'
 import {compileHera} from 'llhera'
 import {symbolsFromString} from 'symbols'
+import {CAnalysis, analyzeTsCode} from 'typescript'
 
 // ---------------------------------------------------------------------------
 
 debugger
-TRY(async () => {
-	const heraPath = "C:/Users/johnd/util/src/parse/counter.parse.hera"
-	const hResult = await procOneFile(heraPath, doCompileHera)
-	console.log(hResult)
+TRY(() => {
+	const path = 'src/lib/cielo.lib.ts'
+	const analysis = analyzeTsCode(Deno.readTextFileSync(path))
+	const lExports = analysis.getExports()
+	LOG(lExports)
 })
 
 SKIP(async () => {

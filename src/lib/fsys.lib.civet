@@ -831,3 +831,22 @@ export configFromFile := (
 		)
 	h := await import url
 	return h.hConfig
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export openForWrite := (path: string): Deno.FsFile =>
+
+	return await Deno.open path, {
+		write: true
+		create: true
+		truncate: true
+		}
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export writeLine := (file: Deno.FsFile, str: string): void =>
+
+	await file.write encode(str + '\n')
+	return

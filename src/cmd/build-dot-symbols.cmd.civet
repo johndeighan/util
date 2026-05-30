@@ -1,14 +1,18 @@
 # build-dot-symbols.cmd.civet
 
+import {existsSync} from '@std/fs'
 import {
 	TRY, toRelPath, LOG, DBG, ERR, assert, TIterator,
-	undef, defined, notdefined,
+	undef, defined, notdefined, encode,
 	} from 'base'
 import {stdChecks, getOptions} from 'llutils'
 import {hash} from 'datatypes'
 import {indented} from 'indent'
 import {DBGVALUE} from 'to-nice'
-import {barf, allFilesMatching, withExt} from 'fsys'
+import {
+	barf, allFilesMatching, withExt, parsePath,
+	openForWrite, writeLine,
+	} from 'fsys'
 import {CAnalysis, analyzeTsCode} from 'typescript'
 
 # --- These may become command line options later
@@ -43,18 +47,19 @@ allLinesFrom := (
 # ---------------------------------------------------------------------------
 
 TRY () =>
-	lLines: string[] := []
-	for path of allFilesMatching('**/*.lib.civet')
-		LOG "#{toRelPath(path)}"
+
+	using file = await openForWrite 'src/.symbols'
+
+	for path of allFilesMatching('**/*.lib.ts')
 		try
 			analysis := analyzeTsCode(Deno.readTextFileSync(path))
 			lExports := analysis.getExports()
-			lLines.push withExt(path, '.ts')
+			LOG "#{toRelPath(path)} - #{lExports.length} exports"
+			{stub} := parsePath(path)
+
+			await writeLine(file, stub)
 			for line of allLinesFrom lExports
-				lLines.push indented(line, 1, {oneIndent})
+				await writeLine(file, indented(line))
+#				await file.write encode(indented(line + '\n'))
 		catch err
 			ERR err
-	contents := lLines.join '\n'
-	DBGVALUE 'contents', contents
-	barf 'src/.symbols', contents
-

@@ -16,7 +16,7 @@ import {
 	pushLogLevel, popLogLevel,
 	} from 'base'
 import {
-	integer, hash, hashof,
+	integer, hash, hashof, array,
 	isHash, isString, isEmpty, nonEmpty, isNumber,
 	isFunction, functionDef, isClass, classDef,
 	} from 'datatypes'
@@ -449,10 +449,10 @@ export class CAnalysis
 
 export getNode := (
 		x: unknown
-		dspath: string | TPathItem[]
+		pathstr: string
 		): Node =>
 
-	val := extract(x, dspath) as Node
+	val := extract(x, pathstr) as Node
 	return val
 
 # ---------------------------------------------------------------------------
@@ -486,11 +486,11 @@ export analyzeTsCode := (
 
 	checkNode := (
 			node: Node,
-			dspath: string? = undef
+			pathstr: string? = undef
 			): void =>
 
-		if defined(dspath)
-			node = getNode(node, dspath)
+		if defined(pathstr)
+			node = getNode(node, pathstr)
 		if (node.kind == 80)   # --- Identifier
 			name := getString node, '.escapedText'
 			analysis.use name

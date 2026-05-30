@@ -5,9 +5,9 @@ import {
 	} from 'base'
 import {
 	isString, isArray, isNumber,
-	isEmpty, nonEmpty, integer,
+	isEmpty, nonEmpty, integer, array,
 	} from 'datatypes'
-import {o, sep} from 'llutils'
+import {sep} from 'llutils'
 import {toNice} from 'to-nice'
 
 # ---------------------------------------------------------------------------
@@ -24,11 +24,41 @@ export getDsPath := (lPath: TPathItem[]): string =>
 
 # ---------------------------------------------------------------------------
 
-export reportExtractError := (
+export extract := (
+		x: unknown,
 		pathstr: string
+		): unknown =>
+
+	assert defined(x), "extract(): x not defined"
+	try
+		eval "x = x#{pathstr}"
+		return x
+	catch err
+		msg: string := (
+			  isString(err)          ? err
+			: (err instanceof Error) ? err.message
+			:                          'Unknown error'
+			)
+		reportExtractError x, pathstr, msg
+		Deno.exit 99
+
+# ---------------------------------------------------------------------------
+
+export getPathString := (
+		dspath: string | TPathItem[]
+		): string =>
+
+	assert nonEmpty(dspath), "Empty dspath"
+	pathstr := isArray(dspath) ? getDsPath(dspath) : dspath
+	assert nonEmpty(pathstr), "Empty pathstr"
+	return pathstr
+
+# ---------------------------------------------------------------------------
+
+export reportExtractError := (
 		x: unknown
+		pathstr: string
 		errMsg: string? = undef
-		expected: string? = undef
 		): void =>
 
 	LOG sep '=', "ERROR EXTRACTING #{pathstr}"
@@ -40,36 +70,10 @@ export reportExtractError := (
 	LOG sep '='
 	if defined(errMsg)
 		LOG errMsg
-	if defined(expected)
-		LOG "EXPECTED #{expected}"
 	LOG sep '='
 	return
 
 # ---------------------------------------------------------------------------
-
-export extract := (
-		x: unknown,
-		dspath: string | TPathItem[]
-		tester: (x: unknown) => boolean = (x) => true
-		expected: string? = undef
-		): unknown =>
-
-	assert defined(x), "extract(): x not defined"
-	pathstr := isArray(dspath) ? getDsPath(dspath) : dspath
-	assert nonEmpty(pathstr), "Empty pathstr"
-	try
-		eval "x = x#{pathstr}"
-		assert tester(x), "Expected #{expected}"
-		return x
-	catch err
-		msg: string := (
-			  isString(err)          ? err
-			: (err instanceof Error) ? err.message
-			:                          'Unknown error'
-			)
-		reportExtractError pathstr, x, msg
-		Deno.exit 99
-
 # ---------------------------------------------------------------------------
 
 export getString := (
@@ -78,11 +82,14 @@ export getString := (
 		value: string? = undef
 		): string =>
 
-	val := extract x, dspath, (x) => isString(x), 'string'
-	assert isString(val), "getString(): not a string"
+	pathstr := getPathString(dspath)
+	val := extract(x, pathstr) || ''
+	if not isString(val)
+		reportExtractError x, pathstr,
+				"string expected, got #{val}"
 	if value
 		assert (val == value), "Expected #{value}, got #{val}"
-	return val
+	return val as string
 
 # ---------------------------------------------------------------------------
 
@@ -92,23 +99,45 @@ export getNumber := (
 		value: number? = undef
 		): number =>
 
-	val := extract x, dspath, (x) => isNumber(x), 'number'
-	assert isNumber(val), "getNumber(): not a number"
+	pathstr := getPathString(dspath)
+	val := extract x, pathstr
+	if not isNumber(val)
+		reportExtractError x, pathstr,
+				"getNumber(): number expected, got #{val}"
 	if value
 		assert (val == value), "Expected #{value}, got #{val}"
-	return val
+	return val as number
 
 # ---------------------------------------------------------------------------
 
 export getArray := (
 		x: unknown,
 		dspath: string | TPathItem[],
+		): unknown[] =>
+
+	pathstr := getPathString(dspath)
+	val := extract x, pathstr
+	if notdefined(val)
+		return []
+	if not isArray(val)
+		reportExtractError x, pathstr,
+				"getArray(): array expected, got #{val}"
+	return val as array
+
+# ---------------------------------------------------------------------------
+
+export getTuple := (
+		x: unknown,
+		dspath: string | TPathItem[],
 		len: integer? = undef
 		): unknown[] =>
 
-	assert defined(x), "getArray(): x not defined"
-	val := extract x, dspath, (x) => isArray(x), 'array'
-	assert isArray(val), "getArray(): not an array"
+	pathstr := getPathString(dspath)
+	val := extract x, pathstr
+	if not isArray(val)
+		reportExtractError x, pathstr,
+				"getTuple(): array expected, got #{val}"
+	assert isArray(val), "BS"
 	if len
 		assert (val.length == len), "Expected #{len} len array, got #{val}"
-	return val
+	return val as array
