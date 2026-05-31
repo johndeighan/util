@@ -4,6 +4,7 @@ type: civet
 # macro.parse.hera
 
 import {str2indents} from 'hera-parse'
+import {CMacroBlock, TMacroDoc} from 'macros'
 
 #beginParse(text)
 	return str2indents(text) + '\n'
@@ -15,18 +16,34 @@ Contents
 		return mainBlock
 
 Block
-	Line NL
-		return new CBlock($1)
-
-	Line INDENT Block+ UNDENT
+	Header INDENT Block* UNDENT
 		blk := new CBlock($1)
 		for sub of $2[1]
 			blk.add sub
 		return blk
 
+	Line NL
+		return new CBlock($1)
+
+	Line INDENT Block* UNDENT
+		blk := new CBlock($1)
+		for sub of $2[1]
+			blk.add sub
+		return blk
+
+Header
+	"#" /[A-Za-z][A-Za-z0-9]*/ _ /[^\r\n]*/
+		return {
+			macroName: $2[0]
+			args: $4[0]
+			}
+
 Line
-	/[^\n\x0F\x0E]+/
-		return $0
+	/[^\n\r]*/ NL
+		if $0[0].match(/^#[a-z]/)
+			return $skip
+		else
+			return $0[0]
 
 INDENT
 	/\x0F/

@@ -2,57 +2,98 @@
 
 import {undef, defined, notdefined, assert, croak} from 'base'
 import {
-	hash, hashof, isHash, TStringMapper, isStringMapper,
+	hashof, isString, isHash, TStringMapper, isStringMapper,
 	} from 'datatypes'
 import {entries} from 'llutils'
 import {parsePath, openTextFile} from 'fsys'
 import {CFileHandler, TExecResult} from 'exec'
-import {parseFile} from 'hera-parse'
+import {parseText} from 'hera-parse'
 
 # ---------------------------------------------------------------------------
 
-export type TMacroHash = hashof<TStringMapper>
+export type TMacroFunc = (
+		block: string
+		args: string
+		) => string
 
-export isMacroHash := (x: unknown): x is TMacroHash =>
+export type TMacroLib = hashof<TMacroFunc>
+
+export isMacroLib := (x: unknown): x is TMacroLib =>
 
 	if not isHash(x)
 		return false
-	for name,macro of entries(x)
+	for _,macro of entries(x)
 		if not isStringMapper(macro)
 			return false
 	return true
+
+# ---------------------------------------------------------------------------
+
+export class CMacroBlock
+	macroName: string
+	args: string
+	lContent: (string | CMacroBlock)[]
+
+	constructor(
+			@macroName: string,
+			@args: string = ''
+			@lContent: (string | CMacroBlock)[] = []
+			)
+
+	add(part: string | CMacroBlock): void
+		@lContent.push part
+		return
+
+	expand(hMacros: TMacroLib): string
+		func := hMacros[@macroName]
+		assert defined(func), "No such macro: #{@macroName}"
+		lParts := for part of @lContent
+			isString(part) ? part : part.expand(hMacros)
+		return func lParts.join('\n'), @args
+
+# ---------------------------------------------------------------------------
+# --- what gets returned from the parser
+
+export type TMacroDoc = (string | CMacroBlock)[]
+
+# ---------------------------------------------------------------------------
+# --- think "macro block"
+
+export mb := (
+		header: string
+		...lContent: (string | CMacroBlock)[]
+		): CMacroBlock =>
+
+	lMatches := header.match /^(\S+)\s*(.*)$/
+	assert defined(lMatches), "mkmb(): bad header: #{header}"
+	[_, macroName, args] := lMatches
+	block := new CMacroBlock(macroName, args)
+	for part of lContent
+		block.add part
+	return block
+
+# ---------------------------------------------------------------------------
+
+export expandMacros := (
+		lContent: TMacroDoc
+		hMacros: TMacroLib
+		): string =>
+
+	lParts := for part of lContent
+		isString(part) ? part : part.expand(hMacros)
+	return lParts.join '\n'
 
 # ---------------------------------------------------------------------------
 # ASYNC
 
 export mapFile := (
 		path: string
-		hMacros: hashof<TStringMapper>
+		hMacros: TMacroLib
 		): string =>
 
 	{ext} := parsePath path
 	assert defined(ext) && ext.startsWith('.$'),
 		"Not a macro file: #{path}"
-	return await parseFile<string> 'macro', path
-
-# ---------------------------------------------------------------------------
-
-export class CFileMapper extends CFileHandler
-
-	get op()
-		return 'doMapFile'
-
-	override handle(
-			path: string,
-			hOptions: hash = {}
-			): TExecResult
-
-		assert ('hMacros' in hOptions), "missing macros hash"
-		hMacros := hOptions.hMacros
-		assert isMacroHash(hMacros), "Bad macro hash: #{hMacros}"
-		return {
-			success: true
-			stdout: await mapFile path, hMacros
-			}
-
-export doMapFile := new CFileMapper()
+	[hMetaData, text] := await openTextFile path, true
+	lParts: TMacroDoc := await parseText 'macro', text
+	return expandMacros lParts, hMacros

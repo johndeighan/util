@@ -5,8 +5,6 @@ deno is running v8 version 14.7.173.20-rusty
 chrome is running v8 version 14.8.178.21
 	chrome://version
 
-Get build-dot-symbols command to run
-
 ------------------------------------------
 Test parsing:
 	counter - OK
@@ -25,10 +23,6 @@ in unify, implement functions weakerThan() and strongerThan()
 	- and use them in unit tests
 
 see if bootstrap command works
-
-how to pass the thing returned from a rule match to parse-utils
-
-in hera-compile, allow meta data type: 'civet'
 
 get src/.temp/map-pos.lib.civet working !!!!
 
