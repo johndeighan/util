@@ -341,7 +341,7 @@ equal Blockify({
 	EXPORTS: ['abc','def']
 	IMPORTS: {
 		datatypes: ['isString', 'isArray', 'hash']
-		llutils:   ['o', 's', 'widthOf']
+		llutils:   ['o', 's', 'blockWidth']
 		}
 	}, {width: 18}), s"""
 	EXPORTS: abc def
@@ -351,5 +351,5 @@ equal Blockify({
 			isArray
 			hash
 		llutils:
-			o s widthOf
+			o s blockWidth
 	"""

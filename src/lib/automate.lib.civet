@@ -12,7 +12,7 @@ import {
 	nonEmptyString, hash, hashof,
 	} from 'datatypes'
 import {keys, getOptions} from 'llutils'
-import {OL, DBGVALUE} from 'to-nice'
+import {OL, DBGVALUE} from 'nice'
 import {
 	slurp, barf, patchFirstLine, parsePath, configFromFile,
 	isFile, rmFile, findFile, withExt, fileExt,

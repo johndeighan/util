@@ -1,4 +1,4 @@
-# to-nice.lib.civet
+# nice.lib.civet
 
 import {sprintf} from '@std/fmt/printf'
 
@@ -471,11 +471,11 @@ export ML := (x: unknown, hOptions = {}): string =>
 
 # ---------------------------------------------------------------------------
 
-export DUMP := (
+export DUMPER := (
 		x: unknown,
 		label: string? = undef,
 		hOptions: hash = {}
-		): void =>
+		): string =>
 
 	type opt = {
 		width: number
@@ -483,24 +483,52 @@ export DUMP := (
 		endLabel: boolean
 		escape: boolean
 		lineNumbers: boolean
+		type: 'nice' | 'json'
 		}
-	{width, char, endLabel, escape, lineNumbers} := getOptions<opt> hOptions, {
-		width: 64
-		char: '-'
-		endLabel: false
-		escape: false
-		lineNumbers: false
-		}
+	{width, char, endLabel, escape, lineNumbers, type
+		} := getOptions<opt> hOptions, {
+			width: 64
+			char: '-'
+			endLabel: false
+			escape: false
+			lineNumbers: false
+			type: 'nice'
+			}
 
-	writeln sep(char, label, width)
+	lLines: string[] := [sep(char, label, width)]
 	if isString(x)
 		for line,i of allLinesInBlock(x)
-			if lineNumbers
-				write sprintf('%3d', i+1) + ' '
-			writeln escape ? esc(line) : line
+			str := escape ? esc(line) : line
+			lLines.push (lineNumbers ? "#{sprintf('%3d', i+1)} #{str}" : str)
 	else
-		writeln toNice(x, hOptions)
-	writeln sep(char, (endLabel ? "END #{label}" : undef), width)
+		lLines.push (
+			  (type == 'nice')
+			? toNice(x, hOptions)
+			: JSON.stringify(x, null, 3)
+			)
+	lLines.push sep(char, (endLabel ? "END #{label}" : undef), width)
+	return lLines.join('\n')
+
+# ---------------------------------------------------------------------------
+
+export DUMP := (
+		x: unknown,
+		label: string? = undef,
+		hOptions: hash = {}
+		): void =>
+
+	LOG DUMPER(x, label, hOptions)
+	return
+
+# ---------------------------------------------------------------------------
+
+export DDUMP := (
+		x: unknown,
+		label: string? = undef,
+		hOptions: hash = {}
+		): void =>
+
+	DBG DUMPER(x, label, hOptions)
 	return
 
 # ---------------------------------------------------------------------------

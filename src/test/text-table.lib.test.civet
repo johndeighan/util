@@ -1,7 +1,7 @@
 # text-table.lib.test.civet
 
 import {undef} from 'base'
-import {o} from 'llutils'
+import {o, s} from 'llutils'
 import {TextTable} from 'text-table'
 import {equal, unifies} from 'unit-test'
 
@@ -45,7 +45,7 @@ import {equal, unifies} from 'unit-test'
 (() =>
 	table := new TextTable('l r%.2f r%.2f')
 	table.labels ['Coffee', 'Jan', 'Feb']
-	table.data   [undef, 30, 40]
+	table.data   ['', 30, 40]
 
 	equal table.lRows, [
 		{
@@ -69,8 +69,8 @@ import {equal, unifies} from 'unit-test'
 (() =>
 	table := new TextTable('l r%.2f r%.2f')
 	table.labels ['Coffee', 'Jan', 'Feb']
-	table.data   [undef, 30, 40]
-	table.data   [undef, 130, 40]
+	table.data   ['', 30, 40]
+	table.data   ['', 130, 40]
 
 	equal table.lRows, [
 		{
@@ -98,8 +98,8 @@ import {equal, unifies} from 'unit-test'
 (() =>
 	table := new TextTable('l r%.2f r%.2f')
 	table.labels  ['Coffee', 'Jan', 'Feb']
-	table.data    [undef, 30, 40]
-	table.data    [undef, 130, 40]
+	table.data    ['', 30, 40]
+	table.data    ['', 130, 40]
 
 	unifies table.lRows, [
 		{
@@ -127,8 +127,8 @@ import {equal, unifies} from 'unit-test'
 (() =>
 	table := new TextTable 'l r%.2f r%.2f'
 	table.labels  ['Coffee', 'Jan', 'Feb']
-	table.data    [undef, 30, 40]
-	table.data    [undef, 130, 40]
+	table.data    ['', 30, 40]
+	table.data    ['', 130, 40]
 	table.sep     '-'
 	table.subtotals()
 
@@ -166,12 +166,12 @@ import {equal, unifies} from 'unit-test'
 (() =>
 	table := new TextTable('l r%.2f r%.2f')
 	table.labels  ['Coffee', 'Jan', 'Feb']
-	table.data    [undef, 30, 40]
-	table.data    [undef, 130, 40]
+	table.data    ['', 30, 40]
+	table.data    ['', 130, 40]
 	table.sep     '-'
 	table.subtotals()
-	table.data    [undef, 10, 20]
-	table.data    [undef, 1000, 40]
+	table.data    ['', 10, 20]
+	table.data    ['', 1000, 40]
 
 	equal table.lRows, [
 		{
@@ -216,12 +216,12 @@ import {equal, unifies} from 'unit-test'
 (() =>
 	table := new TextTable('l r%.2f r%.2f')
 	table.labels  ['Coffee', 'Jan', 'Feb']
-	table.data    [undef, 30, 40]
-	table.data    [undef, 130, 40]
+	table.data    ['', 30, 40]
+	table.data    ['', 130, 40]
 	table.sep     '-'
 	table.subtotals()
-	table.data    [undef, 10, 20]
-	table.data    [undef, 1000, 40]
+	table.data    ['', 10, 20]
+	table.data    ['', 1000, 40]
 	table.fullsep '='
 	table.totals()
 
@@ -277,12 +277,12 @@ import {equal, unifies} from 'unit-test'
 	table.title   'My Expenses'
 	table.fullsep '-'
 	table.labels  ['Coffee', 'Jan', 'Feb']
-	table.data    [undef, 30, 40]
-	table.data    [undef, 130, 40]
+	table.data    ['', 30, 40]
+	table.data    ['', 130, 40]
 	table.sep     '-'
 	table.subtotals()
-	table.data    [undef, 10, 20]
-	table.data    [undef, 1000, 40]
+	table.data    ['', 10, 20]
+	table.data    ['', 1000, 40]
 	table.fullsep '='
 	table.totals()
 
@@ -290,7 +290,7 @@ import {equal, unifies} from 'unit-test'
 		{
 			opcode: 'title'
 			title: 'My Expenses'
-			align: 'center'
+			align: 'c'
 			}
 		{
 			opcode: 'fullsep'
@@ -347,12 +347,12 @@ import {equal, unifies} from 'unit-test'
 	table.title   'My Expenses'
 	table.fullsep '-'
 	table.labels  ['Coffee', 'Jan', 'Feb']
-	table.data    [undef, 30, 40]
-	table.data    [undef, 130, 40]
+	table.data    ['', 30, 40]
+	table.data    ['', 130, 40]
 	table.sep     '-'
 	table.subtotals()
-	table.data    [undef, 10, 20]
-	table.data    [undef, 1000, 40]
+	table.data    ['', 10, 20]
+	table.data    ['', 1000, 40]
 	table.fullsep '='
 	table.totals()
 
@@ -360,7 +360,7 @@ import {equal, unifies} from 'unit-test'
 		{
 			opcode: 'title'
 			title: 'My Expenses'
-			align: 'center'
+			align: 'c'
 			}
 		{
 			opcode: 'fullsep'
@@ -446,7 +446,7 @@ import {equal, unifies} from 'unit-test'
 	)()
 
 # -------------------------------------------------------------
-# --- Test lHide parameter in toString()
+# --- Test hide parameter in asString()
 
 (() =>
 	table := new TextTable('l r%.2f r%.2f')
@@ -463,7 +463,7 @@ import {equal, unifies} from 'unit-test'
 	table.fullsep '='
 	table.totals()
 
-	equal table.asString(o'lHide=1'), """
+	equal table.asString({hide: 1}), """
 		  My Expenses
 		---------------
 		          Feb
@@ -478,21 +478,7 @@ import {equal, unifies} from 'unit-test'
 		         140.00
 		"""
 
-	equal table.asString(o'lHide=Jan'), """
-		  My Expenses
-		---------------
-		          Feb
-		-------- ------
-		coffee    40.00
-		dining    40.00
-		-------- ------
-		          80.00
-		one time  20.00
-		other     40.00
-		===============
-		         140.00
-		"""
-	equal table.asString(o'lHide=1,2'), """
+	equal table.asString({hide: [1,2]}), """
 		My Expenses
 		--------
 
@@ -507,19 +493,89 @@ import {equal, unifies} from 'unit-test'
 
 		"""
 
-	equal table.asString(o'lHide=Jan,Feb'), """
-		My Expenses
-		--------
+	)()
 
-		--------
-		coffee
-		dining
-		--------
+# -------------------------------------------------------------
 
-		one time
-		other
-		========
+(() =>
+	table := new TextTable "l r%d r%d l"
+	table.fullsep '-'
+	table.title 'matches'
+	table.fullsep '-'
+	table.labels ['Op', 'Pos', 'Len', 'data']
+	table.sep()
 
+	table.data ['Main', 0, 3, 'abc']
+	table.data ['Main', 0, 3, 'abc\ndef']
+
+	table.fullsep '-'
+
+	equal table.asString(), s"""
+		-----------------
+			  matches
+		-----------------
+		 Op  Pos Len data
+		---- --- --- ----
+		Main   0   3 abc
+		Main   0   3 abc
+		             def
+		-----------------
+		"""
+	)()
+
+# -------------------------------------------------------------
+
+(() =>
+	table := new TextTable "l r%d r%d l"
+	table.fullsep '-'
+	table.title 'matches'
+	table.fullsep '-'
+	table.labels ['Op', 'Pos', 'Len', 'data']
+	table.sep()
+
+	table.data ['Main', 0, 3, 'abc']
+	table.data ['Main', 0, 3, ['abc','def']]
+
+	table.fullsep '-'
+
+	equal table.asString(), s"""
+		------------------
+			  matches
+		------------------
+		 Op  Pos Len data
+		---- --- --- -----
+		Main   0   3 abc
+		Main   0   3 - abc
+		             - def
+		------------------
+		"""
+	)()
+
+# -------------------------------------------------------------
+
+(() =>
+	table := new TextTable "l r%d r%d l"
+	table.fullsep '-'
+	table.title 'matches'
+	table.fullsep '-'
+	table.labels ['Op', 'Pos', 'Len', 'data']
+	table.sep()
+
+	table.data ['Main', 0, 3, 'abc']
+	table.data ['Main', 0, 3, {a: 1, b: 2}]
+
+	table.fullsep '-'
+
+	equal table.asString(), s"""
+		-----------------
+			  matches
+		-----------------
+		 Op  Pos Len data
+		---- --- --- ----
+		Main   0   3 abc
+		Main   0   3 a: 1
+		             b: 2
+		-----------------
 		"""
 	)()
 

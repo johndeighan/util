@@ -20,7 +20,7 @@ import {resetOneIndent, splitLine} from 'indent'
 import {
 	allLinesInBlock, getOptions, sep,
 	} from 'llutils'
-import {OL, ML} from 'to-nice'
+import {OL, ML} from 'nice'
 import {procOneFile} from 'exec'
 import {CParseMatches} from 'parse-utils';
 import {doCompileHera} from 'hera-compile'
@@ -28,6 +28,7 @@ import {doCompileHera} from 'hera-compile'
 # ---------------------------------------------------------------------------
 # --- Replaces indentation with uni.shiftin and uni.shiftout
 #     oneIndent, if defined, must be '\t' or some number of space chars
+#     there will always be a terminating newline
 
 export str2indents := (str: string): string =>
 

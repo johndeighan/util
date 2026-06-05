@@ -15,7 +15,7 @@ import {
 	arrayToBlock, toBlock, rpad, lpad,
 	TAlignment, isAlignment, alignString, zpad,
 	TBlockSpec, isBlockSpec, allMatches,
-	widthOf, heightOf, CStringSetMap, fromTAML, f,
+	blockWidth, blockHeight, CStringSetMap, fromTAML, f,
 	} from 'llutils'
 import {
 	equal, truthy, falsy, succeeds, fails,
@@ -251,31 +251,31 @@ equal getLineAndColumn('abcd\nefgh\nijkl', 5), [2, 1]
 equal truncStr('abc', 12), 'abc'
 equal truncStr('abcdefg', 5), 'ab...'
 
-equal widthOf("""
+equal blockWidth("""
 	abc
 	abcde
 	xx
 	"""), 5
 
-equal widthOf("""
+equal blockWidth("""
 	xx
 	abc
 	abcde
 	"""), 5
 
-equal widthOf("""
+equal blockWidth("""
 	abcde
 	abc
 	xx
 	"""), 5
 
-equal heightOf("""
+equal blockHeight("""
 	abc
 	def
 	xx
 	"""), 3
 
-equal heightOf(''), 0
+equal blockHeight(''), 0
 
 # ---------------------------------------------------------------------------
 

@@ -61,7 +61,7 @@ const $skip: (typeof SKIP) = SKIP; void $skip;
 
 
 
-const $R0 = $R(new RegExp("[^\\n\\x0F\\x0E]+", 'suy'));
+const $R0 = $R(new RegExp("[^\\n\\r]*", 'suy'));
 const $R1 = $R(new RegExp("\\x0F", 'suy'));
 const $R2 = $R(new RegExp("\\x0E", 'suy'));
 const $R3 = $R(new RegExp("\\r?\\n", 'suy'));
@@ -81,69 +81,44 @@ function Contents($$ctx: ParserContext, $$state: ParseState) {
   const $$m = (function($loc: Loc, $1: typeof $$r.value[0]) {
     void $loc, $1;
     pm.match('Contents', $loc);
-    for (const blk in $1) {
-      mainBlock.add(blk)
-    }
-    return pm.returnVal(mainBlock);
+    return pm.returnVal($1);
   })($$r.loc, $$r.value[0]);
   ($$r as any).value = $$m;
   $$ctx.exit?.("Contents", $$state, $$r, $$eventData);
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const Block$0$parser = $S(Line, NL);
+const Block$parser = $S(Line, $E($S(INDENT, $P(Block), UNDENT)));
 
-const Block$1$parser = $S(Line, INDENT, $P(Block), UNDENT);
-
-function Block$0($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = Block$0$parser($$ctx, $$state);
+function Block($$ctx: ParserContext, $$state: ParseState) {
+  const $$entered = $$ctx.enter?.("Block", $$state);
+  if ($$entered && "cache" in $$entered) return $$entered.cache as never;
+  const $$eventData = $$entered?.data;
+  const $$r = Block$parser($$ctx, $$state);
   if (!$$r) {
-    
-    return undefined;
-  }
-  const $$m = (function($loc: Loc, $1: typeof $$r.value[0]) {
-    void $loc, $1;
-    pm.match('Block', $loc);
-    return pm.returnVal(new CBlock($1));
-  })($$r.loc, $$r.value[0]);
-  ($$r as any).value = $$m;
-  
-  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
-}
-
-function Block$1($$ctx: ParserContext, $$state: ParseState) {
-  const $$r = Block$1$parser($$ctx, $$state);
-  if (!$$r) {
-    
+    $$ctx.exit?.("Block", $$state, undefined, $$eventData);
     return undefined;
   }
   const $$value = $$r.value;
   const $$m = (function($loc: Loc, $1: typeof $$value[0], $2: typeof $$value[1]) {
     void $loc, $1, $2;
     pm.match('Block', $loc);
-    const blk = new CBlock($1)
-    for (const sub of $2[1]) {
-      blk.add(sub)
+    const lContent = defined($2) ? $2[1] : []
+    const result = splitMacroHeader($1)
+    if (defined(result)) {
+      const [name, args] = result
+      return pm.returnVal({type: 'macro', name, args, lContent} as TMacroBlock);
     }
-    return pm.returnVal(blk);
+    else {
+      return pm.returnVal({type: 'text', firstLine: $1, lContent} as TTextBlock);
+    }
   })($$r.loc, $$value[0], $$value[1]);
   ($$r as any).value = $$m;
-  
+  $$ctx.exit?.("Block", $$state, $$r, $$eventData);
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-function Block($$ctx: ParserContext, $$state: ParseState) {
-  const $$entered = $$ctx.enter?.("Block", $$state);
-  if ($$entered && "cache" in $$entered) return $$entered.cache as never;
-  const $$eventData = $$entered?.data;
-  const $$final: MaybeResult<Unwrap<ReturnType<typeof Block$0>> | Unwrap<ReturnType<typeof Block$1>>> = Block$0($$ctx, $$state)
-    || Block$1($$ctx, $$state);
-  $$ctx.exit?.("Block", $$state, $$final, $$eventData);
-
-  return $$final;
-}
-
-const Line$parser = $EXPECT($R0, "Line /[^\\n\\x0F\\x0E]+/");
+const Line$parser = $S($EXPECT($R0, "Line /[^\\n\\r]*/"), NL);
 
 function Line($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("Line", $$state);
@@ -154,11 +129,11 @@ function Line($$ctx: ParserContext, $$state: ParseState) {
     $$ctx.exit?.("Line", $$state, undefined, $$eventData);
     return undefined;
   }
-  const $$m = (function($loc: Loc, $0: any) {
-    void $loc, $0;
+  const $$m = (function($loc: Loc, $1: typeof $$r.value[0]) {
+    void $loc, $1;
     pm.match('Line', $loc);
-    return pm.returnVal($0);
-  })($$r.loc, ($$r.value as any[])[0]);
+    return pm.returnVal($1[0]);
+  })($$r.loc, $$r.value[0]);
   ($$r as any).value = $$m;
   $$ctx.exit?.("Line", $$state, $$r, $$eventData);
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
@@ -258,12 +233,19 @@ export {
 import {CParseMatches} from 'parse-utils';
 export let pm = new CParseMatches();
 
-import {undef, defined, assert} from 'base'
-import {isArray} from 'datatypes'
-import {CBlock} from 'block'
 
-const mainBlock = new CBlock()
+import {defined, notdefined} from 'base'
+import {str2indents} from 'hera-parse'
+import {
+  TTextBlock, TMacroBlock, splitMacroHeader,
+  } from 'macros'
 
-export const beginParse = (text: string): (string | undefined) =>( {
-  reset: mainBlock.reset()
-  })
+
+export const beginParse = (
+      text: string,
+      hOptions: {[key: string|symbol]: unknown} = {}
+      ): string|undefined => {
+  return str2indents(text)
+
+
+  }

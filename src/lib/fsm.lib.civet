@@ -6,7 +6,7 @@ import {
 	} from 'base'
 import {hash, isArray, isInteger, TVoidFunc, isAsyncIterator} from 'datatypes'
 import {f, getOptions} from 'llutils'
-import {OL, ML} from 'to-nice'
+import {OL, ML} from 'nice'
 
 # ---------------------------------------------------------------------------
 

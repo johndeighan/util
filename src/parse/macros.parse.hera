@@ -1,0 +1,42 @@
+---
+type: civet
+---
+# macros.parse.hera
+
+import {defined, notdefined} from 'base'
+import {str2indents} from 'hera-parse'
+import {
+	TTextBlock, TMacroBlock, splitMacroHeader,
+	} from 'macros'
+
+#beginParse(text, hOptions)
+	return str2indents(text)
+
+# --- Returns (TTextBlock | TMacroBlock)[]
+
+Contents
+	Block* NL*
+		return $1
+
+Block
+	Line (INDENT Block+ UNDENT)?
+		lContent := defined($2) ? $2[1] : []
+		result := splitMacroHeader($1)
+		if defined(result)
+			[name, args] := result
+			return {type: 'macro', name, args, lContent} as TMacroBlock
+		else
+			return {type: 'text', firstLine: $1, lContent} as TTextBlock
+
+Line
+	/[^\n\r]*/ NL
+		return $1[0]
+
+INDENT
+	/\x0F/
+
+UNDENT
+	/\x0E/
+
+NL
+	/\r?\n/

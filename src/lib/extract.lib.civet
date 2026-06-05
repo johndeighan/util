@@ -8,7 +8,7 @@ import {
 	isEmpty, nonEmpty, integer, array,
 	} from 'datatypes'
 import {sep} from 'llutils'
-import {toNice} from 'to-nice'
+import {toNice} from 'nice'
 
 # ---------------------------------------------------------------------------
 

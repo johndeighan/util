@@ -19,6 +19,23 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
+last unit test in macros.parse.test.civet fails
+	- bad parse
+
+Can toNice() display the class of an object?
+
+This is incorrect NICE:
+- - Main
+- - “0
+- - “3
+-
+   - abc
+   - def
+
+In parse-utils matchesTable(), build multi-line structures
+
+Allow returned values to span multiple lines in hera files
+
 in unify, implement functions weakerThan() and strongerThan()
 	- and use them in unit tests
 

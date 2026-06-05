@@ -8,7 +8,7 @@ import {
 import {stdChecks, getOptions} from 'llutils'
 import {hash} from 'datatypes'
 import {indented} from 'indent'
-import {DBGVALUE} from 'to-nice'
+import {DBGVALUE} from 'nice'
 import {
 	barf, allFilesMatching, withExt, parsePath,
 	openForWrite, writeLine,

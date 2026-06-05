@@ -6,7 +6,7 @@ import {undef, assert, croak, getErrStr} from 'base'
 import {isString} from 'datatypes'
 import {parsePath, withExt} from 'fsys'
 import {mdGet} from 'meta-data'
-import {DUMP} from 'to-nice'
+import {DUMP} from 'nice'
 import {civet2tsSync} from 'llcivet'
 
 export type THeraType = 'typescript' | 'civet'

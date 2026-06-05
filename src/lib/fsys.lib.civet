@@ -34,7 +34,7 @@ import {
 	} from 'llutils'
 import {isMetaDataStart, convertMetaData} from 'meta-data'
 import {debugging} from 'cmd-args'
-import {OL, ML, DBGVALUE} from 'to-nice'
+import {OL, ML, DBGVALUE} from 'nice'
 import {civet2tsFile} from 'llcivet'
 
 export {

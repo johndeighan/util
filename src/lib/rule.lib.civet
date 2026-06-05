@@ -2,9 +2,11 @@
 
 import {
 	undef, defined, notdefined, assert, croak, TIterator,
+	LOG, ERR,
 	} from 'base'
+import {DUMP} from 'nice'
 import {isEmpty} from 'datatypes'
-import {arrayToBlock} from 'llutils'
+import {toBlock} from 'llutils'
 import {indented} from 'indent'
 import {THeraType} from 'llhera'
 import {civet2tsSync} from 'llcivet'
@@ -68,23 +70,31 @@ export class CRuleBranch
 
 	# ..........................................................
 
-	codeBlock(
-			type: THeraType
-			): string
-
-		return mkCodeBlock(@lCode, type)
-
-	# ..........................................................
-
 	toString(
 			type: THeraType = 'civet'
 			): string
 
-		return [
-			@patternStr()
-			indented(@codeBlock(type))
-			''
-			].join('\n')
+		patStr := @patternStr()
+		code := mkCodeBlock @lCode, type
+		return toBlock [patStr, indented(code)]
+
+# ---------------------------------------------------------------------------
+
+export mkCodeBlock := (
+		lCodeBlock: string[]
+		type: THeraType
+		): string =>
+
+	block := toBlock lCodeBlock
+	if (type == 'typescript')
+		return block
+	try
+		code := civet2tsSync(block, {inlineMap: false})
+		return code
+	catch err
+		ERR "civet compile failed"
+		DUMP block
+		throw err
 
 # ---------------------------------------------------------------------------
 
@@ -164,20 +174,3 @@ export class CRuleSet
 			): string
 
 		return @lRules[ruleNum].getName()
-
-# ---------------------------------------------------------------------------
-
-export mkCodeBlock := (
-		lLines: string[]
-		type: THeraType
-		): string =>
-
-	block := arrayToBlock(lLines).trim()
-	switch type
-		when 'typescript'
-			return block
-		when 'civet'
-			return civet2tsSync(block, {inlineMap: false}).trim()
-		else
-			croak "Bad code type: #{type}"
-

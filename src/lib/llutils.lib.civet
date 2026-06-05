@@ -7,7 +7,7 @@ import {existsSync} from '@std/fs'
 import {parse: parseYAML} from "@std/yaml"
 
 import {
-	undef, defined, notdefined, deepEqual, croak, assert,
+	undef, defined, notdefined, deepEqual, croak, assert, matches,
 	colorize, isColor, toRelPath, obviously, toBool, TIterator,
 	} from 'base'
 import {esc} from 'unicode'
@@ -229,7 +229,7 @@ export toArray := (strOrArray: TBlockSpec): string[] =>
 export arrayToBlock := (lLines: string[]): string =>
 
 	assert isArray(lLines), "lLines is not an array: #{lLines}"
-	return lLines.filter((line) => defined line).join "\n"
+	return lLines.map((line) => rtrim(line)).filter((line) => defined line).join "\n"
 
 # ---------------------------------------------------------------------------
 
@@ -345,20 +345,19 @@ export getLineAndColumn := (text: string, pos: number) =>
 
 # ---------------------------------------------------------------------------
 
-# later? allow passing in string[] ???
-export widthOf := (block: string): number =>
+export blockWidth := (block: string): number =>
 
 	let width = 0
 	for line of allLinesInBlock(block)
-		if line.length > width
+		if (line.length > width)
 			width = line.length
 	return width
 
 # ---------------------------------------------------------------------------
 
-export heightOf := (block: string): number =>
+export blockHeight := (block: string): number =>
 
-	return if (block == '') then 0 else block.split('\n').length
+	return (block == '') ? 0 : block.split('\n').length
 
 # ---------------------------------------------------------------------------
 
@@ -635,3 +634,9 @@ export fsplit := (
 			},
 		rest
 		]
+
+# ---------------------------------------------------------------------------
+
+export likeNum := (str: string): boolean =>
+
+	return toBool matches(str, /^\d+(\.\d*)?([Ee]\d+)?$/)

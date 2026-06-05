@@ -13,7 +13,7 @@ let hSymbols: hashof<string> = {}
 
 #beginParse(text)
 	hSymbols = {}
-	return str2indents(text) + '\n'
+	return str2indents(text)
 
 AllSymbols
 	LibBlock+ NL*

@@ -2,7 +2,7 @@
 
 import {TRY, assert, pass, LOG, DBG} from 'base'
 import {isArray} from 'datatypes'
-import {OL} from 'to-nice'
+import {OL} from 'nice'
 import {flag, numNonOptions, allNonOptions} from 'cmd-args'
 import {watchFiles, allFilesMatching} from 'fsys'
 import {compileFile, TCompileResult} from 'automate'

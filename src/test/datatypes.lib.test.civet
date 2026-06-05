@@ -40,14 +40,14 @@ falsy  notdefined(42)
 truthy notdefined(undef)
 
 succeeds () =>
-	assert (2+2 == 4)
-	assert defined(42)
-	assert notdefined(undef)
-	assert notdefined(null)
+	assert (2+2 == 4), "bs"
+	assert defined(42), "bs"
+	assert notdefined(undef), "bs"
+	assert notdefined(null), "bs"
 
 nonsense := (): boolean =>
 	return false
-fails () => assert nonsense()
+fails () => assert nonsense(), "bs"
 
 # ---------------------------------------------------------------------------
 
@@ -105,7 +105,9 @@ equal jsType(sampleVal.fullList), 'array'
 
 truthy isNumber 42
 truthy isHash {a:1, b:2}
+truthy isHash {}
 truthy isArray ['a', 2, undef]
+truthy isArray []
 
 # ---------------------------------------------------------------------------
 

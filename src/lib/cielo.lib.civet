@@ -8,7 +8,7 @@ import {
 } from 'base'
 import {hash, isHash} from 'datatypes'
 import {keys, require} from 'llutils'
-import {OL, ML, DBGVALUE} from 'to-nice'
+import {OL, ML, DBGVALUE} from 'nice'
 import {
 	isFile, fileExt, withExt, slurp, barf, barfTempFile, parsePath,
 	} from 'fsys'

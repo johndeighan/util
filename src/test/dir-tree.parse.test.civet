@@ -1,6 +1,6 @@
 # dir-tree.parse.test.civet
 
-import {DUMP} from 'to-nice'
+import {DUMP} from 'nice'
 import {parseText} from 'hera-parse'
 import {equal} from 'unit-test'
 

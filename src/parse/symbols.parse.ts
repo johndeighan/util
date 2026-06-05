@@ -284,5 +284,5 @@ export const beginParse = (
       hOptions: {[key: string|symbol]: unknown} = {}
       ): string|undefined => {
   hSymbols = {}
-  return str2indents(text) + '\n'
+  return str2indents(text)
   }

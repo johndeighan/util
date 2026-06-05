@@ -9,7 +9,7 @@ import {
 import {uni, esc} from 'unicode'
 import {hash, hashof, isArray} from 'datatypes'
 import {centered, sep, f} from 'llutils'
-import {OL} from 'to-nice'
+import {OL} from 'nice'
 import {TextTable} from 'text-table'
 
 # ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ export class CParseMatches
 				name
 				pos
 				len
-				JSON.stringify(value)
+				value
 				]
 		table.fullsep '-'
 		return table.asString()

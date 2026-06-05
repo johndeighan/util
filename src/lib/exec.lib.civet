@@ -30,7 +30,7 @@ import {
 	sep, centered, allLinesInBlock, f,
 	} from 'llutils'
 import {flag, debugging, inspecting} from 'cmd-args'
-import {OL, ML, DUMP, DBGVALUE, LOGVALUE} from 'to-nice'
+import {OL, ML, DUMP, DBGVALUE, LOGVALUE} from 'nice'
 import {
 	barf, pathStr, allFilesMatching, normalizePath, barfTempFile,
 	fileExt, withExt, slurpAsync, parsePath,

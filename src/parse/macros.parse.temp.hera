@@ -1,0 +1,50 @@
+```
+import {CParseMatches} from 'parse-utils';
+export let pm = new CParseMatches();
+
+
+import {defined, notdefined} from 'base'
+import {str2indents} from 'hera-parse'
+import {
+  TTextBlock, TMacroBlock, splitMacroHeader,
+  } from 'macros'
+
+
+export const beginParse = (
+      text: string,
+      hOptions: {[key: string|symbol]: unknown} = {}
+      ): string|undefined => {
+  return str2indents(text)
+
+
+  }
+```
+
+Contents
+  Block* NL* ->
+    pm.match('Contents', $loc);
+    return pm.returnVal($1);
+Block
+  Line (INDENT Block+ UNDENT)? ->
+    pm.match('Block', $loc);
+    const lContent = defined($2) ? $2[1] : []
+    const result = splitMacroHeader($1)
+    if (defined(result)) {
+      const [name, args] = result
+      return pm.returnVal({type: 'macro', name, args, lContent} as TMacroBlock);
+    }
+    else {
+      return pm.returnVal({type: 'text', firstLine: $1, lContent} as TTextBlock);
+    }
+Line
+  /[^\n\r]*/ NL ->
+    pm.match('Line', $loc);
+    return pm.returnVal($1[0]);
+INDENT
+  /\x0F/
+
+UNDENT
+  /\x0E/
+
+NL
+  /\r?\n/

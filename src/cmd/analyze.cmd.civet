@@ -6,7 +6,7 @@ import {
 	} from 'base'
 import {stdChecks} from 'llutils'
 import {flag, nonOption} from 'cmd-args'
-import {DUMP} from 'to-nice'
+import {DUMP} from 'nice'
 import {findFile, slurp, fileExt} from 'fsys'
 import {analyzeTS} from 'typescript'
 import {civet2tsSync} from 'llcivet'

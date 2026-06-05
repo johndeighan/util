@@ -8,7 +8,7 @@ import {
 	} from 'datatypes'
 import {
 	rtrim, countChars, getOptions, blockToArray, arrayToBlock,
-	toArray, toBlock, widthOf, heightOf, keys,
+	toArray, toBlock, blockWidth, blockHeight, keys,
 	} from 'llutils'
 
 export let oneIndent: string? = undef
@@ -223,9 +223,9 @@ export Blockify := (
 		lLines := []
 		for label of keys(desc)
 			block := Blockify desc[label], hOpts
-			if heightOf(block) == 0
+			if blockHeight(block) == 0
 				lLines.push "#{label}: (none)"
-			else if (heightOf(block) == 1) && (label.length + widthOf(block) < width)
+			else if (blockHeight(block) == 1) && (label.length + blockWidth(block) < width)
 				lLines.push "#{label}: #{block}"
 			else
 				lLines.push "#{label}:\n#{indented(block, 1, {oneIndent})}"

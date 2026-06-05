@@ -3,11 +3,111 @@
 import {undef, defined, notdefined, assert, croak} from 'base'
 import {
 	hashof, isString, isHash, TStringMapper, isStringMapper,
+	isEmpty,
 	} from 'datatypes'
-import {entries} from 'llutils'
+import {indented} from 'indent'
+import {OL} from 'nice'
+import {entries, toBlock} from 'llutils'
 import {parsePath, openTextFile} from 'fsys'
 import {CFileHandler, TExecResult} from 'exec'
 import {parseText} from 'hera-parse'
+
+# ---------------------------------------------------------------------------
+# --- a macro with an empty name
+#     expands without calling a function on the block
+
+export type TTextBlock = {
+	type: 'text'
+	firstLine: string
+	lContent: CBlock[]
+	}
+
+export type TMacroBlock = {
+	type: 'macro'
+	name: string
+	args: string
+	lContent: CBlock[]
+	}
+
+export type TMacroHeaderInfo = [
+	name: string
+	args: string
+	]
+
+# ---------------------------------------------------------------------------
+
+export splitMacroHeader := (str: string): TMacroHeaderInfo? =>
+
+	lMatches := str.match ///^
+		\#
+		([A-Za-z_][A-Za-z0-9_]*)
+		\s*
+		(.*)
+		$///
+
+	if defined(lMatches)
+		return [lMatches[1], lMatches[2]]
+	else
+		return undef
+
+export class CBlock
+	block: TTextBlock | TMacroBlock
+
+	# ..........................................................
+
+	constructor(
+			firstLine: string
+			lOrgContent: (string | CBlock)[] = []
+			)
+
+		assert isString(firstLine),
+				"firstLine not a string: #{OL(firstLine)}"
+		lContent: CBlock[] := for x of lOrgContent
+			isString(x) ? new CBlock(x) : x
+		lMatches := firstLine.match ///^
+			\#
+			([A-Za-z_][A-Za-z0-9_]*)
+			\s*
+			(.*)
+			$///
+
+		if defined(lMatches)
+			@block := {
+				type: 'macro'
+				name: lMatches[1]
+				args: lMatches[2]
+				lContent
+				} as TMacroBlock
+		else
+			@block := {
+				type: 'text'
+				firstLine
+				lContent
+				} as TTextBlock
+
+	# ..........................................................
+
+	add(part: string | CBlock): void
+
+		debugger
+		@block.lContent.push (isString(part) ? new CBlock(part) : part)
+		return
+
+	# ..........................................................
+
+	body(hMacros: TMacroLib): string
+
+		# --- get the content
+		lText := for part of @block.lContent
+			part.body(hMacros)
+
+		if (@block.type == 'text')
+			return toBlock [@block.firstLine, ...indented(lText)]
+		else if (@block.type == 'macro')
+			func := hMacros[@block.name]
+			assert defined(func), "No such macro: #{@block.name}"
+			return func toBlock(lText), @block.args
+		croak "Fall through in body()"
 
 # ---------------------------------------------------------------------------
 
@@ -29,59 +129,27 @@ export isMacroLib := (x: unknown): x is TMacroLib =>
 
 # ---------------------------------------------------------------------------
 
-export class CMacroBlock
-	macroName: string
-	args: string
-	lContent: (string | CMacroBlock)[]
-
-	constructor(
-			@macroName: string,
-			@args: string = ''
-			@lContent: (string | CMacroBlock)[] = []
-			)
-
-	add(part: string | CMacroBlock): void
-		@lContent.push part
-		return
-
-	expand(hMacros: TMacroLib): string
-		func := hMacros[@macroName]
-		assert defined(func), "No such macro: #{@macroName}"
-		lParts := for part of @lContent
-			isString(part) ? part : part.expand(hMacros)
-		return func lParts.join('\n'), @args
-
-# ---------------------------------------------------------------------------
-# --- what gets returned from the parser
-
-export type TMacroDoc = (string | CMacroBlock)[]
-
-# ---------------------------------------------------------------------------
-# --- think "macro block"
-
-export mb := (
-		header: string
-		...lContent: (string | CMacroBlock)[]
-		): CMacroBlock =>
-
-	lMatches := header.match /^(\S+)\s*(.*)$/
-	assert defined(lMatches), "mkmb(): bad header: #{header}"
-	[_, macroName, args] := lMatches
-	block := new CMacroBlock(macroName, args)
-	for part of lContent
-		block.add part
-	return block
-
-# ---------------------------------------------------------------------------
-
 export expandMacros := (
-		lContent: TMacroDoc
+		lContent: CBlock[]
 		hMacros: TMacroLib
 		): string =>
 
 	lParts := for part of lContent
-		isString(part) ? part : part.expand(hMacros)
-	return lParts.join '\n'
+		isString(part) ? part : part.body(hMacros)
+	return toBlock lParts
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export mapString := (
+		text: string
+		hMacros: TMacroLib
+		): string =>
+
+	lBlocks: CBlock[] := await parseText 'macros', text
+	lParts := for block of lBlocks
+		block.body(hMacros)
+	return toBlock(lParts)
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -95,5 +163,4 @@ export mapFile := (
 	assert defined(ext) && ext.startsWith('.$'),
 		"Not a macro file: #{path}"
 	[hMetaData, text] := await openTextFile path, true
-	lParts: TMacroDoc := await parseText 'macro', text
-	return expandMacros lParts, hMacros
+	return await mapString text, hMacros

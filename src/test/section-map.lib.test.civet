@@ -5,7 +5,7 @@ import {compile} from 'npm-pug'
 import {undef, defined, notdefined, assert} from 'base'
 import {keys} from 'llutils'
 import {indented} from 'indent'
-import {DUMP} from 'to-nice'
+import {DUMP} from 'nice'
 import {
 	TSetName, isSectionName, isSetName, CSection, CSet, SectionMap,
 	} from 'section-map'

@@ -5,9 +5,11 @@ import {expandGlobSync} from '@std/fs/expand-glob'
 import {TextLineStream} from "jsr:@std/streams/text-line-stream"
 
 import {TRY, SKIP, LOG, TAsyncIterator} from 'base'
+import {s} from 'llutils'
 import {procOneFile} from 'exec'
 import {withExt, openTextFile, openAndReadTextFile} from 'fsys'
-import {DUMP} from 'to-nice'
+import {DUMP, toNice} from 'nice'
+import {TextTable, splitRows} from 'text-table'
 import {
 	doCompileHera, testHeraCode, preprocessHeraFile,
 	} from 'hera-compile'
@@ -15,15 +17,44 @@ import {parseText} from 'hera-parse'
 import {compileHera} from 'llhera'
 import {symbolsFromString} from 'symbols'
 import {CAnalysis, analyzeTsCode} from 'typescript'
+import {CBlock} from 'macros'
 
 // ---------------------------------------------------------------------------
 
-debugger
-TRY(() => {
-	const path = 'src/lib/cielo.lib.ts'
-	const analysis = analyzeTsCode(Deno.readTextFileSync(path))
-	const lExports = analysis.getExports()
-	LOG(lExports)
+TRY(async () => {
+	const lBlocks: CBlock[] = await parseText('macros', `abc
+	def`)
+	DUMP(lBlocks, 'lBlocks')
+
+	const expected = [
+		{
+			blockType: 'text',
+			firstLine: 'abc',
+			macroName: '',
+			args: '',
+			lContent: []
+			}
+		]
+})
+
+SKIP(() => {
+	const table = new TextTable('l r%.2f r%.2f')
+	table.fullsep('-')
+	table.title(  'My Expenses')
+	table.fullsep('-')
+	table.labels( ['', 'Jan', 'Feb'])
+	table.sep()
+	table.data(   ['coffee', 30, 40])
+	table.fullsep('=')
+	LOG(table.asString({trace: true}))
+
+	const expected = `-----------------------
+      My Expenses
+-----------------------
+           Jan    Feb
+-------- ------- ------
+coffee     30.00  40.00
+=======================`
 })
 
 SKIP(async () => {

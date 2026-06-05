@@ -11,7 +11,7 @@ import {
 	} from 'datatypes'
 import {MAP} from 'mapper'
 import {keys, getOptions, o, spaces} from 'llutils'
-import {OL, DUMP} from 'to-nice'
+import {OL, DUMP} from 'nice'
 
 hFlags: hashof<boolean> := {}
 hValues: hashof<string> := {}

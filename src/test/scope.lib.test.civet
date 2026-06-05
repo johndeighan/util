@@ -2,7 +2,7 @@
 
 import {undef, assert} from 'base'
 import {s} from 'llutils'
-import {toNice} from 'to-nice'
+import {toNice} from 'nice'
 import {CMainScope, CScope} from 'scope'
 import {
 	equal, truthy, falsy, succeeds, fails,

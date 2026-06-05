@@ -305,6 +305,15 @@ export croak: TNeverFunc := (
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 
+export matches := (
+		str: string
+		regexp: RegExp
+		): boolean =>
+
+	return regexp.test(str)
+
+# ---------------------------------------------------------------------------
+
 export unknownToString := (x: unknown): string =>
 
 	return (
