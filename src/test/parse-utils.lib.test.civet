@@ -16,9 +16,9 @@ str := """
 
 pm := new CParseMatches()
 pm.match 'EOL',      [ 3, 1]
-pm.result 42
+pm.returnVal 42
 pm.match 'Root',     [ 0, 4]
-pm.result 'abc'
+pm.returnVal 'abc'
 pm.match 'Name',     [ 4, 4]
 pm.match 'EOL',      [ 8, 1]
 pm.match 'FileName', [ 4, 5]
@@ -35,11 +35,12 @@ pm.match 'UNDENT',   [21, 1]
 pm.match 'Block',    [10, 6]
 
 equal pm.matchesTable(), s"""
+	------------------------
 			  matches
 	------------------------
 		Op    Pos Len  data
 	-------- --- --- -------
-	EOL        3   1 42
+	EOL        3   1 42.00
 	Root       0   4 abc
 	Name       4   4 ｟undef｠
 	EOL        8   1 ｟undef｠

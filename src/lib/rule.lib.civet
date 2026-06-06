@@ -2,7 +2,7 @@
 
 import {
 	undef, defined, notdefined, assert, croak, TIterator,
-	LOG, ERR,
+	LOG, ERR, toBool,
 	} from 'base'
 import {DUMP} from 'nice'
 import {isEmpty} from 'datatypes'
@@ -10,6 +10,12 @@ import {toBlock} from 'llutils'
 import {indented} from 'indent'
 import {THeraType} from 'llhera'
 import {civet2tsSync} from 'llcivet'
+
+# ---------------------------------------------------------------------------
+
+export isValidRuleName := (str: string): boolean =>
+
+	return toBool str.match(/^[A-Za-z_][A-Za-z0-9_]*$/)
 
 # ---------------------------------------------------------------------------
 
@@ -70,7 +76,7 @@ export class CRuleBranch
 
 	# ..........................................................
 
-	toString(
+	asString(
 			type: THeraType = 'civet'
 			): string
 
@@ -144,12 +150,12 @@ export class CRule
 
 	# ..........................................................
 
-	toString(type: THeraType = 'civet'): string
+	asString(type: THeraType = 'civet'): string
 
 		assert (@lBranches.length > 0), "rule #{@name} has no branches"
 		return [
 			@name
-			...@lBranches.map((b) => indented(b.toString(type)))
+			...@lBranches.map((b) => indented(b.asString(type)))
 			].join('\n')
 
 # ---------------------------------------------------------------------------
@@ -158,12 +164,12 @@ export class CRuleSet
 
 	lRules: CRule[] = []
 
-	addRule(line: string): void
+	addRule(name: string): CRule
 
-		lMatches := line.match /^\S+/
-		assert defined(lMatches), "no matches in addRule()"
-		@lRules.push new CRule(lMatches[0])
-		return
+		assert isValidRuleName(name), "Bad rule name: #{name}"
+		rule := new CRule(name)
+		@lRules.push rule
+		return rule
 
 	curRule(): CRule
 		assert (@lRules.length > 0), "No rules in set"

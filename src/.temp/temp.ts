@@ -7,13 +7,15 @@ import {TextLineStream} from "jsr:@std/streams/text-line-stream"
 import {TRY, SKIP, LOG, TAsyncIterator} from 'base'
 import {s} from 'llutils'
 import {procOneFile} from 'exec'
-import {withExt, openTextFile, openAndReadTextFile} from 'fsys'
-import {DUMP, toNice} from 'nice'
+import {
+	withExt, openTextFile, openAndReadTextFile, rmFile,
+	} from 'fsys'
+import {DUMP, toNice, OL, ML} from 'nice'
 import {TextTable, splitRows} from 'text-table'
 import {
-	doCompileHera, testHeraCode, preprocessHeraFile,
+	doCompileHera, testHeraCode, preprocHera, preprocHeraFile,
 	} from 'hera-compile'
-import {parseText} from 'hera-parse'
+import {parseText, str2indents} from 'hera-parse'
 import {compileHera} from 'llhera'
 import {symbolsFromString} from 'symbols'
 import {CAnalysis, analyzeTsCode} from 'typescript'
@@ -21,18 +23,69 @@ import {CBlock} from 'macros'
 
 // ---------------------------------------------------------------------------
 
-TRY(async () => {
-	const lBlocks: CBlock[] = await parseText('macros', `abc
-	def`)
-	DUMP(lBlocks, 'lBlocks')
+TRY(() => {
+	const str = `Line
+	/[^\\n\\r\\x0F\\x0E]+/
+		assert defined($0), "result not defined!!!"
+		return $0
+
+INDENT
+	/\x0F/
+
+UNDENT
+	/\x0E/`
+
+	LOG(ML(str))
+})
+//	fixed := str2indents(str)
+
+// 	contents := """
+// 		#beginParse
+//
+// 		Content
+// 			INDENT Line+ UNDENT
+// 				return $2
+//
+// 		Line
+// 			/[^\n\r\x0F\x0E]+/
+// 				assert defined($0), "result not defined!!!"
+// 				return $0
+//
+// 		INDENT
+// 			/\x0F/
+//
+// 		UNDENT
+// 			/\x0E/
+//
+// 		"""
+//	result := await preprocHera contents, {trace: true}
+//	LOG result
+
+SKIP(async () => {
+	const result = await parseText('macros', `abc
+	#h1
+		def`)
+
+	DUMP(result, 'result')
 
 	const expected = [
 		{
-			blockType: 'text',
-			firstLine: 'abc',
-			macroName: '',
-			args: '',
-			lContent: []
+			type: "text",
+			firstLine: "abc",
+			lContent: [
+				{
+					type: "macro",
+					name: "h1",
+					args: "",
+					lContent: [
+						{
+							type: 'text',
+							firstLine: 'def',
+							lContent: []
+							}
+						],
+					}
+				],
 			}
 		]
 })
@@ -80,7 +133,7 @@ SKIP(async () => {
 	const path = 'src/parse/nice.parse.hera'
 
 	// --- preprocess file
-	const [heraCode, type] = await preprocessHeraFile(path, withExt(path, '.temp.hera'))
+	const [heraCode, type] = await preprocHeraFile(path, withExt(path, '.temp.hera'))
 	DUMP(heraCode, type)
 
 	// --- hera compile to get TypeScript file

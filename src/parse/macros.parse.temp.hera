@@ -2,49 +2,69 @@
 import {CParseMatches} from 'parse-utils';
 export let pm = new CParseMatches();
 
-
-import {defined, notdefined} from 'base'
+import {defined, notdefined, assert} from 'base'
 import {str2indents} from 'hera-parse'
 import {
   TTextBlock, TMacroBlock, splitMacroHeader,
   } from 'macros'
-
 
 export const beginParse = (
       text: string,
       hOptions: {[key: string|symbol]: unknown} = {}
       ): string|undefined => {
   return str2indents(text)
-
-
   }
 ```
 
-Contents
+AllBlocks
   Block* NL* ->
-    pm.match('Contents', $loc);
+    pm.match('AllBlocks', $loc);
     return pm.returnVal($1);
+
 Block
-  Line (INDENT Block+ UNDENT)? ->
+  "\x23" Name WS Args NL Content? ->
     pm.match('Block', $loc);
-    const lContent = defined($2) ? $2[1] : []
-    const result = splitMacroHeader($1)
-    if (defined(result)) {
-      const [name, args] = result
-      return pm.returnVal({type: 'macro', name, args, lContent} as TMacroBlock);
-    }
-    else {
-      return pm.returnVal({type: 'text', firstLine: $1, lContent} as TTextBlock);
-    }
-Line
-  /[^\n\r]*/ NL ->
-    pm.match('Line', $loc);
+    const lContent = defined($6) ? $6 : []
+    return pm.returnVal({type: 'macro', name: $2, args: $4, lContent} as TMacroBlock);
+  Line NL Content? ->
+    pm.match('Block', $loc);
+    const lContent = defined($3) ? $3 : []
+    return pm.returnVal({type: 'text', firstLine: $1, lContent} as TTextBlock);
+
+Name
+  /[A-Za-z_][A-Za-z0-9_]*/ ->
+    pm.match('Name', $loc);
+    const name = $0
+    assert(!name.startsWith('#'))
+    return pm.returnVal(name);
+
+Content
+  INDENT Block+ UNDENT ->
+    pm.match('Content', $loc);
+    return pm.returnVal($2);
+
+Args
+  /[^\n\r\x0F\x0E]*/ ->
+    pm.match('Args', $loc);
     return pm.returnVal($1[0]);
+
+Line
+  /[^\n\r\x0F\x0E]+/ ->
+    pm.match('Line', $loc);
+    assert(defined($0), "result not defined!!!")
+    return pm.returnVal($0);
+
 INDENT
   /\x0F/
+
 
 UNDENT
   /\x0E/
 
+
 NL
   /\r?\n/
+
+
+WS
+  /\x20*/

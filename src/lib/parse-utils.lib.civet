@@ -9,7 +9,7 @@ import {
 import {uni, esc} from 'unicode'
 import {hash, hashof, isArray} from 'datatypes'
 import {centered, sep, f} from 'llutils'
-import {OL} from 'nice'
+import {OL, DUMP} from 'nice'
 import {TextTable} from 'text-table'
 
 # ---------------------------------------------------------------------------
@@ -96,22 +96,26 @@ export class CParseMatches
 
 	matchesTable(): string
 
-		results := []
-		table := new TextTable "l r%d r%d l"
-		table.fullsep '-'
-		table.title 'matches'
-		table.fullsep '-'
-		table.labels ['Op', 'Pos', 'Len', 'data']
-		table.sep()
-		for [name, pos, len, value] of @lParseMatches
-			table.data [
-				name
-				pos
-				len
-				value
-				]
-		table.fullsep '-'
-		return table.asString()
+		try
+			table := new TextTable "l r%d r%d l"
+			table.fullsep '-'
+			table.title 'matches'
+			table.fullsep '-'
+			table.labels ['Op', 'Pos', 'Len', 'data']
+			table.sep()
+			for [name, pos, len, value] of @lParseMatches
+				table.data [
+					name
+					pos
+					len
+					value
+					]
+			table.fullsep '-'
+			return table.asString()
+		catch err
+			ERR "Can't build matches table"
+			DUMP @lParseMatches, 'lParseMatches'
+			throw err
 
 	# ..........................................................
 

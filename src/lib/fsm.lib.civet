@@ -83,7 +83,7 @@ export fsmAsync := <TIn, TOut>(
 # ---------------------------------------------------------------------------
 
 export function fromFSM<TIn, TOut=unknown>(
-		iter: TIterator<TIn> | ArrayIterator<TIn>
+		iter: TIterator<TIn> | ArrayIterator<TIn> | TIn[]
 		lStates: TStateFunc<TIn>[]
 		hOptions: hash
 		): TOut
@@ -95,7 +95,7 @@ export function fromFSM<TIn, TOut=unknown>(
 		): Promise<TOut>
 
 export function fromFSM<TIn, TOut=unknown>(
-		iter:  TIterator<TIn> | ArrayIterator<TIn> | TAsyncIterator<TIn>
+		iter:  TIterator<TIn> | ArrayIterator<TIn> | TIn[] | TAsyncIterator<TIn>
 		lStates: TStateFunc<TIn>[]
 		hOptions: hash = {}
 		): TOut | Promise<TOut>
@@ -110,6 +110,8 @@ export function fromFSM<TIn, TOut=unknown>(
 		}
 
 	initFunc()
+	if isArray(iter)
+		iter = iter.values()
 	return (
 		  isAsyncIterator(iter)
 		? fsmAsync<TIn,TOut>(iter, lStates, doneFunc)

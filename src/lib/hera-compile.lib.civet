@@ -5,6 +5,7 @@ import {exists, existsSync} from '@std/fs'
 import {
 	pass, undef, defined, notdefined,
 	croak, assert, getErrStr, LOG, DBG, ERR,
+	pushLogLevel, popLogLevel,
 	TIterator, TAsyncIterator, toBool,
 	} from 'base'
 import {uni, esc} from 'unicode'
@@ -19,7 +20,7 @@ import {
 	resetOneIndent, splitLine, indented, undented,
 	} from 'indent'
 import {debugging} from 'cmd-args'
-import {ML, DUMP} from 'nice'
+import {ML, DUMP, DDUMP} from 'nice'
 import {
 	fileExt, withExt, isValidStub, pathStr, newerDestFileExists,
 	openTextFile, openAndReadTextFile, barfTempFile, parsePath,
@@ -32,6 +33,7 @@ import {
 import {extractMetaData, mdGet} from 'meta-data'
 import {THeraType, isHeraType, compileHera} from 'llhera'
 import {CRuleBranch, CRule, CRuleSet, mkCodeBlock} from 'rule'
+import {mkArray} from 'mapper'
 
 # ---------------------------------------------------------------------------
 
@@ -57,9 +59,18 @@ export class CHeraCompiler extends CFileHandler
 			hOptions: hash = {}
 			): TExecResult
 
+		type opt = {
+			force: boolean
+			trace: boolean
+			}
+		{force, trace} := getOptions<opt> hOptions, {
+			force: false
+			trace: false
+			}
+
 		assert (fileExt(path) == '.hera'), "Not a hera file"
 		destPath := withExt path, '.ts'
-		if not hOptions.force && existsSync(destPath)
+		if not force && existsSync(destPath)
 			if newerDestFileExists(path, destPath)
 				return {
 					success: true
@@ -68,7 +79,7 @@ export class CHeraCompiler extends CFileHandler
 
 		try
 			tempPath := withExt(path, '.temp.hera')
-			[heraCode, type] := await preprocessHeraFile path, tempPath
+			[heraCode, type] := await preprocHeraFile path, tempPath, hOptions
 			fileName := parsePath(path).fileName
 			tsCode := compileHera heraCode, type, fileName
 			await Deno.writeTextFile withExt(path, '.ts'), tsCode
@@ -94,26 +105,32 @@ buildHeraFile := (
 		lMainCode: string[]
 		lResetCode: string[]
 		ruleSet: CRuleSet
-		type: THeraType
-		debug: boolean = false
+		hOptions: hash = {}
 		) =>
 
+	type opt = {
+		type: THeraType
+		trace: boolean
+		}
+	{type, trace} := getOptions<opt> hOptions, {
+		type: 'civet'
+		trace: false
+		}
+
+	if trace
+		pushLogLevel 'debug'
+
 	mainCode := mkCodeBlock lMainCode, type
-	if debug
-		DUMP mainCode, 'mainCode'
+	DDUMP mainCode, 'mainCode'
 
 	resetCode := mkCodeBlock lResetCode, type
-	if debug
-		DUMP resetCode, 'resetCode'
-
-	debugger
+	DDUMP resetCode, 'resetCode'
 
 	lRuleBlocks := for rule of ruleSet.lRules
-		rule.toString(type)
+		rule.asString(type)
 
-	if debug
-		for block,i of lRuleBlocks
-			DUMP block, "Rule[#{i}]"
+	for block,i of lRuleBlocks
+		DDUMP block, "Rule[#{i}]"
 
 	let lParts: string[] = []
 	lParts.push
@@ -133,10 +150,13 @@ buildHeraFile := (
 		indented('}')
 		"```"
 		''
-		...lRuleBlocks
+		lRuleBlocks.join('\n\n')
+
 	result := lParts.join('\n').replaceAll('\t', spaces(2))
-	if debug
-		DUMP result, 'Result'
+
+	DDUMP result, 'Result'
+	if trace
+		popLogLevel()
 	return result
 
 # ---------------------------------------------------------------------------
@@ -152,14 +172,26 @@ export unbalanced := (str: string): boolean =>
 # ---------------------------------------------------------------------------
 # ASYNC
 
-export preprocessHera := (
+export preprocHera := (
 		contents: string
-		type: THeraType = 'typescript'
-		debug: boolean = false
+		hOptions: hash = {}
 		): string =>
 
+	debugger
+	type opt = {
+		type: THeraType
+		trace: boolean
+		}
+	{type, trace} := getOptions<opt> hOptions, {
+		type: 'civet'
+		trace: false
+		}
+
+	if trace
+		pushLogLevel 'debug'
+
 	isComment := (str: string): boolean =>
-		return toBool(str.match(/^\s*#\s/))
+		return toBool(str.match(/^\s*#\s/)) || isEmpty(str)
 
 	resetOneIndent()
 
@@ -168,8 +200,11 @@ export preprocessHera := (
 
 	ruleSet := new CRuleSet()
 
-	iter := allLinesInBlock(contents).filter((x) => not isComment(x))
-	result := fromFSM iter, [
+	lLines: string[] := mkArray allLinesInBlock(contents), (line) ->
+		if not isComment(line)
+			yield line
+
+	result := fromFSM lLines, [
 
 		# 0 --- start
 		#          until we see #beginParse, everything, including
@@ -188,14 +223,15 @@ export preprocessHera := (
 
 		(line: string): TState =>
 			[level, str] := splitLine(line)
-			if nonEmpty(str) && (level == 0)
-				ruleSet.addRule str
-				return 2
-			else
-				if isEmpty(str) && (level == 0)
+			if (level == 0)
+				if isEmpty(str)
 					lResetCode.push ''
+					return 1
 				else
-					lResetCode.push indented(str, level-1)
+					rule := ruleSet.addRule str
+					return 2
+			else
+				lResetCode.push indented(str, level-1)
 				return 1
 
 		# 2 --- have rule, want pattern
@@ -209,7 +245,7 @@ export preprocessHera := (
 			rule := ruleSet.curRule()
 			name := rule.getName()
 			nb := rule.numBranches()
-			assert (level == 1),
+			assert (level == 1) && nonEmpty(pat),
 				"Expecting pattern for rule #{name}, branch #{nb} on line #{i}"
 			rule.addBranch pat
 			return 3
@@ -244,26 +280,30 @@ export preprocessHera := (
 		], {
 			doneFunc: (state: TState): void =>
 				if (state == 3)
-					str := buildHeraFile(lMainCode, lResetCode, ruleSet, type, debug)
+					str := buildHeraFile(lMainCode, lResetCode, ruleSet, hOptions)
 					throw str
 				else
 					croak "Ended in state #{state}"
 			}
 	assert (typeof result == 'string'), "result not a string"
+	if trace
+		popLogLevel()
+
 	return result
 
 # ---------------------------------------------------------------------------
 # ASYNC
 
-export preprocessHeraFile := (
+export preprocHeraFile := (
 		path: string
 		tempPath: string? = undef
+		hOptions: hash = {}
 		): [string, THeraType] =>
 
 	[hMetaData, contents] := await openAndReadTextFile path
 	type := mdGet hMetaData, 'type', 'civet'
 	assert isHeraType(type), "Bad hera type: #{type}"
-	heraCode := preprocessHera contents, type
+	heraCode := preprocHera contents, {type}
 	if defined(tempPath)
 		await Deno.writeTextFile tempPath, heraCode
 	return [heraCode, type]
@@ -277,7 +317,7 @@ export testHeraCode := (
 		): string =>
 
 	path := barfTempFile code, {ext: '.hera'}
-	[heraCode, type] := await preprocessHeraFile path
+	[heraCode, type] := await preprocHeraFile path
 
 	# --- Make sure the generated code compiles
 	try

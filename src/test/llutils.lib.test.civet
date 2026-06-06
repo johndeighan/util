@@ -132,6 +132,11 @@ equal Array.from(allLinesInBlock("a\nb\n")), [
 	'b'
 	]
 
+equal Array.from(allLinesInBlock("abc\n\t/^\\u000f\\u000e]+/\n")), [
+	'abc'
+	'\t/^\\u000f\\u000e]+/'
+	]
+
 truthy isBlockSpec('vvv')
 truthy isBlockSpec(['ttt','def'])
 falsy  isBlockSpec(42)

@@ -3,7 +3,7 @@ type: civet
 ---
 # macros.parse.hera
 
-import {defined, notdefined} from 'base'
+import {defined, notdefined, assert} from 'base'
 import {str2indents} from 'hera-parse'
 import {
 	TTextBlock, TMacroBlock, splitMacroHeader,
@@ -14,23 +14,37 @@ import {
 
 # --- Returns (TTextBlock | TMacroBlock)[]
 
-Contents
+AllBlocks
 	Block* NL*
 		return $1
 
 Block
-	Line (INDENT Block+ UNDENT)?
-		lContent := defined($2) ? $2[1] : []
-		result := splitMacroHeader($1)
-		if defined(result)
-			[name, args] := result
-			return {type: 'macro', name, args, lContent} as TMacroBlock
-		else
-			return {type: 'text', firstLine: $1, lContent} as TTextBlock
+	"\x23" Name WS Args NL Content?
+		lContent := defined($6) ? $6 : []
+		return {type: 'macro', name: $2, args: $4, lContent} as TMacroBlock
+
+	Line NL Content?
+		lContent := defined($3) ? $3 : []
+		return {type: 'text', firstLine: $1, lContent} as TTextBlock
+
+Name
+	/[A-Za-z_][A-Za-z0-9_]*/
+		name := $0
+		assert not name.startsWith('#')
+		return name
+
+Content
+	INDENT Block+ UNDENT
+		return $2
+
+Args
+	/[^\n\r\x0F\x0E]*/
+		return $1[0]
 
 Line
-	/[^\n\r]*/ NL
-		return $1[0]
+	/[^\n\r\x0F\x0E]+/
+		assert defined($0), "result not defined!!!"
+		return $0
 
 INDENT
 	/\x0F/
@@ -40,3 +54,6 @@ UNDENT
 
 NL
 	/\r?\n/
+
+WS
+	/\x20*/

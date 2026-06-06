@@ -19,8 +19,18 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
+work with hera-compile::preprocHera() to make sure even
+rules with no code have pm.match() and return
+
 last unit test in macros.parse.test.civet fails
 	- bad parse
+
+parseText()
+	- doesn't allow returned values to span multiple lines
+	- interprets '#' as meaning a comment, even inside quote chars
+
+civet2ts and civet2tsSync should display bad civet code,
+	not in
 
 Can toNice() display the class of an object?
 

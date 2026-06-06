@@ -3,7 +3,7 @@
 import {esc, mesc} from 'unicode'
 import {s2} from 'llutils'
 import {
-	decom, doCompileHera, preprocessHera,
+	decom, doCompileHera, preprocHera,
 	testHeraCode,
 	} from 'hera-compile'
 import {
