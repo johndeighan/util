@@ -1,6 +1,6 @@
 # buildpar.cmd.civet
 
-import {TRY, assert, defined, LOG, DBG, ERR} from 'base'
+import {EXEC, assert, defined, LOG, DBG, ERR} from 'base'
 import {stdChecks, centered} from 'llutils'
 import {flag, nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {
@@ -23,7 +23,7 @@ stdChecks """
 #     since unit test may require command to be installed
 
 hStyle  := {char: '=', color: 'cyan'}
-TRY () =>
+EXEC () =>
 	# --- echoes if flag is set
 	{force, doTest, inspect} := getFlags {
 		force: 'f'

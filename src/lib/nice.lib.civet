@@ -453,21 +453,12 @@ export OLS := (
 
 # ---------------------------------------------------------------------------
 
-export ML := (x: unknown, hOptions = {}): string =>
+export ML := (x: unknown): string =>
 
-	type opt = {
-		label: string?
-		}
-	{label} := getOptions<opt> hOptions,
-		label: undef
-	if defined(label)
-		return [
-			sep('-', label)
-			toNice(x, compact: false)
-			sep('-')
-		].join '\n'
+	if isString(x)
+		return toNice(x).replaceAll('↓', '↓\n')
 	else
-		return toNice x, compact: false
+		return toNice(x, {compact: false})
 
 # ---------------------------------------------------------------------------
 
@@ -490,7 +481,7 @@ export DUMPER := (
 			width: 64
 			char: '-'
 			endLabel: false
-			escape: false
+			escape: true
 			lineNumbers: false
 			type: 'nice'
 			}
@@ -498,7 +489,7 @@ export DUMPER := (
 	lLines: string[] := [sep(char, label, width)]
 	if isString(x)
 		for line,i of allLinesInBlock(x)
-			str := escape ? esc(line) : line
+			str := escape ? esc(line + '\n') : line
 			lLines.push (lineNumbers ? "#{sprintf('%3d', i+1)} #{str}" : str)
 	else
 		lLines.push (
@@ -544,4 +535,44 @@ export DBGVALUE := (label: string, value: unknown): void =>
 
 	DBG f"#{label}:{blue} = #{ML(value)}"
 	return
+
+# ---------------------------------------------------------------------------
+
+export OLD_DUMPER := (
+		x: unknown,
+		label: string? = undef,
+		hOptions: hash = {}
+		): string =>
+
+	type opt = {
+		width: number
+		char: string
+		endLabel: boolean
+		escape: boolean
+		lineNumbers: boolean
+		type: 'nice' | 'json'
+		}
+	{width, char, endLabel, escape, lineNumbers, type
+		} := getOptions<opt> hOptions, {
+			width: 64
+			char: '-'
+			endLabel: false
+			escape: false
+			lineNumbers: false
+			type: 'nice'
+			}
+
+	lLines: string[] := [sep(char, label, width)]
+	if isString(x)
+		for line,i of allLinesInBlock(x)
+			str := escape ? esc(line) : line
+			lLines.push (lineNumbers ? "#{sprintf('%3d', i+1)} #{str}" : str)
+	else
+		lLines.push (
+			  (type == 'nice')
+			? toNice(x, hOptions)
+			: JSON.stringify(x, null, 3)
+			)
+	lLines.push sep(char, (endLabel ? "END #{label}" : undef), width)
+	return lLines.join('\n')
 

@@ -7,8 +7,8 @@ import {
 	functionDef, isArray, isHash,
 	} from 'datatypes'
 import {
-	sinceLoad, sinceLoadStr, throwsError, truncStr,
-	o, s, t, strToHash, getOptions,
+	sinceLoad, sinceLoadStr, truncStr,
+	o, s, s2, t, strToHash, getOptions,
 	keys, hasKey, hasKeys, spaces, tabs,
 	rtrim, countChars, words, getLineAndColumn,
 	blockToArray, allLinesInBlock, toArray,
@@ -26,9 +26,6 @@ import {
 succeeds () => LOG sinceLoad()
 
 succeeds () => LOG sinceLoadStr()
-
-succeeds () => throwsError(() => throw new Error("why?"))
-fails    () => throwsError(() => return)
 
 truthy deepEqual(2, 2)
 truthy deepEqual('a', 'a')
@@ -61,6 +58,9 @@ equal o"debug label=abc n=42", {debug: true, label: 'abc', n: 42}
 
 equal s"\txxx", "   xxx"
 equal s"\t\tddd", "      ddd"
+
+equal s2"\txxx", "  xxx"
+equal s2"\t\tddd", "    ddd"
 
 equal t"   wer", "\twer"
 equal t"      asd", "\t\tasd"

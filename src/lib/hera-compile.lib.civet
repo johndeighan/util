@@ -126,7 +126,7 @@ buildHeraFile := (
 	resetCode := mkCodeBlock lResetCode, type
 	DDUMP resetCode, 'resetCode'
 
-	lRuleBlocks := for rule of ruleSet.lRules
+	lRuleBlocks := for rule of ruleSet.allRules()
 		rule.asString(type)
 
 	for block,i of lRuleBlocks
@@ -143,11 +143,12 @@ buildHeraFile := (
 
 	lParts.push
 		"export const beginParse = ("
-		"      text: string,"
-		"      hOptions: {[key: string|symbol]: unknown} = {}"
-		"      ): string|undefined => {"
-		indented(resetCode)
-		indented('}')
+		indented "text: string,", 2
+		indented "hOptions: {[key: string|symbol]: unknown} = {}", 2
+		indented "): string|undefined => {", 2
+		indented "pm.reset(text);"
+		indented resetCode
+		indented '}'
 		"```"
 		''
 		lRuleBlocks.join('\n\n')
@@ -193,7 +194,7 @@ export preprocHera := (
 	isComment := (str: string): boolean =>
 		return toBool(str.match(/^\s*#\s/)) || isEmpty(str)
 
-	resetOneIndent()
+	resetOneIndent(undef, spaces(2))
 
 	lMainCode:  string[] := []
 	lResetCode: string[] := []
@@ -280,6 +281,13 @@ export preprocHera := (
 		], {
 			doneFunc: (state: TState): void =>
 				if (state == 3)
+					# --- Check all branches of all rules for cases where
+					#     no code was generated
+					for rule of ruleSet.allRules()
+						for branch of rule.allBranches()
+							if (branch.numCodeLines() == 0)
+								branch.addCode "pm.match('#{rule.getName()}', $loc);"
+
 					str := buildHeraFile(lMainCode, lResetCode, ruleSet, hOptions)
 					throw str
 				else
@@ -313,11 +321,11 @@ export preprocHeraFile := (
 
 export testHeraCode := (
 		code: string
-		debug: boolean = false
+		type: THeraType = 'civet'
 		): string =>
 
-	path := barfTempFile code, {ext: '.hera'}
-	[heraCode, type] := await preprocHeraFile path
+
+	heraCode := preprocHera code, {type}
 
 	# --- Make sure the generated code compiles
 	try

@@ -19,8 +19,10 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
-work with hera-compile::preprocHera() to make sure even
-rules with no code have pm.match() and return
+In macros.lib.civet
+	- I think we want to get rid of CBlock altogether
+	- in mapString(), return value from parsing is NOT
+		an array of CBlocks
 
 last unit test in macros.parse.test.civet fails
 	- bad parse

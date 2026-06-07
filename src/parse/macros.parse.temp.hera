@@ -9,9 +9,10 @@ import {
   } from 'macros'
 
 export const beginParse = (
-      text: string,
-      hOptions: {[key: string|symbol]: unknown} = {}
-      ): string|undefined => {
+    text: string,
+    hOptions: {[key: string|symbol]: unknown} = {}
+    ): string|undefined => {
+  pm.reset(text);
   return str2indents(text)
   }
 ```
@@ -46,7 +47,7 @@ Content
 Args
   /[^\n\r\x0F\x0E]*/ ->
     pm.match('Args', $loc);
-    return pm.returnVal($1[0]);
+    return pm.returnVal($0);
 
 Line
   /[^\n\r\x0F\x0E]+/ ->
@@ -55,16 +56,17 @@ Line
     return pm.returnVal($0);
 
 INDENT
-  /\x0F/
-
+  /\x0F/ ->
+    pm.match('INDENT', $loc);
 
 UNDENT
-  /\x0E/
-
+  /\x0E/ ->
+    pm.match('UNDENT', $loc);
 
 NL
-  /\r?\n/
-
+  /\r?\n/ ->
+    pm.match('NL', $loc);
 
 WS
-  /\x20*/
+  /\x20*/ ->
+    pm.match('WS', $loc);

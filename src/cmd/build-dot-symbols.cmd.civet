@@ -2,7 +2,7 @@
 
 import {existsSync} from '@std/fs'
 import {
-	TRY, toRelPath, LOG, DBG, ERR, assert, TIterator,
+	EXEC, toRelPath, LOG, DBG, ERR, assert, TIterator,
 	undef, defined, notdefined, encode,
 	} from 'base'
 import {stdChecks, getOptions} from 'llutils'
@@ -46,7 +46,7 @@ allLinesFrom := (
 
 # ---------------------------------------------------------------------------
 
-TRY () =>
+EXEC () =>
 
 	using file = await openForWrite 'src/.symbols'
 

@@ -50,20 +50,6 @@ export sinceLoadStr := (datetime: (Date | integer)? = undef) =>
 
 # ---------------------------------------------------------------------------
 
-export throwsError := (
-		func: TVoidFunc,
-		msg: string = "Unexpected success"
-		): void =>
-
-	try
-		func()
-		throw new Error(msg)
-	catch err
-		return
-# ignore error - it was expected
-
-# ---------------------------------------------------------------------------
-
 export truncStr := (str: string, len: number) =>
 
 	if str.length <= len

@@ -1,13 +1,12 @@
 # indent.lib.test.civet
 
 import {
-	undef, defined, notdefined, croak, assert, deepEqual,
+	undef, defined, notdefined, croak, obviously, deepEqual,
 	} from 'base'
+import {spaces, tabs, s} from 'llutils'
 import {
-	spaces, tabs, throwsError, s,
-	} from 'llutils'
-import {
-	oneIndent, resetOneIndent, indentLevel, splitLine,
+	inputIndent, outputIndent, resetOneIndent,
+	indentLevel, splitLine,
 	indented, undented, blockify, Blockify,
 	} from 'indent'
 import {
@@ -16,15 +15,18 @@ import {
 
 # ---------------------------------------------------------------------------
 
-equal oneIndent, undef
-equal indentLevel("\t\tabc"), 2  # --- sets oneIndent
-equal oneIndent, tabs(1)
-resetOneIndent()
-equal oneIndent, undef
+equal inputIndent, undef
+equal outputIndent, undef
 
-equal indentLevel("   abc"), 1  # --- sets oneIndent
-equal oneIndent, spaces(3)
+equal indentLevel("\t\tabc"), 2
+equal inputIndent, tabs(1)
 resetOneIndent()
+
+equal inputIndent, undef
+equal outputIndent, undef
+
+equal indentLevel("   abc"), 1
+equal inputIndent, spaces(3)
 
 # ---------------------------------------------------------------------------
 
@@ -32,51 +34,62 @@ resetOneIndent()
 
 # ---------------------------------------------------------------------------
 
-succeeds () =>
+(() =>
 	resetOneIndent()
-	assert notdefined(oneIndent)
+	truthy notdefined(inputIndent)
 
-	assert (indentLevel('abc') == 0)
-	assert (indentLevel('\tabc') == 1)
-	assert defined(oneIndent)
-	assert (oneIndent == '\t')
-	assert (indentLevel('\t\tabc') == 2)
-	throwsError () => indentLevel('\t abc')
-	throwsError () => indentLevel(' \tabc')
-	assert indentLevel('abc') == 0
+	truthy (indentLevel('abc') == 0)
+	truthy (indentLevel('\tabc') == 1)
+	truthy defined(inputIndent)
+	truthy (inputIndent == '\t')
+	truthy (indentLevel('\t\tabc') == 2)
+	fails () => indentLevel('\t abc')
+	fails () => indentLevel(' \tabc')
+	truthy (indentLevel('abc') == 0)
 
-	assert indentLevel('abc') == 0
-	assert indentLevel('\tabc') == 1
-	assert indentLevel('\t\tabc') == 2
+	truthy (indentLevel('abc') == 0)
+	truthy (indentLevel('\tabc') == 1)
+	truthy (indentLevel('\t\tabc') == 2)
+	)()
 
 # ---------------------------------------------------------------------------
 
-succeeds () =>
+(() =>
 	resetOneIndent()
-	assert deepEqual(splitLine('abc'), [0, 'abc'])
-	assert deepEqual(splitLine('\t\tabc'), [2, 'abc'])
+	truthy deepEqual(splitLine('abc'), [0, 'abc'])
+	truthy deepEqual(splitLine('\t\tabc'), [2, 'abc'])
 
-	assert deepEqual(splitLine('\tabc'), [1, 'abc'])
+	truthy deepEqual(splitLine('\tabc'), [1, 'abc'])
 
 	# --- fails since we're now expecting TABs
-	throwsError () =>  splitLine('      abc')
+	fails () =>  splitLine('      abc')
+	)()
 
 # ---------------------------------------------------------------------------
 
-succeeds () =>
+(() =>
 	resetOneIndent()
-	assert indented('abc') == '\tabc'
-	assert indented('abc', 2) == '\t\tabc'
+	truthy notdefined(outputIndent)
+	truthy indented('abc', 0) == 'abc'
+	truthy notdefined(outputIndent)
+	truthy indented('abc') == '\tabc'
+	truthy defined(outputIndent)
+	truthy (outputIndent == '\t')
+	truthy indented('abc', 2) == '\t\tabc'
+	truthy (outputIndent == '\t')
 
-	assert indentLevel('\tabc') == 1
-	assert indented('abc', 2) == (tabs(2) + 'abc')
-	assert indented('abc', 2) == "#{tabs(2)}abc"
+	truthy notdefined(inputIndent)
+	truthy (indentLevel('\tabc') == 1)
+	truthy (inputIndent == '\t')
+	truthy indented('abc', 2) == (tabs(2) + 'abc')
+	truthy indented('abc', 2) == "#{tabs(2)}abc"
+	)()
 
 # --- Test with blocks
 
-succeeds () =>
+(() =>
 	resetOneIndent()
-	assert indented("""
+	truthy (indented("""
 		first line
 		\tsecond line
 		\t\tthird line
@@ -84,9 +97,9 @@ succeeds () =>
 		\tfirst line
 		\t\tsecond line
 		\t\t\tthird line
-		"""
+		""")
 
-	assert indented("""
+	truthy (indented("""
 		first line
 		\tsecond line
 		\t\tthird line
@@ -94,11 +107,12 @@ succeeds () =>
 		\t\tfirst line
 		\t\t\tsecond line
 		\t\t\t\tthird line
-		"""
+		""")
+	)()
 
-succeeds () =>
+(() =>
 	resetOneIndent()
-	assert indented("""
+	truthy (indented("""
 		first line
 
 		\tsecond line
@@ -106,13 +120,14 @@ succeeds () =>
 		\tfirst line
 
 		\t\tsecond line
-		"""
+		""")
+	)()
 
 # --- Test with arrays
 
-succeeds () =>
+(() =>
 	resetOneIndent()
-	assert deepEqual(indented([
+	truthy (deepEqual(indented([
 		'first line'
 		'\tsecond line'
 		'\t\tthird line'
@@ -120,9 +135,9 @@ succeeds () =>
 		'\tfirst line'
 		'\t\tsecond line'
 		'\t\t\tthird line'
-		])
+		]))
 
-	assert deepEqual(indented([
+	truthy (deepEqual(indented([
 		'first line'
 		'\tsecond line'
 		'\t\tthird line'
@@ -130,7 +145,8 @@ succeeds () =>
 		'\t\tfirst line'
 		'\t\t\tsecond line'
 		'\t\t\t\tthird line'
-		])
+		]))
+	)()
 
 # ---------------------------------------------------------------------------
 
@@ -153,67 +169,73 @@ succeeds () =>
 
 # ---------------------------------------------------------------------------
 
-succeeds () =>
+(() =>
 	resetOneIndent()
-	assert notdefined(oneIndent)
-	assert (indentLevel('\t\tabc') == 2)
-	assert (oneIndent == '\t')
+	truthy notdefined(inputIndent)
+	truthy notdefined(outputIndent)
+	truthy (indentLevel('\t\tabc') == 2)
+	truthy (inputIndent == '\t')
+	)()
 
-succeeds () =>
+(() =>
 	resetOneIndent()
-	assert notdefined(oneIndent)
-	assert (indentLevel('   abc') == 1)
-	assert (indentLevel('      abc') == 2)
-	assert (oneIndent == '   ')
+	truthy notdefined(inputIndent)
+	truthy (indentLevel('   abc') == 1)
+	truthy (indentLevel('      abc') == 2)
+	truthy (inputIndent == spaces(3))
+	)()
 
 # ---------------------------------------------------------------------------
 
-succeeds () =>
+(() =>
 	resetOneIndent()
-	assert indentLevel('abc') == 0
-	assert indentLevel('   abc') == 1
-	assert indentLevel('      abc') == 2
-	throwsError () => indentLevel('\t abc')
-	throwsError () => indentLevel(' \tabc')
-	assert (indentLevel('abc') == 0)
+	truthy (indentLevel('abc') == 0)
+	truthy (indentLevel('   abc') == 1)
+	truthy (indentLevel('      abc') == 2)
+	fails () => indentLevel('\t abc')
+	fails () => indentLevel(' \tabc')
+	truthy (indentLevel('abc') == 0)
 
-	assert indentLevel('abc') == 0
-	assert indentLevel('   abc') == 1
-	assert indentLevel('      abc') == 2
+	truthy (indentLevel('abc') == 0)
+	truthy (indentLevel('   abc') == 1)
+	truthy (indentLevel('      abc') == 2)
+	)()
 
 # ---------------------------------------------------------------------------
 
-succeeds () =>
+(() =>
 	resetOneIndent()
-	assert notdefined(oneIndent)
+	truthy notdefined(inputIndent)
 
-	assert deepEqual(splitLine('abc'), [0, 'abc'])
-	assert notdefined(oneIndent)
-	assert deepEqual(splitLine('   abc'), [1, 'abc'])
-	assert defined(oneIndent)
-	assert deepEqual(splitLine('      abc'), [2, 'abc'])
-	assert (oneIndent == '   ')
+	truthy deepEqual(splitLine('abc'), [0, 'abc'])
+	truthy notdefined(inputIndent)
+	truthy deepEqual(splitLine('   abc'), [1, 'abc'])
+	truthy defined(inputIndent)
+	truthy deepEqual(splitLine('      abc'), [2, 'abc'])
+	truthy (inputIndent == spaces(3))
 
-	assert deepEqual(splitLine('   abc'), [1, 'abc'])
+	truthy deepEqual(splitLine('   abc'), [1, 'abc'])
 
 	# ---fails since we're now expecting spaces
-	throwsError () => splitLine('\t\tabc')
+	fails () => splitLine('\t\tabc')
+	)()
 
 # ---------------------------------------------------------------------------
 
-succeeds () =>
-	resetOneIndent('   ')
-	assert (indented('abc', 2) == '      abc')
-	assert (indented('abc') == '   abc')
+(() =>
+	resetOneIndent(spaces(3), spaces(3))
+	truthy (indented('abc', 2) == '      abc')
+	truthy (indented('abc') == '   abc')
 
-	assert (indentLevel('   abc') == 1)
-	assert (indented('abc', 2) == spaces(6) + 'abc')
+	truthy (indentLevel('   abc') == 1)
+	truthy (indented('abc', 2) == spaces(6) + 'abc')
+	)()
 
 # --- Test with blocks
 
-succeeds () =>
-	resetOneIndent(spaces(3))
-	assert indented("""
+(() =>
+	resetOneIndent(spaces(3), spaces(3))
+	truthy (indented("""
 		first line
 		#{spaces(3)}second line
 		#{spaces(6)}third line
@@ -221,9 +243,9 @@ succeeds () =>
 		#{spaces(3)}first line
 		#{spaces(6)}second line
 		#{spaces(9)}third line
-		"""
+		""")
 
-	assert indented("""
+	truthy (indented("""
 		first line
 		#{spaces(3)}second line
 		#{spaces(6)}third line
@@ -231,13 +253,14 @@ succeeds () =>
 		#{spaces(6)}first line
 		#{spaces(9)}second line
 		#{spaces(12)}third line
-		"""
+		""")
+	)()
 
 # --- Test with arrays
 
-succeeds () =>
-	resetOneIndent('   ')
-	assert deepEqual(indented([
+(() =>
+	resetOneIndent(spaces(3), spaces(3))
+	truthy deepEqual(indented([
 		'first line'
 		'   second line'
 		'      third line'
@@ -247,7 +270,7 @@ succeeds () =>
 		'         third line'
 		])
 
-	assert deepEqual(indented([
+	truthy deepEqual(indented([
 		'first line'
 		'   second line'
 		'      third line'
@@ -256,6 +279,7 @@ succeeds () =>
 		'         second line'
 		'            third line'
 		])
+	)()
 
 # ---------------------------------------------------------------------------
 
@@ -351,5 +375,6 @@ equal Blockify({
 			isArray
 			hash
 		llutils:
-			o s blockWidth
+			o s
+			blockWidth
 	"""

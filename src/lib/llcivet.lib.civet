@@ -2,7 +2,8 @@
 
 import {compile as compileCivet} from '@danielx/civet'
 
-import {croak, DBG, withExt, newerDestFileExists} from 'base'
+import {croak, DBG, ERR, withExt, newerDestFileExists} from 'base'
+import {DUMP} from 'nice'
 import {hash} from 'datatypes'
 import {getOptions} from 'llutils'
 import {
@@ -86,7 +87,12 @@ export civet2tsSync := (
 	{inlineMap} := getOptions<opt> hOptions, {
 		inlineMap: true
 		}
-	return compileCivet civetCode, {inlineMap, sync: true}
+	try
+		return compileCivet civetCode, {inlineMap, sync: true}
+	catch err
+		ERR "Civet compile failed"
+		DUMP civetCode, 'civetCode'
+		throw err
 
 # ---------------------------------------------------------------------------
 

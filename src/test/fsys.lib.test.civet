@@ -356,6 +356,8 @@ equal slurp('./src/test/fsys/file1.txt'), """
 		'subdir',
 		'new.txt',
 		'tokens.txt',
+		'xxx'
+		'yyy'
 		]
 	)()
 
@@ -382,6 +384,8 @@ equal slurp('./src/test/fsys/file1.txt'), """
 		'subdir',
 		'new.txt',
 		'tokens.txt',
+		'xxx'
+		'yyy'
 		]
 	)()
 

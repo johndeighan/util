@@ -4,7 +4,7 @@
 import {expandGlobSync} from '@std/fs/expand-glob'
 import {TextLineStream} from "jsr:@std/streams/text-line-stream"
 
-import {TRY, SKIP, LOG, TAsyncIterator} from 'base'
+import {EXEC, SKIP, LOG, TAsyncIterator} from 'base'
 import {s} from 'llutils'
 import {procOneFile} from 'exec'
 import {
@@ -23,43 +23,17 @@ import {CBlock} from 'macros'
 
 // ---------------------------------------------------------------------------
 
-TRY(() => {
-	const str = `Line
-	/[^\\n\\r\\x0F\\x0E]+/
-		assert defined($0), "result not defined!!!"
-		return $0
+EXEC(async () => {
+	const heraCode = await testHeraCode(`name := 'John Deighan'
+lItems: string[] := []
 
-INDENT
-	/\x0F/
+#beginParse
+	lItems.length = 0
 
-UNDENT
-	/\x0E/`
-
-	LOG(ML(str))
+Main
+	/abc/`)
+	DUMP(heraCode, 'heraCode')
 })
-//	fixed := str2indents(str)
-
-// 	contents := """
-// 		#beginParse
-//
-// 		Content
-// 			INDENT Line+ UNDENT
-// 				return $2
-//
-// 		Line
-// 			/[^\n\r\x0F\x0E]+/
-// 				assert defined($0), "result not defined!!!"
-// 				return $0
-//
-// 		INDENT
-// 			/\x0F/
-//
-// 		UNDENT
-// 			/\x0E/
-//
-// 		"""
-//	result := await preprocHera contents, {trace: true}
-//	LOG result
 
 SKIP(async () => {
 	const result = await parseText('macros', `abc

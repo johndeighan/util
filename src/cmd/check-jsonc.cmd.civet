@@ -2,11 +2,11 @@
 
 {parse: parseJSONC} from 'jsr:@std/jsonc'
 
-import {TRY} from 'base'
+import {EXEC} from 'base'
 
 # ---------------------------------------------------------------------------
 
-TRY () =>
+EXEC () =>
 	contents := Deno.readTextFileSync Deno.args[0]
 	data := parseJSONC contents
 	console.log "OK"

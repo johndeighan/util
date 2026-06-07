@@ -39,7 +39,10 @@ import {
 
 # ---------------------------------------------------------------------------
 
-export getCmdLine := (cmdName: string, lArgs: string[]): string =>
+export getCmdLine := (
+		cmdName: string
+		lArgs: string[]
+		): string =>
 
 	assert isString(cmdName), "cmdName not a string: #{OL(cmdName)}"
 	assert isArrayOfStrings(lArgs), "not an array of strings: #{OL(lArgs)}"

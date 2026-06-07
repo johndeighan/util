@@ -1,7 +1,7 @@
 # analyze.cmd.civet
 
 import {
-	toRelPath, assert, croak, TRY, LOG, DBG, ERR,
+	toRelPath, assert, croak, EXEC, LOG, DBG, ERR,
 	undef, defined, notdefined,
 	} from 'base'
 import {stdChecks} from 'llutils'
@@ -18,7 +18,7 @@ stdChecks """
 
 # ---------------------------------------------------------------------------
 
-TRY () =>
+EXEC () =>
 	fileName := nonOption(0)
 	assert defined(fileName), "No file name provided"
 	path := (

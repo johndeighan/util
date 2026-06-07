@@ -1,6 +1,6 @@
 # buildtest.cmd.civet
 
-import {TRY, assert, defined} from 'base'
+import {EXEC, assert, defined} from 'base'
 import {stdChecks, o} from 'llutils'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {withExt, findFile} from 'fsys'
@@ -12,7 +12,7 @@ stdChecks "buildutest -nf (all | <stub>*)"
 
 // ---------------------------------------------------------------------------
 
-TRY () =>
+EXEC () =>
 	# --- echoes if flag is set
 	{force} := getFlags {
 		force: 'f'

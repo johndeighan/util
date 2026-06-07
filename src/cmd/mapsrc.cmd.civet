@@ -1,6 +1,6 @@
 # mapsrc.cmd.civet
 
-import {TRY, mapPos, assert, defined} from 'base'
+import {EXEC, mapPos, assert, defined} from 'base'
 import {stdChecks} from 'llutils'
 import {flag, nonOption, allNonOptions} from 'cmd-args'
 import {isFile} from 'fsys'
@@ -9,7 +9,7 @@ stdChecks("mapsrc <path> <lineNum>")
 
 # ---------------------------------------------------------------------------
 
-TRY () =>
+EXEC () =>
 	source := nonOption 0
 	assert defined(source), "Missing file path"
 	assert isFile(source), "No such file: #{source}"

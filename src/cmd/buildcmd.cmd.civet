@@ -1,6 +1,6 @@
 # buildcmd.cmd.civet
 
-import {assert, defined, TRY, LOG, DBG, WARN, ERR} from 'base'
+import {assert, defined, EXEC, LOG, DBG, WARN, ERR} from 'base'
 import {stdChecks, cmdTitle} from 'llutils'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {withExt, findFile, isFile} from 'fsys'
@@ -18,7 +18,7 @@ stdChecks """
 
 # ---------------------------------------------------------------------------
 
-TRY () =>
+EXEC () =>
 	# --- echoes if flag is set
 	{doInstall, doTest, inspect, force} := getFlags {
 		doInstall: 'i'

@@ -900,14 +900,14 @@ export getErrStr := (err: unknown): string =>
 
 # ---------------------------------------------------------------------------
 
-export TRY := (
+export EXEC := (
 		func: () => void
 		): void =>
 
 	try
 		func()
 	catch err
-		croak "in TRY(): #{getErrStr(err)}"
+		croak "in EXEC(): #{getErrStr(err)}"
 	return
 
 # ---------------------------------------------------------------------------
@@ -1078,3 +1078,10 @@ export withColors := (
 export decolorize := (str: string): string =>
 
 	return stripAnsiCode(str)
+
+# ---------------------------------------------------------------------------
+
+export isChineseChar := (str: string): boolean =>
+
+	assert (str.length == 1), "Not a single char"
+	return toBool str.match(/^[\u4e00-\u9fff]$/u)

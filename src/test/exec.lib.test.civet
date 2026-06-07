@@ -22,9 +22,16 @@ setup := (): void =>
 
 		"""
 
-# await setup()
+await setup()
 
 # ---------------------------------------------------------------------------
+
+
+(() =>
+	{stdout} := await execCmd 'echo', ["Hello"]
+	console.log stdout
+	equal stdout, "Hello"
+	)()
 
 buffer := new ArrayBuffer(3)
 view := new Int8Array(buffer)
@@ -36,10 +43,4 @@ view[2] = 99
 equal mkstr('abc'), 'abc'
 equal mkstr(buffer), 'abc'
 equal mkstr(view), 'abc'
-
 equal getCmdLine('dothis', ['-a', 'willy']), 'dothis -a willy'
-
-(() =>
-	{stdout} := await execCmd 'echo', ["Hello"]
-	equal stdout, "Hello"
-	)()

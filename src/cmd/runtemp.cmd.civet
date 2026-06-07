@@ -1,7 +1,7 @@
 # runtemp.cmd.civet
 
 import {
-	TRY, croak, undef, defined, notdefined, assert,
+	EXEC, croak, undef, defined, notdefined, assert,
 	LOG, DBG, ERR, colorize,
 	} from 'base'
 import {findFile, withExt, isFile} from 'fsys'
@@ -36,7 +36,7 @@ lastTempStub := (): string =>    # returns a stub
 
 # ---------------------------------------------------------------------------
 
-TRY () =>
+EXEC () =>
 	{inspect, force, noCompile} := getFlags {
 		inspect: 'I'
 		force: 'f'

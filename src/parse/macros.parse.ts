@@ -202,11 +202,11 @@ function Args($$ctx: ParserContext, $$state: ParseState) {
     $$ctx.exit?.("Args", $$state, undefined, $$eventData);
     return undefined;
   }
-  const $$m = (function($loc: Loc, $1: any) {
-    void $loc, $1;
+  const $$m = (function($loc: Loc, $0: any) {
+    void $loc, $0;
     pm.match('Args', $loc);
-    return pm.returnVal($1[0]);
-  })($$r.loc, ($$r.value as any[])[1]);
+    return pm.returnVal($0);
+  })($$r.loc, ($$r.value as any[])[0]);
   ($$r as any).value = $$m;
   $$ctx.exit?.("Args", $$state, $$r, $$eventData);
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
@@ -234,52 +234,84 @@ function Line($$ctx: ParserContext, $$state: ParseState) {
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const INDENT$parser = $R$0($EXPECT($R3, "INDENT /\\x0F/"));
+const INDENT$parser = $EXPECT($R3, "INDENT /\\x0F/");
 
 function INDENT($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("INDENT", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$final = INDENT$parser($$ctx, $$state);
-  $$ctx.exit?.("INDENT", $$state, $$final, $$eventData);
-
-  return $$final;
+  const $$r = INDENT$parser($$ctx, $$state);
+  if (!$$r) {
+    $$ctx.exit?.("INDENT", $$state, undefined, $$eventData);
+    return undefined;
+  }
+  const $$m = (function($loc: Loc) {
+    void $loc;
+    pm.match('INDENT', $loc);
+  })($$r.loc);
+  ($$r as any).value = $$m;
+  $$ctx.exit?.("INDENT", $$state, $$r, $$eventData);
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const UNDENT$parser = $R$0($EXPECT($R4, "UNDENT /\\x0E/"));
+const UNDENT$parser = $EXPECT($R4, "UNDENT /\\x0E/");
 
 function UNDENT($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("UNDENT", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$final = UNDENT$parser($$ctx, $$state);
-  $$ctx.exit?.("UNDENT", $$state, $$final, $$eventData);
-
-  return $$final;
+  const $$r = UNDENT$parser($$ctx, $$state);
+  if (!$$r) {
+    $$ctx.exit?.("UNDENT", $$state, undefined, $$eventData);
+    return undefined;
+  }
+  const $$m = (function($loc: Loc) {
+    void $loc;
+    pm.match('UNDENT', $loc);
+  })($$r.loc);
+  ($$r as any).value = $$m;
+  $$ctx.exit?.("UNDENT", $$state, $$r, $$eventData);
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const NL$parser = $R$0($EXPECT($R5, "NL /\\r?\\n/"));
+const NL$parser = $EXPECT($R5, "NL /\\r?\\n/");
 
 function NL($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("NL", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$final = NL$parser($$ctx, $$state);
-  $$ctx.exit?.("NL", $$state, $$final, $$eventData);
-
-  return $$final;
+  const $$r = NL$parser($$ctx, $$state);
+  if (!$$r) {
+    $$ctx.exit?.("NL", $$state, undefined, $$eventData);
+    return undefined;
+  }
+  const $$m = (function($loc: Loc) {
+    void $loc;
+    pm.match('NL', $loc);
+  })($$r.loc);
+  ($$r as any).value = $$m;
+  $$ctx.exit?.("NL", $$state, $$r, $$eventData);
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const WS$parser = $R$0($EXPECT($R6, "WS /\\x20*/"));
+const WS$parser = $EXPECT($R6, "WS /\\x20*/");
 
 function WS($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("WS", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$final = WS$parser($$ctx, $$state);
-  $$ctx.exit?.("WS", $$state, $$final, $$eventData);
-
-  return $$final;
+  const $$r = WS$parser($$ctx, $$state);
+  if (!$$r) {
+    $$ctx.exit?.("WS", $$state, undefined, $$eventData);
+    return undefined;
+  }
+  const $$m = (function($loc: Loc) {
+    void $loc;
+    pm.match('WS', $loc);
+  })($$r.loc);
+  ($$r as any).value = $$m;
+  $$ctx.exit?.("WS", $$state, $$r, $$eventData);
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
 
@@ -351,8 +383,9 @@ import {
   } from 'macros'
 
 export const beginParse = (
-      text: string,
-      hOptions: {[key: string|symbol]: unknown} = {}
-      ): string|undefined => {
+    text: string,
+    hOptions: {[key: string|symbol]: unknown} = {}
+    ): string|undefined => {
+  pm.reset(text);
   return str2indents(text)
   }

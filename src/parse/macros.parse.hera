@@ -39,7 +39,7 @@ Content
 
 Args
 	/[^\n\r\x0F\x0E]*/
-		return $1[0]
+		return $0
 
 Line
 	/[^\n\r\x0F\x0E]+/

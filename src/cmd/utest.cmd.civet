@@ -1,7 +1,7 @@
 # utest.cmd.civet
 
 import {
-	TRY, toRelPath, undef, defined, notdefined, assert,
+	EXEC, toRelPath, undef, defined, notdefined, assert,
 	LOG, DBG, ERR,
 	} from 'base'
 import {isString} from 'datatypes'
@@ -24,7 +24,7 @@ stdChecks """
 
 await compileAllLibs('.', {summarize: true})
 
-TRY () =>
+EXEC () =>
 	# --- echoes if flag is set
 	{force, inspect} := getFlags {
 		force: 'f'

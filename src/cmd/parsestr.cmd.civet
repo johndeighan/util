@@ -1,12 +1,12 @@
 # parsestr.cmd.civet
 
-import {TRY, croak, LOG, ERR, getErrStr} from 'base'
+import {EXEC, croak, LOG, ERR, getErrStr} from 'base'
 import {allNonOptions} from 'cmd-args'
 import {parseText} from 'hera-parse'
 
 # ---------------------------------------------------------------------------
 
-TRY () =>
+EXEC () =>
 	lNonOptions := allNonOptions()
 	[stub, str] := switch lNonOptions.length
 			case 0:

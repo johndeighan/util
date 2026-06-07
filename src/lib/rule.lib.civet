@@ -162,7 +162,9 @@ export class CRule
 
 export class CRuleSet
 
-	lRules: CRule[] = []
+	private lRules: CRule[] = []
+
+	# ..........................................................
 
 	addRule(name: string): CRule
 
@@ -171,12 +173,25 @@ export class CRuleSet
 		@lRules.push rule
 		return rule
 
+	# ..........................................................
+
 	curRule(): CRule
 		assert (@lRules.length > 0), "No rules in set"
 		return @lRules[@lRules.length - 1]
+
+	# ..........................................................
 
 	ruleName(
 			ruleNum: number = @lRules.length - 1
 			): string
 
 		return @lRules[ruleNum].getName()
+
+	# ..........................................................
+
+	allRules(): TIterator<CRule>
+
+		for rule of @lRules
+			yield rule
+		return
+

@@ -1,6 +1,6 @@
 # compile.cmd.civet
 
-import {TRY, assert, pass, LOG, DBG} from 'base'
+import {EXEC, assert, pass, LOG, DBG} from 'base'
 import {isArray} from 'datatypes'
 import {OL} from 'nice'
 import {flag, numNonOptions, allNonOptions} from 'cmd-args'
@@ -26,7 +26,7 @@ logResult := (
 
 # ---------------------------------------------------------------------------
 
-TRY () =>
+EXEC () =>
 	if (numNonOptions() == 0)
 		DBG "=====  Compiling all files  ====="
 		for path of allFilesMatching('src/**/*.{lib,cmd}.civet')

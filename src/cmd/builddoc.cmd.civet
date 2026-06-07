@@ -1,7 +1,7 @@
 # builddoc.cmd.civet
 
 import {
-	undef, defined, notdefined, assert, croak, TRY, LOG, toRelPath,
+	undef, defined, notdefined, assert, croak, EXEC, LOG, toRelPath,
 	} from 'base'
 import {stdChecks, cmdTitle} from 'llutils'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
@@ -18,7 +18,7 @@ stdChecks """
 
 # ---------------------------------------------------------------------------
 
-TRY () =>
+EXEC () =>
 	# --- echoes if flag is set
 	{force, inspect} := getFlags {
 		force: 'f'

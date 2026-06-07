@@ -8,10 +8,25 @@ import {
 	} from 'datatypes'
 import {
 	rtrim, countChars, getOptions, blockToArray, arrayToBlock,
-	toArray, toBlock, blockWidth, blockHeight, keys,
+	toArray, toBlock, blockWidth, blockHeight, keys, spaces,
 	} from 'llutils'
 
-export let oneIndent: string? = undef
+# --- set in indentLevel(), splitLine()
+export let inputIndent: string? = undef
+
+# --- set in indented()
+export let outputIndent: string? = undef
+
+# ---------------------------------------------------------------------------
+
+export resetOneIndent := (
+		inStr: string? = undef
+		outStr: string? = undef
+		): void =>
+
+	inputIndent = inStr
+	outputIndent = outStr
+	return
 
 # ---------------------------------------------------------------------------
 
@@ -49,19 +64,11 @@ export blockify := (
 
 # ---------------------------------------------------------------------------
 
-export resetOneIndent := (
-		str: string? = undef
-		): void =>
-
-	oneIndent = str
-	return
-
-# ---------------------------------------------------------------------------
-
 export indentLevel := (line: string): number =>
 
 	# --- This will always match, and it's greedy
 	#     (but TypeScript doesn't know that)
+
 	[prefix] := line.match(/^\s*/) || ['']
 	if (prefix.length == 0)
 		return 0
@@ -72,18 +79,19 @@ export indentLevel := (line: string): number =>
 	assert (numTABs == 0) || (numSpaces == 0),
 			"Invalid mix of TABs and spaces in #{esc(line)}"
 
-	# --- oneIndent must be one of:
+	# --- inputIndent must be one of:
 	#        undef
 	#        a single TAB character
 	#        some number of space characters
-	# --- Set variables oneIndent & level
-	switch oneIndent
+
+	# --- Set variables inputIndent & level
+	switch inputIndent
 		case undef:
 			if (numTABs > 0)
-				oneIndent = "\t"
+				inputIndent = "\t"
 				return numTABs
 			else
-				oneIndent = ' '.repeat(numSpaces)
+				inputIndent = ' '.repeat(numSpaces)
 				return 1
 
 		case "\t":
@@ -93,9 +101,11 @@ export indentLevel := (line: string): number =>
 		default:
 			# --- using some number of spaces
 			assert (numTABs == 0), "Expecting spaces, found TABs"
-			assert (numSpaces % oneIndent.length == 0),
-					"Invalid num spaces: #{numSpaces}, oneIndent = #{esc(oneIndent)}"
-			return numSpaces / oneIndent.length
+			assert (numSpaces % inputIndent.length == 0), """
+					Invalid num spaces: #{numSpaces},
+					inputIndent = #{esc(inputIndent)}
+					"""
+			return numSpaces / inputIndent.length
 
 # ---------------------------------------------------------------------------
 
@@ -128,22 +138,21 @@ export function indented(
 		hOptions: hash = {}
 		): string | string[]
 
-	assert (level >= 0), "Negative indent: #{level}"
+	if (level == 0)
+		return input
+
+	assert (level > 0), "Negative indent: #{level}"
+
 	type opt = {
 		oneIndent: string?
 		}
-
-	# --- Because there's a global named oneIndent,
-	#     we have to put the option in a new variable, i.e. 'ind'
-	{oneIndent: ind} := getOptions<opt> hOptions, {
+	{oneIndent} := getOptions<opt> hOptions, {
 		oneIndent: undef
 		}
 
-	useIndent: string := (
-		  defined(ind)       ? ind
-		: defined(oneIndent) ? oneIndent
-		:                      '\t'
-		)
+	useIndent := oneIndent || outputIndent || '\t'
+	if notdefined(outputIndent)
+		outputIndent = useIndent
 
 	lNewLines: string[] := for line of toArray(input)
 		(isEmpty(line) ? '' : useIndent.repeat(level) + line)
@@ -206,7 +215,7 @@ export Blockify := (
 	{sep, endsep, width, oneIndent} := getOptions<opt> hOptions, {
 		sep: ' '
 		endsep: ''
-		oneIndent: '   '
+		oneIndent: spaces(3)
 		width: 64
 		}
 
