@@ -6,12 +6,9 @@ import {WebUI} from '@webui'
 
 import {
 	undef, defined, notdefined, croak, assert,
-	LOG, DBG, ERR,
+	LOG, DBG, ERR, sleep,
 	} from 'base'
-import {sleep} from 'base'
-import {
-	TVoidFunc, hash, hashof,
-	} from 'datatypes'
+import {TVoidFunc, hash, hashof} from 'datatypes'
 import {getOptions} from 'llutils'
 import {mkpath, slurp, isFile, isDir} from 'fsys'
 import {execCmd} from 'exec'

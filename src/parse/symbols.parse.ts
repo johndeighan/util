@@ -49,7 +49,8 @@ const grammar = {
   AllSymbols,
   LibBlock,
   Line,
-  Name,
+  LibName,
+  Symbol,
   INDENT,
   UNDENT,
   _,
@@ -64,10 +65,11 @@ const $skip: (typeof SKIP) = SKIP; void $skip;
 const $L0 = $L(" ");
 
 
-const $R0 = $R(new RegExp("[A-Za-z_][A-Za-z0-9_]*", 'suy'));
-const $R1 = $R(new RegExp("\\x0F", 'suy'));
-const $R2 = $R(new RegExp("\\x0E", 'suy'));
-const $R3 = $R(new RegExp("\\r?\\n", 'suy'));
+const $R0 = $R(new RegExp("[A-Za-z_][A-Za-z0-9_-]*", 'suy'));
+const $R1 = $R(new RegExp("[A-Za-z_][A-Za-z0-9_]*", 'suy'));
+const $R2 = $R(new RegExp("\\x0F", 'suy'));
+const $R3 = $R(new RegExp("\\x0E", 'suy'));
+const $R4 = $R(new RegExp("\\r?\\n", 'suy'));
 
 
 const AllSymbols$parser = $S($P(LibBlock), $Q(NL));
@@ -91,7 +93,7 @@ function AllSymbols($$ctx: ParserContext, $$state: ParseState) {
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const LibBlock$parser = $S(Name, NL, INDENT, $P(Line), UNDENT);
+const LibBlock$parser = $S(LibName, NL, INDENT, $P(Line), UNDENT);
 
 function LibBlock($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("LibBlock", $$state);
@@ -118,7 +120,7 @@ function LibBlock($$ctx: ParserContext, $$state: ParseState) {
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const Line$parser = $S(Name, $Q($S(_, Name)), NL);
+const Line$parser = $S(Symbol, $Q($S(_, Symbol)), NL);
 
 function Line($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("Line", $$state);
@@ -144,49 +146,86 @@ function Line($$ctx: ParserContext, $$state: ParseState) {
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const Name$parser = $EXPECT($R0, "Name /[A-Za-z_][A-Za-z0-9_]*/");
+const LibName$parser = $EXPECT($R0, "LibName /[A-Za-z_][A-Za-z0-9_-]*/");
 
-function Name($$ctx: ParserContext, $$state: ParseState) {
-  const $$entered = $$ctx.enter?.("Name", $$state);
+function LibName($$ctx: ParserContext, $$state: ParseState) {
+  const $$entered = $$ctx.enter?.("LibName", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$r = Name$parser($$ctx, $$state);
+  const $$r = LibName$parser($$ctx, $$state);
   if (!$$r) {
-    $$ctx.exit?.("Name", $$state, undefined, $$eventData);
+    $$ctx.exit?.("LibName", $$state, undefined, $$eventData);
     return undefined;
   }
   const $$m = (function($loc: Loc, $0: any) {
     void $loc, $0;
-    pm.match('Name', $loc);
+    pm.match('LibName', $loc);
     return pm.returnVal($0);
   })($$r.loc, ($$r.value as any[])[0]);
   ($$r as any).value = $$m;
-  $$ctx.exit?.("Name", $$state, $$r, $$eventData);
+  $$ctx.exit?.("LibName", $$state, $$r, $$eventData);
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const INDENT$parser = $R$0($EXPECT($R1, "INDENT /\\x0F/"));
+const Symbol$parser = $EXPECT($R1, "Symbol /[A-Za-z_][A-Za-z0-9_]*/");
+
+function Symbol($$ctx: ParserContext, $$state: ParseState) {
+  const $$entered = $$ctx.enter?.("Symbol", $$state);
+  if ($$entered && "cache" in $$entered) return $$entered.cache as never;
+  const $$eventData = $$entered?.data;
+  const $$r = Symbol$parser($$ctx, $$state);
+  if (!$$r) {
+    $$ctx.exit?.("Symbol", $$state, undefined, $$eventData);
+    return undefined;
+  }
+  const $$m = (function($loc: Loc, $0: any) {
+    void $loc, $0;
+    pm.match('Symbol', $loc);
+    return pm.returnVal($0);
+  })($$r.loc, ($$r.value as any[])[0]);
+  ($$r as any).value = $$m;
+  $$ctx.exit?.("Symbol", $$state, $$r, $$eventData);
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
+
+const INDENT$parser = $EXPECT($R2, "INDENT /\\x0F/");
 
 function INDENT($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("INDENT", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$final = INDENT$parser($$ctx, $$state);
-  $$ctx.exit?.("INDENT", $$state, $$final, $$eventData);
-
-  return $$final;
+  const $$r = INDENT$parser($$ctx, $$state);
+  if (!$$r) {
+    $$ctx.exit?.("INDENT", $$state, undefined, $$eventData);
+    return undefined;
+  }
+  const $$m = (function($loc: Loc) {
+    void $loc;
+    pm.match('INDENT', $loc);
+  })($$r.loc);
+  ($$r as any).value = $$m;
+  $$ctx.exit?.("INDENT", $$state, $$r, $$eventData);
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const UNDENT$parser = $R$0($EXPECT($R2, "UNDENT /\\x0E/"));
+const UNDENT$parser = $EXPECT($R3, "UNDENT /\\x0E/");
 
 function UNDENT($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("UNDENT", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$final = UNDENT$parser($$ctx, $$state);
-  $$ctx.exit?.("UNDENT", $$state, $$final, $$eventData);
-
-  return $$final;
+  const $$r = UNDENT$parser($$ctx, $$state);
+  if (!$$r) {
+    $$ctx.exit?.("UNDENT", $$state, undefined, $$eventData);
+    return undefined;
+  }
+  const $$m = (function($loc: Loc) {
+    void $loc;
+    pm.match('UNDENT', $loc);
+  })($$r.loc);
+  ($$r as any).value = $$m;
+  $$ctx.exit?.("UNDENT", $$state, $$r, $$eventData);
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
 const _$parser = $Q($EXPECT($L0, "_ \" \""));
@@ -195,22 +234,38 @@ function _($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("_", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$final = _$parser($$ctx, $$state);
-  $$ctx.exit?.("_", $$state, $$final, $$eventData);
-
-  return $$final;
+  const $$r = _$parser($$ctx, $$state);
+  if (!$$r) {
+    $$ctx.exit?.("_", $$state, undefined, $$eventData);
+    return undefined;
+  }
+  const $$m = (function($loc: Loc) {
+    void $loc;
+    pm.match('_', $loc);
+  })($$r.loc);
+  ($$r as any).value = $$m;
+  $$ctx.exit?.("_", $$state, $$r, $$eventData);
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const NL$parser = $R$0($EXPECT($R3, "NL /\\r?\\n/"));
+const NL$parser = $EXPECT($R4, "NL /\\r?\\n/");
 
 function NL($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("NL", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$final = NL$parser($$ctx, $$state);
-  $$ctx.exit?.("NL", $$state, $$final, $$eventData);
-
-  return $$final;
+  const $$r = NL$parser($$ctx, $$state);
+  if (!$$r) {
+    $$ctx.exit?.("NL", $$state, undefined, $$eventData);
+    return undefined;
+  }
+  const $$m = (function($loc: Loc) {
+    void $loc;
+    pm.match('NL', $loc);
+  })($$r.loc);
+  ($$r as any).value = $$m;
+  $$ctx.exit?.("NL", $$state, $$r, $$eventData);
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
 
@@ -262,7 +317,8 @@ export {
   AllSymbols,
   LibBlock,
   Line,
-  Name,
+  LibName,
+  Symbol,
   INDENT,
   UNDENT,
   _,
@@ -276,13 +332,13 @@ export let pm = new CParseMatches();
 import {hashof} from 'datatypes'
 import {clearHash} from 'llutils'
 import {str2indents} from 'hera-parse'
-
 let hSymbols: hashof<string> = {}
 
 export const beginParse = (
-      text: string,
-      hOptions: {[key: string|symbol]: unknown} = {}
-      ): string|undefined => {
+    text: string,
+    hOptions: {[key: string|symbol]: unknown} = {}
+    ): string|undefined => {
+  pm.reset(text);
   hSymbols = {}
   return str2indents(text)
   }

@@ -5,7 +5,8 @@ import {expandGlobSync} from '@std/fs/expand-glob'
 import {TextLineStream} from "jsr:@std/streams/text-line-stream"
 
 import {EXEC, SKIP, LOG, TAsyncIterator} from 'base'
-import {s} from 'llutils'
+import {s, toBlock} from 'llutils'
+import {indented} from 'indent'
 import {procOneFile} from 'exec'
 import {
 	withExt, openTextFile, openAndReadTextFile, rmFile,
@@ -19,20 +20,33 @@ import {parseText, str2indents} from 'hera-parse'
 import {compileHera} from 'llhera'
 import {symbolsFromString} from 'symbols'
 import {CAnalysis, analyzeTsCode} from 'typescript'
-import {CBlock} from 'macros'
+import {
+	TTextBlock, TMacroBlock, TBlock,
+	TMacroFunc, TMacroLib, isMacroLib,
+	mkBlk, expand, mapString, mapFile,
+	} from 'macros'
+import {setDirTree} from 'unit-test'
 
 // ---------------------------------------------------------------------------
 
-EXEC(async () => {
-	const heraCode = await testHeraCode(`name := 'John Deighan'
-lItems: string[] := []
+EXEC(() => {
+	const str = `./src
+file
+	abc
 
-#beginParse
-	lItems.length = 0
+	def`
+	DUMP(str, 'str')
+	const newstr = str2indents(str)
+	DUMP(newstr, 'newstr')
+})
 
-Main
-	/abc/`)
-	DUMP(heraCode, 'heraCode')
+SKIP(async () => {
+	const result = await parseText('dir-tree', `./src
+file
+	abc
+
+	def`)
+	DUMP(result, 'result')
 })
 
 SKIP(async () => {

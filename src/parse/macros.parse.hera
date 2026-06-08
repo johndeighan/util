@@ -6,7 +6,7 @@ type: civet
 import {defined, notdefined, assert} from 'base'
 import {str2indents} from 'hera-parse'
 import {
-	TTextBlock, TMacroBlock, splitMacroHeader,
+	TTextBlock, TMacroBlock,
 	} from 'macros'
 
 #beginParse(text, hOptions)

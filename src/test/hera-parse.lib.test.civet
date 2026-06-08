@@ -31,3 +31,12 @@ equal escd(str2indents("""
 		temp.civet
 			LOG "OK"
 	""")), 'src/lib˳clear↓temp.txt↓»abc↓«/sub↓»temp.civet↓»LOG˳"OK"↓««↓'
+
+equal escd(str2indents("""
+	./src
+	file
+		abc
+
+		def
+	""")), './src↓file↓»abc↓↓def↓«↓'
+

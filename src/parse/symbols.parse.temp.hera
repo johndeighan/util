@@ -5,13 +5,13 @@ export let pm = new CParseMatches();
 import {hashof} from 'datatypes'
 import {clearHash} from 'llutils'
 import {str2indents} from 'hera-parse'
-
 let hSymbols: hashof<string> = {}
 
 export const beginParse = (
-      text: string,
-      hOptions: {[key: string|symbol]: unknown} = {}
-      ): string|undefined => {
+    text: string,
+    hOptions: {[key: string|symbol]: unknown} = {}
+    ): string|undefined => {
+  pm.reset(text);
   hSymbols = {}
   return str2indents(text)
   }
@@ -23,7 +23,7 @@ AllSymbols
     return pm.returnVal(hSymbols);
 
 LibBlock
-  Name NL INDENT Line+ UNDENT ->
+  LibName NL INDENT Line+ UNDENT ->
     pm.match('LibBlock', $loc);
     for (const lNames of $4) {
       for (const name of lNames) {
@@ -33,7 +33,7 @@ LibBlock
     return
 
 Line
-  Name (_ Name)* NL ->
+  Symbol (_ Symbol)* NL ->
     pm.match('Line', $loc);
     const lNames: string[] = [$1]
     for (const [pre, name] of $2) {
@@ -41,23 +41,28 @@ Line
     }
     return pm.returnVal(lNames);
 
-Name
+LibName
+  /[A-Za-z_][A-Za-z0-9_-]*/ ->
+    pm.match('LibName', $loc);
+    return pm.returnVal($0);
+
+Symbol
   /[A-Za-z_][A-Za-z0-9_]*/ ->
-    pm.match('Name', $loc);
+    pm.match('Symbol', $loc);
     return pm.returnVal($0);
 
 INDENT
-  /\x0F/
-
+  /\x0F/ ->
+    pm.match('INDENT', $loc);
 
 UNDENT
-  /\x0E/
-
+  /\x0E/ ->
+    pm.match('UNDENT', $loc);
 
 _
-  " "*
-
+  " "* ->
+    pm.match('_', $loc);
 
 NL
-  /\r?\n/
-
+  /\r?\n/ ->
+    pm.match('NL', $loc);

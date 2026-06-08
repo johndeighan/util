@@ -3,11 +3,12 @@
 import {undef, defined, notdefined, assert, croak} from 'base'
 import {
 	hashof, isString, isHash, TStringMapper, isStringMapper,
-	isEmpty,
+	isEmpty, nonEmpty, isArray,
 	} from 'datatypes'
 import {indented} from 'indent'
 import {OL} from 'nice'
 import {entries, toBlock} from 'llutils'
+import {mkArray} from 'mapper'
 import {parsePath, openTextFile} from 'fsys'
 import {CFileHandler, TExecResult} from 'exec'
 import {parseText} from 'hera-parse'
@@ -19,26 +20,37 @@ import {parseText} from 'hera-parse'
 export type TTextBlock = {
 	type: 'text'
 	firstLine: string
-	lContent: CBlock[]
+	lContent: TBlock[]
 	}
 
 export type TMacroBlock = {
 	type: 'macro'
 	name: string
 	args: string
-	lContent: CBlock[]
+	lContent: TBlock[]
 	}
 
-export type TMacroHeaderInfo = [
-	name: string
-	args: string
-	]
+export type TBlock = TTextBlock | TMacroBlock
 
 # ---------------------------------------------------------------------------
 
-export splitMacroHeader := (str: string): TMacroHeaderInfo? =>
+export mkBlk := (
+		firstLine: string
+		...lOrgContent: (TTextBlock | TMacroBlock | string)[]
+		): TTextBlock | TMacroBlock =>
 
-	lMatches := str.match ///^
+
+	lContent := mkArray lOrgContent, (x) ->
+		if isString(x)
+			yield {
+				type: 'text'
+				firstLine: x
+				lContent: []
+				}
+		else
+			yield x
+
+	lMatches := firstLine.match ///^
 		\#
 		([A-Za-z_][A-Za-z0-9_]*)
 		\s*
@@ -46,68 +58,19 @@ export splitMacroHeader := (str: string): TMacroHeaderInfo? =>
 		$///
 
 	if defined(lMatches)
-		return [lMatches[1], lMatches[2]]
+		return {
+			type: 'macro'
+			name: lMatches[1]
+			args: lMatches[2]
+			lContent
+			} as TMacroBlock
 	else
-		return undef
+		return {
+			type: 'text'
+			firstLine
+			lContent
+			} as TTextBlock
 
-export class CBlock
-	block: TTextBlock | TMacroBlock
-
-	# ..........................................................
-
-	constructor(
-			firstLine: string
-			lOrgContent: (string | CBlock)[] = []
-			)
-
-		assert isString(firstLine),
-				"firstLine not a string: #{OL(firstLine)}"
-		lContent: CBlock[] := for x of lOrgContent
-			isString(x) ? new CBlock(x) : x
-		lMatches := firstLine.match ///^
-			\#
-			([A-Za-z_][A-Za-z0-9_]*)
-			\s*
-			(.*)
-			$///
-
-		if defined(lMatches)
-			@block := {
-				type: 'macro'
-				name: lMatches[1]
-				args: lMatches[2]
-				lContent
-				} as TMacroBlock
-		else
-			@block := {
-				type: 'text'
-				firstLine
-				lContent
-				} as TTextBlock
-
-	# ..........................................................
-
-	add(part: string | CBlock): void
-
-		debugger
-		@block.lContent.push (isString(part) ? new CBlock(part) : part)
-		return
-
-	# ..........................................................
-
-	body(hMacros: TMacroLib): string
-
-		# --- get the content
-		lText := for part of @block.lContent
-			part.body(hMacros)
-
-		if (@block.type == 'text')
-			return toBlock [@block.firstLine, ...indented(lText)]
-		else if (@block.type == 'macro')
-			func := hMacros[@block.name]
-			assert defined(func), "No such macro: #{@block.name}"
-			return func toBlock(lText), @block.args
-		croak "Fall through in body()"
 
 # ---------------------------------------------------------------------------
 
@@ -129,13 +92,21 @@ export isMacroLib := (x: unknown): x is TMacroLib =>
 
 # ---------------------------------------------------------------------------
 
-export expandMacros := (
-		lContent: CBlock[]
+export expand := (
+		lContent: TBlock[]
 		hMacros: TMacroLib
 		): string =>
 
-	lParts := for part of lContent
-		isString(part) ? part : part.body(hMacros)
+	lParts := mkArray lContent, (x) ->
+		switch x.type
+			when 'text'
+				yield x.firstLine
+				if nonEmpty(x.lContent)
+					yield indented(expand(x.lContent, hMacros))
+			when 'macro'
+				func := hMacros[x.name]
+				yield func expand(x.lContent, hMacros), x.args
+
 	return toBlock lParts
 
 # ---------------------------------------------------------------------------
@@ -146,10 +117,8 @@ export mapString := (
 		hMacros: TMacroLib
 		): string =>
 
-	lBlocks: CBlock[] := await parseText 'macros', text
-	lParts := for block of lBlocks
-		block.body(hMacros)
-	return toBlock(lParts)
+	lBlocks: TBlock[] := await parseText 'macros', text
+	return toBlock(expand(lBlocks, hMacros))
 
 # ---------------------------------------------------------------------------
 # ASYNC

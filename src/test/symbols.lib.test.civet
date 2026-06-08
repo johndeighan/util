@@ -2,13 +2,13 @@
 
 import {undef} from 'base'
 import {
-	loadSymbolsFrom, getSymbolLib, getNeededImportStmts,
+	loadSymbols, loadSymbolsFrom, getSymbolLib, getNeededImportStmts,
 	} from 'symbols'
 import {equal, succeeds} from 'unit-test'
 
 # ---------------------------------------------------------------------------
 
-(() =>
+await (() =>
 	hSymbols := await loadSymbolsFrom """
 		datatypes
 			undef defined
@@ -22,17 +22,21 @@ import {equal, succeeds} from 'unit-test'
 	equal getSymbolLib('dummy',     hSymbols), undef
 	)()
 
-# --- Use the actual .symbols file
+await (() =>
+	# --- Use the actual .symbols file
+	hSymbols := await loadSymbols()
 
-equal getSymbolLib('defined'), 'datatypes'
-equal getSymbolLib('isArray'), 'datatypes'
+	equal getSymbolLib('defined'), 'base'
+	equal getSymbolLib('isArray'), 'datatypes'
 
-equal getSymbolLib('array'), 'datatypes'
-equal getSymbolLib('hash'), 'datatypes'
+	equal getSymbolLib('array'), 'datatypes'
+	equal getSymbolLib('hash'), 'datatypes'
 
-equal getNeededImportStmts(['defined','array']), [
-	"import {defined, array} from 'datatypes';"
-	]
-equal getNeededImportStmts(['arrayof','integer']), [
-	"import {arrayof, integer} from 'datatypes';"
-	]
+	equal getNeededImportStmts(['defined','array']), [
+		"import {defined} from 'base';"
+		"import {array} from 'datatypes';"
+		]
+	equal getNeededImportStmts(['arrayof','integer']), [
+		"import {arrayof, integer} from 'datatypes';"
+		]
+	)()

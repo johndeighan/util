@@ -32,14 +32,14 @@ FullDesc
 		return lFileOps
 
 Root
-	/\.(?:\/[A-Za-z0-9_-]+)*/ _ "clear"? NL
+	/\.(\/[A-Za-z0-9_-]+)*/ _ "clear"? NL
 		root := $1[0]
 		lFileOps.push {
 			op: defined($3) ? 'clearDir' : 'mkDir'
 			path: root
 			}
 		lPathParts.push root
-		return
+		return root
 
 FileDesc
 	Name _ "compile"? NL INDENT Content UNDENT

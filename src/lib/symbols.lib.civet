@@ -7,7 +7,7 @@ import {
 	} from 'base'
 import {hashof} from 'datatypes'
 import {keys, clearHash} from 'llutils'
-import {findFile} from 'fsys'
+import {findFile, isFile} from 'fsys'
 import {parseText} from 'hera-parse'
 
 /**
@@ -28,16 +28,21 @@ import {parseText} from 'hera-parse'
 #     and only if file exists
 
 # --- { <symbol> => <lib>, ... }
-export hSymbols: hashof<string> := {}
+hAllSymbols: hashof<string> := {}
 
 # ---------------------------------------------------------------------------
+# ASYNC
 
-export getSymbolLib := (
-		symbol: string
-		hSym: hashof<string> = hSymbols
-		): string? =>
+export loadSymbols := (
+		fileName: string = '.symbols'
+		): hashof<string> =>
 
-	return hSym[symbol]
+	clearHash(hAllSymbols)
+	path := findFile fileName
+	assert defined(path), "No such file: #{fileName}"
+	contents := await Deno.readTextFile path
+	await loadSymbolsFrom contents, hAllSymbols
+	return hAllSymbols
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -49,21 +54,6 @@ export loadSymbolsFrom := (
 
 	hFound := await parseText 'symbols', str
 	return Object.assign h, hFound
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export loadSymbols := (
-		fileName: string = '.symbols'
-		): hashof<string> =>
-
-	clearHash(hSymbols)
-	path := findFile fileName
-	assert defined(path) && existsSync(path),
-		"No such file: #{fileName}"
-	contents := await Deno.readTextFile path
-	await loadSymbolsFrom contents, hSymbols
-	return hSymbols
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -95,3 +85,13 @@ export getNeededImportStmts := (
 		lSyms := hLibs[lib]
 		lStmts.push "import {#{lSyms.join ', '}} from '#{lib}';"
 	return lStmts
+
+# ---------------------------------------------------------------------------
+
+export getSymbolLib := (
+		symbol: string
+		hSymbols: hashof<string> = hAllSymbols
+		): string? =>
+
+	return hSymbols[symbol]
+

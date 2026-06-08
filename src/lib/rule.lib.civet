@@ -86,24 +86,6 @@ export class CRuleBranch
 
 # ---------------------------------------------------------------------------
 
-export mkCodeBlock := (
-		lCodeBlock: string[]
-		type: THeraType
-		): string =>
-
-	block := toBlock lCodeBlock
-	if (type == 'typescript')
-		return block
-	try
-		code := civet2tsSync(block, {inlineMap: false})
-		return code
-	catch err
-		ERR "civet compile failed"
-		DUMP block
-		throw err
-
-# ---------------------------------------------------------------------------
-
 export class CRule
 	private name: string
 	private lBranches: CRuleBranch[] = []
@@ -195,3 +177,20 @@ export class CRuleSet
 			yield rule
 		return
 
+# ---------------------------------------------------------------------------
+
+export mkCodeBlock := (
+		lCodeBlock: string[]
+		type: THeraType
+		): string =>
+
+	block := toBlock lCodeBlock
+	if (type == 'typescript')
+		return block
+	try
+		code := civet2tsSync(block, {inlineMap: false})
+		return code
+	catch err
+		ERR "civet compile failed"
+		DUMP block
+		throw err

@@ -15,7 +15,7 @@ import {
 import {
 	isFile, findFile, openTextFile, openAndReadTextFile,
 	} from 'fsys'
-import {MAP} from 'mapper'
+import {MAP, mkArray} from 'mapper'
 import {resetOneIndent, splitLine} from 'indent'
 import {
 	allLinesInBlock, getOptions, sep,
@@ -37,15 +37,18 @@ export str2indents := (str: string): string =>
 
 	resetOneIndent()
 	let curLevel = 0
-	lLines := for line of allLinesInBlock(str)
+	lLines := mkArray allLinesInBlock(str), (line) ->
 		[level, str] := splitLine line
-		prefix := (
-			  (level > curLevel) ? uni.shiftin.repeat(level - curLevel)
-			: (level < curLevel) ? uni.shiftout.repeat(curLevel - level)
-			: ''
-			)
-		curLevel = level
-		"#{prefix}#{str}\n"
+		if (str == '')
+			yield '\n'
+		else
+			prefix := (
+				  (level > curLevel) ? uni.shiftin.repeat(level - curLevel)
+				: (level < curLevel) ? uni.shiftout.repeat(curLevel - level)
+				: ''
+				)
+			curLevel = level
+			yield "#{prefix}#{str}\n"
 
 	block := lLines.join('')
 	return (

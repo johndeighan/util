@@ -7,10 +7,8 @@ import {hash} from 'datatypes'
 import {indented, undented} from 'indent'
 import {str2indents} from 'hera-parse'
 import {TFileOp} from 'unit-test'
-
 const lFileOps: TFileOp[]  = []
 const lPathParts: string[] = []
-
 const getPath = (fileName: string = '') => {
   if (fileName) {
     return [...lPathParts, fileName].join('/')
@@ -20,10 +18,13 @@ const getPath = (fileName: string = '') => {
   }
 }
 
-export const beginParse = (text: string): string? => {
+export const beginParse = (
+    text: string,
+    hOptions: {[key: string|symbol]: unknown} = {}
+    ): string|undefined => {
+  pm.reset(text);
   lFileOps.length  = 0
   lPathParts.length = 0
-
   return str2indents(text)
   }
 ```
@@ -34,7 +35,7 @@ FullDesc
     return pm.returnVal(lFileOps);
 
 Root
-  /\.(?:\/[A-Za-z0-9_-]+)*/ _ "clear"? NL ->
+  /\.(\/[A-Za-z0-9_-]+)*/ _ "clear"? NL ->
     pm.match('Root', $loc);
     const root = $1[0]
     lFileOps.push({
@@ -42,7 +43,7 @@ Root
       path: root
       })
     lPathParts.push(root)
-    return
+    return pm.returnVal(root);
 
 FileDesc
   Name _ "compile"? NL INDENT Content UNDENT ->
@@ -103,17 +104,17 @@ Name
     return pm.returnVal($0);
 
 INDENT
-  /\x0F/     # ASCII shift-in
-
+  /\x0F/     -> # ASCII shift-in
+    pm.match('INDENT', $loc);
 
 UNDENT
-  /\x0E/     # ASCII shift-out
-
+  /\x0E/     -> # ASCII shift-out
+    pm.match('UNDENT', $loc);
 
 NL
-  /\r?\n/
-
+  /\r?\n/ ->
+    pm.match('NL', $loc);
 
 _
-  /\x20*/
-
+  /\x20*/ ->
+    pm.match('_', $loc);

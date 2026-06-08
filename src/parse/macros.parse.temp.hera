@@ -5,7 +5,7 @@ export let pm = new CParseMatches();
 import {defined, notdefined, assert} from 'base'
 import {str2indents} from 'hera-parse'
 import {
-  TTextBlock, TMacroBlock, splitMacroHeader,
+  TTextBlock, TMacroBlock,
   } from 'macros'
 
 export const beginParse = (

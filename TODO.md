@@ -19,20 +19,13 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
-In macros.lib.civet
-	- I think we want to get rid of CBlock altogether
-	- in mapString(), return value from parsing is NOT
-		an array of CBlocks
-
-last unit test in macros.parse.test.civet fails
-	- bad parse
+automate unit tests fail
 
 parseText()
 	- doesn't allow returned values to span multiple lines
 	- interprets '#' as meaning a comment, even inside quote chars
 
 civet2ts and civet2tsSync should display bad civet code,
-	not in
 
 Can toNice() display the class of an object?
 

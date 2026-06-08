@@ -20,20 +20,24 @@ AllSymbols
 		return hSymbols
 
 LibBlock
-	Name NL INDENT Line+ UNDENT
+	LibName NL INDENT Line+ UNDENT
 		for lNames of $4
 			for name of lNames
 				hSymbols[name] = $1
 		return
 
 Line
-	Name (_ Name)* NL
+	Symbol (_ Symbol)* NL
 		lNames: string[] := [$1]
 		for [pre, name] of $2
 			lNames.push name
 		return lNames
 
-Name
+LibName
+	/[A-Za-z_][A-Za-z0-9_-]*/
+		return $0
+
+Symbol
 	/[A-Za-z_][A-Za-z0-9_]*/
 		return $0
 
