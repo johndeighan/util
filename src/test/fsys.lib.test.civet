@@ -125,9 +125,9 @@ equal withExt("C:/temp/file.txt", ".js"), "C:/temp/file.js"
 equal withExt("c:\\temp/to/file.txt", ".js"), "C:/temp/to/file.js"
 equal withExt("c:\\temp/to/file.flag.txt", ".js"), "C:/temp/to/file.flag.js"
 
-equal inSameDir("C:/temp/file.txt", "file.js"), "C:/temp/file.js"
-equal inSameDir("c:\\temp/to/file.txt", "file.js"), "C:/temp/to/file.js"
-equal inSameDir("c:\\temp/to/file.flag.txt", "file.flag.js"), "C:/temp/to/file.flag.js"
+equal inSameDir("C:/temp/file.txt", "tempfile.js"), "C:/temp/tempfile.js"
+equal inSameDir("c:\\temp/to/file.txt", "file3.js"), "C:/temp/to/file3.js"
+equal inSameDir("c:\\temp/to/file.flag.txt", "file.flag2.js"), "C:/temp/to/file.flag2.js"
 
 truthy isStub('abc')
 falsy  isStub('.js')

@@ -5,7 +5,7 @@ import {Node, SourceFile} from 'npm-typescript'
 
 import {
 	undef, defined, notdefined, croak, assert, getErrStr,
-	extractSourceMap, LOG, DBG, ERR,
+	extractSourceMap, LOG, DBG, ERR, isFullPath,
 	} from 'base'
 import {
 	hash, isString, isHash, isEmpty, nonEmpty,
@@ -23,14 +23,14 @@ import {
 	TProcSpec, TExecResult, summarizeExec,
 	} from 'exec'
 import {
-	civet2ts, llcompileCivet, civet2tsFile,
-	civet2tsSync, llcompileCivetSync, civet2tsFileSync,
+	civet2ts, civet2tsFile,
+	civet2tsSync, civet2tsFileSync,
 	} from 'llcivet'
 import {ts2ast, analyzeTsCode} from 'typescript'
 
 export {
-	civet2ts, llcompileCivet, civet2tsFile,
-	civet2tsSync, llcompileCivetSync, civet2tsFileSync,
+	civet2ts, civet2tsFile,
+	civet2tsSync, civet2tsFileSync,
 	}
 
 import hCivetConfig from "civetconfig" with {type: "json"};
@@ -64,7 +64,7 @@ class CCivetCompiler extends CFileHandler
 		assert (fileExt(path) == '.civet'), "Not a civet file"
 		if (output == '.ts')
 			return withExt(path, '.ts')
-		else if output.match(/[\\\/]/)
+		else if isFullPath(output)
 			croak "output can't be a full path"
 		else
 			assert (fileExt(output) == '.ts'), "output must have .ts ext"

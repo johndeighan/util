@@ -26,7 +26,7 @@ import {
 	openTextFile, openAndReadTextFile, barfTempFile, parsePath,
 	} from 'fsys'
 import {TState, fromFSM} from 'fsm'
-import {civet2ts, civet2tsSync} from 'llcivet'
+import {civet2ts} from 'llcivet'
 import {
 	execCmd, CFileHandler, TExecResult,
 	} from 'exec'

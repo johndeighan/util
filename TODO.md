@@ -19,6 +19,8 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
+get rid of synchronous versions in llcivet
+
 automate unit tests fail
 
 parseText()

@@ -28,4 +28,4 @@ await setup()
 
 # ---------------------------------------------------------------------------
 
-equal cielo2civet('abc'), 'abc'
+equal await cielo2civet('abc'), 'abc'

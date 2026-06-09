@@ -5,7 +5,7 @@ import {compile: compileSvelte} from 'npm-svelte/compiler'
 import {assert, LOG} from 'base'
 import {
 	fileExt, withExt, rmFile, barf, slurp,
-	inSameDir, parsePath, patchFirstLine,
+	parsePath, patchFirstLine,
 	} from 'fsys'
 import {execCmd} from 'exec'
 import {civet2tsFile} from 'civet'
@@ -59,7 +59,7 @@ export hConfig := {
 			#     so it won't get compiled by the compile script
 
 			getOutPaths: (path: string) =>
-				[withExt path, '.ts']
+				return [withExt(path, '.ts')]
 
 			isInstalled: =>
 				# --- we need civet to be installed
@@ -68,14 +68,15 @@ export hConfig := {
 
 			compiler: (path: string) =>
 				# --- start with a *.cielo file
+				debugger
 				assert (fileExt(path) == '.cielo'), "Not a .cielo file"
 				civetPath := withExt path, '.temp.civet'
-				tsPath := inSameDir path, '.ts'
+				tsPath := withExt path, '.ts'
 
 				rmFile civetPath # --- needed?
 				rmFile tsPath    # --- needed?
 
-				cielo2civetFile path, civetPath
+				await cielo2civetFile path, civetPath
 				await civet2tsFile civetPath, tsPath
 				{fileName} := parsePath path
 				patchFirstLine civetPath, fileName, withExt(fileName, '.temp.civet')

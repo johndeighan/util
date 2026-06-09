@@ -9,14 +9,14 @@ import {
 	pushLogLevel, popLogLevel
 	} from 'base'
 import {
-	nonEmptyString, hash, hashof,
+	nonEmptyString, hash, hashof, isArray,
 	} from 'datatypes'
 import {keys, getOptions} from 'llutils'
 import {OL, DBGVALUE} from 'nice'
 import {
 	slurp, barf, patchFirstLine, parsePath, configFromFile,
 	isFile, rmFile, findFile, withExt, fileExt,
-	newerDestFileExists, allFilesMatching, inSameDir,
+	newerDestFileExists, allFilesMatching,
 	} from 'fsys'
 import {
 	execCmd, CFileHandler, TExecResult,
@@ -76,6 +76,7 @@ export compileFile := (
 		hOptions: hash = {}
 		): TCompileResult =>
 
+	debugger
 	assert isFile(path), "No such file: #{OL(path)}"
 	DBG "COMPILE: #{OL(path)}", INDENT
 	type opt = {
@@ -103,6 +104,8 @@ export compileFile := (
 
 	{compiler, getOutPaths} := hCompilerInfo
 	lOutPaths := getOutPaths path
+	assert isArray(lOutPaths),
+		"Non-array return from getOutPaths() for #{ext}: #{lOutPaths}"
 	DBG "lOutPaths = #{OL(lOutPaths)}"
 	if allOf lOutPaths, (p) => newerDestFileExists(path, p)
 		DBG "Not compiling, newer #{OL(lOutPaths)} exist", UNDENT
@@ -127,6 +130,16 @@ export compileFile := (
 
 	DBG UNDENT
 	return hResult
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export getCompilerInfo := (
+		ext: string
+		): TCompilerInfo? =>
+
+	hConfig := await getCompilerConfig()
+	return hConfig.hCompilers[ext]
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -159,21 +172,6 @@ export getCompilerConfig := (
 	hCachedConfig = hConfig
 	cachedFileName = fileName
 	return hConfig
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export getCompilerInfo := (
-		ext: string
-		): TCompilerInfo? =>
-
-	hConfig := await getCompilerConfig()
-	hInfo := hConfig.hCompilers[ext]
-	if defined(hInfo)
-		return hInfo
-	else
-		DBG "No compiler for #{ext} files"
-		return undef
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -305,4 +303,3 @@ export uninstallCmd := (
 			path
 			]
 	return
-

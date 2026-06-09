@@ -118,7 +118,6 @@ export execCmd := (
 		outProc: (str) => return str
 		}
 
-	debugger
 	streamType: TStreamType := capture ? 'piped' : 'inherit'
 	if defined(infile) || defined(outfile)
 		assert capture,

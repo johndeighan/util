@@ -1,8 +1,14 @@
 # llcivet.lib.civet
 
-import {compile as compileCivet} from '@danielx/civet'
+import {
+	compile as compileCivet, CompileOptions,
+	} from '@danielx/civet'
+import {findInDir, loadConfig} from "@danielx/civet/config"
 
-import {croak, DBG, ERR, withExt, newerDestFileExists} from 'base'
+import {
+	undef, defined, notdefined, assert, croak,
+	DBG, ERR, withExt, newerDestFileExists, getErrStr,
+	} from 'base'
 import {DUMP} from 'nice'
 import {hash} from 'datatypes'
 import {getOptions} from 'llutils'
@@ -10,6 +16,22 @@ import {
 	typeCheckTsFile, typeCheckTsCode,
 	typeCheckTsFileSync, typeCheckTsCodeSync,
 	} from 'lltypescript'
+
+let hCivetConfig: CompileOptions? = undef
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export getCivetConfig := (
+		hExtra: CompileOptions = {}
+		): CompileOptions =>
+
+	if defined(hCivetConfig)
+		return Object.assign hCivetConfig, hExtra
+	path := await findInDir(process.cwd())
+	assert defined(path), "No civet config file found"
+	hCivetConfig = await loadConfig(path)
+	return Object.assign hCivetConfig, hExtra
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -25,21 +47,14 @@ export civet2ts := (
 	{inlineMap} := getOptions<opt> hOptions, {
 		inlineMap: true
 		}
-	return await compileCivet civetCode, {inlineMap}
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export llcompileCivet := (
-		civetPath: string
-		tsPath: string
-		hOptions: hash = {}
-		): void =>
-
-	civetCode := await Deno.readTextFile civetPath
-	tsCode := await civet2ts civetCode, hOptions
-	await Deno.writeTextFile tsPath, tsCode
-	return
+	debugger
+	try
+		hConfig := await getCivetConfig {inlineMap}
+		tsCode := await compileCivet civetCode, hConfig
+		return tsCode
+	catch err
+		ERR getErrStr(err)
+		throw err
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -61,19 +76,31 @@ export civet2tsFile := (
 		check: true
 		}
 
-	if newerDestFileExists civetPath, tsPath
+	if newerDestFileExists(civetPath, tsPath) && not force
 		DBG "File #{civetPath} already compiled"
-		if force
-			DBG "Forcing compile anyway"
-			await llcompileCivet(civetPath, tsPath, {inlineMap})
-	else
-		await llcompileCivet(civetPath, tsPath, {inlineMap})
+		return tsPath
+	civetCode := await Deno.readTextFile civetPath
+	tsCode := await civet2ts civetCode, hOptions
+	await Deno.writeTextFile tsPath, tsCode
 	if check
 		await typeCheckTsFile tsPath
 	return tsPath
 
 # ---------------------------------------------------------------------------
 #            SYNCHRONOUS VERSIONS
+# ---------------------------------------------------------------------------
+
+export getCivetConfigSync := (
+		hExtra: CompileOptions = {}
+		): CompileOptions =>
+
+	if defined(hCivetConfig)
+		return Object.assign hCivetConfig, hExtra
+	path := findInDir(process.cwd(), "civet.config.json", {sync: true})
+	assert defined(path), "No civet config file found"
+	hCivetConfig = loadConfig(path, {sync: true})
+	return Object.assign hCivetConfig, hExtra
+
 # ---------------------------------------------------------------------------
 
 export civet2tsSync := (
@@ -88,24 +115,12 @@ export civet2tsSync := (
 		inlineMap: true
 		}
 	try
-		return compileCivet civetCode, {inlineMap, sync: true}
+		hConfig := getCivetConfigSync {inlineMap, sync: true}
+		return compileCivet civetCode, hConfig
 	catch err
-		ERR "Civet compile failed"
+		ERR "Civet compileCivet failed"
 		DUMP civetCode, 'civetCode'
 		throw err
-
-# ---------------------------------------------------------------------------
-
-export llcompileCivetSync := (
-		civetPath: string
-		tsPath: string
-		hOptions: hash = {}
-		): void =>
-
-	civetCode := Deno.readTextFileSync civetPath
-	tsCode := civet2tsSync civetCode, hOptions
-	Deno.writeTextFileSync tsPath, tsCode
-	return
 
 # ---------------------------------------------------------------------------
 
@@ -126,13 +141,12 @@ export civet2tsFileSync := (
 		check: true
 		}
 
-	if newerDestFileExists civetPath, tsPath
+	if newerDestFileExists(civetPath, tsPath) && not force
 		DBG "File #{civetPath} already compiled"
-		if force
-			DBG "Forcing compile anyway"
-			llcompileCivetSync(civetPath, tsPath, {inlineMap})
-	else
-		llcompileCivetSync(civetPath, tsPath, {inlineMap})
+		return tsPath
+	civetCode := Deno.readTextFileSync civetPath
+	tsCode := civet2tsSync civetCode, hOptions
+	Deno.writeTextFileSync tsPath, tsCode
 	if check
 		typeCheckTsFileSync tsPath
 	return tsPath

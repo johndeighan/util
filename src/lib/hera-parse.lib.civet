@@ -104,7 +104,6 @@ export parseText := <T = unknown>(
 		abortOnError: true
 		}
 
-	debugger
 	let parseMatcher
 	try
 		# --- Make sure parser is compiled and up to date
