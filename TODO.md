@@ -19,7 +19,7 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
-get rid of synchronous versions in llcivet
+fsm lib does not compile
 
 automate unit tests fail
 

@@ -81,7 +81,7 @@ export class CHeraCompiler extends CFileHandler
 			tempPath := withExt(path, '.temp.hera')
 			[heraCode, type] := await preprocHeraFile path, tempPath, hOptions
 			fileName := parsePath(path).fileName
-			tsCode := compileHera heraCode, type, fileName
+			tsCode := await compileHera heraCode, type, fileName
 			await Deno.writeTextFile withExt(path, '.ts'), tsCode
 
 			return {
@@ -100,6 +100,7 @@ export class CHeraCompiler extends CFileHandler
 export doCompileHera := new CHeraCompiler()
 
 # ---------------------------------------------------------------------------
+# ASYNC
 
 buildHeraFile := (
 		lMainCode: string[]
@@ -120,14 +121,14 @@ buildHeraFile := (
 	if trace
 		pushLogLevel 'debug'
 
-	mainCode := mkCodeBlock lMainCode, type
+	mainCode := await mkCodeBlock lMainCode, type
 	DDUMP mainCode, 'mainCode'
 
-	resetCode := mkCodeBlock lResetCode, type
+	resetCode := await mkCodeBlock lResetCode, type
 	DDUMP resetCode, 'resetCode'
 
 	lRuleBlocks := for rule of ruleSet.allRules()
-		rule.asString(type)
+		await rule.asString(type)
 
 	for block,i of lRuleBlocks
 		DDUMP block, "Rule[#{i}]"
@@ -205,7 +206,7 @@ export preprocHera := (
 		if not isComment(line)
 			yield line
 
-	result := fromFSM lLines, [
+	result := await fromFSM lLines, [
 
 		# 0 --- start
 		#          until we see #beginParse, everything, including
@@ -278,22 +279,22 @@ export preprocHera := (
 					branch.addCode indented(str, level-2)
 					return 3
 
-		], {
-			doneFunc: (state: TState): void =>
-				if (state == 3)
-					# --- Check all branches of all rules for cases where
-					#     no code was generated
-					for rule of ruleSet.allRules()
-						for branch of rule.allBranches()
-							if (branch.numCodeLines() == 0)
-								branch.addCode "pm.match('#{rule.getName()}', $loc);"
+		],
+		(state: TState) =>
+			if (state == 3)
+				# --- Check all branches of all rules for cases where
+				#     no code was generated
+				for rule of ruleSet.allRules()
+					for branch of rule.allBranches()
+						if (branch.numCodeLines() == 0)
+							branch.addCode "pm.match('#{rule.getName()}', $loc);"
 
-					str := buildHeraFile(lMainCode, lResetCode, ruleSet, hOptions)
-					throw str
-				else
-					croak "Ended in state #{state}"
-			}
-	assert (typeof result == 'string'), "result not a string"
+				return await buildHeraFile(lMainCode, lResetCode, ruleSet, hOptions)
+			else
+				croak "Ended in state #{state}"
+		{}
+
+	assert (typeof result == 'string'), "result not a string: #{result}"
 	if trace
 		popLogLevel()
 
@@ -311,7 +312,7 @@ export preprocHeraFile := (
 	[hMetaData, contents] := await openAndReadTextFile path
 	type := mdGet hMetaData, 'type', 'civet'
 	assert isHeraType(type), "Bad hera type: #{type}"
-	heraCode := preprocHera contents, {type}
+	heraCode := await preprocHera contents, {type}
 	if defined(tempPath)
 		await Deno.writeTextFile tempPath, heraCode
 	return [heraCode, type]
@@ -325,11 +326,11 @@ export testHeraCode := (
 		): string =>
 
 
-	heraCode := preprocHera code, {type}
+	heraCode := await preprocHera code, {type}
 
 	# --- Make sure the generated code compiles
 	try
-		compileHera heraCode, type
+		await compileHera heraCode, type
 	catch err
 		DUMP heraCode, 'Hera Code', {lineNumbers: true}
 		croak "FAILED TO PARSE: #{getErrStr(err)}"

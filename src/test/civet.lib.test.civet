@@ -5,10 +5,10 @@ import {SourceFile} from 'npm:typescript'
 
 import {undef, defined} from 'base'
 import {isHash} from 'datatypes'
-import {o, s, rtrim} from 'llutils'
+import {s, rtrim} from 'llutils'
 import {slurp, withExt} from 'fsys'
 import {ts2ast, astAsString} from 'typescript'
-import {civet2tsSync, civet2tsFileSync} from 'llcivet'
+import {civet2ts, civet2tsFile} from 'llcivet'
 import {a, civet2ast} from 'civet'
 import {
 	equal, succeeds, fails, truthy, falsy, setDirTree,
@@ -29,77 +29,78 @@ await setDirTree """
 testPath := "src/test/civet/#{fileName}"
 
 civetCode := slurp testPath
-tsCode :=  civet2tsSync civetCode
+tsCode :=  await civet2ts civetCode
 
 # --- source maps are stripped out before an ast is created
-ast1 := civet2ast civetCode
+ast1 := await civet2ast civetCode
 ast2 := ts2ast tsCode
 equal ast1, ast2
 
-equal civet2tsSync('x := 42', o'!inlineMap'), """
+equal await civet2ts('x := 42', {inlineMap: false}), """
+	"use strict";
 	const x = 42
 	"""
 
 (() =>
-	civet2tsFileSync testPath, undef, o'!inlineMap'
+	await civet2tsFile testPath, undef, {inlineMap: false}
 	code := slurp withExt(testPath, '.ts')
 	equal rtrim(code), """
 		const x = 42
 		"""
 	)()
 
-succeeds () => civet2ast('x := 42')
+await succeeds () => await civet2ast('x := 42')
 
 # ---------------------------------------------------------------------------
 
-equal a"""
+equal await a"""
 	import {defined, notdefined} from 'datatypes'
 	""", s"""
 	IMPORTS: datatypes: defined notdefined
 	EXTRA: defined notdefined
    """
 
-equal a"""
+equal await a"""
 	x := y + z + func(min)
 	""", s"""
 	MISSING: y z func min
 	EXTRA: x
 	"""
 
-equal a"""
+equal await a"""
 	import {defined, notdefined} from 'datatypes'
 	""", s"""
 	IMPORTS: datatypes: defined notdefined
 	EXTRA: defined notdefined
    """
 
-equal a"""
+equal await a"""
 	x := y + z + func(min)
 	""", s"""
 	MISSING: y z func min
 	EXTRA: x
 	"""
 
-equal a"""
+equal await a"""
 	import {defined, notdefined} from 'datatypes'
 	""", s"""
 	IMPORTS: datatypes: defined notdefined
 	EXTRA: defined notdefined
    """
 
-equal a"""
+equal await a"""
 	export meaning := 42
 	""", s"""
 	EXPORTS: meaning
 	"""
 
-equal a"""
+equal await a"""
 	func "Hello"
 	""", s"""
 	MISSING: func
 	"""
 
-equal a"""
+equal await a"""
 	func x, y+z
 	""", s"""
 	MISSING: func x y z
@@ -107,7 +108,7 @@ equal a"""
 
 # --- imports are not needed
 
-equal a"""
+equal await a"""
 	import {func} from 'willy'
 
 	func x, y+z
@@ -118,7 +119,7 @@ equal a"""
 
 # --- Only t is needed, s is a parameter
 
-equal a"""
+equal await a"""
 	func := (s: string): string =>
 		return s + t + '.txt'
 	func('abc')
@@ -128,7 +129,7 @@ equal a"""
 
 # --- Same, only using 'function' keyword
 
-equal a"""
+equal await a"""
 	function func(s: string): string
 		return s + t + '.txt'
 	func('abc')

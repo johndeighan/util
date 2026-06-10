@@ -1,10 +1,14 @@
 # fsm.lib.civet
 
 import {
-	undef, defined, notdefined, croak, assert,
+	undef, defined, notdefined, croak, assert, obviously,
 	TIterator, TAsyncIterator, DBG, pass,
+	pushLogLevel, popLogLevel,
 	} from 'base'
-import {hash, isArray, isInteger, TVoidFunc, isAsyncIterator} from 'datatypes'
+import {
+	hash, isArray, isInteger, TVoidFunc,
+	isAsyncIterator, isAsyncFunction,
+	} from 'datatypes'
 import {f, getOptions} from 'llutils'
 import {OL, ML} from 'nice'
 
@@ -15,20 +19,29 @@ export type TState = number
 export isStateNum := (x: number): x is TState =>
 	return isInteger(x) && (x >= 0)
 
-# --- a TStateFunc throws the final value
+# --- a TStateFunc can throw the final value
+#     for a premature exit
 export type TStateFunc<T> = (
 		item: T,
 		i: number
 		) => TState
 
-export type TDoneFunc = (state: TState) => void
+# --- NOTE: TDoneFunc can only be async if
+#           a TAsyncIterator<TIn> is used
+export type TDoneFunc<TOut> = (finalState: TState) => TOut
+
+# ---------------------------------------------------------------------------
+
+defaultDoneFunc := <TOut>(finalState: TState): TOut =>
+
+	throw new Error('No value thrown, no doneFunc provided')
 
 # ---------------------------------------------------------------------------
 
 export fsmSync := <TIn, TOut>(
-		iter: TIterator<TIn> | ArrayIterator<TIn>
+		iter: ArrayIterator<TIn> | TIterator<TIn>
 		lStates: TStateFunc<TIn>[]
-		doneFunc: TDoneFunc
+		doneFunc: TDoneFunc<TOut> = defaultDoneFunc
 		): TOut =>
 
 	let state: TState = 0
@@ -36,85 +49,92 @@ export fsmSync := <TIn, TOut>(
 		for item,i of iter
 			stateFunc := lStates[state]
 			newState := stateFunc item, i
-			assert (newState >= 0) && (newState < lStates.length),
+			assert (0 <= newState < lStates.length),
 				"Bad state: #{newState}"
 			DBG f"#{state}:3 => #{newState}:3 #{OL(item)}"
 			state = newState
 		DBG "Processed all items, state = #{state}"
-		doneFunc(state)    # --- must throw something
-		croak "doneFunc failed to throw anything"
+		return doneFunc(state)
 	catch x
 		if (x instanceof Error)
 			throw x
-		else
-			DBG "END STATE #{state}"
-			DBG ML(x)
-			return x as TOut
+		DBG "END STATE #{state}"
+		DBG ML(x)
+		return x as TOut
 
 # ---------------------------------------------------------------------------
 # ASYNC
 
 export fsmAsync := <TIn, TOut>(
-		iter: TAsyncIterator<TIn>
+		iter: ArrayIterator<TIn> | TIterator<TIn> | TAsyncIterator<TIn>
 		lStates: TStateFunc<TIn>[]
-		doneFunc: TDoneFunc
-		): TOut =>
+		doneFunc: TDoneFunc<TOut> = defaultDoneFunc
+		): Promise<TOut> =>
 
 	let state: TState = 0
 	try
 		for await item,i of iter
 			stateFunc := lStates[state]
 			newState := stateFunc item, i
-			assert (newState >= 0) && (newState < lStates.length),
+			assert (0 <= newState < lStates.length),
 				"Bad state: #{newState}"
 			DBG f"#{state}:3 => #{newState}:3 #{OL(item)}"
 			state = newState
 		DBG "Processed all items, state = #{state}"
-		doneFunc(state)    # --- must throw something
-		croak "doneFunc failed to throw anything"
+		return await doneFunc(state)
 	catch x
 		if (x instanceof Error)
 			throw x
-		else
-			DBG "END STATE #{state}"
-			DBG ML(x)
-			return x as Awaited<TOut>
+		DBG "END STATE #{state}"
+		DBG ML(x)
+		return x as Awaited<TOut>
 
 # ---------------------------------------------------------------------------
 
 export function fromFSM<TIn, TOut=unknown>(
-		iter: TIterator<TIn> | ArrayIterator<TIn> | TIn[]
+		iter: TIn[] | TIterator<TIn>
 		lStates: TStateFunc<TIn>[]
+		doneFunc: TDoneFunc<TOut>
 		hOptions: hash
 		): TOut
 
 export function fromFSM<TIn, TOut=unknown>(
 		iter: TAsyncIterator<TIn>
 		lStates: TStateFunc<TIn>[]
+		doneFunc: TDoneFunc<TOut>
 		hOptions: hash
 		): Promise<TOut>
 
 export function fromFSM<TIn, TOut=unknown>(
-		iter:  TIterator<TIn> | ArrayIterator<TIn> | TIn[] | TAsyncIterator<TIn>
+		iter:  TIn[] | TIterator<TIn> | TAsyncIterator<TIn>
 		lStates: TStateFunc<TIn>[]
+		doneFunc: TDoneFunc<TOut> = defaultDoneFunc
 		hOptions: hash = {}
 		): TOut | Promise<TOut>
 
 	type opt = {
 		initFunc: TVoidFunc
-		doneFunc: TDoneFunc
+		trace: boolean
 		}
-	{initFunc, doneFunc} := getOptions<opt> hOptions, {
+	{initFunc, trace} := getOptions<opt> hOptions, {
 		initFunc: pass
-		doneFunc: (state: TState) => croak "Ended in state #{state}"
+		trace: false
 		}
 
+	if trace
+		pushLogLevel 'debug'
 	initFunc()
-	if isArray(iter)
-		iter = iter.values()
-	return (
-		  isAsyncIterator(iter)
-		? fsmAsync<TIn,TOut>(iter, lStates, doneFunc)
-		: fsmSync<TIn,TOut>(iter, lStates, doneFunc)
+
+	# --- determine whether to run sync or async version
+	result := (
+		if isAsyncIterator(iter)
+			fsmAsync iter, lStates, doneFunc
+		else if isArray(iter)
+			fsmSync iter.values(), lStates, doneFunc
+		else
+			fsmSync iter, lStates, doneFunc
 		)
 
+	if trace
+		popLogLevel()
+	return result

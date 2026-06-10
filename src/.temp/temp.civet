@@ -5,6 +5,7 @@ import {TextLineStream} from "jsr:@std/streams/text-line-stream"
 
 import {EXEC, SKIP, LOG, TAsyncIterator} from 'base'
 import {s, toBlock} from 'llutils'
+import {fromFSM} from 'fsm'
 import {indented} from 'indent'
 import {procOneFile} from 'exec'
 import {
@@ -25,20 +26,21 @@ import {
 	mkBlk, expand, mapString, mapFile,
 	} from 'macros'
 import {setDirTree} from 'unit-test'
+import {CRule, CRuleBranch, mkCodeBlock} from 'rule'
 
 # ---------------------------------------------------------------------------
 
 EXEC () =>
-	str := """
-		./src
-		file
-			abc
+	branch := new CRuleBranch('Top Bottom')
+	branch.addCode 'go()'
+	result := await branch.asString()
+	DUMP result, 'result'
 
-			def
+	expected := """
+		Top Bottom ->
+			go()
+
 		"""
-	DUMP str, 'str'
-	newstr := str2indents(str)
-	DUMP newstr, 'newstr'
 
 SKIP () =>
 	result := await parseText 'dir-tree', """
@@ -127,7 +129,7 @@ SKIP () =>
 	DUMP heraCode, type
 
 	# --- hera compile to get TypeScript file
-	tsCode := compileHera heraCode, type, 'nice.parse.hera'
+	tsCode := await compileHera heraCode, type, 'nice.parse.hera'
 	Deno.writeTextFileSync withExt(path, '.ts'), tsCode
 	DUMP tsCode, 'RESULT'
 

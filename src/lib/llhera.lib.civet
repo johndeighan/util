@@ -7,13 +7,14 @@ import {isString} from 'datatypes'
 import {parsePath, withExt} from 'fsys'
 import {mdGet} from 'meta-data'
 import {DUMP} from 'nice'
-import {civet2tsSync} from 'llcivet'
+import {civet2ts} from 'llcivet'
 
 export type THeraType = 'typescript' | 'civet'
 export isHeraType := (x: unknown): x is THeraType =>
 	return isString(x) && ['typescript','civet'].includes x
 
 # ---------------------------------------------------------------------------
+# ASYNC
 
 export compileHera := (
 		heraCode: string
@@ -30,7 +31,7 @@ export compileHera := (
 		}
 	tsCode := (
 		  (type == 'civet')
-		? civet2tsSync(code, {inlineMap: false})
+		? await civet2ts(code, {inlineMap: false})
 		: code
 		)
 	return tsCode.replaceAll('@danielx', 'npm:@danielx')

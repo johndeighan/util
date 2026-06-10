@@ -9,7 +9,7 @@ import {isEmpty} from 'datatypes'
 import {toBlock} from 'llutils'
 import {indented} from 'indent'
 import {THeraType} from 'llhera'
-import {civet2tsSync} from 'llcivet'
+import {civet2ts} from 'llcivet'
 
 # ---------------------------------------------------------------------------
 
@@ -75,13 +75,14 @@ export class CRuleBranch
 		return @lCode.length
 
 	# ..........................................................
+	# ASYNC
 
 	asString(
 			type: THeraType = 'civet'
 			): string
 
 		patStr := @patternStr()
-		code := mkCodeBlock @lCode, type
+		code := await mkCodeBlock @lCode, type
 		return toBlock [patStr, indented(code)]
 
 # ---------------------------------------------------------------------------
@@ -131,13 +132,19 @@ export class CRule
 		return
 
 	# ..........................................................
+	# ASYNC
 
-	asString(type: THeraType = 'civet'): string
+	asString(
+			type: THeraType = 'civet'
+			): string
 
 		assert (@lBranches.length > 0), "rule #{@name} has no branches"
+		lStrings := for b of @lBranches
+			str: string := await b.asString()
+			indented(str)
 		return [
 			@name
-			...@lBranches.map((b) => indented(b.asString(type)))
+			...lStrings
 			].join('\n')
 
 # ---------------------------------------------------------------------------
@@ -178,18 +185,19 @@ export class CRuleSet
 		return
 
 # ---------------------------------------------------------------------------
+# ASYNC
 
 export mkCodeBlock := (
-		lCodeBlock: string[]
-		type: THeraType
+		lLines: string[]
+		type: THeraType = 'civet'
 		): string =>
 
-	block := toBlock lCodeBlock
+	block := toBlock lLines
 	if (type == 'typescript')
 		return block
 	try
-		code := civet2tsSync(block, {inlineMap: false})
-		return code
+		code := await civet2ts(block, {inlineMap: false})
+		return code.replace('"use strict";\n', '')
 	catch err
 		ERR "civet compile failed"
 		DUMP block

@@ -11,6 +11,7 @@ import {
 
 # ---------------------------------------------------------------------------
 
+debugger
 equal await testHeraCode("""
 	name := 'John Deighan'
 	lItems: string[] := []

@@ -238,7 +238,6 @@ export getMyOutsideCaller := (
 			dumpFrame frame
 
 	let mySrc: string? = undef
-	let outsideFrame: TStackFrame? = undef
 
 	return fromFSM allStackFrames(), [
 		# --- state 0
@@ -267,7 +266,10 @@ export getMyOutsideCaller := (
 				return 2
 			else
 				throw frame     # found !
-		], {}   # --- THIS SHOULD NOT BE NEEDED
+		],
+		(finalState: TState) =>
+			return undef
+		{}
 
 # ---------------------------------------------------------------------------
 

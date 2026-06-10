@@ -22,7 +22,6 @@ import {
 	execCmd, CFileHandler, TExecResult,
 	} from 'exec'
 import {cielo2civetFile} from 'cielo'
-import {civet2tsFileSync} from 'llcivet'
 
 # ---------------------------------------------------------------------------
 # Please, no dependencies on the directory structure!

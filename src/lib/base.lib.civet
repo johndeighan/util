@@ -23,6 +23,13 @@ mydir := dirname(fromFileUrl(import.meta.url))
 
 # ---------------------------------------------------------------------------
 
+export isAsyncFunction := (fn: Function): boolean =>
+
+	return (fn.constructor.name == 'AsyncFunction') ||
+		(fn.constructor.name == 'AsyncGenerator')
+
+# ---------------------------------------------------------------------------
+
 type TStringSource = Uint8Array<ArrayBuffer> | BufferSource | string
 
 encoder := new TextEncoder()
@@ -899,13 +906,26 @@ export getErrStr := (err: unknown): string =>
 		return "SERIOUS ERROR"
 
 # ---------------------------------------------------------------------------
+# ASYNC
+
+execAsync := (
+		asyncFunc: () => void
+		): Promise<unknown> =>
+
+	return await asyncFunc()
+
+# ---------------------------------------------------------------------------
+# --- if passed an async function, will return a promise
 
 export EXEC := (
 		func: () => void
 		): void =>
 
 	try
-		func()
+		if isAsyncFunction func
+			execAsync func
+		else
+			func()
 	catch err
 		croak "in EXEC(): #{getErrStr(err)}"
 	return

@@ -9,7 +9,7 @@ import {flag, nonOption} from 'cmd-args'
 import {DUMP} from 'nice'
 import {findFile, slurp, fileExt} from 'fsys'
 import {analyzeTS} from 'typescript'
-import {civet2tsSync} from 'llcivet'
+import {civet2ts} from 'llcivet'
 
 stdChecks """
 	analyze [-v] <filename>
@@ -32,7 +32,7 @@ EXEC () =>
 		when '.ts'
 			slurp(path)
 		when '.civet'
-			civet2tsSync(slurp path)
+			await civet2ts(slurp path)
 		default:
 			croak "Bad path: #{path}"
 

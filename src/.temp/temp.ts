@@ -26,18 +26,25 @@ import {
 	mkBlk, expand, mapString, mapFile,
 	} from 'macros'
 import {setDirTree} from 'unit-test'
+import {CRule, CRuleBranch, mkCodeBlock} from 'rule'
 
 // ---------------------------------------------------------------------------
 
-EXEC(() => {
-	const str = `./src
-file
-	abc
+EXEC(async () => {
+	const lLines = [
+		'go()'
+		]
+	const block = await mkCodeBlock(lLines)
+	DUMP(block, 'block')
 
-	def`
-	DUMP(str, 'str')
-	const newstr = str2indents(str)
-	DUMP(newstr, 'newstr')
+	const branch = new CRuleBranch('Top Bottom')
+	branch.addCode('go()')
+	const result = await branch.asString()
+//	DUMP result, 'result'
+
+	const expected = `Top Bottom ->
+	go()
+`
 })
 
 SKIP(async () => {
@@ -125,7 +132,7 @@ SKIP(async () => {
 	DUMP(heraCode, type)
 
 	// --- hera compile to get TypeScript file
-	const tsCode = compileHera(heraCode, type, 'nice.parse.hera')
+	const tsCode = await compileHera(heraCode, type, 'nice.parse.hera')
 	Deno.writeTextFileSync(withExt(path, '.ts'), tsCode)
 	DUMP(tsCode, 'RESULT')
 

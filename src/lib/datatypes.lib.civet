@@ -6,8 +6,10 @@ import {
 	deepCopy, undef, defined, notdefined,
 	anyDefined, anyNotDefined,
 	croak, assert, getErrStr,
-	TIterator, TAsyncIterator, TNonFunction,
+	TIterator, TAsyncIterator, TNonFunction, isAsyncFunction,
 	} from 'base'
+
+export {isAsyncFunction}
 
 # ---------------------------------------------------------------------------
 
@@ -458,13 +460,6 @@ export isAsyncIterator := <T>(
 		&& (Symbol.asyncIterator in x)
 		&& (typeof x[Symbol.asyncIterator] == 'function')
 		)
-
-# ---------------------------------------------------------------------------
-
-export isAsyncFunction := (fn: Function): boolean =>
-
-	return (fn.constructor.name == 'AsyncFunction') ||
-		(fn.constructor.name == 'AsyncGenerator')
 
 # ---------------------------------------------------------------------------
 
