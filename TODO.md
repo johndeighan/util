@@ -19,7 +19,8 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
-fsm lib does not compile
+test isType() and notType() in unit-test
+	- consolidate functions
 
 automate unit tests fail
 

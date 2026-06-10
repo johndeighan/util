@@ -15,8 +15,9 @@ import {
 import {esc} from 'unicode'
 import {unify} from 'unify'
 import {
-	TVoidFunc, hash, isString,
+	TVoidFunc, hash, isString, isEmpty, nonEmpty,
 	isIterator, isAsyncIterator, isIterable,
+	isFunction, functionDef, isClass, classDef,
 	} from 'datatypes'
 import {getOptions, truncStr, blockToArray, f, rtrim} from 'llutils'
 import {TState, fromFSM} from 'fsm'
@@ -24,6 +25,8 @@ import {TextTable} from 'text-table'
 import {parseText} from 'hera-parse'
 import {mkDir, clearDir, barf} from 'fsys'
 import {compileFile} from 'automate'
+import {typeCheckTsCode} from 'lltypescript'
+import {getImportCode} from 'typescript'
 
 let nextNum = 1
 
@@ -225,6 +228,102 @@ export unifies := (
 	Deno.test name || getTestName(), (): void =>
 		unify value, expected
 	return
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export isType := (
+		typeStr: string,
+		value: unknown,
+		): void =>
+
+	testName := getTestName()
+	# --- returns errMsg or '' if no type error
+	errMsg := await checkType typeStr, value
+	Deno.test testName, () => assert isEmpty(errMsg)
+	return
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export notType := (
+		typeStr: string,
+		value: unknown,
+		): void =>
+
+	testName := getTestName()
+	errMsg := await checkType typeStr, value
+	Deno.test testName, () => assert nonEmpty(errMsg)
+	return
+
+# ---------------------------------------------------------------------------
+# ASYNC
+# returns error message or ''
+
+export checkType := (
+		typeStr: string
+		value: unknown
+		): string =>
+
+	valueStr := (
+		  isFunction(value) ? functionDef(value)
+		: isClass(value)    ? classDef(value)
+		:                     JSON.stringify(value)
+		)
+	tsCode := await getTsCode typeStr, valueStr
+
+	# --- check if we need to import the type
+	importCode := getImportCode typeStr
+
+	code := """
+		#{importCode}
+		#{tsCode}
+		"""
+	try
+		await typeCheckTsCode code   # --- throws on error
+		return ''
+	catch err
+		return getErrStr(err)
+
+# ---------------------------------------------------------------------------
+# --- We need to add ':unknown' to any function parameters
+#     that don't have an explicit type
+
+export getTsCode := (
+		typeStr: string,
+		valueStr: string
+		): string =>
+
+	result := splitFuncStr valueStr
+	if defined(result)
+		[lParms, body] := result
+		addType := (parm: string): string =>
+			if (parm.indexOf(':') >= 0)
+				return parm
+			else
+				return "#{parm}: unknown"
+		parmStr := lParms.map(addType).join ', '
+		return "const x: #{typeStr} = (#{parmStr}) => #{body}"
+	else
+		return "const x: #{typeStr} = #{valueStr}"
+
+# ---------------------------------------------------------------------------
+
+type TSplitResult = [string[], string]
+
+export splitFuncStr := (valueStr: string): TSplitResult? =>
+
+	if (lMatches := valueStr.match(/^\(([^\)]*)\)\s*[\=\-]\>\s*(.*)$/))
+		[_, strParms, strBody] := lMatches
+		if isEmpty(strParms)
+			return [[], strBody]
+		else
+			return [
+				strParms.split(',').map((x) => x.trim())
+				strBody
+				]
+	else
+		return undef
 
 # ---------------------------------------------------------------------------
 
