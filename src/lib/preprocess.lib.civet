@@ -1,7 +1,0 @@
-# preprocess.lib.civet
-
-# ---------------------------------------------------------------------------
-
-export preprocess := (
-		input: string
-		hMacros: hashof

@@ -8,7 +8,7 @@ import {stdChecks} from 'llutils'
 import {flag, nonOption} from 'cmd-args'
 import {DUMP} from 'nice'
 import {findFile, slurp, fileExt} from 'fsys'
-import {analyzeTS} from 'typescript'
+import {analyzeTsCode} from 'typescript'
 import {civet2ts} from 'llcivet'
 
 stdChecks """
@@ -36,7 +36,7 @@ EXEC () =>
 		default:
 			croak "Bad path: #{path}"
 
-	analysis := analyzeTS tsCode, {dumpAST: true, trace: true}
+	analysis := analyzeTsCode tsCode, {dumpAST: true, trace: true}
 	DUMP analysis
 
 	if flag('v')

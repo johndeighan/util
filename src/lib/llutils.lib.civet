@@ -169,6 +169,12 @@ export tabs := (n: number): string =>
 
 # ---------------------------------------------------------------------------
 
+export dashes := (n: number): string =>
+
+	return (n <= 0) ? '' : '-'.repeat(n)
+
+# ---------------------------------------------------------------------------
+
 export rtrim := (line: string): string =>
 
 	assert isString(line), "not a string: #{typeof line}"

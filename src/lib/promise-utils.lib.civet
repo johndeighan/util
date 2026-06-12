@@ -1,7 +1,8 @@
 # promise-utils.lib.civet
 
-import {getErrStr} from 'base'
-import {MAP} from 'mapper'
+import {assert, getErrStr} from 'base'
+import {MAP, accum} from 'mapper'
+import {isArray} from 'datatypes'
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -18,11 +19,9 @@ export awaitAll := <T>(
 		): TRunResult<T> ->
 
 	lSettled := await Promise.allSettled(lPromises)
+	assert isArray(lSettled), "Not an array: #{lSettled}"
 	acc0: TRunResult<T> := [[],[],[],[]]
-	# @ts-ignore
-	[lItems, accum] := MAP lSettled, acc0, (h, acc, i) ->
-		if (h.status == 'fulfilled')
-			yield h.value
+	lFinalAccum := accum lSettled, acc0, (h, acc, i): TRunResult<T> ->
 		tag := (i >= 0) && (i < lTags.length) ? lTags[i] : ''
 		[lFulfilled, lRejected, lTags1, lTags2] := acc
 		if (h.status == 'fulfilled')
@@ -39,5 +38,4 @@ export awaitAll := <T>(
 				lTags1
 				[...lTags2, tag]
 				]
-	# @ts-ignore
-	return accum
+	return lFinalAccum

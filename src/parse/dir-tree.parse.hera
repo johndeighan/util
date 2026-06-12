@@ -87,7 +87,7 @@ Line
 		return $0
 
 Name
-	/[A-Za-z_.-][A-Za-z0-9_.-]+/
+	/[A-Za-z_.\$-][A-Za-z0-9_.\$-]+/
 		return $0
 
 INDENT

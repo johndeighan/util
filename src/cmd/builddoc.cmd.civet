@@ -8,7 +8,7 @@ import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {findFile} from 'fsys'
 import {procFiles, procOneFile} from 'exec'
 import {doCompileHera} from 'hera-compile'
-import {doProcessFile} from 'macros'
+import {doMakeMarkdown} from 'md-macros'
 
 stdChecks """
 	builddoc -fI (all | <stub>*)
@@ -27,7 +27,7 @@ EXEC () =>
 
 	if (nonOption(0) == 'all')
 		LOG cmdTitle("BUILD ALL DOCS")
-		await procFiles [doProcessFile, ['**/*.doc.$md']], {force}
+		await procFiles [doMakeMarkdown, ['**/*.doc.$md']], {force}
 	else
 		for stub of allNonOptions()
 			fileName := "#{stub}.doc.$md"
@@ -35,4 +35,4 @@ EXEC () =>
 			assert defined(path), "No such file: #{fileName}"
 
 			LOG cmdTitle("BUILD DOC #{toRelPath(path)}")
-			await procOneFile path, doProcessFile, {force, inspect}
+			await procOneFile path, doMakeMarkdown, {force, inspect}

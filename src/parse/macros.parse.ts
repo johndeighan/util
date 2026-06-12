@@ -1,3 +1,4 @@
+"use strict";
 import {
   $C,
   $E,
@@ -55,7 +56,7 @@ const grammar = {
   INDENT,
   UNDENT,
   NL,
-  WS};
+  _};
 
 
 
@@ -96,9 +97,9 @@ function AllBlocks($$ctx: ParserContext, $$state: ParseState) {
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const Block$0$parser = $S($EXPECT($L0, "Block \"\\\\x23\""), Name, WS, Args, NL, $E(Content));
+const Block$0$parser = $S($EXPECT($L0, "Block \"\\\\x23\""), Name, _, Args, NL, $E(Content));
 
-const Block$1$parser = $S(Line, NL, $E(Content));
+const Block$1$parser = $S(Line, $P(NL), $E(Content));
 
 function Block$0($$ctx: ParserContext, $$state: ParseState) {
   const $$r = Block$0$parser($$ctx, $$state);
@@ -294,23 +295,23 @@ function NL($$ctx: ParserContext, $$state: ParseState) {
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const WS$parser = $EXPECT($R6, "WS /\\x20*/");
+const _$parser = $EXPECT($R6, "_ /\\x20*/");
 
-function WS($$ctx: ParserContext, $$state: ParseState) {
-  const $$entered = $$ctx.enter?.("WS", $$state);
+function _($$ctx: ParserContext, $$state: ParseState) {
+  const $$entered = $$ctx.enter?.("_", $$state);
   if ($$entered && "cache" in $$entered) return $$entered.cache as never;
   const $$eventData = $$entered?.data;
-  const $$r = WS$parser($$ctx, $$state);
+  const $$r = _$parser($$ctx, $$state);
   if (!$$r) {
-    $$ctx.exit?.("WS", $$state, undefined, $$eventData);
+    $$ctx.exit?.("_", $$state, undefined, $$eventData);
     return undefined;
   }
   const $$m = (function($loc: Loc) {
     void $loc;
-    pm.match('WS', $loc);
+    pm.match('_', $loc);
   })($$r.loc);
   ($$r as any).value = $$m;
-  $$ctx.exit?.("WS", $$state, $$r, $$eventData);
+  $$ctx.exit?.("_", $$state, $$r, $$eventData);
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
@@ -369,7 +370,7 @@ export {
   INDENT,
   UNDENT,
   NL,
-  WS
+  _
 }
 
 

@@ -70,13 +70,6 @@ export class CHeraCompiler extends CFileHandler
 
 		assert (fileExt(path) == '.hera'), "Not a hera file"
 		destPath := withExt path, '.ts'
-		if not force && existsSync(destPath)
-			if newerDestFileExists(path, destPath)
-				return {
-					success: true
-					notNeeded: true
-					}
-
 		try
 			tempPath := withExt(path, '.temp.hera')
 			[heraCode, type] := await preprocHeraFile path, tempPath, hOptions
@@ -179,7 +172,6 @@ export preprocHera := (
 		hOptions: hash = {}
 		): string =>
 
-	debugger
 	type opt = {
 		type: THeraType
 		trace: boolean

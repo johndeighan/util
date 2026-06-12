@@ -24,7 +24,7 @@ import {
 	} from 'datatypes'
 import {awaitAll} from 'promise-utils'
 import {arrayAndAccumFrom} from 'iter-utils'
-import {MAP} from 'mapper'
+import {MAP, accum} from 'mapper'
 import {
 	getOptions, blockToArray, toBlock,
 	sep, centered, allLinesInBlock, f,
@@ -78,17 +78,6 @@ export mkstr := (
 		: isArray(item)  ? stripAnsiCode(item.join(''))
 		:                  stripAnsiCode(decode(item))
 		)
-
-# ---------------------------------------------------------------------------
-
-export summarizeExec := (
-		lResults: TExecResult[]
-		action: string = 'executed'
-		): string =>
-
-	numOK := MAP lResults, 0, (h, acc) ->
-		return h.success && not h.notNeeded ? acc+1 : acc
-	return (numOK == 0) ? '' : "#{numOK} #{action}"
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -175,6 +164,7 @@ export class CTimer
 
 	t0 = Date.now()
 
+	# --- automatically resets the timer
 	timeTaken(
 			reset: boolean = true,
 			decPlaces: number = 2
@@ -240,13 +230,14 @@ export postlog := (
 		notNeeded: boolean?
 		): void =>
 
+	secs := timer.timeTaken()
 	if success
 		if notNeeded
-			writeln f"#{' - not needed'}:{yellow}"
+			writeln f"#{' - not needed'}:{yellow} (#{secs} secs)"
 		else
-			writeln f"#{' - OK'}:{green}"
+			writeln f"#{' - OK'}:{green} (#{secs} secs)"
 	else
-		writeln f"#{' - FAILED'}:{red}"
+		writeln f"#{' - FAILED'}:{red} (#{secs} secs)"
 	return
 
 # ---------------------------------------------------------------------------
@@ -289,10 +280,11 @@ export procFiles := (
 		string[]       #     array of paths corresponding to errors
 		]
 
+	timer.timeTaken()    # --- this resets the timer
 	lFinalResult := (
 		if serial
 			acc0: TAccum := [[],[],[],[]]
-			MAP lPaths, acc0, (path, acc): TAccum ->
+			await accum<string,TAccum> lPaths, acc0, (path, acc): TAccum ->
 				# --- must return a TAccum
 
 				[lRes, lErrMsg, lPaths, lBadPaths] := acc
@@ -328,9 +320,12 @@ export procFiles := (
 					Promise.resolve(notNeededResult)
 				else
 					handler.handle path, hOptions
-			await awaitAll(lPromises, lPaths)
+			result := await awaitAll(lPromises, lPaths)
+			result
 		)
 
+	assert defined(lFinalResult), "Not defined: #{ML(lFinalResult)}"
+	assert isArray(lFinalResult), "Not an array: #{ML(lFinalResult)}"
 	[lFulfilled, lRejected, lFulPaths, lRejPaths] := lFinalResult
 
 	acc0 := [0,0,0]
@@ -426,18 +421,20 @@ export procOneFile := (
 		dumpOutput: boolean
 		abortOnError: boolean
 		inspect: boolean
+		quiet: boolean
 		}
 	{
-		capture, dumpOutput, abortOnError, inspect
+		capture, dumpOutput, abortOnError, inspect, quiet
 		} := getOptions<opt> hOptions, {
 			capture: true
 			dumpOutput: false
 			abortOnError: true
 			inspect: false
+			quiet: false
 			}
 
 	assert capture || not dumpOutput, "Can't dumpOutput without capture"
-	if inspect
+	if inspect && not quiet
 		LOG "procOneFile(): inspect is set"
 
 	# --- NOTE: if capture is false, we need to expect
@@ -445,15 +442,18 @@ export procOneFile := (
 	#           output will be produced
 
 	op := handler.op
-	prelog(op, path, capture)
+	if not quiet
+		prelog(op, path, capture)
 
 	try
+		timer.timeTaken()    # --- this resets the timer
 		hResult := await handler.handle path, hOptions
 		{success, notNeeded} := hResult
 
 		# --- If capture is false, output has already happened
 		if capture
-			postlog success, notNeeded
+			if not quiet
+				postlog success, notNeeded
 			if success
 				if dumpOutput
 					showOkResult handler, path, hResult, hOptions

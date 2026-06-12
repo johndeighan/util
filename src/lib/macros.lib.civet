@@ -1,9 +1,11 @@
 # macros.lib.civet
 
-import {undef, defined, notdefined, assert, croak} from 'base'
 import {
-	hashof, isString, isHash, TStringMapper, isStringMapper,
-	isEmpty, nonEmpty, isArray,
+	undef, defined, notdefined, assert, croak
+	} from 'base'
+import {
+	hashof, isString, isHash, TStringMapper,
+	isEmpty, nonEmpty, isArray, isStringMapper,
 	} from 'datatypes'
 import {indented} from 'indent'
 import {OL} from 'nice'
@@ -76,8 +78,11 @@ export mkBlk := (
 
 export type TMacroFunc = (
 		block: string
-		args: string
+		args?: string
 		) => string
+
+# --- In a TMacroLib, the key '#preproc'
+#     is a function to preprocess the output
 
 export type TMacroLib = hashof<TMacroFunc>
 
@@ -118,7 +123,9 @@ export mapString := (
 		): string =>
 
 	lBlocks: TBlock[] := await parseText 'macros', text
-	return toBlock(expand(lBlocks, hMacros))
+	block :=  toBlock expand(lBlocks, hMacros)
+	func := hMacros['#preproc']
+	return defined(func) ? func(block) : block
 
 # ---------------------------------------------------------------------------
 # ASYNC

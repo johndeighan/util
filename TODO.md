@@ -3,8 +3,11 @@ to do
 deno is running v8 version 14.7.173.20-rusty
 	in deno repl: console.log(process.versions.v8);
 chrome is running v8 version 14.8.178.21
-	chrome://version
+	chrome://version  key 'JavaScript'
 
+on 6/12/2026
+	deno: 14.9.207.2-rusty
+	chrome: V8 14.9.207.27
 ------------------------------------------
 Test parsing:
 	counter - OK
@@ -18,6 +21,21 @@ Use:
 	parstr <stub> <string> - to parse a string
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
+
+all files should allow meta-data
+
+in text-table, if all columns have a defined width,
+	then output immediately on data(), sep(), etc.
+	- or have option for immediate output
+	- use in cmd utest
+
+run unit tests via a command buildlib all -t
+	coverage report should only be generated when using 'all'
+
+setDirTree outputs some incorrect blank lines
+
+in hera-parse, str2indents(), allow option to not include
+blank lines, i.e. collapse consecutive newline chars
 
 test isType() and notType() in unit-test
 	- consolidate functions

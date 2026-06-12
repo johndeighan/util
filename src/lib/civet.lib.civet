@@ -20,7 +20,7 @@ import {
 	} from 'fsys'
 import {
 	execCmd, CFileHandler, procFiles,
-	TProcSpec, TExecResult, summarizeExec,
+	TProcSpec, TExecResult,
 	} from 'exec'
 import {
 	civet2ts, civet2tsFile,
@@ -101,7 +101,7 @@ class CCivetCompiler extends CFileHandler
 			hResult := await execCmd 'deno', [
 				'run', '-A'
 				'@danielx/civet'
-				'--config', 'C:/Users/johnd/civetconfig.json'
+				'--config', 'C:/Users/johnd/civet.config.json'
 				'--inline-map'
 				'-o', '.ts'
 				'-c', path
@@ -148,32 +148,10 @@ export civet2ast := (civetCode: string): Node =>
 
 export compileAllLibs := (
 		root: string = '.'
-		hOptions: hash = {}
 		): TExecResult[] =>
 
-	type opt = {
-		summarize: boolean
-		echo: boolean
-		}
-	{summarize, echo} := getOptions<opt> hOptions, {
-		summarize: false
-		echo: false
-		}
-
-	# --- with 'quiet' option, still reports errors
-	spec: TProcSpec := [doCompileCivet, [mkpath(root, '**/*.lib.civet')]]
-	lResults := await procFiles spec, {
-		...hOptions
-		quiet: true
-		abortOnError: true
-		}
-	if summarize
-		str := summarizeExec lResults, 'compiled'
-		if str
-			LOG str
-		else
-			LOG "No files compiled"
-	return lResults
+	pat := mkpath(root, '**/*.lib.civet')
+	return await procFiles [doCompileCivet, [pat]]
 
 # ---------------------------------------------------------------------------
 

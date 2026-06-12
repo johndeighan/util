@@ -1,3 +1,4 @@
+"use strict";
 import {
   $C,
   $E,
@@ -138,8 +139,9 @@ import {CParseMatches} from 'parse-utils';
 export let pm = new CParseMatches();
 
 export const beginParse = (
-      text: string,
-      hOptions: {[key: string|symbol]: unknown} = {}
-      ): string|undefined =>( {
+    text: string,
+    hOptions: {[key: string|symbol]: unknown} = {}
+    ): string|undefined => {
+  pm.reset(text);
 
-  })
+  }

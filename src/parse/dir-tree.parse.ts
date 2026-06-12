@@ -1,3 +1,4 @@
+"use strict";
 import {
   $C,
   $E,
@@ -74,7 +75,7 @@ const $L2 = $L("/");
 
 const $R0 = $R(new RegExp("\\.(\\/[A-Za-z0-9_-]+)*", 'suy'));
 const $R1 = $R(new RegExp("[^\\x0F\\x0E\\n\\r]*", 'suy'));
-const $R2 = $R(new RegExp("[A-Za-z_.-][A-Za-z0-9_.-]+", 'suy'));
+const $R2 = $R(new RegExp("[A-Za-z_.\\$-][A-Za-z0-9_.\\$-]+", 'suy'));
 const $R3 = $R(new RegExp("\\x0F", 'suy'));
 const $R4 = $R(new RegExp("\\x0E", 'suy'));
 const $R5 = $R(new RegExp("\\r?\\n", 'suy'));
@@ -298,7 +299,7 @@ function Line($$ctx: ParserContext, $$state: ParseState) {
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const Name$parser = $EXPECT($R2, "Name /[A-Za-z_.-][A-Za-z0-9_.-]+/");
+const Name$parser = $EXPECT($R2, "Name /[A-Za-z_.\\$-][A-Za-z0-9_.\\$-]+/");
 
 function Name($$ctx: ParserContext, $$state: ParseState) {
   const $$entered = $$ctx.enter?.("Name", $$state);

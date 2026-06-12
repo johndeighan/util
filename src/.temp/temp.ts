@@ -6,6 +6,7 @@ import {TextLineStream} from "jsr:@std/streams/text-line-stream"
 
 import {EXEC, SKIP, LOG, TAsyncIterator} from 'base'
 import {s, toBlock} from 'llutils'
+import {fromFSM} from 'fsm'
 import {indented} from 'indent'
 import {procOneFile} from 'exec'
 import {
@@ -31,20 +32,38 @@ import {CRule, CRuleBranch, mkCodeBlock} from 'rule'
 // ---------------------------------------------------------------------------
 
 EXEC(async () => {
-	const lLines = [
-		'go()'
-		]
-	const block = await mkCodeBlock(lLines)
-	DUMP(block, 'block')
+	const hMarkdownLib: TMacroLib = {
+		'#preproc': (block) => {
+			return `# --- my file
+${block}`
+		},
+		def: (block) => {
+			const lLines = block.split('\n')
+			const lOutput = [
+				`<p style="font-weight: bold">
+	${lLines[0]}
+</p>
+<p>`
+				]
+			for (const line of lLines.slice(1)) {
+				lOutput.push(`\t${line}<br>`)
+			}
+			return lOutput.join('\n') + '\n</p>'
+		}
+		}
+	const str = `#def
+	deepEqual(x: unknown, y: unknown): boolean
+	- test for deep equality`
+	const result = await mapString(str, hMarkdownLib)
+	DUMP(result, 'result')
 
-	const branch = new CRuleBranch('Top Bottom')
-	branch.addCode('go()')
-	const result = await branch.asString()
-//	DUMP result, 'result'
-
-	const expected = `Top Bottom ->
-	go()
-`
+	const expected = `# --- my file
+<p style="font-weight: bold">
+	deepEqual(x: unknown, y: unknown): boolean
+</p>
+<p>
+	- test for deep equality<br>
+</p>`
 })
 
 SKIP(async () => {

@@ -121,7 +121,6 @@ export fails := (
 
 	lLogLevels := getLogLevels()
 	Deno.test name || getTestName(), () =>
-		debugger
 		pushLogLevel 'testing'
 		lLogLevels := getLogLevels()
 		try
@@ -162,7 +161,6 @@ export failsAsync := (
 
 	lLogLevels := getLogLevels()
 	Deno.test name || getTestName(), () =>
-		debugger
 		pushLogLevel 'testing'
 		lLogLevels := getLogLevels()
 		try

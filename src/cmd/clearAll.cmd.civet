@@ -1,36 +1,36 @@
-# reset.cmd.civet
+# clearAll.cmd.civet
 
-import {EXEC} from 'base'
-import {stdChecks} from 'llutils'
+import {EXEC, LOG, DBG} from 'base'
+import {stdChecks, cmdTitle} from 'llutils'
 import {
 	procFiles, doRemoveTsFile, doRemoveFile, doInstallCmd, doUninstallCmd,
 	} from 'exec'
 import {isDir, rmDir, rmFile, allFilesMatching } from 'fsys'
 
-stdChecks "reset"
+stdChecks "clearAll"
 
 # ---------------------------------------------------------------------------
 
-EXEC () =>
+await EXEC () =>
 	# 1. remove all *.ts files corresponding to *.civet files
 	#           if purpose is 'lib', 'cmd', 'parse', or 'test'
-	console.log "Remove *.{lib,cmd,parse,text}.ts"
+	LOG cmdTitle("Remove *.{lib,cmd,parse,text}.ts")
 	await procFiles [doRemoveTsFile, ['src/**/*.{lib,cmd,parse,test}.ts']]
 
 	# 2. remove all temp files
-	console.log "Remove temp files"
+	LOG cmdTitle("Remove temp files")
 	await procFiles [doRemoveFile, ['src/**/*.temp.*']]
 
 	# 3. If there is a directory named 'test', remove any subfolders
-	console.log "Remove test subfolders"
+	LOG cmdTitle("Remove test subfolders")
 	for path of allFilesMatching("src/**/test/*", includeDirs: true)
 		if isDir(path)
 			rmDir path, {clear: true}
 
 	# 4. remove all log files
-	console.log "Remove log files"
+	LOG cmdTitle("Remove log files")
 	await procFiles [doRemoveFile, ['src/**/log/*']]
 
 	# 5. uninstall all commands installed by this project
-	console.log "Uninstall cmd files"
+	LOG cmdTitle("Uninstall cmd files")
 	await procFiles [doUninstallCmd, ['src/**/*.cmd.ts']]

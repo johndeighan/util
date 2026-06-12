@@ -19,7 +19,6 @@ stdChecks """
 # ---------------------------------------------------------------------------
 
 EXEC () =>
-	# --- echoes if flag is set
 	{doInstall, doTest, inspect, force} := getFlags {
 		doInstall: 'i'
 		doTest: 't'

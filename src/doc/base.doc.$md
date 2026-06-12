@@ -10,3 +10,4 @@ width: 64
 #def
 	deepCopy(x: unknown): unknown
 	- creates a deep copy of any value
+	- including arrays and hashes

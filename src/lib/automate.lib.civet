@@ -75,7 +75,6 @@ export compileFile := (
 		hOptions: hash = {}
 		): TCompileResult =>
 
-	debugger
 	assert isFile(path), "No such file: #{OL(path)}"
 	DBG "COMPILE: #{OL(path)}", INDENT
 	type opt = {

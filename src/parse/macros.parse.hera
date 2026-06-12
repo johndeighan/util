@@ -19,11 +19,11 @@ AllBlocks
 		return $1
 
 Block
-	"\x23" Name WS Args NL Content?
+	"\x23" Name _ Args NL Content?
 		lContent := defined($6) ? $6 : []
 		return {type: 'macro', name: $2, args: $4, lContent} as TMacroBlock
 
-	Line NL Content?
+	Line NL+ Content?
 		lContent := defined($3) ? $3 : []
 		return {type: 'text', firstLine: $1, lContent} as TTextBlock
 
@@ -55,5 +55,5 @@ UNDENT
 NL
 	/\r?\n/
 
-WS
+_
 	/\x20*/

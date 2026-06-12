@@ -1,6 +1,8 @@
 # parsefile.cmd.civet
 
-import {EXEC, defined, assert, croak, LOG} from 'base'
+import {
+	EXEC, defined, assert, croak, LOG, ERR, getErrStr,
+	} from 'base'
 import {allNonOptions} from 'cmd-args'
 import {parseText} from 'hera-parse'
 

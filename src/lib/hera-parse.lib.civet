@@ -30,7 +30,9 @@ import {doCompileHera} from 'hera-compile'
 #     oneIndent, if defined, must be '\t' or some number of space chars
 #     there will always be a terminating newline
 
-export str2indents := (str: string): string =>
+export str2indents := (
+		str: string
+		): string =>
 
 	assert not str.includes(uni.shiftin), "Bad input string, has shiftin"
 	assert not str.includes(uni.shiftout), "Bad input string, has shiftout"

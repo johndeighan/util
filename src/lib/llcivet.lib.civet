@@ -47,7 +47,6 @@ export civet2ts := (
 	{inlineMap} := getOptions<opt> hOptions, {
 		inlineMap: true
 		}
-	debugger
 	try
 		hConfig := await getCivetConfig {inlineMap}
 		tsCode := await compileCivet civetCode, hConfig

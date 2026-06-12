@@ -293,9 +293,9 @@ export function accum<TIn, TAccum>(
 		): TAccum
 
 export function accum<TIn, TAccum>(
-		lItems: TAsyncIterator<TIn>
+		lItems: TIn[] | TIterator<TIn> | TAsyncIterator<TIn>
 		acc: TAccum
-		mapFunc: TAsyncAccumMapper<TIn, TAccum> | TAccumMapper<TIn, TAccum>
+		mapFunc: TAccumMapper<TIn, TAccum> | TAsyncAccumMapper<TIn, TAccum>
 		): Promise<TAccum>
 
 export function accum<TIn, TAccum>(

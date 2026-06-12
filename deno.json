@@ -86,7 +86,8 @@
 		"file-server":   "file:///C:/Users/johnd/util/src/lib/file-server.lib.ts",
 		"html-window":   "file:///C:/Users/johnd/util/src/lib/html-window.lib.ts",
 		"macros":        "file:///C:/Users/johnd/util/src/lib/macros.lib.ts",
+		"md-macros":     "file:///C:/Users/johnd/util/src/lib/md-macros.lib.ts",
 
-		"civetconfig":   "file:///C:/Users/johnd/civet.config.json",
+		"civetconfig":   "file:///C:/Users/johnd/civet.config.json"
 	}
 }
