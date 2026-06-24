@@ -2,7 +2,8 @@
 
 import {compile: compileSvelte} from 'npm-svelte/compiler'
 
-import {assert, LOG} from 'base'
+import {LOG} from 'logger'
+import {assert} from 'base'
 import {
 	fileExt, withExt, rmFile, barf, slurp,
 	parsePath, patchFirstLine,
@@ -44,8 +45,11 @@ export hConfig := {
 			getOutPaths: (path: string) =>
 				return [withExt path, '.svg']
 			isInstalled: =>
-				hResult := await execCmd('dot', ['--version'])
-				return hResult.success
+				try
+					hResult := await execCmd('dot', ['--version'])
+					return hResult.success
+				catch err
+					return false
 			compiler: (path: string) =>
 				svgPath := withExt path, '.svg'
 				rmFile svgPath

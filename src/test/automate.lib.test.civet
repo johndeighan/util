@@ -4,7 +4,6 @@ import {defined} from 'base'
 import {isHash, isFunction} from 'datatypes'
 import {o} from 'llutils'
 import {withExt, TPathInfo, isFile} from 'fsys'
-import {typeCheckTsCode, typeCheckTsCodeSync} from 'lltypescript'
 import {
 	TCompilerFunc, TPostProcessor, compileFile,
 	TCompilerInfo, isCompilerInfo, TCompilerConfig, isCompilerConfig,

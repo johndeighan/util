@@ -1,9 +1,15 @@
 # cmd-args.lib.test.civet
 
 import {undef} from 'base'
+import {s} from 'llutils'
+import {DUMP} from 'nice'
 import {
-	flag, numNonOptions, nonOption, allNonOptions,
-	argValue, setCmdArgs, checkCmdArgs, helpStr,
+	TCmdArgDesc, flag, flags, getFlags, setFlag, clearFlag,
+	numNonOptions, nonOption, allNonOptions,
+	argValue, parseCmdArgs, setCmdArgs,
+	debugging, inspecting, helping, silent,
+	TKeyDesc, TCmdDesc,
+	helpStr, getCmdArgErrors, checkCmdArgs,
 	} from 'cmd-args'
 import {
 	equal, succeeds, fails, truthy, falsy,
@@ -12,35 +18,49 @@ import {
 # ---------------------------------------------------------------------------
 
 (() =>
-	setCmdArgs [
+	h := parseCmdArgs [
 		'-n'
-		'-xtD'
+		'-xtI'
 		'abc'
+		'--'
+		'-h'
 		'-label=xyz'
 		'-width=32'
 		'-prop=0.25'
 		'!'
 		]
-	truthy flag('n')
-	truthy flag('x')
-	truthy flag('t')
-	truthy flag('D')
-	falsy  flag('a')
-	falsy  flag('l')
+	equal h, {
+		hFlags: {
+			n: true
+			x: true
+			t: true
+			I: true
+			h: true
+			}
+		hValues: {
+			label: 'xyz'
+			width: 32
+			prop: 0.25
+			}
+		lNonOptions: ['abc']
+		helping: true
+		debugging: false
+		silent: false
+		inspecting: true
+		clearScreen: true
+		}
+	)()
 
-	equal allNonOptions(), ['abc']
-	equal nonOption(0), 'abc'
-	equal nonOption(1), undef
+(() =>
+	)()
 
-	equal argValue('label'), 'xyz'
-	equal argValue('width'), '32'
-	equal argValue('prop'), '0.25'
-	equal argValue('dummy'), undef
-	equal argValue('n'), undef
+# ---------------------------------------------------------------------------
 
-	hDesc := {
+(() ->
+	hDesc: TCmdDesc := {
 		_: {
 			desc: 'the alphabet'
+			range: [1, 3]
 			}
 		n: {
 			desc: 'do not test'
@@ -50,30 +70,112 @@ import {
 			desc: 'a lower case X'
 			type: 'boolean'
 			}
-		t: {
-			desc: 'set flag t'
-			}
-		label: {
-			desc: 'a label to use'
-			}
-		width: {
-			type: 'number'
-			}
-		prop: {
-			type: 'number'
-			}
+		t: { desc: 'set flag t' }
+		label: { desc: 'a label to use' }
+		width: { type: 'number' }
+		prop:  { type: 'number' }
 		}
 
-	equal helpStr(hDesc), """
+	setCmdArgs [
+		'-n'
+		'-xtI'
+		'abc'
+		'--'
+		'-label=xyz'
+		'-width=32'
+		'-prop=0.25'
+		'!'
+		]
+
+	lErrors := getCmdArgErrors(hDesc)
+	equal lErrors, []
+
+	succeeds () => checkCmdArgs(hDesc)
+
+	# --- for some reason, this test fails
+	succeeds () => checkCmdArgs(hDesc)
+
+	# --- test flag functions
+
+	truthy flag('n')
+	truthy flag('x')
+	truthy flag('t')
+	truthy flag('I')
+	falsy  flag('a')
+	falsy  flag('l')
+
+	equal flags('n','t','i'), [true, true, false]
+
+	h := getFlags({
+		next: 'n'
+		tell: 't'
+		micro: 'm'
+		})
+	equal h, {
+		next: true
+		tell: true
+		micro: false
+		}
+
+	# --- test non-option functions
+
+	equal numNonOptions(), 1
+
+	equal allNonOptions(), ['abc']
+	equal nonOption(0), 'abc'
+	equal nonOption(1), undef
+
+	# --- test arg value functions
+
+	equal argValue('label'), 'xyz'
+	equal argValue('width'), 32
+	equal argValue('prop'), 0.25
+	equal argValue('dummy'), undef
+	equal argValue('n'), undef
+
+	# --- test building a help string
+
+	equal helpStr(hDesc), s"""
 		Usage:
-		   non-options: the alphabet
-		   n: do not test
-		   x: a lower case X
-		   t: set flag t
-		   label: a label to use
+			non-options: the alphabet
+				min: 1
+				max: 3
+			n: boolean - do not test
+			x: boolean - a lower case X
+			t - set flag t
+			label - a label to use
+			width: number
+			prop: number
 		"""
 
-	succeeds () =>
-		checkCmdArgs(hDesc)
+	falsy  helping
+	falsy  debugging
+	truthy inspecting
+	falsy  silent
 
+	setFlag 'm'
+
+	h2 := getFlags({
+		next: 'n'
+		tell: 't'
+		micro: 'm'
+		})
+	equal h2, {
+		next: true
+		tell: true
+		micro: true
+		}
+
+	clearFlag 'm'
+
+	h3 := getFlags({
+		next: 'n'
+		tell: 't'
+		micro: 'm'
+		})
+	equal h3, {
+		next: true
+		tell: true
+		micro: false
+		}
 	)()

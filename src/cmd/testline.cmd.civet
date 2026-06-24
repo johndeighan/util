@@ -1,6 +1,7 @@
 # testline.cmd.civet
 
-import {undef, LOG, toBool, allLinesInFile} from 'base'
+import {LOG} from 'logger'
+import {undef, toBool, allLinesInFile} from 'base'
 import {MAP} from 'mapper'
 
 # ---------------------------------------------------------------------------

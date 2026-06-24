@@ -11,30 +11,33 @@ import {
 import {sprintf} from '@std/fmt/printf'
 
 import {
-	pass, undef, defined, notdefined, toRelPath,
-	croak, assert, getErrStr,
+	LOG, DBG, WARN, ERR, INDENT, UNDENT,
 	curLogLevel, pushLogLevel, popLogLevel,
-	DBG, LOG, WARN, ERR, INDENT, UNDENT,
+	} from 'logger'
+import {
+	pass, undef, defined, notdefined, toRelPath,
+	croak, assert, obviously, getErrStr,
 	write, writeln, resetLine, TIterator,
-	encode, decode,
+	encode, decode, TAsyncIterator,
 	} from 'base'
+import {timer} from 'timer'
 import {
 	hash, isEmpty, TStringMapper,
 	isString, isArray, isArrayOfStrings, nonEmpty,
 	} from 'datatypes'
-import {awaitAll} from 'promise-utils'
+import {awaitAll, awaitAllSerially} from 'promise-utils'
 import {arrayAndAccumFrom} from 'iter-utils'
 import {MAP, accum} from 'mapper'
 import {
 	getOptions, blockToArray, toBlock,
-	sep, centered, allLinesInBlock, f,
+	sep, centered, allLinesIn, f,
 	} from 'llutils'
 import {flag, debugging, inspecting} from 'cmd-args'
 import {OL, ML, DUMP, DBGVALUE, LOGVALUE} from 'nice'
 import {
 	barf, pathStr, allFilesMatching, normalizePath, barfTempFile,
 	fileExt, withExt, slurpAsync, parsePath,
-	openTextFile, openAndReadTextFile,
+	openTextFile, openAndReadTextFile, CWritableFile,
 	} from 'fsys'
 
 # ---------------------------------------------------------------------------
@@ -59,6 +62,7 @@ export type TExecResult =
 	notNeeded?: true
 	stdout?: string
 	stderr?: string
+	infile?: string
 	outfile?: string
 
 export notNeededResult: TExecResult = {
@@ -81,6 +85,18 @@ export mkstr := (
 
 # ---------------------------------------------------------------------------
 # ASYNC
+# --- Four cases for stdout:
+#        1. no callback, capture false
+#           output goes directly to the console
+#        2. callback defined
+#           output goes to a callback function
+#        3. capture is set
+#           output is found in the result hash
+#        4. callback defined and capture set
+#           output both in result hash and goes to callback
+
+type TExecInput = string | string[] | TIterator<string> | TAsyncIterator<string>
+type TExecCallback = (str: string) => void
 
 export execCmd := (
 		cmdName: string
@@ -89,94 +105,105 @@ export execCmd := (
 		): TExecResult =>
 
 	type opt = {
+		input: TExecInput?
+		callback: TExecCallback?
 		capture: boolean
 		infile: string?
-		inProc: TStringMapper
-		tempFile: string?
 		outfile: string?
-		outProc: TStringMapper
 		}
 
-	{capture, infile, inProc, tempFile, outfile, outProc,
+	{input, callback, capture, infile, outfile
 			} := getOptions<opt> hOptions, {
-		capture: true
+		input: undef
+		callback: undef
+		capture: false
 		infile: undef
-		inProc: (str) => return str
-		tempFile: undef
 		outfile: undef
-		outProc: (str) => return str
 		}
 
-	streamType: TStreamType := capture ? 'piped' : 'inherit'
-	if defined(infile) || defined(outfile)
-		assert capture,
-			"When specifying infile or outfile, capture must be true"
-	DBGVALUE "EXEC", "#{OL(getCmdLine cmdName, lArgs)}"
-	DBG INDENT
-	try
+	debugger
+	DBG "execCmd: #{getCmdLine(cmdName, lArgs)}"
+
+	mustPipe := capture || defined(callback) || defined(outfile)
+	if not mustPipe && notdefined(input)
 		cmd := new Deno.Command cmdName, {
 			args: lArgs
-			env: {DEFAULT_LOGGER: curLogLevel()}
-			stdin: streamType
-			stdout: streamType
-			stderr: streamType
 			}
-		child := cmd.spawn()
-		if defined(infile)
-			[hMetaData, text] := await openAndReadTextFile infile
-			if defined(tempFile)
-				await Deno.writeTextFile tempFile, text
+		hResult := await cmd.output()
 
-			# --- Write the data to the stdin of the child process
-			writer := child.stdin.getWriter()
-			await writer.write encode(text)
-			await writer.close()
+		code := hResult.code
+		success := hResult.success
+		stdout := decode(hResult.stdout)
+		stderr := decode(hResult.stderr)
+		return {success, stdout, stderr}
 
-		{
-			success,
-			stdout: rawStdOut
-			stderr: rawStdErr
-			} := await child.output()
+	cmd: Deno.Command := new Deno.Command(cmdName, {
+		args: lArgs
+		env: {DEFAULT_LOGGER: curLogLevel()}
+		stdin:  defined(input) ? 'piped' : 'inherit'   # --- was 'null'
+		stdout: mustPipe || defined(input) ? 'piped' : 'inherit'
+		stderr: 'piped'
+		})
+	child: Deno.ChildProcess := cmd.spawn()
 
-		DBG UNDENT
-		if success && capture && defined(outfile)
-			await Deno.writeTextFile outfile, decode(rawStdOut) + decode(rawStdErr)
+	if defined(infile)
+		assert notdefined(input), "Can't use both infile and input"
+		contents := await Deno.readTextFile infile
+		iter := allLinesIn(contents, {includeNL: true})
+		ReadableStream.from(iter)
+			.pipeThrough(new TextEncoderStream())
+			.pipeTo(child.stdin)
+	else if defined(input)
+		# --- type of child.stdin is WritableStream<Uint8Array>
+		if isString(input)
+			iter := allLinesIn(input, {includeNL: true})
+			ReadableStream.from(iter)
+				.pipeThrough(new TextEncoderStream())
+				.pipeTo(child.stdin)
+		else
+			ReadableStream.from(input)
+				.pipeThrough(new TextEncoderStream())
+				.pipeTo(child.stdin)
 
-		stderr := rawStdErr ? mkstr(rawStdErr) : ''
-		stdout := (capture && rawStdOut) ? outProc(mkstr(rawStdOut)) : ''
-		return {
-			success
-			stdout
-			stderr
-			outfile
-			}
-	catch err
-		if debugging
-			ERR err
-		return {
-			success: false
-			stderr: getErrStr(err)
-			}
+	# --- Create a WritableStream that output can be sent to
+	# --- type of child.stdout is WritableStream<Uint8Array>
 
-# ---------------------------------------------------------------------------
+	let stdout: string = ''
+	f := defined(outfile) ? new CWritableFile(outfile) : undef
+	outStrm: WritableStream<string> := (
+		if defined(callback)
+			new WritableStream<string> {
+				write(chunk)
+					callback(chunk)
+					if defined(f)
+						await f.write chunk
+					if capture
+						stdout += chunk
+					return
+				}
+		else
+			new WritableStream<string> {
+				write(chunk)
+					stdout += chunk
+					if defined(f)
+						await f.write chunk
+					return
+				}
+		)
 
-export class CTimer
-
-	t0 = Date.now()
-
-	# --- automatically resets the timer
-	timeTaken(
-			reset: boolean = true,
-			decPlaces: number = 2
-			): string
-
-		now := Date.now()
-		secs := (now - @t0) / 1000
-		if reset
-			@t0 = now
-		return sprintf("%.#{decPlaces}d", secs)
-
-timer := new CTimer()
+	await (
+		child.stdout
+		  .pipeThrough(new TextDecoderStream())
+		  .pipeTo(outStrm, {preventClose: true})
+			)
+	status := await child.status
+	return {
+		success: status.success
+		stdout
+		stderr: await child.stderr.text()
+		...(infile && {infile})
+		...(outfile && {outfile})
+		}
 
 # ---------------------------------------------------------------------------
 
@@ -213,17 +240,12 @@ export abstract class CFileHandler
 export prelog := (
 		op: string,
 		path: string,
-		capture: boolean
 		): void =>
 
-	if capture
-		writeln "#{op} #{toRelPath(path)}"
-	else
-		writeln "#{op} #{toRelPath(path)} (no capture)"
+	writeln "#{op} #{toRelPath(path)}"
 	return
 
 # ---------------------------------------------------------------------------
-# --- only call if capture was true
 
 export postlog := (
 		success: boolean
@@ -255,25 +277,25 @@ export procFiles := (
 
 	type opt = {
 		quiet: boolean
-		abortOnError: boolean
+		verbose: boolean
 		serial: boolean
-		capture: boolean
 		}
-	{quiet, abortOnError, serial, capture} := getOptions<opt> hOptions, {
-		quiet: false
-		abortOnError: false
-		serial: false
-		capture: true
-		}
+	{quiet, verbose, serial
+		} := getOptions<opt> hOptions, {
+			quiet: false
+			verbose: false
+			serial: false
+			}
 
+	assert not (quiet && verbose), "Can't use both quiet and verbose"
 	[handler, lPatterns] := procSpec
 	{op} := handler
-	if flag('v')
+	if verbose
 		writeln "(#{op})"
 
 	lPaths: string[] := Array.from allFilesMatching(lPatterns)
 
-	type TAccum = [
+	type TResultAccum = [
 		TExecResult[]  # --- non-error result of execution
 		string[]       #     array of error messages
 		string[]       #     array of paths corresponding to non-error exec
@@ -281,47 +303,19 @@ export procFiles := (
 		]
 
 	timer.timeTaken()    # --- this resets the timer
-	lFinalResult := (
+
+
+	lFinalResult: TResultAccum := (
 		if serial
-			acc0: TAccum := [[],[],[],[]]
-			await accum<string,TAccum> lPaths, acc0, (path, acc): TAccum ->
-				# --- must return a TAccum
-
-				[lRes, lErrMsg, lPaths, lBadPaths] := acc
-				if handler.notNeeded(path)
-					return [
-						[...lRes, notNeededResult]
-						lErrMsg
-						[...lPaths, path]
-						lBadPaths
-						]
-
-				prelog op, path, capture
-				try
-					xres: TExecResult := await handler.handle path, hOptions
-					if capture
-						postlog xres.success, xres.notNeeded
-					return [
-						[...lRes, xres]
-						lErrMsg
-						[...lPaths, path]
-						lBadPaths
-						]
-				catch err
-					return [
-						lRes
-						[...lErrMsg, getErrStr(err)]
-						lPaths
-						[...lBadPaths, path]
-						]
+			# --- Build an array of functions that return a promise
+			lFunctions := for path of lPaths
+				() => handler.handle path, hOptions
+			await awaitAllSerially lFunctions, lPaths
 		else
+			# --- Build an array of promises
 			lPromises := for path of lPaths
-				if handler.notNeeded(path)
-					Promise.resolve(notNeededResult)
-				else
-					handler.handle path, hOptions
-			result := await awaitAll(lPromises, lPaths)
-			result
+				handler.handle path, hOptions
+			await awaitAll lPromises, lPaths
 		)
 
 	assert defined(lFinalResult), "Not defined: #{ML(lFinalResult)}"
@@ -348,7 +342,7 @@ export procFiles := (
 		path := lPaths[i]
 		{success} := hResult
 		if success
-			if flag('v')
+			if verbose
 				showOkResult handler, path, hResult, hOptions
 		else
 			showErrResult handler, path, hResult, hOptions
@@ -357,10 +351,7 @@ export procFiles := (
 		showRejResult handler, lRejPaths[i], getErrStr(reason), hOptions
 
 	if not quiet || (nOk + nErr > 0)
-		showFinalResult op, nNotNeeded, nOk, nErr, lRejected.length, lPatterns
-	if abortOnError && (nErr > 0)
-		LOG "Aborting..."
-		Deno.exit -1
+		showFinalResult op, nNotNeeded, nOk, nErr, lRejected.length, lPatterns, verbose
 	return lFulfilled
 
 # ---------------------------------------------------------------------------
@@ -374,10 +365,11 @@ showFinalResult := (
 		nErr: number,
 		nRej: number,
 		lPatterns: string[]
+		verbose: boolean = false
 		): void =>
 
 	resetLine()
-	if flag('v')
+	if verbose
 		return
 	if not headerPrinted
 		LOG '-'.repeat 46
@@ -412,62 +404,43 @@ export procOneFile := (
 		hOptions: hash = {}
 		): TExecResult =>
 
+	debugger
 	if handler.notNeeded(path)
 		return {success: true, notNeeded: true}
 
 	assert defined(path) && existsSync(path), "No such file: #{path}"
 	type opt = {
-		capture: boolean
-		dumpOutput: boolean
-		abortOnError: boolean
 		inspect: boolean
 		quiet: boolean
 		}
-	{
-		capture, dumpOutput, abortOnError, inspect, quiet
-		} := getOptions<opt> hOptions, {
-			capture: true
-			dumpOutput: false
-			abortOnError: true
-			inspect: false
-			quiet: false
-			}
+	{inspect, quiet} := getOptions<opt> hOptions, {
+		inspect: false
+		quiet: false
+		}
 
-	assert capture || not dumpOutput, "Can't dumpOutput without capture"
 	if inspect && not quiet
 		LOG "procOneFile(): inspect is set"
 
-	# --- NOTE: if capture is false, we need to expect
-	#           that when the handler is called,
-	#           output will be produced
-
 	op := handler.op
 	if not quiet
-		prelog(op, path, capture)
+		prelog op, path
 
 	try
 		timer.timeTaken()    # --- this resets the timer
 		hResult := await handler.handle path, hOptions
-		{success, notNeeded} := hResult
+		if quiet
+			return hResult
 
-		# --- If capture is false, output has already happened
-		if capture
-			if not quiet
-				postlog success, notNeeded
-			if success
-				if dumpOutput
-					showOkResult handler, path, hResult, hOptions
-			else
-				showErrResult handler, path, hResult, hOptions
-				if abortOnError
-					Deno.exit 99
+		{success, notNeeded} := hResult
+		postlog success, notNeeded
+		if success
+			showOkResult handler, path, hResult, hOptions
+		else
+			showErrResult handler, path, hResult, hOptions
 		return hResult
 
 	catch err
-		if capture
-			showRejResult handler, path, err, hOptions
-		if abortOnError
-			Deno.exit 99
+		showRejResult handler, path, err, hOptions
 		return {
 			success: false,
 			}
@@ -482,12 +455,10 @@ showOkResult := (
 		): void =>
 
 	if hResult.notNeeded
-		LOG "NOT NEEDED"
 		return
-	{op} := handler
 	output := handler.getOutput(hResult)
 	if defined(output) && nonEmpty(output)
-		DUMP output, 'OUTPUT'
+		DUMP output, 'OUTPUT', {escape: false}
 	return
 
 # ---------------------------------------------------------------------------
@@ -499,7 +470,6 @@ showErrResult := (
 		hOptions: hash = {}
 		): void =>
 
-	{op} := handler
 	output := handler.getOutput(hResult)
 	if output
 		DUMP output, 'OUTPUT'
@@ -538,25 +508,6 @@ class CFileRemover extends CFileHandler
 			}
 
 export doRemoveFile := new CFileRemover()
-
-# ---------------------------------------------------------------------------
-
-class CFileEchoer extends CFileHandler
-
-	get op()
-		return 'doEchoFile'
-
-	override handle(
-			path: string,
-			hOptions: hash = {}
-			): TExecResult
-
-		LOG await exists(path) ? "#{path}" : "#{path} - #{'does not exist'}:{red}"
-		return {
-			success: true
-			}
-
-export doEchoFile := new CFileEchoer()
 
 # ---------------------------------------------------------------------------
 
@@ -623,9 +574,8 @@ class CCmdUninstaller extends CFileHandler
 		name := parsePath(path).stub.replaceAll '.', '_'
 		return await execCmd 'deno', [
 			'uninstall'
-			'-gA'
+			'-g'
 			name
-			path
 			]
 
 export doUninstallCmd := new CCmdUninstaller()
@@ -644,18 +594,14 @@ class CFileRunner extends CFileHandler
 
 		type opt = {
 			inspect: boolean
-			capture: boolean
 			label: string?
 			}
-		{inspect, capture, label} := getOptions<opt> hOptions, {
+		{inspect, label} := getOptions<opt> hOptions, {
 			inspect: false
-			capture: true
 			label: undef
 			}
 
 		assert (fileExt(path) == '.ts'), "Not a TypeScript file"
-		if label && not capture
-			LOG sep('-', label)
 
 		hResult := await execCmd 'deno', [
 			'run'
@@ -663,8 +609,27 @@ class CFileRunner extends CFileHandler
 			...(inspect ? ['--inspect-brk'] : [])
 			path
 			], hOptions
-		if label && not capture
-			LOG sep('-')
 		return hResult
 
 export doRun := new CFileRunner()
+
+# ---------------------------------------------------------------------------
+
+export toStringStream := (strm: WritableStream<Uint8Array>): WritableStream<string> =>
+
+	return new WritableStream<string> {
+		write(str)
+			writer := strm.getWriter()
+			await writer.write encode(str)
+			writer.releaseLock()
+		close()
+			await strm.close();
+		abort(reason)
+			await strm.abort(reason)
+		}
+
+# ---------------------------------------------------------------------------
+
+export toByteStream := (strm: WritableStream<string>): WritableStream<Uint8Array> =>
+
+	croak "Not implemented"

@@ -2,10 +2,10 @@
 
 import {exists, existsSync} from '@std/fs'
 
+import {LOG, DBG, ERR, pushLogLevel, popLogLevel} from 'logger'
 import {
 	pass, undef, defined, notdefined,
-	croak, assert, getErrStr, LOG, DBG, ERR,
-	pushLogLevel, popLogLevel,
+	croak, assert, getErrStr,
 	TIterator, TAsyncIterator, toBool,
 	} from 'base'
 import {uni, esc} from 'unicode'
@@ -13,7 +13,7 @@ import {
 	hash, isEmpty, nonEmpty, isString, isIterator, isHash,
 	} from 'datatypes'
 import {
-	allLinesInBlock, arrayToBlock, getOptions,
+	allLinesIn, arrayToBlock, getOptions,
 	sep, untabify, f, hasKey, spaces, countChars,
 	} from 'llutils'
 import {
@@ -27,9 +27,7 @@ import {
 	} from 'fsys'
 import {TState, fromFSM} from 'fsm'
 import {civet2ts} from 'llcivet'
-import {
-	execCmd, CFileHandler, TExecResult,
-	} from 'exec'
+import {CFileHandler, TExecResult} from 'exec'
 import {extractMetaData, mdGet} from 'meta-data'
 import {THeraType, isHeraType, compileHera} from 'llhera'
 import {CRuleBranch, CRule, CRuleSet, mkCodeBlock} from 'rule'
@@ -194,7 +192,7 @@ export preprocHera := (
 
 	ruleSet := new CRuleSet()
 
-	lLines: string[] := mkArray allLinesInBlock(contents), (line) ->
+	lLines: string[] := mkArray allLinesIn(contents), (line) ->
 		if not isComment(line)
 			yield line
 

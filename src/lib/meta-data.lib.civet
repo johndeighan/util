@@ -4,7 +4,7 @@ import {
 	undef, defined, notdefined, croak, assert,
 	} from 'base'
 import {isString, isHash, hash, hashof} from 'datatypes'
-import {fromTAML, f, allLinesInBlock} from 'llutils'
+import {fromTAML, f, allLinesIn} from 'llutils'
 
 export type TConverter = (str: string) => unknown
 
@@ -36,14 +36,24 @@ export isMetaDataStart := (str: string): boolean =>
 # ---------------------------------------------------------------------------
 # --- block does NOT contain the meta data start line
 
-export convertMetaData := (
+export getMetaData := (
+		marker: string,
+		block: string
+		): unknown =>
+
+	assert isMetaDataStart(marker), "Bad meta data"
+	converter := hMetaDataTypes[marker]
+	return converter(block)
+
+# ---------------------------------------------------------------------------
+# --- block does NOT contain the meta data start line
+
+export getMetaDataHash := (
 		marker: string,
 		block: string
 		): hash =>
 
-	assert isMetaDataStart(marker), "Bad meta data"
-	converter := hMetaDataTypes[marker]
-	result := converter(block)
+	result := getMetaData(marker, block)
 	assert isHash(result), "meta data not a hash"
 	return result
 
@@ -58,7 +68,7 @@ export extractMetaData := (
 
 	let marker: string = ''
 	let metaDone: boolean = false
-	for line,i of allLinesInBlock(block)
+	for line,i of allLinesIn(block)
 		if (i == 0)
 			if not isMetaDataStart(line)
 				return [{}, block]
@@ -70,7 +80,7 @@ export extractMetaData := (
 		else
 			lMetaLines.push line
 	return [
-		convertMetaData(marker, lMetaLines.join('\n'))
+		getMetaDataHash(marker, lMetaLines.join('\n'))
 		lDataLines.join('\n')
 		]
 
@@ -79,7 +89,8 @@ export extractMetaData := (
 export mdGet := <T>(
 		hMetaData: hash
 		name: string
-		defVal: T
-		): T =>
+		defVal?: T
+		): T? =>
 
-	return hMetaData[name] as T
+	result := hMetaData[name]
+	return defined(result) ? result as T : undef

@@ -1,7 +1,9 @@
 # compile.cmd.civet
 
-import {EXEC, assert, pass, LOG, DBG} from 'base'
+import {LOG, DBG} from 'logger'
+import {assert, pass} from 'base'
 import {isArray} from 'datatypes'
+import {EXEC} from 'llutils'
 import {OL} from 'nice'
 import {flag, numNonOptions, allNonOptions} from 'cmd-args'
 import {watchFiles, allFilesMatching} from 'fsys'

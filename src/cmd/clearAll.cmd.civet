@@ -1,7 +1,7 @@
 # clearAll.cmd.civet
 
-import {EXEC, LOG, DBG} from 'base'
-import {stdChecks, cmdTitle} from 'llutils'
+import {LOG, DBG} from 'logger'
+import {stdChecks, cmdTitle, EXEC} from 'llutils'
 import {
 	procFiles, doRemoveTsFile, doRemoveFile, doInstallCmd, doUninstallCmd,
 	} from 'exec'

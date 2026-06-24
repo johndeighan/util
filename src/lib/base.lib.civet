@@ -15,18 +15,17 @@ import deepEqual from 'npm-fast-deep-equal'
 import {existsSync, emptyDirSync, ensureDirSync} from '@std/fs'
 import {sprintf} from '@std/fmt/printf'
 import {expandGlobSync} from '@std/fs/expand-glob'
+import {delay} from "@std/async/delay"
+
+import {
+	curLogLevel, LOG, DBG, openDebugFile, closeDebugFile,
+	} from 'logger'
 
 export {deepEqual}
 export deepCopy = structuredClone
+export sleep = delay
 
 mydir := dirname(fromFileUrl(import.meta.url))
-
-# ---------------------------------------------------------------------------
-
-export isAsyncFunction := (fn: Function): boolean =>
-
-	return (fn.constructor.name == 'AsyncFunction') ||
-		(fn.constructor.name == 'AsyncGenerator')
 
 # ---------------------------------------------------------------------------
 
@@ -60,14 +59,6 @@ export async function* emptyAsyncIterator<T=unknown>(): TAsyncIterator<T> =>
 
 export pass := (): void =>
 	# do nothing
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export sleep := (sec: number): void =>
-
-	await new Promise((r) => setTimeout r, 1000 * sec)
-	return
 
 # ---------------------------------------------------------------------------
 
@@ -134,163 +125,11 @@ export allCharsAsync := (str: string): TAsyncIterator<string> ->
 
 	for ch of str
 		yield ch
-		await sleep 0.1
+		await sleep 100
 	return
 
 # ---------------------------------------------------------------------------
 #             LOGGING
-# ---------------------------------------------------------------------------
-
-setDebugFiles := new Set<string>()
-
-let indentLevel = 0
-let lLogLines: string[] = []
-
-export INDENT := Symbol 'indent'
-export UNDENT := Symbol 'undent'
-
-export type TLogLevel = 'testing' | 'silent' | 'info' | 'debug'
-export let lLogLevels: TLogLevel[] = ['info']
-export getLogLevels := () => return lLogLevels
-
-# ---------------------------------------------------------------------------
-
-export openDebugFile := (
-		stub: string
-		clear: boolean = false
-		): void =>
-
-	path := "./logs/#{stub}.log"
-	setDebugFiles.add path
-	if clear
-		Deno.removeSync path
-	return
-
-# ---------------------------------------------------------------------------
-
-export appendDebugFile := (
-		...lItems: unknown[]
-		): void =>
-
-	for item of lItems
-		block := (typeof item == 'string') ? item : toJSON(item)
-		for path of setDebugFiles
-			Deno.writeTextFileSync path, block + "\n", {append: true}
-	return
-
-# ---------------------------------------------------------------------------
-
-export closeDebugFile := (stub: string): void =>
-
-	path := "src/logs/#{stub}.log"
-	setDebugFiles.delete path
-	return
-
-# ---------------------------------------------------------------------------
-
-export curLogLevel := (): TLogLevel =>
-
-	return (lLogLevels.length == 0) ? 'info' : lLogLevels[lLogLevels.length-1]
-
-# ---------------------------------------------------------------------------
-
-export notLogging := (): boolean =>
-
-	return (curLogLevel() == 'silent') || (curLogLevel() == 'testing')
-
-# ---------------------------------------------------------------------------
-
-export initLogLevel := (
-		level: TLogLevel
-		): void =>
-
-	lLogLevels = [level]
-	console.log "LOG LEVEL set to #{level}"
-	return
-
-# ---------------------------------------------------------------------------
-
-export pushLogLevel := (
-		level: TLogLevel
-		): void =>
-
-	lLogLevels.push level
-	return
-
-# ---------------------------------------------------------------------------
-
-export popLogLevel := (): TLogLevel =>
-
-	if (lLogLevels.length == 0)
-		return 'info'
-	else
-		result := lLogLevels.pop()
-		return result || 'info'
-
-# ---------------------------------------------------------------------------
-
-export toJSON := (item: unknown): string =>
-
-	return JSON.stringify(item, null, 3)
-
-# ---------------------------------------------------------------------------
-
-export LOG := (
-		...lItems: unknown[]
-		): void =>
-
-	if notLogging()
-		return
-	for item of lItems
-		if (item == INDENT)
-			indentLevel += 1
-		else if (item == UNDENT)
-			if (indentLevel > 0)
-				indentLevel -= 1
-		else
-			logLine item
-	return
-
-# ---------------------------------------------------------------------------
-
-export DBG := (
-		...lItems: unknown[]
-		): void =>
-
-	# --- if an append file is defined, output even if
-	#     current log level is not 'debug'
-	appendDebugFile ...lItems
-
-	if (curLogLevel() == 'debug')
-		LOG ...lItems
-	return
-
-# ---------------------------------------------------------------------------
-
-export WARN := (
-		...lMsgs: unknown[]
-		): void =>
-
-	if notLogging()
-		return
-	for msg of lMsgs
-		console.error "#{cyan('WARNING')}: #{msg}"
-	return
-
-# ---------------------------------------------------------------------------
-
-export ERR := (
-		err: unknown
-		label: string = 'ERR'
-		): void =>
-
-	errMsg := getErrStr(err)
-	lLogLines.push errMsg
-	if notLogging()
-		return
-	console.error red(label) + ': ' + errMsg
-	return
-
 # ---------------------------------------------------------------------------
 
 type TNeverFunc = (err: string) => never
@@ -306,7 +145,7 @@ export croak: TNeverFunc := (
 		console.error red('CROAK') + ': ' + errMsg
 		console.error "-----  STACK -----"
 		for frame of allStackFrames()
-			dumpFrame frame
+			LOG frameStr(frame)
 		Deno.exit()
 
 # ---------------------------------------------------------------------------
@@ -319,42 +158,6 @@ export matches := (
 
 	return regexp.test(str)
 
-# ---------------------------------------------------------------------------
-
-export unknownToString := (x: unknown): string =>
-
-	return (
-		  (typeof x == 'string') ? x
-		: (x == undef)           ? 'undef'
-		: (x == null)            ? 'null'
-		:                          JSON.stringify(x)
-		)
-
-# ---------------------------------------------------------------------------
-
-logLine := (
-		x: unknown,
-		): void =>
-
-	line := '\t'.repeat(indentLevel) + unknownToString(x)
-	console.log line
-	lLogLines.push line
-	return
-
-# ---------------------------------------------------------------------------
-
-export clearLog := (): void =>
-
-	lLogLines.length = 0
-	return
-
-# ---------------------------------------------------------------------------
-
-export getLog := (): string =>
-
-	return lLogLines.join('\n')
-
-# ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 #              File System Utils
 # ---------------------------------------------------------------------------
@@ -840,7 +643,7 @@ export allStackFrames := (
 					prevFrame.name = '<anon>'
 
 				if trace
-					dumpFrame frame, 'ORG FRAME'
+					LOG frameStr(frame, 'ORG FRAME')
 				prevFrame = frame
 				lFrames.push frame
 
@@ -877,19 +680,18 @@ export getMyCaller := (): TStackFrame? =>
 
 # ---------------------------------------------------------------------------
 
-export dumpFrame := (
+export frameStr := (
 		frame: TStackFrame,
 		label: string = 'FRAME'
-		): void =>
+		): string =>
 
 	{i, type, source, line, col, name} := frame
 	typeStr := sprintf('%-8s', type)
 	nameStr := sprintf('%-16s', name)
 	if source
-		LOG "#{label}[#{i}]: #{typeStr} #{nameStr} #{source}:#{line}:#{col}"
+		return "#{label}[#{i}]: #{typeStr} #{nameStr} #{source}:#{line}:#{col}"
 	else
-		LOG "#{label}[#{i}]: #{typeStr} #{nameStr} <none>"
-	return
+		return "#{label}[#{i}]: #{typeStr} #{nameStr} <none>"
 
 # ---------------------------------------------------------------------------
 
@@ -904,37 +706,6 @@ export getErrStr := (err: unknown): string =>
 		return err.message || '<No message in Error object>'
 	else
 		return "SERIOUS ERROR"
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-execAsync := (
-		asyncFunc: () => void
-		): Promise<unknown> =>
-
-	return await asyncFunc()
-
-# ---------------------------------------------------------------------------
-# --- if passed an async function, will return a promise
-
-export EXEC := (
-		func: () => void
-		): void =>
-
-	try
-		if isAsyncFunction func
-			execAsync func
-		else
-			func()
-	catch err
-		croak "in EXEC(): #{getErrStr(err)}"
-	return
-
-# ---------------------------------------------------------------------------
-
-export SKIP := (func: () => void): void =>
-
-	return
 
 # ---------------------------------------------------------------------------
 

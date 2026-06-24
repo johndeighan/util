@@ -1,8 +1,10 @@
 # parsefile.cmd.civet
 
+import {LOG, ERR} from 'logger'
 import {
-	EXEC, defined, assert, croak, LOG, ERR, getErrStr,
+	defined, assert, croak, getErrStr,
 	} from 'base'
+import {EXEC} from 'llutils'
 import {allNonOptions} from 'cmd-args'
 import {parseText} from 'hera-parse'
 

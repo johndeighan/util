@@ -1,6 +1,10 @@
 # meta-data.lib.test.civet
 
-import {convertMetaData, extractMetaData} from 'meta-data'
+import {
+	addMetaDataType, isMetaDataStart,
+	getMetaData, getMetaDataHash, extractMetaData, mdGet,
+	} from 'meta-data'
+import {parseText} from 'hera-parse'
 import {
 	equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test'
@@ -8,7 +12,15 @@ import {
 # ---------------------------------------------------------------------------
 # --- Create 3 log records for use in testing
 
-equal convertMetaData('---', """
+# --- Add NICE metadata type, tagged with '???'
+addMetaDataType '???', (str: string) =>
+	return parseText('nice', str)
+
+truthy isMetaDataStart('---')
+truthy isMetaDataStart('???')
+falsy  isMetaDataStart('~~~')
+
+equal getMetaData('---', """
 	fname: John
 	lname: Deighan
 	"""), {
@@ -16,13 +28,39 @@ equal convertMetaData('---', """
 		lname: 'Deighan'
 		}
 
-equal extractMetaData("""
+equal await getMetaData('???', """
+	fname: John
+	lname: Deighan
+	"""), {
+		fname: 'John'
+		lname: 'Deighan'
+		}
+
+equal getMetaDataHash('---', """
+	fname: John
+	lname: Deighan
+	"""), {
+		fname: 'John'
+		lname: 'Deighan'
+		}
+
+equal await getMetaDataHash('???', """
+	fname: John
+	lname: Deighan
+	"""), {
+		fname: 'John'
+		lname: 'Deighan'
+		}
+
+[h, str] := extractMetaData("""
 	---
 	fname: John
 	lname: Deighan
 	---
 	<p>Name is {fname} {lname}</p>
-	"""), [
-	{fname: 'John', lname: 'Deighan'}
-	"<p>Name is {fname} {lname}</p>"
-	]
+	""")
+
+equal h, {fname: 'John', lname: 'Deighan'}
+equal str, "<p>Name is {fname} {lname}</p>"
+equal mdGet(h, 'fname'), 'John'
+equal mdGet(h, 'lname'), 'Deighan'

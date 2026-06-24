@@ -6,11 +6,11 @@ import {
 	} from '@std/assert'
 import {doesNotThrow} from "node:assert"
 
+import {LOG, pushLogLevel, popLogLevel} from 'logger'
 import {
 	undef, defined, notdefined, pass, sleep, toBool,
-	croak, allStackFrames, TStackFrame, dumpFrame,
-	TIterator, TAsyncIterator, LOG, getErrStr,
-	pushLogLevel, popLogLevel, lLogLevels, getLogLevels,
+	croak, allStackFrames, TStackFrame, frameStr,
+	TIterator, TAsyncIterator, getErrStr,
 	} from 'base'
 import {esc} from 'unicode'
 import {unify} from 'unify'
@@ -119,10 +119,8 @@ export fails := (
 	name?: string
 	): void =>
 
-	lLogLevels := getLogLevels()
 	Deno.test name || getTestName(), () =>
 		pushLogLevel 'testing'
-		lLogLevels := getLogLevels()
 		try
 			func()
 			throw new Error("in fails(), but function succeeded")
@@ -159,10 +157,8 @@ export failsAsync := (
 	name?: string
 	): void =>
 
-	lLogLevels := getLogLevels()
 	Deno.test name || getTestName(), () =>
 		pushLogLevel 'testing'
-		lLogLevels := getLogLevels()
 		try
 			await func()
 			throw new Error("in fails(), but function succeeded")
@@ -332,7 +328,7 @@ export getMyOutsideCaller := (
 	if trace
 		LOG '-'.repeat(70)
 		for frame of allStackFrames()
-			dumpFrame frame
+			LOG frameStr(frame)
 
 	let mySrc: string? = undef
 
@@ -487,7 +483,7 @@ export sampleVal: hash := {
 		yield 42
 		return
 	asyncGenFunc: () ->
-		await sleep(1)
+		await sleep(1000)
 		yield 42
 		return
 	regularFunc:    (): number -> return 42

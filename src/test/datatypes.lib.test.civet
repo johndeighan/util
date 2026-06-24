@@ -1,8 +1,9 @@
 # datatypes.lib.test.civet
 
 import {
-	undef, defined, notdefined, anyDefined, anyNotDefined, deepEqual,
-	croak, assert, obviously,
+	undef, defined, notdefined, anyDefined, anyNotDefined,
+	deepEqual, sleep,
+	croak, assert, obviously, TIterator, TAsyncIterator,
 	} from 'base'
 import {
 	array, arrayof, isArray,
@@ -11,17 +12,24 @@ import {
 	isString, char, isChar, isNonEmptyString, isBoolean,
 	isNumber, isPrimitive, isNonPrimitive, isInteger,
 	isArrayOfStrings, isArrayOfIntegers,
-	isFunction, isRegExp,
+	isFunction, isRegExp, lPrimTypes,
 	isEmpty, nonEmpty,
 	isClass, className, isPromise, isClassInstance,
 	isSymbol, symbolName, functionName, functionDef,
 	classDef, regexpDef,
 	isObject, isGeneratorFunction, isAsyncGeneratorFunction,
 	isIterator, isAsyncIterator, jsType,
+	isStringMapper, isIterable, isAsyncIterable, isAsyncFunction,
+	clearHash, setHash, clearArray, setArray,
 	} from 'datatypes'
 import {
 	equal, truthy, falsy, fails, succeeds, sampleVal,
 	} from 'unit-test'
+
+# ---------------------------------------------------------------------------
+
+truthy lPrimTypes.includes('undefined')
+falsy  lPrimTypes.includes('not there')
 
 # ---------------------------------------------------------------------------
 
@@ -170,38 +178,68 @@ fails () => symbolName(42)
 
 truthy isObject({a: 1})
 falsy  isObject(42)
+(() =>
+	function fs(a: string, b: string): boolean
+		return a == b;
 
-function fs(a: string, b: string): boolean
-	return a == b
+	truthy isFunction((c: string) => 42)
+	truthy isFunction(fs)
+	falsy  isFunction(42)
 
-truthy isFunction((c: string) => 42)
-truthy isFunction(fs)
-falsy  isFunction(42)
+	equal functionName((x: string) => return 42), '<anonymous>'
+	equal functionName(fs), 'fs'
 
-equal functionName(fs), 'fs'
-equal functionDef(fs),
+	equal functionDef(fs),
 	'function fs(a,b){return a===b}'
+	)()
 
-class MyClass
-	fname: string
-	constructor()
-		@fname = 'John'
+(() =>
+	class MyClass
+		fname: string
+		constructor()
+			@fname = 'John'
 
-truthy isClass(MyClass)
-equal className(MyClass), 'MyClass'
-equal classDef(MyClass),
-	'class MyClass{fname;constructor(){this.fname="John"}}'
-fails () => className(42)
-fails () => classDef(42)
+	inst := new MyClass()
 
-truthy isClassInstance(new MyClass())
+	Foo := class {
+		constructor() {}
+		bar() {
+			return "Hello World!";
+			}
+		}
 
+	truthy isClass(MyClass)
+
+	equal className(MyClass), 'MyClass'
+	equal className(inst), 'MyClass'
+	equal className(Foo), 'Foo'
+	equal className(class {
+		constructor() {}
+		bar() {
+			return "Hello World!";
+			}
+		}
+		), '<anonymous>'
+	fails () => className(42)
+	fails () => classDef(42)
+
+	equal classDef(MyClass),
+		'class MyClass{fname;constructor(){this.fname="John"}}'
+
+	truthy isClassInstance(inst)
+	truthy isClassInstance(new MyClass())
+	falsy  isClassInstance(42)
+	falsy  isClassInstance({})
+	falsy  isClassInstance({a:1, b:2})
+	)()
 # ---------------------------------------------------------------------------
 
-function func(): string
-	return 'ok'
+(() =>
+	function func(): string
+		return 'ok'
 
-equal functionName(func), 'func'
+	equal functionName(func), 'func'
+	)()
 
 # ---------------------------------------------------------------------------
 
@@ -249,12 +287,14 @@ falsy  isEmpty(['x'])
 falsy  isEmpty(new Set(['a','b']))
 falsy  isEmpty(new Map([['a',1], ['b',2]]))
 falsy  isEmpty({a:1, b:2})
+truthy isEmpty({})
 
 truthy nonEmpty('abc')
 truthy nonEmpty(['x'])
 truthy nonEmpty(new Set(['a','b']))
 truthy nonEmpty(new Map([['a',1], ['b',2]]))
 truthy nonEmpty({a:1, b:2})
+falsy  nonEmpty({})
 
 falsy  nonEmpty(undef)
 falsy  nonEmpty(null)
@@ -266,11 +306,13 @@ falsy  nonEmpty(new Map())
 falsy  nonEmpty({})
 
 truthy isArrayOfStrings(['abc', 'def'])
+falsy  isArrayOfStrings(['abc', 1])
 truthy isArrayOfStrings([])
 falsy  isArrayOfStrings(42)
 falsy  isArrayOfStrings('abc')
 
 truthy isArrayOfIntegers([1,2,3])
+falsy  isArrayOfIntegers([1, 'abc'])
 truthy isArrayOfIntegers([])
 falsy  isArrayOfIntegers(42)
 falsy  isArrayOfIntegers('abc')
@@ -306,3 +348,90 @@ truthy isAsyncIterator(sampleVal.asyncGenFunc())
 falsy  isIterator(sampleVal.genFunc)
 falsy  isIterator(sampleVal.regularFunc)
 falsy  isIterator(sampleVal.lambdaFunc)
+
+truthy isStringMapper((s: string) => return s.toUpperCase())
+
+(() =>
+	class MyClass
+		name: string
+		constructor(@name: string)
+
+	x := new MyClass('John')
+	equal className(x), 'MyClass'
+	truthy isClassInstance(x)
+	)()
+
+(() =>
+	func := (x: number): TIterator<number> ->
+		yield 1
+		yield 2
+		yield 3
+		return
+
+	falsy isIterator(func)
+	)()
+
+(() =>
+	func := (x: number): TAsyncIterator<number> ->
+		await sleep 10
+		yield 1
+		yield 2
+		yield 3
+		return
+
+	falsy isAsyncIterator(func)
+	)()
+
+(() =>
+	func := () ->
+		yield 2
+		return
+	truthy isIterable(func())
+	)()
+
+(() =>
+	func := () ->
+		await sleep 100
+		yield 2
+		return
+	truthy isAsyncIterable(func())
+	)()
+
+(() =>
+	gen := () ->
+		yield 1
+		yield 2
+		return
+
+	truthy isGeneratorFunction(gen)
+	falsy  isGeneratorFunction(42)
+	equal functionName(gen), 'gen'
+	)()
+
+falsy isAsyncFunction(42)
+falsy isAsyncFunction((x: string) => return 42)
+
+(() =>
+	h := {a: 1, b: 2}
+	clearHash(h)
+	equal h, {}
+	)()
+
+(() =>
+	l := [1,2,3]
+	clearArray(l)
+	equal l, []
+	)()
+
+(() =>
+	h := {a: 1, b: 2}
+	setHash(h, {x: 42})
+	equal h, {x: 42}
+	)()
+
+(() =>
+	l := [1,2,3]
+	setArray(l, ['a','b'])
+	equal l, ['a','b']
+	)()
+

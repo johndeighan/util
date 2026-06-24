@@ -2,9 +2,10 @@
 
 import {sprintf} from '@std/fmt/printf'
 
+import {LOG, DBG, pushLogLevel, popLogLevel} from 'logger'
 import {
 	undef, defined, notdefined, croak, assert, obviously,
-	DBG, toBool, matches, LOG, pushLogLevel, popLogLevel, range,
+	toBool, matches, range,
 	} from 'base'
 import {
 	isString, isNumber, isInteger, isArray, array, arrayof, jsType,

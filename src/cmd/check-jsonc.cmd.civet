@@ -2,7 +2,7 @@
 
 {parse: parseJSONC} from 'jsr:@std/jsonc'
 
-import {EXEC} from 'base'
+import {EXEC} from 'llutils'
 
 # ---------------------------------------------------------------------------
 

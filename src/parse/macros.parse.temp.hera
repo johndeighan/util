@@ -1,0 +1,72 @@
+```
+import {CParseMatches} from 'parse-utils';
+export let pm = new CParseMatches();
+
+import {defined, notdefined, assert} from 'base'
+import {str2indents} from 'hera-parse'
+import {
+  TTextBlock, TMacroBlock,
+  } from 'macros'
+
+export const beginParse = (
+    text: string,
+    hOptions: {[key: string|symbol]: unknown} = {}
+    ): string|undefined => {
+  pm.reset(text);
+  return str2indents(text)
+  }
+```
+
+AllBlocks
+  Block* NL* ->
+    pm.match('AllBlocks', $loc);
+    return pm.returnVal($1);
+
+Block
+  "\x23" Name _ Args NL Content? ->
+    pm.match('Block', $loc);
+    const lContent = defined($6) ? $6 : []
+    return pm.returnVal({type: 'macro', name: $2, args: $4, lContent} as TMacroBlock);
+  Line NL+ Content? ->
+    pm.match('Block', $loc);
+    const lContent = defined($3) ? $3 : []
+    return pm.returnVal({type: 'text', firstLine: $1, lContent} as TTextBlock);
+
+Name
+  /[A-Za-z_][A-Za-z0-9_]*/ ->
+    pm.match('Name', $loc);
+    const name = $0
+    assert(!name.startsWith('#'))
+    return pm.returnVal(name);
+
+Content
+  INDENT Block+ UNDENT ->
+    pm.match('Content', $loc);
+    return pm.returnVal($2);
+
+Args
+  /[^\n\r\x0F\x0E]*/ ->
+    pm.match('Args', $loc);
+    return pm.returnVal($0);
+
+Line
+  /[^\n\r\x0F\x0E]+/ ->
+    pm.match('Line', $loc);
+    assert(defined($0), "result not defined!!!")
+    return pm.returnVal($0);
+
+INDENT
+  /\x0F/ ->
+    pm.match('INDENT', $loc);
+
+UNDENT
+  /\x0E/ ->
+    pm.match('UNDENT', $loc);
+
+NL
+  /\r?\n/ ->
+    pm.match('NL', $loc);
+
+_
+  /\x20*/ ->
+    pm.match('_', $loc);

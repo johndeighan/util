@@ -3,9 +3,12 @@
 import {toFileUrl} from "@std/path"
 
 import {
+	LOG, DBG, ERR,
+	curLogLevel, pushLogLevel, popLogLevel,
+	} from 'logger'
+import {
 	undef, defined, notdefined, deepCopy,
-	croak, assert, getErrStr, LOG, DBG, ERR,
-	pushLogLevel, popLogLevel, curLogLevel, lLogLevels, getLogLevels,
+	croak, assert, getErrStr,
 	} from 'base'
 import {uni, esc} from 'unicode'
 import {
@@ -18,7 +21,7 @@ import {
 import {MAP, mkArray} from 'mapper'
 import {resetOneIndent, splitLine} from 'indent'
 import {
-	allLinesInBlock, getOptions, sep,
+	allLinesIn, getOptions, sep,
 	} from 'llutils'
 import {OL, ML} from 'nice'
 import {procOneFile} from 'exec'
@@ -39,7 +42,7 @@ export str2indents := (
 
 	resetOneIndent()
 	let curLevel = 0
-	lLines := mkArray allLinesInBlock(str), (line) ->
+	lLines := mkArray allLinesIn(str), (line) ->
 		[level, str] := splitLine line
 		if (str == '')
 			yield '\n'
@@ -147,7 +150,7 @@ export parseText := <T = unknown>(
 
 	catch err
 		if (curLogLevel() != 'silent') && (curLogLevel() != 'testing')
-			ERR err
+			ERR getErrStr(err)
 			ERR "Parser: '#{stub}'", 'PARSE ERROR'
 			LOG "Parsing: #{esc(text)}"
 			parseMatcher.dumpParseInfo()

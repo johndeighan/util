@@ -1,29 +1,27 @@
 automate
 	TCompileResult TCompilerFunc TPostProcessor TCompilerInfo isCompilerInfo
-	isCompilerConfig compileFile getCompilerConfig getCompilerInfo
+	isCompilerConfig compileFile getCompilerInfo getCompilerConfig
 	doCompileFile runUnitTestsFor installCmd uninstallCmd
 base
-	deepEqual deepCopy encode decode TIterator TAsyncIterator TNonFunction
-	emptyAsyncIterator pass sleep undef defined anyDefined notdefined
-	max range allChars allCharsAsync INDENT UNDENT TLogLevel lLogLevels
-	openDebugFile appendDebugFile closeDebugFile curLogLevel notLogging
-	pushLogLevel popLogLevel toJSON LOG DBG WARN ERR croak unknownToString
-	getLog findFile normalizePath fileExt withExt toRelPath toFullPath
-	newerDestFileExists TFileStats getFileStats allLinesInFile
-	mkTempFile mkTempFileSync TAssertFunc assert obviously RawSourceMap
-	mapPos mapPosSync extractSourceMap getOrgPos getMappings decodeLine
-	TStackFrame allStackFrames getMyCaller dumpFrame getErrStr TRY SKIP
-	toBool anyOf allOf allValuesFrom allValuesFromAsync write writeln
-	resetLine clearPreviousLines TColor isColor colorize withColors decolorize
+	deepEqual deepCopy sleep encode decode TIterator TAsyncIterator
+	emptyIterator emptyAsyncIterator pass undef defined anyDefined notdefined
+	max range allChars allCharsAsync croak matches findFile normalizePath
+	withExt toRelPath toFullPath isFullPath newerDestFileExists TFileStats
+	allLinesInFile allLinesInFileSync mkTempFile mkTempFileSync TAssertFunc
+	obviously RawSourceMap TFilePosition mapPos mapPosSync extractSourceMap
+	getMappings decodeLine TFrameType TStackFrame allStackFrames getMyCaller
+	getErrStr TPredicate toBool anyOf allOf allValuesFrom allValuesFromAsync
+	writeln clearScreen resetLine clearPreviousLines TColor isColor colorize
+	decolorize isChineseChar
 cielo
 	cielo2civet cielo2ts cielo2civetFile cielo2tsFile doCompileCielo
 civet
-	civet2ts llcompileCivet civet2tsFile civet2tsSync llcompileCivetSync
-	TCivetOptions doCompileCivet civet2ast compileAllLibs a A
+	civet2ts civet2tsFile TCivetOptions doCompileCivet civet2ast
+	a A
 cmd-args
-	lNonOptions flag flags getFlags setFlag numNonOptions nonOption
-	argValue setCmdArgs debugging inspecting TKeyDesc TCmdDesc helpStr
-	checkCmdArgs
+	TCmdArgDesc helping debugging inspecting silent flag flags getFlags
+	clearFlag numNonOptions nonOption allNonOptions argValue parseCmdArgs
+	TKeyDesc TCmdDesc helpStr getCmdArgErrors checkCmdArgs
 datatypes
 	TSequence TStringSeq char integer nonEmptyString regexp TIntArray
 	TVoidIterator TUnaryFunc TStringifier TStringMapper TStringFilterFunc
@@ -31,78 +29,88 @@ datatypes
 	isRegExp regexpDef isHash isArray isSymbol symbolName isObject isFunction
 	functionDef isClass className classDef isClassInstance isNonEmptyString
 	isPrimitive isNonPrimitive isEmpty nonEmpty isArrayOfStrings
-	isPromise isIterator isIterableIterator isAsyncIterator isAsyncFunction
-	isAsyncIterable isAsyncIterableIterator isGeneratorFunction
+	isPromise isIterator isAsyncIterator isIterable isAsyncIterable
+	isAsyncGeneratorFunction isAsyncFunction clearHash clearArray setHash
 exec
-	getCmdLine TStreamType TExecResult notNeededResult mkstr summarizeExec
-	CTimer CFileHandler prelog postlog TProcSpec procFiles procOneFile
-	doEchoFile doRemoveTsFile doInstallCmd doUninstallCmd doRun
+	getCmdLine TStreamType TExecResult notNeededResult mkstr execCmd
+	prelog postlog TProcSpec procFiles procOneFile doRemoveFile doRemoveTsFile
+	doUninstallCmd doRun toStringStream toByteStream
 extract
 	TPathItem getDsPath extract getPathString reportExtractError getString
 	getArray getTuple
 file-server
 	CFileServer
 fsm
-	TState isStateNum TStateFunc TDoneFunc fsmSync fsmAsync fromFSM
+	TState isStateNum TStateFunc TDoneFunc defaultDoneFunc fsmSync fsmAsync
 fsys
-	normalizePath toRelPath toFullPath allLinesInFile fileExt withExt
-	TPathType isPathType getPathType isStub touch pathToURL mkpath TPathDesc
-	myself barf barfTempFile newerDestFileExists mkDir clearDir mkDirsForFile
-	FileEventHandler watchFiles watchFile patchFirstLine fromJsonFile
-	addJsonValue inSameDir removeCR slurp slurpAsync pathStr splitPatterns
-	removeFilesMatching findFile allDirsMatching TPathInfo parsePath isFile
-	rmFile rmDir isValidStub openTextFile openAndReadTextFile configFromFile
-	writeLine
+	normalizePath toRelPath toFullPath allLinesInFile allLinesInFileSync
+	withExt getFileStats TPathType isPathType getPathType isStub touch
+	mkpath TPathDesc pathSubDirs myself barf barfTempFile modTime
+	mkDir clearDir mkDirsForFile TFsEventHandler FileEventHandler watchFiles
+	patchFirstLine fromJsonFile toJsonFile addJsonValue inSameDir removeCR
+	slurpAsync pathStr splitPatterns allFilesMatching removeFilesMatching
+	allDirsMatching TPathInfo parsePath isFile isDir rmFile rmDir isValidStub
+	openAndReadTextFile configFromFile openForWrite writeLine CWritableFile
 hera-compile
-	CHeraCompiler doCompileHera unbalanced preprocessHera preprocessHeraFile
+	CHeraCompiler doCompileHera unbalanced preprocHera preprocHeraFile
 hera-parse
 	str2indents toDebugStr parseText parseFile
 html-window
 	CHtmlWindow
 indent
-	oneIndent blockify resetOneIndent indentLevel splitLine indented undented
-	Blockify
+	inputIndent outputIndent resetOneIndent blockify indentLevel splitLine
+	undented TBlockDesc Blockify
 iter-utils
 	arrayAndAccumFrom asyncArrayAndAccumFrom allValuesFrom allValuesFromAsync
 	accumFromAsync generateAsync
 llcivet
-	civet2ts llcompileCivet civet2tsFile civet2tsSync llcompileCivetSync
+	getCivetConfig civet2ts civet2tsFile
 llhera
 	THeraType isHeraType compileHera
 lltypescript
-	typeCheckTsFile typeCheckTsCode typeCheckTsFileSync typeCheckTsCodeSync
+	typeCheckTsFile typeCheckTsCode
 llutils
-	deepEqual stdChecks sinceLoad sinceLoadStr throwsError truncStr strToHash
-	s s2 t keys entries hasKey hasKeys clearHash sleepSync spaces tabs rtrim
-	blockToArray TBlockSpec isBlockSpec toArray arrayToBlock toBlock words
-	lpad TAlignment isAlignment alignString zpad allMatches require
-	widthOf heightOf getOptions sep tabify untabify cleanup allLinesInBlock
-	cmdTitle CStringSetMap isTAML fromTAML f formatVal fsplit
+	stdChecks truncStr strToHash o s s2 t keys entries hasKey hasKeys spaces
+	dashes rtrim countChars blockToArray TBlockSpec isBlockSpec toArray
+	toBlock words rpad lpad TAlignment isAlignment alignString zpad allMatches
+	getLineAndColumn blockWidth blockHeight getOptions sep tabify untabify
+	centered cmdTitle CStringSetMap isTAML fromTAML f formatVal fsplit likeNum
+	SKIP
+logger
+	INDENT UNDENT TLogLevel lLogLevels getLogLevels openDebugFile
+	closeDebugFile curLogLevel notLogging initLogLevel pushLogLevel
+	toJSON LOG DBG WARN ERR getLog clearLog unknownToString
 macros
-	TMacroHash isMacroHash mapFile CFileMapper doMapFile
+	TTextBlock TMacroBlock TBlock mkBlk TMacroFunc TMacroLib isMacroLib expand
+	mapFile
 mapper
-	doTrace MAPv1 MAPv2 MAPv3 MAPv4 MAPv5 MAPv6 MAP
+	doTrace MAPv1 MAPv2 MAPv3 MAPv4 MAPv5 MAPv6 MAP mkArray accum getBoth
+md-macros
+	CMarkdownMaker doMakeMarkdown
 meta-data
-	TConverter addMetaDataType isMetaDataStart convertMetaData extractMetaData
+	TConverter addMetaDataType isMetaDataStart getMetaData getMetaDataHash
+	mdGet
+nice
+	mark TCompareFunc alphaCompare setCharNeedsEsc needsEscape toOLString
+	rotpos TPathIndex buildPath TMapFunc TNiceOptions hNiceDefaults seq2nice
+	toNice displayStr OL OLS ML DUMPER DUMP DDUMP LOGVALUE DBGVALUE OLD_DUMPER
 parse-utils
 	slot TStrLoc TParseMatch CParseMatches
 promise-utils
-	awaitAll
+	awaitAll awaitAllSerially
 rule
-	CRuleBranch CRule CRuleSet mkCodeBlock
+	isValidRuleName CRuleBranch CRule CRuleSet mkCodeBlock
 scope
 	CScope CMainScope
 section-map
 	TSectionName isSectionName TItem CSection TSetName isSetName CSet
 	SectionMap
 symbols
-	hSymbols getSymbolLib loadSymbolsFrom loadSymbols symbolsFromString
+	loadSymbols loadSymbolsFrom symbolsFromString getNeededImportStmts
 text-table
-	TextTable
-to-nice
-	mark TCompareFunc alphaCompare setCharNeedsEsc needsEscape toOLString
-	rotpos TPathIndex buildPath TMapFunc TNiceOptions hNiceDefaults seq2nice
-	toNice displayStr OL OLS ML DUMP LOGVALUE DBGVALUE
+	TextTable splitRows mkRow
+timer
+	sinceLoad sinceLoadStr timer
 typescript
 	kindStr ts2ast ast2ts descFunc astAsString getImportCode
 	AstWalker CAnalysis getNode analyzeTsCode doCompileTS compileAllTS
@@ -112,7 +120,7 @@ unify
 	unify
 unit-test
 	equal truthy falsy succeeds fails succeedsAsync failsAsync generates
-	same unifies getMyOutsideCaller TFileOp setDirTree getFileOps execFileOps
-	sampleVal
+	same unifies isType notType checkType getTsCode splitFuncStr
+	TFileOp setDirTree getFileOps execFileOps fileOpsTable sampleVal
 walker
 	TVisitKind Walker

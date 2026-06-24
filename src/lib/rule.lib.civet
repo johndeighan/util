@@ -1,8 +1,8 @@
 # rule.lib.civet
 
+import {LOG, ERR} from 'logger'
 import {
-	undef, defined, notdefined, assert, croak, TIterator,
-	LOG, ERR, toBool,
+	undef, defined, notdefined, assert, croak, TIterator, toBool,
 	} from 'base'
 import {DUMP} from 'nice'
 import {isEmpty} from 'datatypes'

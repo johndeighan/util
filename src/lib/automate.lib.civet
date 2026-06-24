@@ -3,10 +3,12 @@
 import {compile: compileSvelte} from 'npm-svelte/compiler'
 
 import {
-	undef, defined, notdefined, toRelPath,
-	croak, assert, getErrStr, allOf,
 	LOG, DBG, WARN, ERR, INDENT, UNDENT,
 	pushLogLevel, popLogLevel
+	} from 'logger'
+import {
+	undef, defined, notdefined, toRelPath,
+	croak, assert, getErrStr, allOf,
 	} from 'base'
 import {
 	nonEmptyString, hash, hashof, isArray,

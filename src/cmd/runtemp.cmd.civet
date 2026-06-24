@@ -1,12 +1,13 @@
 # runtemp.cmd.civet
 
+import {LOG, DBG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, assert, obviously,
-	LOG, DBG, ERR, colorize, EXEC, croak,
+	colorize, croak,
 	} from 'base'
 import {findFile, withExt, isFile} from 'fsys'
 import {procOneFile, doRun, TExecResult} from 'exec'
-import {f, stdChecks} from 'llutils'
+import {f, stdChecks, EXEC} from 'llutils'
 import {flag, argValue, nonOption, getFlags} from 'cmd-args'
 import {doCompileCivet, compileAllLibs} from 'civet'
 
@@ -33,15 +34,18 @@ EXEC () =>
 	# --- compile temp file
 	stub := nonOption(0) || 'temp'
 	LOG colorize("Running #{stub}", 'cyan')
-	root := './src/temp'
+	root := 'src/.temp'
 
-	# --- Make sure the 'temp' folder is NOT ignored
-	path := findFile "#{stub}.civet", {root, lIgnoreDirs: []}
+	# --- Make sure the '.temp' folder is NOT ignored
+	path := findFile "#{stub}.civet", {
+		root
+		lIgnoreDirs: []
+		}
 	if notdefined(path) || not isFile(path)
 		croak "Unable to find file: #{stub}.civet in #{root}"
+	obviously defined(path)
 
-	# --- run or debug the temp file
-	obviously(path)
+	# --- compile the temp file
 	await procOneFile path, doCompileCivet, {inspect, force}
 
 	# --- Run the temp file

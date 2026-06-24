@@ -1,9 +1,9 @@
 # fsm.lib.civet
 
+import {LOG, DBG, pushLogLevel, popLogLevel} from 'logger'
 import {
 	undef, defined, notdefined, croak, assert, obviously,
-	TIterator, TAsyncIterator, DBG, pass,
-	pushLogLevel, popLogLevel,
+	TIterator, TAsyncIterator, pass,
 	} from 'base'
 import {
 	hash, isArray, isInteger, TVoidFunc,
@@ -32,7 +32,7 @@ export type TDoneFunc<TOut> = (finalState: TState) => TOut
 
 # ---------------------------------------------------------------------------
 
-defaultDoneFunc := <TOut>(finalState: TState): TOut =>
+export defaultDoneFunc := <TOut>(finalState: TState): TOut =>
 
 	throw new Error('No value thrown, no doneFunc provided')
 

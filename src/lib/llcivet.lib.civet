@@ -5,17 +5,15 @@ import {
 	} from '@danielx/civet'
 import {findInDir, loadConfig} from "@danielx/civet/config"
 
+import {LOG, DBG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, assert, croak,
-	DBG, ERR, withExt, newerDestFileExists, getErrStr,
+	withExt, newerDestFileExists, getErrStr,
 	} from 'base'
 import {DUMP} from 'nice'
 import {hash} from 'datatypes'
 import {getOptions} from 'llutils'
-import {
-	typeCheckTsFile, typeCheckTsCode,
-	typeCheckTsFileSync, typeCheckTsCodeSync,
-	} from 'lltypescript'
+import {typeCheckTsFile} from 'lltypescript'
 
 let hCivetConfig: CompileOptions? = undef
 

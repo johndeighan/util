@@ -1,17 +1,20 @@
 # promise-utils.lib.civet
 
-import {assert, getErrStr} from 'base'
+import {assert, getErrStr, sleep} from 'base'
 import {MAP, accum} from 'mapper'
-import {isArray} from 'datatypes'
+import {isArray, isPromise, isFunction} from 'datatypes'
+import {OL} from 'nice'
+
+# ---------------------------------------------------------------------------
+
+type TRunResult<T> = [T[], string[], string[], string[]]
 
 # ---------------------------------------------------------------------------
 # ASYNC
 # --- returns [lFulfilled, lRejected, lFulfilledTags, lRejectedTags]
 #        lFulfilled is an array of TAccum
-#        lRejected is an array of unknown (usually Error objects)
+#        lRejected is an array of unknown
 #        lFulfilledTags and lRejectedTags are arrays of strings
-
-type TRunResult<T> = [T[], unknown[], string[], string[]]
 
 export awaitAll := <T>(
 		lPromises: Promise<T>[]
@@ -39,3 +42,24 @@ export awaitAll := <T>(
 				[...lTags2, tag]
 				]
 	return lFinalAccum
+
+# ---------------------------------------------------------------------------
+
+type TVoidPromiseFunc<T=unknown> = () => Promise<T>
+
+export awaitAllSerially := <T,TErr>(
+		lFunctions: TVoidPromiseFunc<T>[]
+		lTags: string[] = []
+		): TRunResult<T> ->
+
+	lResult: TRunResult<T> := [[],[],[],[]]
+	for func,i of lFunctions
+		assert isFunction(func), "Not a function: #{func}"
+		try
+			result := await func()
+			lResult[0].push result
+			lResult[2].push lTags[i]
+		catch err
+			lResult[1].push getErrStr(err)
+			lResult[3].push lTags[i]
+	return lResult

@@ -2,9 +2,9 @@
 
 import {serveFile, serveDir} from '@std/http/file-server'
 
+import {LOG, DBG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, croak, assert, getErrStr,
-	LOG, DBG, ERR,
 	} from 'base'
 import {hash, TStringFilterFunc} from 'datatypes'
 import {getOptions} from 'llutils'

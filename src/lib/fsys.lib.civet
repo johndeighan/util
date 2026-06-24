@@ -14,31 +14,36 @@ import {
 	} from '@std/path'
 
 import {
-	pass, undef, defined, notdefined, sleep, toRelPath,
-	normalizePath, toFullPath, allLinesInFile,
+	LOG, DBG, WARN, ERR, INDENT, UNDENT,
+	pushLogLevel, popLogLevel,
+	} from 'logger'
+import {
+	pass, undef, defined, notdefined, toRelPath,
+	normalizePath, toFullPath,
+	allLinesInFile, allLinesInFileSync,
 	TIterator, TAsyncIterator,
 	fileExt, withExt, getFileStats, encode,
 	croak, assert, obviously, emptyIterator, emptyAsyncIterator,
-	pushLogLevel, popLogLevel, LOG, DBG, WARN, ERR,
-	INDENT, UNDENT,
 	} from 'base'
 import {
 	isEmpty, nonEmpty, isString, isNonEmptyString,
 	isBoolean, isNumber, isInteger, isArray, isArrayOfStrings,
 	isHash, isRegExp, integer, hash, hashof, TVoidFunc,
 	} from 'datatypes'
+import {sinceLoadStr} from 'timer'
 import {MAP} from 'mapper'
 import {
 	getOptions, spaces,
-	sinceLoadStr, arrayToBlock, words, f,
+	arrayToBlock, words, f,
 	} from 'llutils'
-import {isMetaDataStart, convertMetaData} from 'meta-data'
+import {isMetaDataStart, getMetaDataHash} from 'meta-data'
 import {debugging} from 'cmd-args'
 import {OL, ML, DBGVALUE} from 'nice'
 import {civet2tsFile} from 'llcivet'
 
 export {
-	normalizePath, toRelPath, toFullPath, allLinesInFile,
+	normalizePath, toRelPath, toFullPath,
+	allLinesInFile, allLinesInFileSync,
 	fileExt, withExt, getFileStats,
 	}
 
@@ -202,6 +207,14 @@ export barfTempFile := (
 
 # ---------------------------------------------------------------------------
 
+export modTime := (path: string): Date =>
+
+	ms := getFileStats(path).mtime
+	assert defined(ms), "ms not defined for #{path}"
+	return ms
+
+# ---------------------------------------------------------------------------
+
 export newerDestFileExists := (
 		srcPath: string,
 		destPath: string    # --- can be a file extension
@@ -212,18 +225,12 @@ export newerDestFileExists := (
 
 	# --- allow passing a file extension for 2nd argument
 	if destPath.startsWith('.')
+		assert (fileExt(srcPath) != destPath), "Identical extensions"
 		destPath = withExt(srcPath, destPath)
 
 	if not existsSync(destPath)
 		return false
-	try
-		destms := getFileStats(destPath).mtime
-		assert defined(destms), "destms not defined"
-		srcms  := getFileStats(srcPath).mtime
-		assert defined(srcms), "srcms not defined"
-		return (destms > srcms)
-	catch err
-		return false
+	return modTime(destPath) > modTime(srcPath)
 
 # ---------------------------------------------------------------------------
 
@@ -380,8 +387,8 @@ export fromJsonFile := (path: string): hash =>
 # ---------------------------------------------------------------------------
 
 export toJsonFile := (
-		data: hash
 		path: string
+		data: hash
 		): void =>
 
 	Deno.writeTextFileSync path, JSON.stringify(data, null, 3)
@@ -398,7 +405,7 @@ export addJsonValue := (
 	hData := fromJsonFile(path)
 	if defined(hData) && isHash(hData)
 		hData[key] = value
-		toJsonFile hData, path
+		toJsonFile path, hData
 	return
 
 # ---------------------------------------------------------------------------
@@ -422,6 +429,7 @@ export removeCR := (str: string): string =>
 
 export slurp := (path: string): string =>
 
+	assert isFile(path), "No such file: #{path}"
 	data := Deno.readTextFileSync path
 	return defined(data) ? removeCR(data) : ''
 
@@ -434,7 +442,10 @@ export slurpAsync := async (path: string): string =>
 
 # ---------------------------------------------------------------------------
 
-export pathStr := (path: string, root: string = 'src'): string =>
+export pathStr := (
+		path: string
+		root: string = '.'
+		): string =>
 
 	return normalizePath relative root, path
 
@@ -528,8 +539,8 @@ export allFilesMatching := (
 	return
 
 # ---------------------------------------------------------------------------
-
 # --- hOptions gets passed to allFilesMatching()
+
 export removeFilesMatching := (
 		pattern: string,
 		hOptions: hash = {}
@@ -594,13 +605,17 @@ export allDirsMatching := (
 		): TIterator<string> ->
 
 	hGlobOptions: hash := {
-		root: './src'
+		root: '.'
 		includeDirs: true
 		followSymlinks: false
 		canonicalize: false
 		...hMoreGlobOptions
 		}
-	lAllPatterns: string[] := isString(lPatterns) ? [lPatterns] : lPatterns
+	lAllPatterns: string[] := (
+		  isString(lPatterns)
+		? [lPatterns]
+		: lPatterns
+		)
 	[lPosPats, lNegPats] := splitPatterns lAllPatterns
 	if lNegPats.length > 0
 		hGlobOptions.exclude = lNegPats
@@ -613,10 +628,11 @@ export allDirsMatching := (
 	setSkip := new Set<string>()
 	for pat of lPosPats
 		for {path} of expandGlobSync(pat, hGlobOptions)
-			if not setSkip.has(path) && getFileStats(path).isDirectory
+			if not setSkip.has(path) && isDir(path)
 				if debugging
 					LOG "DIR: #{path}"
-				yield path
+				npath := normalizePath(path)
+				yield npath
 				setSkip.add path
 	return
 
@@ -761,7 +777,7 @@ export function openTextFile(
 
 	firstLine := await getLine()
 	if notdefined(firstLine)
-		return [{}, eager ? '' : emptyAsyncIterator<string>()]
+		return [{}, (eager ? '' : emptyAsyncIterator<string>())]
 
 	# --- Get meta data if present
 	hasMetaData := isMetaDataStart(firstLine)
@@ -773,7 +789,7 @@ export function openTextFile(
 			while line && (line != firstLine)
 				lMetaLines.push line
 				line = await getLine()
-			convertMetaData(firstLine, arrayToBlock(lMetaLines))
+			getMetaDataHash(firstLine, arrayToBlock(lMetaLines))
 		else
 			{}
 		)
@@ -781,7 +797,10 @@ export function openTextFile(
 	if eager
 		# --- Get all the rest of the lines and join with '\n'
 		lLines := await Array.fromAsync(iter)
-		return [hMetaData, lLines.join('\n')]
+		if hasMetaData
+			return [hMetaData, lLines.join('\n')]
+		else
+			return [{}, [firstLine, ...lLines].join('\n')]
 	else
 		# --- generator that allows reading contents
 		reader := (): TAsyncIterator<string> ->
@@ -850,3 +869,33 @@ export writeLine := (file: Deno.FsFile, str: string): void =>
 
 	await file.write encode(str + '\n')
 	return
+
+# ---------------------------------------------------------------------------
+
+export class CWritableFile
+
+	path: string
+	file: Deno.FsFile
+
+	constructor(@path: string, hOptions: hash = {})
+
+		type opt = {
+			append: boolean
+			}
+		{append} := getOptions<opt> hOptions, {
+			append: false
+			}
+
+		@file = Deno.openSync @path, {
+			write: true
+			create: true
+			truncate: not append
+			}
+
+	write(str: string)
+		await @file.write encode(str)
+		return
+
+	writeln(str: string)
+		await @file.write encode(str + '\n')
+		return

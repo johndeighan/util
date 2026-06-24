@@ -1,0 +1,120 @@
+```
+import {CParseMatches} from 'parse-utils';
+export let pm = new CParseMatches();
+
+import {undef, defined, assert} from 'base'
+import {hash} from 'datatypes'
+import {indented, undented} from 'indent'
+import {str2indents} from 'hera-parse'
+import {TFileOp} from 'unit-test'
+const lFileOps: TFileOp[]  = []
+const lPathParts: string[] = []
+const getPath = (fileName: string = '') => {
+  if (fileName) {
+    return [...lPathParts, fileName].join('/')
+  }
+  else {
+    return [...lPathParts].join('/')
+  }
+}
+
+export const beginParse = (
+    text: string,
+    hOptions: {[key: string|symbol]: unknown} = {}
+    ): string|undefined => {
+  pm.reset(text);
+  lFileOps.length  = 0
+  lPathParts.length = 0
+  return str2indents(text)
+  }
+```
+
+FullDesc
+  Root (FileDesc / DirDesc)+ NL* ->
+    pm.match('FullDesc', $loc);
+    return pm.returnVal(lFileOps);
+
+Root
+  /\.(\/[A-Za-z0-9_-]+)*/ _ "clear"? NL ->
+    pm.match('Root', $loc);
+    const root = $1[0]
+    lFileOps.push({
+      op: defined($3) ? 'clearDir' : 'mkDir',
+      path: root
+      })
+    lPathParts.push(root)
+    return pm.returnVal(root);
+
+FileDesc
+  Name _ "compile"? NL INDENT Content UNDENT ->
+    pm.match('FileDesc', $loc);
+    const path = getPath($1)
+    lFileOps.push({
+      op: 'barf',
+      path,
+      contents: $6
+      })
+    if (defined($3)) {
+      lFileOps.push({
+        op: 'compile',
+        path
+        })
+    }
+    return
+
+DirDesc
+  DirName NL INDENT (DirDesc / FileDesc)+ UNDENT ->
+    pm.match('DirDesc', $loc);
+    lPathParts.pop()
+    return
+
+DirName
+  "/" Name _ "clear"? ->
+    pm.match('DirName', $loc);
+    lPathParts.push($2)
+    lFileOps.push({
+      op: defined($4) ? 'clearDir' : 'mkDir',
+      path: getPath()
+      })
+    return
+
+Content
+  Block+ ->
+    pm.match('Content', $loc);
+    return pm.returnVal($1.join('\n'));
+
+Block
+  NL? Line IndentedBlock? ->
+    pm.match('Block', $loc);
+    return pm.returnVal(defined($3) ? ($2 + '\n' + $3) : $2);
+
+IndentedBlock
+  INDENT Content UNDENT ->
+    pm.match('IndentedBlock', $loc);
+    return pm.returnVal(indented($2));
+
+Line
+  /[^\x0F\x0E\n\r]*/ ->
+    pm.match('Line', $loc);
+    return pm.returnVal($0);
+
+Name
+  /[A-Za-z_.\$-][A-Za-z0-9_.\$-]+/ ->
+    pm.match('Name', $loc);
+    return pm.returnVal($0);
+
+INDENT
+  /\x0F/     -> # ASCII shift-in
+    pm.match('INDENT', $loc);
+
+UNDENT
+  /\x0E/     -> # ASCII shift-out
+    pm.match('UNDENT', $loc);
+
+NL
+  /\r?\n/ ->
+    pm.match('NL', $loc);
+
+_
+  /\x20*/ ->
+    pm.match('_', $loc);

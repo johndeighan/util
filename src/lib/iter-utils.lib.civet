@@ -10,7 +10,7 @@ import {isArray} from 'datatypes'
 # ---------------------------------------------------------------------------
 
 export arrayAndAccumFrom := <TOut, TAccum>(
-		iter: Generator<TOut, TAccum, void>
+		iter: TIterator<TOut, TAccum>
 		): [TOut[], TAccum] ->
 
 	let lItems: TOut[] = []
@@ -28,7 +28,7 @@ export arrayAndAccumFrom := <TOut, TAccum>(
 # ASYNC - returns a Promise<[TOut[], TAccum]
 
 export asyncArrayAndAccumFrom := <TOut, TAccum>(
-		iter: AsyncGenerator<TOut, TAccum, void>
+		iter: TAsyncIterator<TOut, TAccum>
 		): Promise<[TOut[], TAccum]> ->
 
 	let lItems: TOut[] = []
@@ -107,7 +107,7 @@ export accumFromAsync := <TIn, TAccum>(
 
 export generateAsync := <T>(
 		lItems: T[],
-		sleepFor = 1
+		sleepFor = 100
 		): AsyncGenerator<T> ->
 
 	for item of lItems

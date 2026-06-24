@@ -1,7 +1,8 @@
 # unify.lib.civet
 
+import {LOG} from 'logger'
 import {
-	deepCopy, defined, notdefined, LOG, max, range,
+	deepCopy, defined, notdefined, max, range,
 	croak, assert, obviously,
 	} from 'base'
 import {

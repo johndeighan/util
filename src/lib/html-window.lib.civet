@@ -4,14 +4,13 @@ import {createResponse} from '@mwid/better-sse'
 import {Webview} from '@webview/webview'
 import {WebUI} from '@webui'
 
+import {LOG, DBG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, croak, assert,
-	LOG, DBG, ERR, sleep,
 	} from 'base'
 import {TVoidFunc, hash, hashof} from 'datatypes'
 import {getOptions} from 'llutils'
 import {mkpath, slurp, isFile, isDir} from 'fsys'
-import {execCmd} from 'exec'
 
 # ---------------------------------------------------------------------------
 # uses deno-webui

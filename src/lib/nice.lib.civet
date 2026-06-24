@@ -2,9 +2,10 @@
 
 import {sprintf} from '@std/fmt/printf'
 
+import {LOG, DBG} from 'logger'
 import {
 	undef, defined, notdefined, anyDefined, croak, assert,
-	LOG, DBG, write, writeln, toBool,
+	write, writeln, toBool,
 	} from 'base'
 import {uni, esc, escd} from 'unicode'
 import {
@@ -14,7 +15,7 @@ import {
 	symbolName, className, functionName, regexpDef, jsType,
 	} from 'datatypes'
 import {
-	getOptions, o, toBlock, spaces, sep, keys, f, allLinesInBlock,
+	getOptions, o, toBlock, spaces, sep, keys, f, allLinesIn,
 	} from 'llutils'
 import {indented} from 'indent'
 import {MAP} from 'mapper'
@@ -488,7 +489,7 @@ export DUMPER := (
 
 	lLines: string[] := [sep(char, label, width)]
 	if isString(x)
-		for line,i of allLinesInBlock(x)
+		for line,i of allLinesIn(x)
 			str := escape ? esc(line + '\n') : line
 			lLines.push (lineNumbers ? "#{sprintf('%3d', i+1)} #{str}" : str)
 	else
@@ -564,7 +565,7 @@ export OLD_DUMPER := (
 
 	lLines: string[] := [sep(char, label, width)]
 	if isString(x)
-		for line,i of allLinesInBlock(x)
+		for line,i of allLinesIn(x)
 			str := escape ? esc(line) : line
 			lLines.push (lineNumbers ? "#{sprintf('%3d', i+1)} #{str}" : str)
 	else

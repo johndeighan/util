@@ -2,14 +2,19 @@
 
 import {expandGlobSync} from '@std/fs/expand-glob'
 import {TextLineStream} from "jsr:@std/streams/text-line-stream"
+import {exists, existsSync} from '@std/fs'
 
-import {EXEC, SKIP, LOG, TAsyncIterator} from 'base'
-import {s, toBlock} from 'llutils'
+import {LOG} from 'logger'
+import {TAsyncIterator, deepEqual, assert, sleep, getErrStr} from 'base'
+import {s, toBlock, EXEC, SKIP, sep} from 'llutils'
 import {fromFSM} from 'fsm'
 import {indented} from 'indent'
-import {procOneFile} from 'exec'
 import {
-	withExt, openTextFile, openAndReadTextFile, rmFile,
+	execCmd, procOneFile, procFiles, doRemoveFile, doRun,
+	} from 'exec'
+import {
+	withExt, openTextFile, openAndReadTextFile, rmFile, allDirsMatching,
+	barf, slurp,
 	} from 'fsys'
 import {DUMP, toNice, OL, ML} from 'nice'
 import {TextTable, splitRows} from 'text-table'
@@ -25,49 +30,57 @@ import {
 	TMacroFunc, TMacroLib, isMacroLib,
 	mkBlk, expand, mapString, mapFile,
 	} from 'macros'
+import {doCompileCivet} from 'civet'
 import {setDirTree} from 'unit-test'
 import {CRule, CRuleBranch, mkCodeBlock} from 'rule'
+import {
+	awaitAll, awaitAllSerially,
+	} from 'promise-utils'
+
+debugger
 
 # ---------------------------------------------------------------------------
 
 EXEC () =>
-	hMarkdownLib: TMacroLib := {
-		'#preproc': (block) =>
-			return """
-				# --- my file
-				#{block}
-				"""
-		def: (block) =>
-			lLines := block.split('\n')
-			lOutput := [
-				"""
-					<p style="font-weight: bold">
-						#{lLines[0]}
-					</p>
-					<p>
-					"""
-				]
-			for line of lLines.slice(1)
-				lOutput.push "\t#{line}<br>"
-			return lOutput.join('\n') + '\n</p>'
-		}
-	str := """
-		#def
-			deepEqual(x: unknown, y: unknown): boolean
-			- test for deep equality
-		"""
-	result := await mapString(str, hMarkdownLib)
-	DUMP result, 'result'
+	num := (n: number) =>
+		await sleep(100)
+		return 42
 
-	expected := """
-		# --- my file
-		<p style="font-weight: bold">
-			deepEqual(x: unknown, y: unknown): boolean
-		</p>
-		<p>
-			- test for deep equality<br>
-		</p>
+	rej := (n: number) =>
+		await sleep(n)
+		throw new Error("This is bad")
+
+	lFunctions := [
+		() => num(100)
+		() => rej(100)
+		]
+
+	lTags := ['first', 'second']
+
+	for func of lFunctions
+		try
+			result := await func()
+			console.log "result = #{result}"
+		catch err
+			console.log "ERROR: #{getErrStr(err)}"
+
+	result := await awaitAllSerially lFunctions, lTags
+	console.log result
+
+SKIP () =>
+	{stdout, stderr} := await execCmd 'echo', ["Hello"]
+	console.log stdout
+	console.log stderr
+
+SKIP () =>
+	# --- Write out an invalid civet file
+	path := 'src/test/exec/bad.civet'
+	barf path, """
+		let  :== 92
 		"""
+	debugger
+	hResult := await procFiles [doCompileCivet, ['src/test/exec/*.civet']], {serial: true}
+	DUMP hResult, 'hResult'
 
 SKIP () =>
 	result := await parseText 'dir-tree', """

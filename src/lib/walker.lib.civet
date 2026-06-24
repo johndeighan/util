@@ -1,7 +1,8 @@
 # walker.lib.civet
 
+import {LOG, DBG} from 'logger'
 import {
-	undef, defined, notdefined, croak, assert, DBG,
+	undef, defined, notdefined, croak, assert,
 	} from 'base'
 import {
 	integer, hash, array,

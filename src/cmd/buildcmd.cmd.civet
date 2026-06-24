@@ -1,7 +1,8 @@
 # buildcmd.cmd.civet
 
-import {assert, defined, EXEC, LOG, DBG, WARN, ERR} from 'base'
-import {stdChecks, cmdTitle} from 'llutils'
+import {LOG, DBG, WARN, ERR} from 'logger'
+import {assert, defined} from 'base'
+import {stdChecks, cmdTitle, EXEC} from 'llutils'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {withExt, findFile, isFile} from 'fsys'
 import {procFiles, procOneFile, doInstallCmd} from 'exec'

@@ -6,10 +6,8 @@ import {
 	deepCopy, undef, defined, notdefined,
 	anyDefined, anyNotDefined,
 	croak, assert, getErrStr,
-	TIterator, TAsyncIterator, TNonFunction, isAsyncFunction,
+	TIterator, TAsyncIterator, TNonFunction,
 	} from 'base'
-
-export {isAsyncFunction}
 
 # ---------------------------------------------------------------------------
 
@@ -183,7 +181,10 @@ export isFunction := (item: unknown): item is Function =>
 
 export functionName := (x: Function): string =>
 
-	return x.name || '<anonymous>'
+	if x.name
+		return x.name
+	else
+		return '<anonymous>'
 
 # ---------------------------------------------------------------------------
 
@@ -203,10 +204,16 @@ export className := (x: unknown): string =>
 
 	# --- item can be a class or an object
 	if (typeof x == 'function') && x.toString().startsWith('class')
-		return x.name || '<unknown>'
+		if x.name
+			return x.name
+		else
+			return '<anonymous>'
 
 	if (typeof x == 'object') && (x != null)
-		return x.constructor.name || '<none>'
+		if x.constructor.name
+			return x.constructor.name
+		else
+			return '<anonymous>'
 
 	croak "Not a class"
 	return ''    # --- TypeScript bug
@@ -226,27 +233,14 @@ export classDef := (x: unknown): string =>
 
 export isClassInstance := (
 		x: unknown,
-		lReqKeys: string[] = []
 		): boolean =>
 
 	if (typeof x != 'object') || isArray(x) || isPromise(x)
 		return false
 	if notdefined(x?.constructor?.name)
 		return false
-	if isHash(x) && (x != null)
-		for reqKey of lReqKeys
-			lMatches := reqKey.match /^(\&)(.*)$/
-			assert defined(lMatches), "undef lMatches in isClassInstance"
-			[_, type, key] := lMatches
-			if (key in x)
-				item: unknown := x[key]
-				if nonEmpty(item)
-					if (type == '&') && (typeof item != 'function')
-						return false
-				else
-					return false
-			else
-				return false
+	if (x?.constructor?.name == 'Object')
+		return false
 	return true
 
 # ---------------------------------------------------------------------------
@@ -382,12 +376,6 @@ normalizeExpr := (code: string): string =>
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 
-asStringIs := (x: unknown, str: string): boolean =>
-
-	return (Object.prototype.toString.call(x) == str)
-
-# ---------------------------------------------------------------------------
-
 export isArrayOfStrings := (x: unknown): x is string[] =>
 
 	if not Array.isArray(x)
@@ -433,22 +421,6 @@ export isIterator := <T>(
 
 # ---------------------------------------------------------------------------
 
-export isIterableIterator := <T>(
-		x: unknown
-		): x is IterableIterator<T> =>
-
-	return (
-		   isObject(x)
-		&& ('next' in x)
-		&& (typeof x.next == 'function')
-		&& (Symbol.iterator in x)
-		&& (typeof x[Symbol.iterator] == 'function')
-		# @ts-ignore
-		&& (x[Symbol.iterator].call(x) == x)
-		)
-
-# ---------------------------------------------------------------------------
-
 export isAsyncIterator := <T>(
 		x: unknown
 		): x is AsyncIterator<T> =>
@@ -488,22 +460,6 @@ export isAsyncIterable := <T>(
 
 # ---------------------------------------------------------------------------
 
-export isAsyncIterableIterator := <T>(
-		x: unknown
-		): x is AsyncIterableIterator<T> =>
-
-	return (
-		   isObject(x)
-		&& ('next' in x)
-		&& (typeof x.next == 'function')
-		&& (Symbol.asyncIterator in x)
-		&& (typeof x[Symbol.asyncIterator] == 'function')
-		# @ts-ignore
-		&& (x[Symbol.asyncIterator].call(x) == x)
-		)
-
-# ---------------------------------------------------------------------------
-
 export isGeneratorFunction := (
 		x: unknown
 		): x is GeneratorFunction =>
@@ -523,3 +479,48 @@ export isAsyncGeneratorFunction := (
 		   (typeof x == 'function')
 		&& (x.toString().match(/\basync\s+function\s*\*/) != null)
 		)
+
+# ---------------------------------------------------------------------------
+
+export isAsyncFunction := (fn: unknown): boolean =>
+
+	if isFunction(fn)
+		return (fn.constructor.name == 'AsyncFunction') ||
+				(fn.constructor.name == 'AsyncGenerator')
+	else
+		return false
+
+# ---------------------------------------------------------------------------
+
+export clearHash := (h: hash): void =>
+
+	for key of Object.keys(h)
+		delete h[key]
+	return
+
+# ---------------------------------------------------------------------------
+
+export clearArray := (l: array): void =>
+
+	l.length = 0
+	return
+
+# ---------------------------------------------------------------------------
+
+export setHash := (h: hash, h2: hash): void =>
+
+	for key of Object.keys(h)
+		delete h[key]
+	for key of Object.keys(h2)
+		h[key] = h2[key]
+	return
+
+# ---------------------------------------------------------------------------
+
+export setArray := (l: array, l2: array): void =>
+
+	l.length = 0
+	for x of l2
+		l.push x
+	return
+

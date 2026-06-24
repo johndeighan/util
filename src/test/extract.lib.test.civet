@@ -1,7 +1,9 @@
 # extract.lib.test.civet
 
 import {
-	TPathItem, extract, getString, getNumber,
+	TPathItem, getDsPath, extract,
+	getPathString, reportExtractError,
+	getString, getNumber, getArray, getTuple,
 	} from 'extract'
 import {
 	equal, truthy, falsy, succeeds, fails,
@@ -10,6 +12,9 @@ import {
 # ---------------------------------------------------------------------------
 
 equal extract({n: 42}, '.n'), 42
+
+equal getPathString('.address.city'), '.address.city'
+equal getPathString(['address','city']), '.address.city'
 
 class Person
 	name: string
@@ -24,7 +29,9 @@ h := {
 		new Person('Julie Booker', 'female')
 		]
 	name: 'John Deighan'
+	nicknames: ['JD', 'Deighan']
 	gender: 'male'
+	age: 73
 	address: {
 		street: '1749 Main St.'
 		city: 'Blacksburg'
@@ -38,6 +45,23 @@ equal extract(h, '.friends[0].gender'), 'male'
 equal extract(h, '.friends[1]'), new Person('Julie Booker', 'female')
 equal extract(h, ''), h
 equal extract(h, '.address.city'), 'Blacksburg'
+fails () => extract(h, '..dummy')
+
+equal getString(h, '.address.city'), 'Blacksburg'
+fails () => getString(h, '.address.city', 'Roanoke')
+fails () => getString(h, '..dummy')
+
+equal getNumber(h, '.age'), 73
+fails () => getNumber(h, '.age', 22)
+fails () => getNumber(h, '..dummy')
+
+equal getArray(h, '.nicknames'), ['JD', 'Deighan']
+fails () => getArray(h, '.nicknames', ['JD','dummy'])
+fails () => getArray(h, '..dummy')
+
+equal getTuple(h, '.nicknames'), ['JD', 'Deighan']
+fails () => getTuple(h, '.nicknames', 3)
+fails () => getTuple(h, '..dummy')
 
 # ---------------------------------------------------------------------------
 

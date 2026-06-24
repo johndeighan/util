@@ -1,21 +1,23 @@
 # llutils.lib.test.civet
 
 import {
-	undef, sleep, deepEqual, LOG, colorize, decolorize,
+	undef, sleep, deepEqual, colorize, decolorize,
 	} from 'base'
 import {
-	functionDef, isArray, isHash,
+	functionDef, isArray, isHash, TVoidFunc,
 	} from 'datatypes'
 import {
-	sinceLoad, sinceLoadStr, truncStr,
-	o, s, s2, t, strToHash, getOptions,
+	o, s, s2, t, strToHash, getOptions, truncStr,
 	keys, hasKey, hasKeys, spaces, tabs,
 	rtrim, countChars, words, getLineAndColumn,
-	blockToArray, allLinesInBlock, toArray,
+	blockToArray, allLinesIn, toArray,
 	arrayToBlock, toBlock, rpad, lpad,
 	TAlignment, isAlignment, alignString, zpad,
 	TBlockSpec, isBlockSpec, allMatches,
-	blockWidth, blockHeight, CStringSetMap, fromTAML, f,
+	blockWidth, blockHeight, CStringSetMap,
+	isTAML, fromTAML, f, SKIP, EXEC,
+	stdChecks, dashes, sep, centered,
+	tabify, untabify, cmdTitle, likeNum,
 	} from 'llutils'
 import {
 	equal, truthy, falsy, succeeds, fails,
@@ -23,15 +25,13 @@ import {
 
 # ---------------------------------------------------------------------------
 
-succeeds () => LOG sinceLoad()
-
-succeeds () => LOG sinceLoadStr()
-
 truthy deepEqual(2, 2)
 truthy deepEqual('a', 'a')
 truthy deepEqual(['a','b'], ['a','b'])
 falsy  deepEqual(['a','b'], ['a','b','c'])
 
+equal strToHash(''), {}
+equal strToHash('x=3.14'), {x: 3.14}
 equal strToHash('debug'), {debug: true}
 equal strToHash('debug force'), {
 	debug: true
@@ -98,41 +98,49 @@ truthy hasKey({a:1, b:2}, 'a')
 truthy hasKeys({a:1, b:2}, 'a', 'b')
 falsy  hasKey({a:1, b:2}, 'x')
 falsy  hasKeys({a:1, b:2}, 'a', 'x')
+fails () => hasKey(42, 'a')
+fails () => hasKeys(42, 'a')
 
 ms0 := Date.now()
-await sleep(2)   # 2 seconds
+await sleep(2000)   # 2 seconds
 truthy (Date.now()-ms0 > 1000)
 
 equal spaces(3), '   '
 
 equal tabs(3), '\t\t\t'
+equal tabify('   abc'), '\tabc'
+equal untabify('\tabc'), '   abc'
+
+equal dashes(3), '---'
 
 equal rtrim('bb   \t\t'), 'bb'
 
 equal countChars('abcabcabc', 'a'), 3
+
+equal blockToArray(''), []
 
 equal blockToArray("""
 	abcx
 	def
 	"""), ['abcx','def']
 
-equal Array.from(allLinesInBlock("""
+equal Array.from(allLinesIn("""
 	abcy
 	def
 	""")), ['abcy', 'def']
 
-equal Array.from(allLinesInBlock("""
+equal Array.from(allLinesIn("""
 	qqq
 
 	def
 	""")), ['qqq', '', 'def']
 
-equal Array.from(allLinesInBlock("a\nb\n")), [
+equal Array.from(allLinesIn("a\nb\n")), [
 	'a'
 	'b'
 	]
 
-equal Array.from(allLinesInBlock("abc\n\t/^\\u000f\\u000e]+/\n")), [
+equal Array.from(allLinesIn("abc\n\t/^\\u000f\\u000e]+/\n")), [
 	'abc'
 	'\t/^\\u000f\\u000e]+/'
 	]
@@ -289,6 +297,12 @@ ss.add 'llutils', 'pass'
 ss.add 'fsys', 'isFile'
 ss.add 'llutils', 'require'
 
+truthy ss.hasKey('fsys')
+falsy  ss.hasKey('dummy')
+
+truthy ss.hasValue('pass')
+falsy  ss.hasValue('dummy')
+
 equal Array.from(ss.allKeys()), ['llutils', 'fsys']
 equal Array.from(ss.allValues('llutils')), ['pass','require']
 
@@ -309,15 +323,19 @@ equal imports.asString(), """
 
 # ---------------------------------------------------------------------------
 
-equal fromTAML("""
+str := """
 	foo: bar
 	baz:
 		- qux
 		- quux
-	"""), {
-		foo: 'bar'
-		baz: ['qux', 'quux']
-		}
+	"""
+
+truthy isTAML(str)
+
+equal fromTAML(str), {
+	foo: 'bar'
+	baz: ['qux', 'quux']
+	}
 
 (() =>
 	meaning := 42
@@ -340,3 +358,29 @@ equal fromTAML("""
 	str := f":{blue}meaning is #{meaning}:3{red}"
 	equal decolorize(str), "meaning is  42"
 	)()
+
+succeeds () => stdChecks()
+
+equal sep(), '-'.repeat(64)
+equal sep('=', undef, 5), '====='
+equal sep('-', 'HI', 10), '--  HI  --'
+
+equal centered('John'), spaces(30) + 'John' + spaces(30)
+equal centered('John', {char: '-'}),
+	dashes(28) + spaces(2) + 'John' + spaces(2) + dashes(28)
+
+equal decolorize(cmdTitle('THIS')),
+	'='.repeat(28) + spaces(2) + 'THIS' + spaces(2) + '='.repeat(28)
+
+truthy likeNum('13')
+truthy likeNum('3.14')
+truthy likeNum('3.14e12')
+truthy likeNum('3.14E12')
+falsy  likeNum('abc')
+
+vfunc: TVoidFunc := (): void =>
+	console.log 'hello'
+	return
+
+succeeds () => EXEC(vfunc)
+succeeds () => SKIP(vfunc)

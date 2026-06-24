@@ -1,0 +1,47 @@
+# timer.lib.civet
+
+import {sprintf} from '@std/fmt/printf'
+
+import {undef} from 'base'
+import {integer} from 'datatypes'
+
+loadTime: integer := Date.now()
+
+# ---------------------------------------------------------------------------
+
+export sinceLoad := (
+		datetime: Date | integer = Date.now()
+		): number =>
+
+	if (datetime instanceof Date)
+		return datetime.valueOf() - loadTime
+	else
+		return datetime - loadTime
+
+# ---------------------------------------------------------------------------
+
+export sinceLoadStr := (
+		datetime: (Date | integer)? = undef
+		) =>
+
+	return sprintf "%6d", sinceLoad(datetime)
+
+# ---------------------------------------------------------------------------
+
+class CTimer
+
+	t0 = Date.now()
+
+	# --- automatically resets the timer
+	timeTaken(
+			reset: boolean = true,
+			decPlaces: number = 2
+			): string
+
+		now := Date.now()
+		secs := (now - @t0) / 1000
+		if reset
+			@t0 = now
+		return sprintf("%.#{decPlaces}d", secs)
+
+export timer := new CTimer()

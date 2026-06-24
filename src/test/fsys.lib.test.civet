@@ -3,19 +3,22 @@
 import {
 	undef, defined, notdefined, sleep, toRelPath,
 	} from 'base'
-import {hash, isString, isFunction} from 'datatypes'
 import {
-	o, spaces, sinceLoad, sinceLoadStr,
-	} from 'llutils'
+	hash, isString, isFunction, isAsyncIterator,
+	} from 'datatypes'
+import {sinceLoad, sinceLoadStr} from 'timer'
+import {o, spaces} from 'llutils'
 import {
-	isFile, isDir, getPathType, fileExt, withExt, inSameDir,
-	isStub, parsePath, allFilesMatching, allLinesInFile,
-	normalizePath, pathToURL, mkpath, pathSubDirs, myself,
+	isFile, isDir, getPathType, fileExt, withExt, inSameDir, modTime,
+	isStub, parsePath, allFilesMatching, allDirsMatching, allLinesInFile,
+	normalizePath, pathToURL, mkpath, pathSubDirs, myself, touch,
 	rmFile, rmDir, newerDestFileExists, configFromFile,
 	clearDir, mkDir, mkDirsForFile, slurp, slurpAsync, barf, isPathType,
 	removeFilesMatching, watchFile, FileEventHandler, TFsEventHandler,
 	TPathType, TPathInfo, patchFirstLine, toFullPath, splitPatterns,
-	openTextFile, openAndReadTextFile,
+	openTextFile, openAndReadTextFile, isValidStub, barfTempFile,
+	fromJsonFile, toJsonFile, addJsonValue, pathStr,
+	openForWrite, writeLine,
 	} from 'fsys'
 import {
 	equal, truthy, falsy, unifies,
@@ -98,11 +101,19 @@ truthy isFile('deno.json')
 falsy  isFile('./src/lib/notafile.txt')
 truthy isFile("./src/test/fsys/dummy.txt")
 falsy  isFile("./src/test/fsys")
+falsy  isFile(undef)
 
 truthy isDir('src/test')
 falsy  isDir('nosuchdir')
 truthy isDir("./src/test/fsys")
 falsy  isDir("./src/test/fsys/dummy.txt")
+falsy  isDir(undef)
+
+truthy isValidStub('abc')
+falsy  isValidStub('ab,cd')
+falsy  isValidStub('ab/cd')
+falsy  isValidStub('ab\\cd')
+falsy  isValidStub('all')
 
 truthy isPathType('missing')
 truthy isPathType('file')
@@ -151,20 +162,36 @@ unifies parsePath(import.meta.url), {
 	}
 
 (() =>
+	path := barfTempFile('abc', {ext: '.txt'})
+	truthy isFile(path)
+	truthy (fileExt(path) == '.txt')
+	)()
+
+(() =>
 	filterFunc := (path: string) =>
 		{fileName} := parsePath(path)
 		return fileName.match(/^[a-z0-9]+\.txt$/)
 
 	lPaths := Array.from(allFilesMatching('src/test/fsys/**'))
 	equal lPaths.filter(filterFunc).map((x) => parsePath(x).fileName), [
-		'newfile.txt',
-		'oldfile.txt',
-		'temp.txt',
-		'dummy.txt',
-		'file1.txt',
-		'file2.txt',
-		'new.txt',
-		'tokens.txt',
+		'newfile.txt'
+		'oldfile.txt'
+		'temp.txt'
+		'dummy.txt'
+		'file1.txt'
+		'file2.txt'
+		'new.txt'
+		'tokens.txt'
+		]
+	)()
+
+(() =>
+	lDirs := Array.from(allDirsMatching('src/test/fsys/**'))
+	equal lDirs.map((x) => toRelPath(x)), [
+		'src/test/fsys'
+		'src/test/fsys/aaa'
+		'src/test/fsys/aaa/bbb'
+		'src/test/fsys/subdir'
 		]
 	)()
 
@@ -234,6 +261,16 @@ equal slurp('./src/test/fsys/file1.txt'), """
 	line3
 	"""
 
+await equal await slurpAsync('./src/test/fsys/file1.txt'), """
+	---
+	fname: John
+	lname: Deighan
+	---
+	line1
+	line2
+	line3
+	"""
+
 (() =>
 	lChanges: string[] := []
 	fileChangeFunc: TFsEventHandler := (kind, path) =>
@@ -258,7 +295,7 @@ equal slurp('./src/test/fsys/file1.txt'), """
 		paths: ['/usr/lib/temp.txt']
 		}
 
-	await sleep 2
+	await sleep 2000
 
 	handler.handle {
 		kind: 'modify',
@@ -269,7 +306,7 @@ equal slurp('./src/test/fsys/file1.txt'), """
 		paths: ['/usr/lib/temp.txt']
 		}
 
-	await sleep 2
+	await sleep 2000
 
 	expected := [
 		{kind: 'modify', paths: ['/usr/lib/temp2.txt']}
@@ -303,7 +340,7 @@ equal slurp('./src/test/fsys/file1.txt'), """
 		paths: ['/usr/lib/temp.txt']
 		}
 
-	await sleep 2
+	await sleep 2000
 
 	handler.handle {
 		kind: 'modify',
@@ -314,7 +351,7 @@ equal slurp('./src/test/fsys/file1.txt'), """
 		paths: ['/usr/lib/temp.txt']
 		}
 
-	await sleep 2
+	await sleep 2000
 
 	expected := [
 		{kind: 'modify', path: '/usr/lib/temp2.txt'}
@@ -435,6 +472,7 @@ await (() =>
 
 	truthy newerDestFileExists('src/test/fsys/file1.txt', barfPath)
 	falsy  newerDestFileExists(barfPath, 'src/test/fsys/file1.txt')
+	fails () => newerDestFileExists('dummy.txt', '.txt')
 
 	truthy isFile(barfPath)
 	rmFile barfPath
@@ -444,7 +482,7 @@ await (() =>
 (() =>
 	falsy  isDir('src/test/fsys/tempdir')
 	falsy  isFile('src/test/fsys/tempdir/file42.txt')
-	mkDir 'src/test/fsys/tempdir'
+	mkDir 'src/test/fsys/tempdir', true
 	barf 'src/test/fsys/tempdir/file42.txt', 'abc'
 	truthy isDir('src/test/fsys/tempdir')
 	truthy isFile('src/test/fsys/tempdir/file42.txt')
@@ -474,13 +512,17 @@ await (() =>
 	falsy  isFile('src/test/fsys/aaa/bbb/newfile.txt')
 	falsy  isFile('src/test/fsys/aaa/bbb/oldfile.txt')
 	truthy isFile('src/test/fsys/aaa/bbb/temp.txt')
-	)  # TEMP DISABLED
+	)()
 
 (() =>
 	clearDir 'src/test/fsys/aaa'
 	truthy isDir('src/test/fsys/aaa')
 	falsy  isDir('src/test/fsys/aaa/bbb')
-	)   # TEMP DISABLED
+	clearDir 'src/test/fsys/aaa/bbb'
+	truthy isDir('src/test/fsys/aaa/bbb')
+	rmDir 'src/test/fsys/aaa/bbb'
+	falsy  isDir('src/test/fsys/aaa/bbb')
+	)()
 
 (() =>
 	# --- Set contents of dummy.txt to standard contents
@@ -492,7 +534,7 @@ await (() =>
 	add := (str: string, stop: boolean=false): void =>
 		if stop
 			doStop = true
-		barf path, str, o'append'
+		barf path, str, {append: true}
 		return
 
 	callback: TFsEventHandler := (kind, path) =>
@@ -508,7 +550,7 @@ await (() =>
 	add 'A'
 	add 'B'
 	add 'C'
-	await sleep 0.3
+	await sleep 300
 	add 'D'
 	add 'E', true
 
@@ -532,4 +574,70 @@ await (() =>
 			line3
 			"""
 		]
+	)()
+
+# ---------------------------------------------------------------------------
+
+(() =>
+	path := 'src/test/fsys/data.json'
+	falsy isFile(path)
+	toJsonFile path, {a: 13}
+	truthy isFile(path)
+	h := fromJsonFile(path)
+	equal h, {a: 13}
+	addJsonValue path, 'x', 42
+	h1 := fromJsonFile(path)
+	equal h1, {a: 13, x: 42}
+
+	path2 := 'src/test/fsys/data2.json'
+	Deno.writeTextFileSync path2, ''
+	equal fromJsonFile(path2), {}
+	equal fromJsonFile('doesNotExist.tst'), {}
+	)()
+
+fullpath := "c:\\Users\\johnd\\util\\src\\lib\\datatypes.lib.civet"
+equal pathStr(fullpath), 'src/lib/datatypes.lib.civet'
+
+(() =>
+	path := 'src/test/fsys/dummy.txt'
+	t0 := modTime(path)
+	touch path
+	t1 := modTime(path)
+	truthy (t1 >= t0)
+	)()
+
+await (() =>
+	path := 'src/test/fsys/dummy.txt'
+
+	# --- Set contents of dummy.txt to standard contents
+	barf path, 'dummy'
+
+	[hash, iter] := await openTextFile(path)
+	equal hash, {}
+	truthy isAsyncIterator(iter)
+
+	[hash2, data2] := await openTextFile(path, true)
+	equal hash2, {}
+	equal data2, "dummy"
+	)()
+
+await (() =>
+	path := 'src/test/fsys/file1.txt'
+
+	[hash, iter] := await openTextFile(path)
+	equal hash, {fname: 'John', lname: 'Deighan'}
+	truthy isAsyncIterator(iter)
+
+	[hash2, data2] := await openTextFile(path, true)
+	equal hash2, {fname: 'John', lname: 'Deighan'}
+	equal data2, "line1\nline2\nline3"
+	)()
+
+(await () =>
+	path := 'src/test/fsys/file99.txt'
+	f := await openForWrite path
+	await writeLine f, 'abc'
+	await writeLine f, 'def'
+	await f.close()
+	equal slurp(path), 'abc\ndef\n'
 	)()

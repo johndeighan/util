@@ -1,13 +1,16 @@
 # utest.cmd.civet
 
+import {LOG, DBG, ERR} from 'logger'
 import {
-	EXEC, toRelPath, undef, defined, notdefined, assert,
-	LOG, DBG, ERR, decolorize,
+	toRelPath, undef, defined, notdefined, assert,
+	decolorize, write, writeln,
 	} from 'base'
 import {isString} from 'datatypes'
-import {stdChecks, cmdTitle, f, dashes} from 'llutils'
+import {stdChecks, cmdTitle, f, dashes, EXEC} from 'llutils'
 import {getFlags, nonOption, allNonOptions, argValue} from 'cmd-args'
-import {isFile, withExt, findFile, allFilesMatching, parsePath} from 'fsys'
+import {
+	isFile, rmDir, withExt, findFile, allFilesMatching, parsePath,
+	} from 'fsys'
 import {execCmd, procFiles, procOneFile, TProcSpec} from 'exec'
 import {doUnitTest} from 'typescript'
 import {doCompileCivet, compileAllLibs} from 'civet'
@@ -34,7 +37,8 @@ EXEC () =>
 	if (nonOption(0) == 'all')
 		assert notdefined(lineNum), "Can't use -line with 'all'"
 		assert not inspect, "Can't use -I with 'all'"
-		LOG cmdTitle("UNIT TEST ALL LIBS")
+		rmDir './coverage', {clear: true}
+		LOG cmdTitle("UNIT TEST ALL")
 
 		# --- This craps out, so we'll do one at a time
 #		await procFiles [doCompileCivet, ['**/*.lib.test.civet']], {force}
@@ -43,7 +47,7 @@ EXEC () =>
 #			capture: true
 #			}
 
-		LOG f"#{'Lib'}:-14 #{'OK'}:4 #{'Bad'}:4 #{'Time'}:8"
+		LOG f"#{'Lib'}:-14 #{'OK'}:4 #{'Fail'}:4 #{'Time'}:8"
 		LOG [dashes(14), dashes(4), dashes(4), dashes(8)].join(' ')
 		for path of allFilesMatching('./**/*.test.civet')
 			h := parsePath(path)
@@ -74,9 +78,6 @@ EXEC () =>
 				LOG f"#{stub}:-14 #{nOK}:4 #{nBad}:4 #{timeStr}:8"
 			else
 				LOG hResult.stdout
-
-		# --- Create HTML coverage file
-		await execCmd 'deno', ['coverage', '--html'], {capture: false}
 	else
 		for stub of allNonOptions()
 			fileName := (
@@ -89,10 +90,17 @@ EXEC () =>
 				tsPath := withExt(path, '.ts')
 				LOG cmdTitle("RUN UNIT TEST #{toRelPath(path)}")
 				await procOneFile path, doCompileCivet, {force}
+				debugger
 				await procOneFile tsPath, doUnitTest, {
 					lineNum
 					inspect
-					capture: true
 					}
 			else
 				ERR "No such file: #{fileName}"
+
+	if not inspect
+		# --- Create HTML coverage file
+		write "Building coverage report..."
+		hResult := await execCmd 'deno', ['coverage', '--html']
+		writeln "Done"
+		LOG hResult.stdout

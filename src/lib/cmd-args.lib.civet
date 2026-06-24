@@ -1,24 +1,46 @@
 # cmd-args.lib.civet
 
+import {initLogLevel, LOG, DBG, ERR} from 'logger'
 import {
-	undef, defined, notdefined, croak, assert,
-	initLogLevel, LOG, DBG, ERR, clearScreen,
+	undef, defined, notdefined, croak, assert, matches, clearScreen,
 	} from 'base'
 import {
-	hash, hashof, char, integer, nonEmpty,
+	hash, hashof, array, arrayof, char, integer, nonEmpty,
 	isEmpty, isArray, isBoolean,
 	isInteger, isHash, isString,
+	clearHash, setHash, clearArray, setArray,
 	} from 'datatypes'
-import {MAP} from 'mapper'
-import {keys, getOptions, o, spaces} from 'llutils'
+import {MAP, mkArray} from 'mapper'
+import {
+	keys, getOptions, o, spaces, likeNum,
+	} from 'llutils'
+import {resetOneIndent, indented} from 'indent'
 import {OL, DUMP} from 'nice'
+
+doSetLogLevel := true   # --- maybe check an env var first?
+doHandleClear := true   # --- maybe check an env var first?
+
+export type TCmdArgDesc = {
+	hFlags: hashof<boolean>
+	hValues: hashof<string | number>
+	lNonOptions: string[]
+	helping: boolean
+	debugging: boolean
+	silent: boolean
+	inspecting: boolean
+	clearScreen: boolean
+	}
+
+# ---------------------------------------------------------------------------
 
 hFlags: hashof<boolean> := {}
 hValues: hashof<string> := {}
-export lNonOptions: string[] := []
+lNonOptions: arrayof<string> := []
 
-doSetLogLevel := true     # --- maybe check an env var first?
-doHandleClear := true   # --- maybe check an env var first?
+export let helping: boolean = false
+export let debugging: boolean = false
+export let inspecting: boolean = false
+export let silent: boolean = false
 
 # ---------------------------------------------------------------------------
 
@@ -58,6 +80,13 @@ export setFlag := (ch: char): void =>
 
 # ---------------------------------------------------------------------------
 
+export clearFlag := (ch: char): void =>
+
+	delete hFlags[ch]
+	return
+
+# ---------------------------------------------------------------------------
+
 export numNonOptions := (): number =>
 
 	return lNonOptions.length
@@ -67,7 +96,8 @@ export numNonOptions := (): number =>
 export nonOption := (i: integer): string? =>
 
 	return (
-		  (i >= 0) && (i < lNonOptions.length)
+		  (0 <= i < lNonOptions.length)
+#		  (i >= 0) && (i < lNonOptions.length)
 		? lNonOptions[i]
 		: undef
 		)
@@ -86,40 +116,78 @@ export argValue := (name: string): string? =>
 
 # ---------------------------------------------------------------------------
 
-export setCmdArgs := (
-		lArgs: string[] = Deno.args
-		): void =>
+export parseCmdArgs := (
+		lArgs: string[]
+		): TCmdArgDesc =>
+
+	h: TCmdArgDesc := {
+		hFlags: {}
+		hValues: {}
+		lNonOptions: []
+		helping: false
+		debugging: false
+		silent: false
+		inspecting: false
+		clearScreen: false
+		}
 
 	for arg,i of lArgs
 		if (arg == '!') && (i == lArgs.length - 1) && doHandleClear
-			clearScreen()
+			h.clearScreen = true
 			continue
 		if (arg == '--')
 			continue
 		lMatches := arg.match /^-([A-Za-z0-9_-]+)(?:(=)(.*))?$/
 		if (lMatches == null)
-			lNonOptions.push arg
+			h.lNonOptions.push arg
 			continue
 		[_, optStr, eqStr, valueStr] := lMatches
 		if eqStr
-			hValues[optStr] = valueStr
-		else
-			for ch of optStr.split('')
-				switch ch
-					when 'D'
-						if doSetLogLevel
-							initLogLevel 'debug'
-					when 'S'
-						if doSetLogLevel
-							initLogLevel 'silent'
-				hFlags[ch] = true
-
-setCmdArgs()
+			if likeNum(valueStr)
+				h.hValues[optStr] = parseFloat(valueStr)
+			else
+				h.hValues[optStr] = valueStr
+			continue
+		for ch of optStr.split('')
+			switch ch
+				when 'h'
+					h.helping = true
+				when 'D'
+					h.debugging = true
+				when 'S'
+					h.silent = true
+				when 'I'
+					h.inspecting = true
+			h.hFlags[ch] = true
+	assert not (h.silent && h.debugging), "Can't use both -S and -D"
+	return h
 
 # ---------------------------------------------------------------------------
 
-export debugging := flag 'D'
-export inspecting := flag 'd'
+export setCmdArgs := (
+		lArgs: string[] = Deno.args
+		): void =>
+
+	h: TCmdArgDesc := parseCmdArgs(lArgs)
+
+	setHash hFlags, h.hFlags
+	setHash hValues, h.hValues
+	setArray lNonOptions, h.lNonOptions
+
+	helping    = h.helping
+	debugging  = h.debugging
+	silent     = h.silent
+	inspecting = h.inspecting
+
+	if h.clearScreen
+		clearScreen()
+	if doSetLogLevel
+		if debugging
+			initLogLevel 'debug'
+		else if silent
+			initLogLevel 'silent'
+
+setCmdArgs()
 
 # ---------------------------------------------------------------------------
 
@@ -129,55 +197,82 @@ export type TKeyDesc = {
 	desc?: string
 	}
 
-export type TCmdDesc =
+export type TCmdDesc = {
 	[key: string]: TKeyDesc | string
+	}
 
 # ---------------------------------------------------------------------------
 
 export helpStr := (hDesc: TCmdDesc): string =>
 
-	lLines := ['Usage:']
-	for key,h in hDesc
-		# @ts-ignore
-		desc: string := isString(h) ? h : ('desc' in h) ? h.desc : ''
-		if key == '_'
-			lLines.push "   non-options: #{desc}"
-		else if desc
-			lLines.push "   #{key}: #{desc}"
-	return lLines.join '\n'
+	resetOneIndent(undef, '   ')
+	lLines := mkArray keys(hDesc), (key) ->
+		val := hDesc[key]
+		if (key == '_')
+			if isString(val)
+				yield "non-options: #{val}"
+			else
+				{range, desc} := val
+				if defined(desc)
+					yield "non-options: #{desc}"
+				if defined(range)
+					[min, max] := range
+					yield indented("min: #{min}")
+					yield indented("max: #{max}")
+		else
+			if isString(val)
+				yield "#{key}: #{val}"
+			else
+				{type, desc} := val
+				if defined(desc)
+					if defined(type)
+						yield "#{key}: #{type} - #{desc}"
+					else
+						yield "#{key} - #{desc}"
+				else
+					if defined(type)
+						yield "#{key}: #{type}"
+					else
+						yield "#{key} - unknown"
+	return ['Usage:', ...indented(lLines)].join('\n')
 
 # ---------------------------------------------------------------------------
 
-export getCmdArgErrors := (hDesc: TCmdDesc): string? =>
+export getCmdArgErrors := (hDesc: TCmdDesc): string[] =>
 
 	lErrors: string[] := []
 	for flag of keys(hFlags)
-		if (flag not in hDesc) && (flag != 'D')
+		if (flag not in hDesc) && not ['D','I','h'].includes(flag)
 			lErrors.push "Unknown flag: #{flag}"
-	for key in hValues
+	for key of keys(hValues)
 		value := hValues[key]
 		if key in hDesc
 			hKeyDesc := hDesc[key]
-			# @ts-ignore
 			if isHash(hKeyDesc) && ('type' in hKeyDesc)
 				switch hKeyDesc.type
 					when 'number'
-						assert value.match(/^\d+(?:\.\d*)?$/),
-								"Not a number: #{value}"
+						if not matches(value, /^\d+(?:\.\d*)?$/)
+							lErrors.push "Not a number: #{value}"
 		else
 			lErrors.push "Unknown var: #{key}"
-	return if (lErrors.length == 0) then undef else lErrors.join('\n')
+	if ('_' in hDesc) && not isString(hDesc._) && defined(hDesc._.range)
+		[min, max] := hDesc._.range
+		n := numNonOptions()
+		if (n < min)
+			lErrors.push "#{n} non options, min = #{min}"
+		if (n > max)
+			lErrors.push "#{n} non options, max = #{max}"
+	return lErrors
 
 # ---------------------------------------------------------------------------
 # --- Throws exception if problem found
-#     Also handles -h option as help text
 
 export checkCmdArgs := (hDesc: TCmdDesc): void =>
 
-	if flag('h')
-		LOG helpStr hDesc
-		Deno.exit 0
-	errMsg := getCmdArgErrors hDesc
-	if defined(errMsg) && nonEmpty(errMsg)
+	lErrors := getCmdArgErrors hDesc
+	DUMP lErrors, 'lErrors in checkCmdArgs'
+	if nonEmpty(lErrors)
+		errMsg := lErrors.join('\n')
+		ERR errMsg
 		croak errMsg
 	return

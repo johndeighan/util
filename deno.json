@@ -7,6 +7,7 @@
 	"imports": {
 		"@std/assert": "jsr:@std/assert",
 		"@std/async": "jsr:@std/async",
+		"@std/async/delay": "jsr:@std/async/delay",
 		"@std/async/debounce": "jsr:@std/async/debounce",
 		"@std/yaml": "jsr:@std/yaml",
 		"@std/fmt": "jsr:@std/fmt",
@@ -19,6 +20,7 @@
 		"@std/path": "jsr:@std/path",
 		"@std/streams": "jsr:@std/streams",
 		"@std/streams/text-line-stream": "jsr:@std/streams/text-line-stream",
+		"@std/streams/@std/streams/to-transform-stream": "jsr:@std/streams/to-transform-stream",
 		"@webview/webview": "jsr:@webview/webview",
 		"@webui": "jsr:@webui/deno-webui"
 		"@std/http/file-server": "jsr:@std/http/file-server",
@@ -45,7 +47,9 @@
 		"npm-blessed": "npm:@unblessed/node",
 		"npm-pug": "npm:pug",
 
+		"logger":        "file:///C:/Users/johnd/util/src/lib/logger.lib.ts",
 		"base":          "file:///C:/Users/johnd/util/src/lib/base.lib.ts",
+		"timer":         "file:///C:/Users/johnd/util/src/lib/timer.lib.ts",
 		"llfs":          "file:///C:/Users/johnd/util/src/lib/llfs.lib.ts",
 		"fsm":           "file:///C:/Users/johnd/util/src/lib/fsm.lib.ts",
 		"promise-utils": "file:///C:/Users/johnd/util/src/lib/promise-utils.lib.ts",

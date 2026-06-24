@@ -1,7 +1,8 @@
 # extract.lib.civet
 
+import {LOG} from 'logger'
 import {
-	undef, defined, notdefined, croak, assert, LOG,
+	undef, defined, notdefined, croak, assert,
 	} from 'base'
 import {
 	isString, isArray, isNumber,
@@ -40,7 +41,7 @@ export extract := (
 			:                          'Unknown error'
 			)
 		reportExtractError x, pathstr, msg
-		Deno.exit 99
+		throw err
 
 # ---------------------------------------------------------------------------
 
@@ -79,7 +80,7 @@ export reportExtractError := (
 export getString := (
 		x: unknown,
 		dspath: string | TPathItem[],
-		value: string? = undef
+		expected: string? = undef
 		): string =>
 
 	pathstr := getPathString(dspath)
@@ -87,8 +88,8 @@ export getString := (
 	if not isString(val)
 		reportExtractError x, pathstr,
 				"string expected, got #{val}"
-	if value
-		assert (val == value), "Expected #{value}, got #{val}"
+	if expected
+		assert (val == expected), "Expected #{expected}, got #{val}"
 	return val as string
 
 # ---------------------------------------------------------------------------
@@ -113,6 +114,7 @@ export getNumber := (
 export getArray := (
 		x: unknown,
 		dspath: string | TPathItem[],
+		value: array? = undef
 		): unknown[] =>
 
 	pathstr := getPathString(dspath)
@@ -129,7 +131,7 @@ export getArray := (
 export getTuple := (
 		x: unknown,
 		dspath: string | TPathItem[],
-		len: integer? = undef
+		len: integer = 2
 		): unknown[] =>
 
 	pathstr := getPathString(dspath)

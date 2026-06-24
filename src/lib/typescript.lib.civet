@@ -10,10 +10,11 @@ import {
 	} from 'npm-typescript'
 
 import {
+	LOG, DBG, ERR, INDENT, UNDENT, pushLogLevel, popLogLevel,
+	} from 'logger'
+import {
 	undef, defined, notdefined, croak, assert, getErrStr,
 	extractSourceMap, withColors, decolorize,
-	LOG, DBG, ERR, INDENT, UNDENT,
-	pushLogLevel, popLogLevel,
 	} from 'base'
 import {
 	integer, hash, hashof, array,
@@ -22,7 +23,7 @@ import {
 	} from 'datatypes'
 import {
 	getOptions, spaces, o, words, hasKey,
-	CStringSetMap, keys, sep, allLinesInBlock, f,
+	CStringSetMap, keys, sep, allLinesIn, f,
 	} from 'llutils'
 import {debugging} from 'cmd-args'
 import {
@@ -710,8 +711,14 @@ class CUnitTester extends CFileHandler
 		hResult := await execCmd 'deno', [
 				'test'
 				'-A'
-				...(inspect ? ['--inspect-brk'] : ['--coverage=./coverage'])
-				...(defined(lineNum) ? ['--filter', "/^line #{lineNum}$/"] : [])
+				...(inspect
+					? ['--inspect-brk']
+					: ['--coverage=./coverage', '--coverage-raw-data-only']
+					)
+				...(defined(lineNum)
+					? ['--filter', "/^line #{lineNum}$/"]
+					: []
+					)
 				path
 				], {capture}
 		return hResult
@@ -725,11 +732,8 @@ class CUnitTester extends CFileHandler
 		if not hResult.success || output.match(/croak|error/i)
 			return output
 
-		lLines := Array.from MAP allLinesInBlock(decolorize(output)), (line) ->
-			if line.startsWith('running')
-				yield line
-				yield ''
-			else if line.startsWith('line')
+		lLines := Array.from MAP allLinesIn(decolorize(output)), (line) ->
+			if line.startsWith('line')
 				if not line.includes(' ok ')
 					yield withColors line, {
 						failed: 'red'
@@ -750,7 +754,6 @@ class CUnitTester extends CFileHandler
 						failed: 'red'
 						FAILED: 'red'
 						}
-				yield ''
 			else if line.includes('Lcov coverage')
 				yield 'coverage report generated'
 		return lLines.join('\n')

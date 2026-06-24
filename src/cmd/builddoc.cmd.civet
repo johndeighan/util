@@ -1,9 +1,10 @@
 # builddoc.cmd.civet
 
+import {LOG} from 'logger'
 import {
-	undef, defined, notdefined, assert, croak, EXEC, LOG, toRelPath,
+	undef, defined, notdefined, assert, croak, toRelPath,
 	} from 'base'
-import {stdChecks, cmdTitle} from 'llutils'
+import {stdChecks, cmdTitle, EXEC} from 'llutils'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {findFile} from 'fsys'
 import {procFiles, procOneFile} from 'exec'

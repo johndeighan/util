@@ -1,8 +1,10 @@
 # lltypescript.lib.civet
 
-import {croak, mkTempFile, DBG} from 'base'
+import {LOG, DBG} from 'logger'
+import {croak, assert, mkTempFile} from 'base'
 import {hash} from 'datatypes'
 import {getOptions} from 'llutils'
+import {execCmd} from 'exec'
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -11,17 +13,8 @@ export typeCheckTsFile := (
 		path: string
 		): void =>
 
-	cmd := new Deno.Command 'deno', {
-		args: ["check", path]
-		stdout: "piped"
-		stderr: "piped"
-		}
-
-	{success, stderr} := await cmd.output()
-	if success
-		return
-	else
-		croak new TextDecoder().decode(stderr)
+	hResult := await execCmd 'deno', ["check", path]
+	assert hResult.success, "type check of #{path} failed"
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -33,35 +26,4 @@ export typeCheckTsCode := (
 	tsPath := await mkTempFile '.ts'
 	await Deno.writeTextFile tsPath, tsCode
 	await typeCheckTsFile tsPath
-	return
-
-# ---------------------------------------------------------------------------
-#            SYNCHRONOUS VERSIONS
-# ---------------------------------------------------------------------------
-
-export typeCheckTsFileSync := (
-		path: string
-		): void =>
-
-	cmd := new Deno.Command 'deno', {
-		args: ["check", path]
-		stdout: "piped"
-		stderr: "piped"
-		}
-
-	{success, stderr} := cmd.outputSync()
-	if success
-		return
-	else
-		croak new TextDecoder().decode(stderr)
-
-# ---------------------------------------------------------------------------
-
-export typeCheckTsCodeSync := (
-		tsCode: string
-		): void =>
-
-	tsPath := "./_typecheck_.ts"
-	Deno.writeTextFileSync tsPath, tsCode
-	typeCheckTsFileSync tsPath
 	return

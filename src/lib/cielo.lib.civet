@@ -2,9 +2,9 @@
 
 import {pathToFileURL} from 'node-url'
 
+import {LOG, DBG, pushLogLevel, popLogLevel} from 'logger'
 import {
-	pass, undef, defined, notdefined, croak, assert,
-	DBG, LOG, pushLogLevel, popLogLevel, sleep,
+	pass, undef, defined, notdefined, croak, assert, sleep,
 	} from 'base'
 import {hash, isHash} from 'datatypes'
 import {keys, require} from 'llutils'
@@ -21,7 +21,7 @@ import {doCompileCivet} from 'civet'
 
 export cielo2civet := (code: string): string =>
 
-	await sleep(0.01)
+	await sleep(10)
 	return code
 
 # ---------------------------------------------------------------------------

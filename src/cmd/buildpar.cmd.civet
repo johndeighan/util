@@ -1,7 +1,8 @@
 # buildpar.cmd.civet
 
-import {EXEC, assert, defined, LOG, DBG, ERR} from 'base'
-import {stdChecks, centered} from 'llutils'
+import {LOG, DBG, ERR} from 'logger'
+import {assert, defined} from 'base'
+import {stdChecks, centered, EXEC} from 'llutils'
 import {flag, nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {
 	withExt, findFile, parsePath,

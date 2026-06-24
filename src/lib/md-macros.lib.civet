@@ -9,9 +9,7 @@ import {
 import {hash} from 'datatypes'
 import {getOptions} from 'llutils'
 import {fileExt, withExt, pathStr} from 'fsys'
-import {
-	execCmd, CFileHandler, TExecResult,
-	} from 'exec'
+import {CFileHandler, TExecResult} from 'exec'
 import {TMacroLib, mapString} from 'macros'
 
 # ---------------------------------------------------------------------------

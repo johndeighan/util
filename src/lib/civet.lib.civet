@@ -3,9 +3,10 @@
 import {exists, existsSync} from '@std/fs'
 import {Node, SourceFile} from 'npm-typescript'
 
+import {LOG, DBG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, croak, assert, getErrStr,
-	extractSourceMap, LOG, DBG, ERR, isFullPath,
+	extractSourceMap, isFullPath,
 	} from 'base'
 import {
 	hash, isString, isHash, isEmpty, nonEmpty,
@@ -40,6 +41,7 @@ export type TCivetOptions = {
 	nocheck?: boolean
 	inlineMap?: boolean
 	output?: string       # --- passed after -o option
+	verbose?: boolean
 	}
 
 # ---------------------------------------------------------------------------
@@ -77,25 +79,25 @@ class CCivetCompiler extends CFileHandler
 			hOptions: hash = {}
 			): TExecResult
 
-		{force, nocheck, output} := getOptions<TCivetOptions> hOptions, {
+		{force, nocheck, output, verbose} := getOptions<TCivetOptions> hOptions, {
 			force: false
 			nocheck: false
 			output: '.ts'
+			verbose: false
 			}
 
 		assert (fileExt(path) == '.civet'), "Not a civet file: #{path}"
 		tsPath := withExt path, '.ts'
 
 		# --- Check if a newer compiled version already exists
-		if (
-				   not force
-				&& await exists(tsPath)
-				&& newerDestFileExists(path, tsPath)
-				)
-			return {
-				success: true
-				notNeeded: true
-				}
+		if not force && existsSync(tsPath)
+			ex := newerDestFileExists(path, tsPath)
+			if ex
+				return {
+					success: true
+					notNeeded: true
+					infile: path
+					}
 
 		try
 			hResult := await execCmd 'deno', [
@@ -107,15 +109,25 @@ class CCivetCompiler extends CFileHandler
 				'-c', path
 				]
 			if not hResult.success
-				console.log @getOutput(hResult)
-				croak "Compile failed"
+				if verbose
+					console.log @getOutput(hResult)
+				return {
+					success: false
+					stderr: "Compile failed"
+					infile: path
+					}
 
 			unless nocheck
 				hCheckResult := await execCmd 'deno', ['check', tsPath]
 				if not hCheckResult.success
 					touch path
-					console.log hCheckResult.stderr
-					croak "Type check failed"
+					if verbose
+						console.log hCheckResult.stderr
+					return {
+						success: false
+						stderr: "Type check failed for #{path}"
+						infile: path
+						}
 
 			tsCode := await slurpAsync tsPath
 			[code, hSrcMap] := extractSourceMap(tsCode)

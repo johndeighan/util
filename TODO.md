@@ -22,6 +22,20 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
+extract unit tests
+	- extract when eval fails
+	- getString - not a string, not expected string
+	- getNumber - not a number, not expected number
+	- getArray - not an array, not expected array
+	- getTuple(x, dspath, length)
+
+check doInstallCmd and doUninstallCmd
+
+check all calls to execCmd() to see if
+	they use parameters correctly
+
+temp craps out: 'acc is not iterable' ???
+
 all files should allow meta-data
 
 in text-table, if all columns have a defined width,
@@ -31,6 +45,8 @@ in text-table, if all columns have a defined width,
 
 run unit tests via a command buildlib all -t
 	coverage report should only be generated when using 'all'
+
+in procFIles, allow passing multiple TProcSpecs
 
 setDirTree outputs some incorrect blank lines
 

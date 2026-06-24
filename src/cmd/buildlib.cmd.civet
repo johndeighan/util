@@ -1,9 +1,10 @@
 # buildlib.cmd.civet
 
+import {LOG, ERR} from 'logger'
 import {
-	assert, defined, notdefined, EXEC, toRelPath, LOG, ERR,
+	assert, defined, notdefined, toRelPath,
 	} from 'base'
-import {stdChecks, o, cmdTitle} from 'llutils'
+import {stdChecks, o, cmdTitle, EXEC} from 'llutils'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {withExt, findFile} from 'fsys'
 import {execCmd, procFiles, procOneFile} from 'exec'
@@ -37,7 +38,7 @@ EXEC () =>
 			await procFiles [doUnitTest, ['**/*.lib.test.ts']], {capture: false}
 
 			# --- Create HTML coverage file
-			await execCmd 'deno', ['coverage', '--html'], {capture: false}
+			await execCmd 'deno', ['coverage', '--html']
 	else
 		lNonOptions := Array.from(allNonOptions())
 		for stub of allNonOptions()
@@ -60,7 +61,6 @@ EXEC () =>
 					hResult := await procOneFile tsPath, doUnitTest, {
 						capture: true
 						inspect: inspectTest
-						dumpOutput: true
 						}
 				else
 					LOG "No unit test exists for #{stub}.lib"

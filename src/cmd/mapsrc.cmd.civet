@@ -1,7 +1,7 @@
 # mapsrc.cmd.civet
 
-import {EXEC, mapPos, assert, defined} from 'base'
-import {stdChecks} from 'llutils'
+import {mapPos, assert, defined} from 'base'
+import {stdChecks, EXEC} from 'llutils'
 import {flag, nonOption, allNonOptions} from 'cmd-args'
 import {isFile} from 'fsys'
 

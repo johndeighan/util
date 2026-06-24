@@ -1,0 +1,197 @@
+# logger.lib.civet
+
+import {
+	cyan, red,
+	} from '@std/fmt/colors'
+
+# ---------------------------------------------------------------------------
+
+setDebugFiles := new Set<string>()
+
+let indentLevel = 0
+let lLogLines: string[] = []
+
+export INDENT := Symbol 'indent'
+export UNDENT := Symbol 'undent'
+
+export type TLogLevel = 'testing' | 'silent' | 'info' | 'debug'
+export let lLogLevels: TLogLevel[] = ['info']
+export getLogLevels := () => return lLogLevels
+
+# ---------------------------------------------------------------------------
+
+export openDebugFile := (
+		stub: string
+		clear: boolean = false
+		): void =>
+
+	path := "./logs/#{stub}.log"
+	setDebugFiles.add path
+	if clear
+		Deno.removeSync path
+	return
+
+# ---------------------------------------------------------------------------
+
+export appendDebugFile := (
+		...lItems: unknown[]
+		): void =>
+
+	for item of lItems
+		block := (typeof item == 'string') ? item : toJSON(item)
+		for path of setDebugFiles
+			Deno.writeTextFileSync path, block + "\n", {append: true}
+	return
+
+# ---------------------------------------------------------------------------
+
+export closeDebugFile := (stub: string): void =>
+
+	path := "src/logs/#{stub}.log"
+	setDebugFiles.delete path
+	return
+
+# ---------------------------------------------------------------------------
+
+export curLogLevel := (): TLogLevel =>
+
+	return (
+		(lLogLevels.length == 0)
+		? 'info'
+		: lLogLevels[lLogLevels.length-1]
+		)
+
+# ---------------------------------------------------------------------------
+
+export notLogging := (): boolean =>
+
+	return (curLogLevel() == 'silent') || (curLogLevel() == 'testing')
+
+# ---------------------------------------------------------------------------
+
+export initLogLevel := (
+		level: TLogLevel
+		): void =>
+
+	lLogLevels = [level]
+	console.log "INITIAL LOG LEVEL set to #{level}"
+	return
+
+# ---------------------------------------------------------------------------
+
+export pushLogLevel := (
+		level: TLogLevel
+		): void =>
+
+	lLogLevels.push level
+	return
+
+# ---------------------------------------------------------------------------
+
+export popLogLevel := (): TLogLevel =>
+
+	if (lLogLevels.length == 0)
+		return 'info'
+	else
+		result := lLogLevels.pop()
+		return result || 'info'
+
+# ---------------------------------------------------------------------------
+
+export toJSON := (item: unknown): string =>
+
+	return JSON.stringify(item, null, 3)
+
+# ---------------------------------------------------------------------------
+
+export LOG := (
+		...lItems: unknown[]
+		): void =>
+
+	if notLogging()
+		return
+	for item of lItems
+		if (item == INDENT)
+			indentLevel += 1
+		else if (item == UNDENT)
+			if (indentLevel > 0)
+				indentLevel -= 1
+		else
+			logLine item
+	return
+
+# ---------------------------------------------------------------------------
+
+export DBG := (
+		...lItems: unknown[]
+		): void =>
+
+	# --- if an append file is defined, output even if
+	#     current log level is not 'debug'
+	appendDebugFile ...lItems
+
+	if (curLogLevel() == 'debug')
+		LOG ...lItems
+	return
+
+# ---------------------------------------------------------------------------
+
+export WARN := (
+		...lMsgs: unknown[]
+		): void =>
+
+	if notLogging()
+		return
+	for msg of lMsgs
+		console.error "#{cyan('WARNING')}: #{msg}"
+	return
+
+# ---------------------------------------------------------------------------
+
+export ERR := (
+		errMsg: string
+		label: string = 'ERR'
+		): void =>
+
+	lLogLines.push errMsg
+	if notLogging()
+		return
+	console.error red(label) + ': ' + errMsg
+	return
+
+# ---------------------------------------------------------------------------
+
+export getLog := (): string =>
+
+	return lLogLines.join('\n')
+
+# ---------------------------------------------------------------------------
+
+logLine := (
+		x: unknown,
+		): void =>
+
+	line := '\t'.repeat(indentLevel) + unknownToString(x)
+	console.log line
+	lLogLines.push line
+	return
+
+# ---------------------------------------------------------------------------
+
+export clearLog := (): void =>
+
+	lLogLines.length = 0
+	return
+
+# ---------------------------------------------------------------------------
+
+export unknownToString := (x: unknown): string =>
+
+	return (
+		  (typeof x == 'string') ? x
+		: (x == undefined)       ? 'undef'
+		: (x == null)            ? 'null'
+		:                          JSON.stringify(x)
+		)
+
+# ---------------------------------------------------------------------------

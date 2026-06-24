@@ -5,8 +5,8 @@ import {existsSync} from '@std/fs'
 import {
 	undef, defined, notdefined, assert, croak,
 	} from 'base'
-import {hashof} from 'datatypes'
-import {keys, clearHash} from 'llutils'
+import {hashof, clearHash} from 'datatypes'
+import {keys} from 'llutils'
 import {findFile, isFile} from 'fsys'
 import {parseText} from 'hera-parse'
 

@@ -9,20 +9,18 @@ import {parse: parseYAML} from "@std/yaml"
 import {
 	undef, defined, notdefined, deepEqual, croak, assert, matches,
 	colorize, isColor, toRelPath, obviously, toBool, TIterator,
+	getErrStr,
 	} from 'base'
 import {esc} from 'unicode'
 import {
 	isHash, isArray, isNonEmptyString, char,
 	isArrayOfStrings, isEmpty, nonEmpty, isString, isInteger,
 	integer, hash, hashof, array, arrayof, TVoidFunc, isNonPrimitive,
-	functionDef, TStringMapper,
+	functionDef, TStringMapper, isAsyncFunction,
 	} from 'datatypes'
 import {MAP} from 'mapper'
 
-llutilsLoadTime: integer := Date.now()
 defWidth := 64     # ---used in sep, centered
-
-export {deepEqual}
 
 # ---------------------------------------------------------------------------
 
@@ -32,21 +30,6 @@ export stdChecks := (helpStr: string = ''): void =>
 	root := Deno.env.get('PROJECT_ROOT_DIR')
 	assert nonEmpty(root), "Please set env var PROJECT_ROOT_DIR"
 	return
-
-# ---------------------------------------------------------------------------
-
-export sinceLoad := (datetime: Date | integer = Date.now()): number =>
-
-	if (datetime instanceof Date)
-		return datetime.valueOf() - llutilsLoadTime
-	else
-		return datetime - llutilsLoadTime
-
-# ---------------------------------------------------------------------------
-
-export sinceLoadStr := (datetime: (Date | integer)? = undef) =>
-
-	return sprintf "%6d", sinceLoad(datetime)
 
 # ---------------------------------------------------------------------------
 
@@ -137,23 +120,6 @@ export hasKey := (obj: unknown, ...lKeys: string[]) =>
 	return true
 
 export hasKeys := hasKey
-
-# ---------------------------------------------------------------------------
-
-export clearHash := (h: hash): void =>
-
-	for key of keys(h)
-		delete h[key]
-	return
-
-# ---------------------------------------------------------------------------
-
-export sleepSync := (sec: number): void =>
-
-	start := Date.now()
-	end := Date.now() + 1000 * sec
-	while (Date.now() < end)
-	return
 
 # ---------------------------------------------------------------------------
 
@@ -340,7 +306,7 @@ export getLineAndColumn := (text: string, pos: number) =>
 export blockWidth := (block: string): number =>
 
 	let width = 0
-	for line of allLinesInBlock(block)
+	for line of allLinesIn(block)
 		if (line.length > width)
 			width = line.length
 	return width
@@ -381,7 +347,7 @@ export tabify := (
 		nSpaces: number = 3
 		): string =>
 
-	return str.replaceAll /^(\x20+)/, (match, spaces) =>
+	return str.replaceAll /^(\x20+)/g, (match, spaces) =>
 		return '\t'.repeat Math.floor spaces.length / nSpaces
 
 # ---------------------------------------------------------------------------
@@ -395,24 +361,35 @@ export untabify := (
 
 # ---------------------------------------------------------------------------
 
-export cleanup := (str: string): string =>
-
-	return rtrim(str).replaceAll('\r', '')
-
-# ---------------------------------------------------------------------------
-
-export allLinesInBlock := (
+export allLinesIn := (
 		block: string
+		hOptions: hash = {}
 		): TIterator<string> ->
+
+	# --- remove any carriage return characters from block
+	block = block.replaceAll('\r', '')
+
+	type opt = {
+		includeNL: boolean
+		}
+	{includeNL} := getOptions<opt> hOptions, {
+		includeNL: false
+		}
 
 	let start = 0
 	let end = block.indexOf('\n')
-	while (end != -1)
-		yield cleanup(block.substring(start, end))
-		start = end + 1
-		end = block.indexOf('\n', start)
+	if includeNL
+		while (end != -1)
+			yield block.substring(start, end+1)
+			start = end + 1
+			end = block.indexOf('\n', start)
+	else
+		while (end != -1)
+			yield block.substring(start, end)
+			start = end + 1
+			end = block.indexOf('\n', start)
 	if (start < block.length)
-		yield cleanup(block.substring(start))
+		yield block.substring(start)
 	return
 
 # ---------------------------------------------------------------------------
@@ -608,11 +585,6 @@ export fsplit := (
 			(.*)        # actual text
 			$///s
 
-	if notdefined(lMatches)
-		console.log "BAD BAD BAD"
-		console.log esc(str)
-		console.log "BAD BAD BAD"
-
 	obviously defined(lMatches)
 	[_, toRel, width, doEsc, color, rest] := lMatches
 	if not toRel && not width && not doEsc && not color
@@ -632,3 +604,35 @@ export fsplit := (
 export likeNum := (str: string): boolean =>
 
 	return toBool matches(str, /^\d+(\.\d*)?([Ee]\d+)?$/)
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+execAsync := (
+		asyncFunc: () => void
+		): Promise<unknown> =>
+
+	return await asyncFunc()
+
+# ---------------------------------------------------------------------------
+# --- if passed an async function, will return a promise
+
+export EXEC := (
+		func: () => void
+		): void =>
+
+	try
+		if isAsyncFunction func
+			execAsync func
+		else
+			func()
+	catch err
+		croak "in EXEC(): #{getErrStr(err)}"
+	return
+
+# ---------------------------------------------------------------------------
+
+export SKIP := (func: () => void): void =>
+
+	return
+

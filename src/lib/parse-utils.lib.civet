@@ -2,9 +2,9 @@
 
 import {sprintf} from '@std/fmt/printf'
 
+import {LOG, DBG, ERR} from 'logger'
 import {
-	undef, defined, notdefined, croak, assert,
-	LOG, DBG, ERR, colorize,
+	undef, defined, notdefined, croak, assert, colorize,
 	} from 'base'
 import {uni, esc} from 'unicode'
 import {hash, hashof, isArray} from 'datatypes'
