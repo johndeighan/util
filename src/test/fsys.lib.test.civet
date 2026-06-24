@@ -16,9 +16,9 @@ import {
 	clearDir, mkDir, mkDirsForFile, slurp, slurpAsync, barf, isPathType,
 	removeFilesMatching, watchFile, FileEventHandler, TFsEventHandler,
 	TPathType, TPathInfo, patchFirstLine, toFullPath, splitPatterns,
-	openTextFile, openAndReadTextFile, isValidStub, barfTempFile,
+	isValidStub, barfTempFile,
 	fromJsonFile, toJsonFile, addJsonValue, pathStr,
-	openForWrite, writeLine,
+	CReadableFile, CWritableFile,
 	} from 'fsys'
 import {
 	equal, truthy, falsy, unifies,
@@ -101,13 +101,11 @@ truthy isFile('deno.json')
 falsy  isFile('./src/lib/notafile.txt')
 truthy isFile("./src/test/fsys/dummy.txt")
 falsy  isFile("./src/test/fsys")
-falsy  isFile(undef)
 
 truthy isDir('src/test')
 falsy  isDir('nosuchdir')
 truthy isDir("./src/test/fsys")
 falsy  isDir("./src/test/fsys/dummy.txt")
-falsy  isDir(undef)
 
 truthy isValidStub('abc')
 falsy  isValidStub('ab,cd')
@@ -564,18 +562,6 @@ await (() =>
 		]
 	)()
 
-(() =>
-	path := 'src/test/fsys/file1.txt'
-	equal await openAndReadTextFile(path), [
-		{fname: 'John', lname: 'Deighan'}
-		"""
-			line1
-			line2
-			line3
-			"""
-		]
-	)()
-
 # ---------------------------------------------------------------------------
 
 (() =>
@@ -606,38 +592,72 @@ equal pathStr(fullpath), 'src/lib/datatypes.lib.civet'
 	truthy (t1 >= t0)
 	)()
 
-await (() =>
-	path := 'src/test/fsys/dummy.txt'
+# ---------------------------------------------------------------------------
 
-	# --- Set contents of dummy.txt to standard contents
-	barf path, 'dummy'
+(await () =>
+	path := 'src/test/fsys/file99.txt'
+	f := new CWritableFile path
+	await f.writeln 'abc'
+	await f.writeln 'def'
+	f.close()
 
-	[hash, iter] := await openTextFile(path)
-	equal hash, {}
-	truthy isAsyncIterator(iter)
-
-	[hash2, data2] := await openTextFile(path, true)
-	equal hash2, {}
-	equal data2, "dummy"
-	)()
-
-await (() =>
-	path := 'src/test/fsys/file1.txt'
-
-	[hash, iter] := await openTextFile(path)
-	equal hash, {fname: 'John', lname: 'Deighan'}
-	truthy isAsyncIterator(iter)
-
-	[hash2, data2] := await openTextFile(path, true)
-	equal hash2, {fname: 'John', lname: 'Deighan'}
-	equal data2, "line1\nline2\nline3"
+	equal slurp(path), 'abc\ndef\n'
 	)()
 
 (await () =>
 	path := 'src/test/fsys/file99.txt'
-	f := await openForWrite path
-	await writeLine f, 'abc'
-	await writeLine f, 'def'
-	await f.close()
-	equal slurp(path), 'abc\ndef\n'
+	fr := new CReadableFile path
+	line1 := await fr.getLine()
+	equal line1, 'abc'
+	line2 := await fr.getLine()
+	equal line2, 'def'
+	line3 := await fr.getLine()
+	equal line3, undef
+	equal await fr.metaData(), {}
+	)()
+
+# ---------------------------------------------------------------------------
+
+(await () =>
+	path := 'src/test/fsys/file999.txt'
+	f := new CWritableFile path
+	await f.writeln '---'
+	await f.writeln 'name: John'
+	await f.writeln '---'
+	await f.writeln 'abc'
+	await f.writeln 'def'
+	f.close()
+
+	equal slurp(path), '---\nname: John\n---\nabc\ndef\n'
+	)()
+
+(await () =>
+	path := 'src/test/fsys/file999.txt'
+	fr := new CReadableFile path
+	line1 := await fr.getLine()
+	equal line1, 'abc'
+	line2 := await fr.getLine()
+	equal line2, 'def'
+	line3 := await fr.getLine()
+	equal line3, undef
+	equal await fr.metaData(), {name: 'John'}
+	)()
+
+(await () =>
+	path := 'src/test/fsys/file999.txt'
+	fr := new CReadableFile path
+	line1 := await fr.getLine()
+	equal line1, 'abc'
+	line2 := await fr.getLine()
+	equal line2, 'def'
+	line3 := await fr.getLine()
+	equal line3, undef
+	)()
+
+(await () =>
+	path := 'src/test/fsys/file999.txt'
+	fr := new CReadableFile path
+	contents := await fr.getContents()
+	equal contents, 'abc\ndef'
+	equal await fr.metaData(), {name: 'John'}
 	)()

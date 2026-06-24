@@ -13,7 +13,8 @@ import {
 	execCmd, procOneFile, procFiles, doRemoveFile, doRun,
 	} from 'exec'
 import {
-	withExt, openTextFile, openAndReadTextFile, rmFile, allDirsMatching,
+	withExt, rmFile, allDirsMatching,
+	CReadableFile, CWritableFile,
 	barf, slurp,
 	} from 'fsys'
 import {DUMP, toNice, OL, ML} from 'nice'
@@ -42,30 +43,14 @@ debugger
 # ---------------------------------------------------------------------------
 
 EXEC () =>
-	num := (n: number) =>
-		await sleep(100)
-		return 42
-
-	rej := (n: number) =>
-		await sleep(n)
-		throw new Error("This is bad")
-
-	lFunctions := [
-		() => num(100)
-		() => rej(100)
-		]
-
-	lTags := ['first', 'second']
-
-	for func of lFunctions
-		try
-			result := await func()
-			console.log "result = #{result}"
-		catch err
-			console.log "ERROR: #{getErrStr(err)}"
-
-	result := await awaitAllSerially lFunctions, lTags
-	console.log result
+	path := 'src/test/fsys/file999.txt'
+	fr := new CReadableFile path
+	line1 := await fr.getLine()
+	console.log "line 1: #{line1}"
+	line2 := await fr.getLine()
+	console.log "line 2: #{line2}"
+	line3 := await fr.getLine()
+	console.log "line 3: #{line3}"
 
 SKIP () =>
 	{stdout, stderr} := await execCmd 'echo', ["Hello"]
@@ -142,13 +127,6 @@ SKIP () =>
 		coffee     30.00  40.00
 		=======================
 		"""
-
-SKIP () =>
-	path := 'src/.temp/bug.txt'
-	[hMetaData, reader] := await openTextFile path
-	LOG hMetaData
-	for await line of reader
-		LOG "LINE: " + line
 
 SKIP () =>
 	result := await parseText('nice', """

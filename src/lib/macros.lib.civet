@@ -11,7 +11,7 @@ import {indented} from 'indent'
 import {OL} from 'nice'
 import {entries, toBlock} from 'llutils'
 import {mkArray} from 'mapper'
-import {parsePath, openTextFile} from 'fsys'
+import {parsePath, CReadableFile} from 'fsys'
 import {CFileHandler, TExecResult} from 'exec'
 import {parseText} from 'hera-parse'
 
@@ -138,5 +138,7 @@ export mapFile := (
 	{ext} := parsePath path
 	assert defined(ext) && ext.startsWith('.$'),
 		"Not a macro file: #{path}"
-	[hMetaData, text] := await openTextFile path, true
+	file := new CReadableFile path
+	hMetaData := await file.metaData()
+	text := await file.getContents()
 	return await mapString text, hMacros

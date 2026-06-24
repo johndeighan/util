@@ -36,8 +36,7 @@ import {flag, debugging, inspecting} from 'cmd-args'
 import {OL, ML, DUMP, DBGVALUE, LOGVALUE} from 'nice'
 import {
 	barf, pathStr, allFilesMatching, normalizePath, barfTempFile,
-	fileExt, withExt, slurpAsync, parsePath,
-	openTextFile, openAndReadTextFile, CWritableFile,
+	fileExt, withExt, slurpAsync, parsePath, CWritableFile,
 	} from 'fsys'
 
 # ---------------------------------------------------------------------------

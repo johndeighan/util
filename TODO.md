@@ -29,6 +29,8 @@ extract unit tests
 	- getArray - not an array, not expected array
 	- getTuple(x, dspath, length)
 
+get unit test for fsys lib to 80%
+
 check doInstallCmd and doUninstallCmd
 
 check all calls to execCmd() to see if

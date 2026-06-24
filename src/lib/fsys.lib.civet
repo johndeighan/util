@@ -20,10 +20,11 @@ import {
 import {
 	pass, undef, defined, notdefined, toRelPath,
 	normalizePath, toFullPath,
-	allLinesInFile, allLinesInFileSync,
+	allLinesInFile,
 	TIterator, TAsyncIterator,
 	fileExt, withExt, getFileStats, encode,
-	croak, assert, obviously, emptyIterator, emptyAsyncIterator,
+	croak, assert, obviously,
+	getEmptyIterator, getEmptyAsyncIterator,
 	} from 'base'
 import {
 	isEmpty, nonEmpty, isString, isNonEmptyString,
@@ -43,7 +44,7 @@ import {civet2tsFile} from 'llcivet'
 
 export {
 	normalizePath, toRelPath, toFullPath,
-	allLinesInFile, allLinesInFileSync,
+	allLinesInFile,
 	fileExt, withExt, getFileStats,
 	}
 
@@ -675,10 +676,8 @@ export parsePath := (path: string): TPathInfo =>
 
 # ---------------------------------------------------------------------------
 
-export isFile := (path: string?): boolean =>
+export isFile := (path: string): boolean =>
 
-	if notdefined(path)
-		return false
 	try
 		stats := getFileStats path
 		return stats.isFile
@@ -690,10 +689,8 @@ export isFile := (path: string?): boolean =>
 
 # ---------------------------------------------------------------------------
 
-export isDir := (path: string?): boolean =>
+export isDir := (path: string): boolean =>
 
-	if notdefined(path)
-		return false
 	try
 		stats := getFileStats path
 		return stats.isDirectory
@@ -745,88 +742,6 @@ export isValidStub := (stub: string): boolean =>
 # ---------------------------------------------------------------------------
 # ASYNC
 
-export function openTextFile(
-		path: string
-		eager: true
-		): [hash, string]
-
-export function openTextFile(
-		path: string
-		eager?: false
-		): [hash, TAsyncIterator<string>]
-
-export function openTextFile(
-		path: string,
-		eager: boolean = false
-		): [hash, string | TAsyncIterator<string>]
-
-	assert isFile(path), "No such file: #{path}"
-	iter := allLinesInFile(path)
-
-	# --- ASYNC ---
-	getLine := (): string? =>
-		{value, done} := await iter.next()
-		if done
-			return undef
-		else
-			return value as string
-
-	# --- we need to get the first line to check if
-	#     there's meta data. But if there is not,
-	#     we need to return it by the reader
-
-	firstLine := await getLine()
-	if notdefined(firstLine)
-		return [{}, (eager ? '' : emptyAsyncIterator<string>())]
-
-	# --- Get meta data if present
-	hasMetaData := isMetaDataStart(firstLine)
-
-	hMetaData: hash := (
-		if hasMetaData
-			lMetaLines: string[] := []
-			let line = await getLine()
-			while line && (line != firstLine)
-				lMetaLines.push line
-				line = await getLine()
-			getMetaDataHash(firstLine, arrayToBlock(lMetaLines))
-		else
-			{}
-		)
-
-	if eager
-		# --- Get all the rest of the lines and join with '\n'
-		lLines := await Array.fromAsync(iter)
-		if hasMetaData
-			return [hMetaData, lLines.join('\n')]
-		else
-			return [{}, [firstLine, ...lLines].join('\n')]
-	else
-		# --- generator that allows reading contents
-		reader := (): TAsyncIterator<string> ->
-			if not hasMetaData
-				yield firstLine
-			let line = await getLine()
-			while defined(line)
-				yield line
-				line = await getLine()
-			return
-		return [hMetaData, reader()]
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export openAndReadTextFile := (
-		path: string
-		): [hash, string] ->
-
-	[hMetaData, reader] := await openTextFile path
-	lLines := await Array.fromAsync(reader)
-	return [hMetaData, lLines.join('\n')]
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
 export configFromFile := (
 		fileName: string
 		): hash =>
@@ -850,25 +765,6 @@ export configFromFile := (
 		)
 	h := await import url
 	return h.hConfig
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export openForWrite := (path: string): Deno.FsFile =>
-
-	return await Deno.open path, {
-		write: true
-		create: true
-		truncate: true
-		}
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export writeLine := (file: Deno.FsFile, str: string): void =>
-
-	await file.write encode(str + '\n')
-	return
 
 # ---------------------------------------------------------------------------
 
@@ -899,3 +795,86 @@ export class CWritableFile
 	writeln(str: string)
 		await @file.write encode(str + '\n')
 		return
+
+	close()
+		@file.close()
+
+# ---------------------------------------------------------------------------
+
+export class CReadableFile
+
+	path: string
+	initialized: boolean = false
+	hMetaData: hash = {}
+	iter: TAsyncIterator<string,void,void> = getEmptyAsyncIterator<string>()
+	firstLine: string? = undef
+
+	constructor(@path: string)
+
+	init(): void
+
+		assert isFile(@path), "No such file: #{@path}"
+		@iter := allLinesInFile(@path)
+
+		# --- we need to get the first line to check if
+		#     there's meta data. But if there is not,
+		#     we need to return it by the reader
+
+		let {value, done} = await @iter.next()
+		if done
+			@firstLine = undef
+		else
+			obviously defined(value)
+			@firstLine = value
+			# --- Get meta data if present
+			@hMetaData = (
+				if isMetaDataStart(value)
+					lMetaLines: string[] := []
+					{value, done} = await @iter.next()
+					while not done && (value != @firstLine)
+						obviously defined(value)
+						lMetaLines.push value
+						{value, done} = await @iter.next()
+					if (value == @firstLine)
+						obviously defined(value)
+						@firstLine = undef
+						getMetaDataHash(value, arrayToBlock(lMetaLines))
+					else
+						{}
+				else
+					{}
+				)
+		@initialized = true
+		return
+
+	metaData(): hash
+
+		if not @initialized
+			await @init()
+		return @hMetaData
+
+	getLine(): string?
+
+		if not @initialized
+			await @init()
+		if defined(@firstLine)
+			str := @firstLine
+			@firstLine = undef
+			return str
+
+		{value, done} := await @iter.next()
+		if done
+			return undef
+		else
+			return value as string
+
+	getContents(): string
+
+		if not @initialized
+			await @init()
+		lLines: string[] := []
+		let line = await @getLine()
+		while defined(line)
+			lLines.push line
+			line = await @getLine()
+		return lLines.join('\n')

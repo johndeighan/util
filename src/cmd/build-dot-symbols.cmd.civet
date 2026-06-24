@@ -13,7 +13,7 @@ import {indented} from 'indent'
 import {DBGVALUE} from 'nice'
 import {
 	barf, allFilesMatching, withExt, parsePath,
-	openForWrite, writeLine,
+	CWritableFile,
 	} from 'fsys'
 import {CAnalysis, analyzeTsCode} from 'typescript'
 
@@ -48,18 +48,17 @@ allLinesFrom := (
 
 # ---------------------------------------------------------------------------
 
-EXEC () =>
+EXEC await () =>
 
-	using file = await openForWrite 'src/.symbols'
-
+	file := new CWritableFile('src/.symbols')
 	for path of allFilesMatching('**/*.lib.ts')
 		try
-			analysis := analyzeTsCode(Deno.readTextFileSync(path))
+			analysis := analyzeTsCode(await Deno.readTextFile(path))
 			lExports := analysis.getExports()
 			{stub} := parsePath(path)
 
-			await writeLine(file, stub)
+			await file.writeln(stub)
 			for line of allLinesFrom lExports
-				await writeLine(file, indented(line))
+				await file.writeln(indented(line))
 		catch err
 			ERR getErrStr(err)

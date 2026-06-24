@@ -15,9 +15,7 @@ import {
 	hash, isEmpty, nonEmpty, isString,
 	TStringMapper, TVoidFunc, isFunction,
 	} from 'datatypes'
-import {
-	isFile, findFile, openTextFile, openAndReadTextFile,
-	} from 'fsys'
+import {isFile, findFile, CReadableFile} from 'fsys'
 import {MAP, mkArray} from 'mapper'
 import {resetOneIndent, splitLine} from 'indent'
 import {
@@ -165,5 +163,7 @@ export parseFile := <T = unknown>(
 		hOptions: hash = {}
 		): T =>
 
-	[hMetaData, contents] := await openAndReadTextFile path
+	file := new CReadableFile path
+	hMetaData := await file.metaData()
+	contents := await file.getContents()
 	return await parseText<T> stub, contents, {hMetaData}

@@ -4,14 +4,14 @@ automate
 	doCompileFile runUnitTestsFor installCmd uninstallCmd
 base
 	deepEqual deepCopy sleep encode decode TIterator TAsyncIterator
-	emptyIterator emptyAsyncIterator pass undef defined anyDefined notdefined
-	max range allChars allCharsAsync croak matches findFile normalizePath
-	withExt toRelPath toFullPath isFullPath newerDestFileExists TFileStats
-	allLinesInFile allLinesInFileSync mkTempFile mkTempFileSync TAssertFunc
-	obviously RawSourceMap TFilePosition mapPos mapPosSync extractSourceMap
-	getMappings decodeLine TFrameType TStackFrame allStackFrames getMyCaller
-	getErrStr TPredicate toBool anyOf allOf allValuesFrom allValuesFromAsync
-	writeln clearScreen resetLine clearPreviousLines TColor isColor colorize
+	getEmptyIterator getEmptyAsyncIterator pass undef defined anyDefined
+	anyNotDefined max range allChars allCharsAsync croak matches findFile
+	fileExt withExt toRelPath toFullPath isFullPath newerDestFileExists
+	getFileStats allLinesInFile mkTempFile mkTempFileSync TAssertFunc assert
+	RawSourceMap TFilePosition mapPos mapPosSync extractSourceMap getOrgPos
+	decodeLine TFrameType TStackFrame allStackFrames getMyCaller frameStr
+	TPredicate toBool anyOf allOf allValuesFrom allValuesFromAsync write
+	clearScreen resetLine clearPreviousLines TColor isColor colorize
 	decolorize isChineseChar
 cielo
 	cielo2civet cielo2ts cielo2civetFile cielo2tsFile doCompileCielo
@@ -43,14 +43,13 @@ file-server
 fsm
 	TState isStateNum TStateFunc TDoneFunc defaultDoneFunc fsmSync fsmAsync
 fsys
-	normalizePath toRelPath toFullPath allLinesInFile allLinesInFileSync
-	withExt getFileStats TPathType isPathType getPathType isStub touch
-	mkpath TPathDesc pathSubDirs myself barf barfTempFile modTime
-	mkDir clearDir mkDirsForFile TFsEventHandler FileEventHandler watchFiles
-	patchFirstLine fromJsonFile toJsonFile addJsonValue inSameDir removeCR
-	slurpAsync pathStr splitPatterns allFilesMatching removeFilesMatching
-	allDirsMatching TPathInfo parsePath isFile isDir rmFile rmDir isValidStub
-	openAndReadTextFile configFromFile openForWrite writeLine CWritableFile
+	normalizePath toRelPath toFullPath allLinesInFile fileExt withExt
+	TPathType isPathType getPathType isStub touch pathToURL mkpath TPathDesc
+	myself barf barfTempFile modTime newerDestFileExists mkDir clearDir
+	TFsEventHandler FileEventHandler watchFiles watchFile patchFirstLine
+	toJsonFile addJsonValue inSameDir removeCR slurp slurpAsync pathStr
+	allFilesMatching removeFilesMatching findFile allDirsMatching TPathInfo
+	isFile isDir rmFile rmDir isValidStub configFromFile CWritableFile
 hera-compile
 	CHeraCompiler doCompileHera unbalanced preprocHera preprocHeraFile
 hera-parse

@@ -47,12 +47,12 @@ export type TNonFunction<T=unknown> = Exclude<T, Function>
 
 # ---------------------------------------------------------------------------
 
-export function* emptyIterator<T=unknown>(): TIterator<T> =>
+export function* getEmptyIterator<T=unknown>(): TIterator<T> =>
 	return
 
 # ---------------------------------------------------------------------------
 
-export async function* emptyAsyncIterator<T=unknown>(): TAsyncIterator<T> =>
+export async function* getEmptyAsyncIterator<T=unknown>(): TAsyncIterator<T> =>
 	return
 
 # ---------------------------------------------------------------------------
@@ -250,14 +250,11 @@ export newerDestFileExists := (
 
 	if not existsSync(destPath)
 		return false
-	try
-		destms := getFileStats(destPath).mtime
-		assert defined(destms), "destms not defined"
-		srcms  := getFileStats(srcPath).mtime
-		assert defined(srcms), "srcms not defined"
-		return (destms > srcms)
-	catch err
-		return false
+	destms := getFileStats(destPath).mtime
+	assert defined(destms), "destms not defined"
+	srcms  := getFileStats(srcPath).mtime
+	assert defined(srcms), "srcms not defined"
+	return (destms > srcms)
 
 # ---------------------------------------------------------------------------
 
@@ -291,17 +288,6 @@ export allLinesInFile := (
 			.pipeThrough(new TextLineStream())
 			)
 	for await line of stream
-		yield line
-	return
-
-# ---------------------------------------------------------------------------
-
-export allLinesInFileSync := (
-		path: string
-		): TIterator<string> ->
-
-	text := Deno.readTextFileSync(path)
-	for line of text.split(/\r?\n/)
 		yield line
 	return
 

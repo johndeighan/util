@@ -23,7 +23,7 @@ import {debugging} from 'cmd-args'
 import {ML, DUMP, DDUMP} from 'nice'
 import {
 	fileExt, withExt, isValidStub, pathStr, newerDestFileExists,
-	openTextFile, openAndReadTextFile, barfTempFile, parsePath,
+	CReadableFile, barfTempFile, parsePath,
 	} from 'fsys'
 import {TState, fromFSM} from 'fsm'
 import {civet2ts} from 'llcivet'
@@ -299,7 +299,9 @@ export preprocHeraFile := (
 		hOptions: hash = {}
 		): [string, THeraType] =>
 
-	[hMetaData, contents] := await openAndReadTextFile path
+	file := new CReadableFile path
+	hMetaData := await file.metaData()
+	contents := await file.getContents()
 	type := mdGet hMetaData, 'type', 'civet'
 	assert isHeraType(type), "Bad hera type: #{type}"
 	heraCode := await preprocHera contents, {type}
