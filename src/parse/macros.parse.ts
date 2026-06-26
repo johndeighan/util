@@ -56,6 +56,7 @@ const grammar = {
   INDENT,
   UNDENT,
   NL,
+  HashMark,
   _};
 
 
@@ -97,7 +98,7 @@ function AllBlocks($$ctx: ParserContext, $$state: ParseState) {
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
-const Block$0$parser = $S($EXPECT($L0, "Block \"\\\\x23\""), Name, _, Args, NL, $E(Content));
+const Block$0$parser = $S(HashMark, Name, _, Args, $P(NL), $E(Content));
 
 const Block$1$parser = $S(Line, $P(NL), $E(Content));
 
@@ -111,8 +112,7 @@ function Block$0($$ctx: ParserContext, $$state: ParseState) {
   const $$m = (function($loc: Loc, $2: typeof $$value[1], $4: typeof $$value[3], $6: typeof $$value[5]) {
     void $loc, $2, $4, $6;
     pm.match('Block', $loc);
-    const lContent = defined($6) ? $6 : []
-    return pm.returnVal({type: 'macro', name: $2, args: $4, lContent} as TMacroBlock);
+    return pm.returnVal({type: 'macro', name: $2, args: $4, lContent: defined($6) ? $6 : []} as TMacroBlock);
   })($$r.loc, $$value[1], $$value[3], $$value[5]);
   ($$r as any).value = $$m;
   
@@ -295,6 +295,26 @@ function NL($$ctx: ParserContext, $$state: ParseState) {
   return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
 }
 
+const HashMark$parser = $EXPECT($L0, "HashMark \"\\\\x23\"");
+
+function HashMark($$ctx: ParserContext, $$state: ParseState) {
+  const $$entered = $$ctx.enter?.("HashMark", $$state);
+  if ($$entered && "cache" in $$entered) return $$entered.cache as never;
+  const $$eventData = $$entered?.data;
+  const $$r = HashMark$parser($$ctx, $$state);
+  if (!$$r) {
+    $$ctx.exit?.("HashMark", $$state, undefined, $$eventData);
+    return undefined;
+  }
+  const $$m = (function($loc: Loc) {
+    void $loc;
+    pm.match('HashMark', $loc);
+  })($$r.loc);
+  ($$r as any).value = $$m;
+  $$ctx.exit?.("HashMark", $$state, $$r, $$eventData);
+  return $$r as unknown as MaybeResult<Exclude<typeof $$m, typeof SKIP>>;
+}
+
 const _$parser = $EXPECT($R6, "_ /\\x20*/");
 
 function _($$ctx: ParserContext, $$state: ParseState) {
@@ -370,6 +390,7 @@ export {
   INDENT,
   UNDENT,
   NL,
+  HashMark,
   _
 }
 

@@ -7,9 +7,9 @@ import {undef, sleep, matches} from 'base'
 import {esc} from 'unicode'
 import {isEmpty, nonEmpty} from 'datatypes'
 import {o, sep} from 'llutils'
-import {isFile, slurp, barf} from 'fsys'
+import {isFile, slurp, barf, withExt} from 'fsys'
 import {
-	getCmdLine, TStreamType, TExecResult, notNeededResult,
+	getCmdLine, TStreamType, TExecResult,
 	mkstr, execCmd, CFileHandler, prelog, postlog,
 	TProcSpec, procFiles, procOneFile,
 	doRemoveFile, doRemoveTsFile, doInstallCmd,
@@ -50,9 +50,14 @@ setup := (): void =>
 await setup()
 
 # ---------------------------------------------------------------------------
+#    Run tests that don't change the file system first
+# ---------------------------------------------------------------------------
 
 truthy isFile('src/test/exec/temp1.civet')
 truthy isFile('src/test/exec/temp2.civet')
+truthy isFile('src/test/exec/temp1.ts')
+truthy isFile('src/test/exec/temp2.ts')
+falsy  isFile('src/test/exec/missing.txt')
 
 (() =>
 	buffer := new ArrayBuffer(3)
@@ -74,17 +79,24 @@ truthy isFile('src/test/exec/temp2.civet')
 	)()
 
 await (() =>
-	truthy isFile('src/test/exec/temp.txt')
-	await procOneFile 'src/test/exec/temp.txt', doRemoveFile
-	falsy isFile('src/test/exec/temp.txt')
+	path := 'src/test/exec/hello.cmd.ts'
+
+	txtPath := withExt(path, '.txt')
+	fails () => await procOneFile txtPath, doInstallCmd
+
+	succeeds () => await procOneFile path, doInstallCmd
+	sleep 1000
+	succeeds (() => await procOneFile path, doUninstallCmd), 'doUninstallCmd'
 	)()
 
-await (() =>
-	# --- NOTE: Only removes a .ts file if there's a .civet file
-	truthy isFile('src/test/exec/sample.ts')
-	await procOneFile 'src/test/exec/sample.ts', doRemoveTsFile
-	falsy isFile('src/test/exec/sample.ts')
+(() =>
+	hResult := await procOneFile 'src/test/exec/hello.cmd.ts', doRun
+	equal hResult.stdout, "Hello, World!\n"
 	)()
+
+# ---------------------------------------------------------------------------
+#     Next run commands that only create new files
+# ---------------------------------------------------------------------------
 
 await (() =>
 	outfile := 'src/test/exec/output.txt'
@@ -95,42 +107,51 @@ await (() =>
 	equal slurp(outfile), "123\n1313\n"
 	)()
 
-await (() =>
-	path := 'src/test/exec/hello.cmd.ts'
-	succeeds () => await procOneFile path, doInstallCmd
-	sleep 1000
-	succeeds () => await procOneFile path, doUninstallCmd
-	)
+# ---------------------------------------------------------------------------
+#    Next run commands that add or remove files
+# ---------------------------------------------------------------------------
 
 await (() =>
-	# --- NOTE: temp.txt has already been removed
+	truthy isFile('src/test/exec/temp.txt')
+	await procOneFile 'src/test/exec/temp.txt', doRemoveFile
+	falsy isFile('src/test/exec/temp.txt')
+	)()
+
+await (() =>
+	truthy isFile('src/test/exec/sample.ts')
+
+	# --- NOTE: Only removes a .ts file if there's a .civet file
+	await procOneFile 'src/test/exec/sample.ts', doRemoveTsFile
+
+	falsy isFile('src/test/exec/sample.ts'), 'sample.ts is file'
+	)()
+
+await (() =>
 	lPaths := [
-		'src/test/exec/temp1.civet'
 		'src/test/exec/temp2.civet'
-		'src/test/exec/temp1.ts'
 		'src/test/exec/temp2.ts'
 		]
 	for path of lPaths
 		truthy existsSync(path)
 
-	lResults := await procFiles [doRemoveFile, ['src/test/exec/temp*']]
+	lResults := await procFiles [doRemoveFile, ['src/test/exec/temp2*']]
+
 	for path of lPaths
-		falsy existsSync(path)
+		falsy existsSync(path), 'these fail'
 	)()
 
 await (() =>
+	truthy isFile('src/test/exec/hello.cmd.ts'), 'cmd hello file exists'
+
 	# --- Remove all *.ts files
 	await procFiles [doRemoveTsFile, ['src/test/exec/*.ts']]
-	)()
+	falsy isFile('src/test/exec/hello.cmd.ts'), 'cmd hello file does not exist'
 
-(() =>
 	# --- compile all civet files serially
 	await procFiles [doCompileCivet, ['src/test/exec/*.civet']], {serial: true}
 	await procFiles [doCompileCivet, ['src/test/exec/*.civet']], {serial: true, verbose: true}
 	await procFiles [doCompileCivet, ['src/test/exec/*.civet']], {serial: true, quiet: true}
-	)()
 
-(() =>
 	# --- Write out an invalid civet file
 	barf 'src/test/exec/bad.civet', """
 		let  :== 92
@@ -140,16 +161,12 @@ await (() =>
 	await procFiles [doCompileCivet, ['src/test/exec/*.civet']], {serial: true, quiet: true}
 	)
 
-(() =>
-	hResult := await procOneFile 'src/test/exec/hello.cmd.ts', doRun
-	equal hResult.stdout, "Hello, World!\n"
-	)()
-
 # ---------------------------------------------------------------------------
 # --- Exhaustively test execCmd()
+# ---------------------------------------------------------------------------
 
 await (() =>
-	succeeds () => await execCmd 'civet', ['--version']
+	succeeds (() => await execCmd 'civet', ['--version']), 'first execCmd'
 	)()
 
 await (() =>

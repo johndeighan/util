@@ -51,16 +51,16 @@ export class CMarkdownMaker extends CFileHandler
 
 	# ..........................................................
 
-	override notNeeded(
+	override needed(
 			path: string
 			hOptions: hash = {}
 			): boolean
 
 		assert (fileExt(path) == '.$md'), "Not an md macro file"
 		destPath := withExt path, '.md'
-		return (
+		return not (
 			   not hOptions.force
-			&& existsSync(destPath)
+			&& await exists(destPath)
 			&& newerDestFileExists(path, destPath)
 			)
 

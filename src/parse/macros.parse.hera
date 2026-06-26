@@ -19,9 +19,9 @@ AllBlocks
 		return $1
 
 Block
-	"\x23" Name _ Args NL Content?
-		lContent := defined($6) ? $6 : []
-		return {type: 'macro', name: $2, args: $4, lContent} as TMacroBlock
+	HashMark Name _ Args NL+ Content?
+		# --- Sorry, all this must be on one line
+		return {type: 'macro', name: $2, args: $4, lContent: defined($6) ? $6 : []} as TMacroBlock
 
 	Line NL+ Content?
 		lContent := defined($3) ? $3 : []
@@ -55,5 +55,7 @@ UNDENT
 NL
 	/\r?\n/
 
+HashMark
+	"\x23"
 _
 	/\x20*/

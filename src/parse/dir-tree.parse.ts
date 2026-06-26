@@ -250,7 +250,7 @@ function Block($$ctx: ParserContext, $$state: ParseState) {
   const $$m = (function($loc: Loc, $2: typeof $$value[1], $3: typeof $$value[2]) {
     void $loc, $2, $3;
     pm.match('Block', $loc);
-    return pm.returnVal(defined($3) ? ($2 + '\n' + $3) : $2);
+    return pm.returnVal(defined($3) ? ($2 + $3) : $2);
   })($$r.loc, $$value[1], $$value[2]);
   ($$r as any).value = $$m;
   $$ctx.exit?.("Block", $$state, $$r, $$eventData);

@@ -11,11 +11,12 @@ import {fromFSM} from 'fsm'
 import {indented} from 'indent'
 import {
 	execCmd, procOneFile, procFiles, doRemoveFile, doRun,
+	doInstallCmd, doUninstallCmd, isInstalled,
 	} from 'exec'
 import {
 	withExt, rmFile, allDirsMatching,
 	CReadableFile, CWritableFile,
-	barf, slurp,
+	barf, slurp, parsePath,
 	} from 'fsys'
 import {DUMP, toNice, OL, ML} from 'nice'
 import {TextTable, splitRows} from 'text-table'
@@ -25,14 +26,14 @@ import {
 import {parseText, str2indents} from 'hera-parse'
 import {compileHera} from 'llhera'
 import {symbolsFromString} from 'symbols'
-import {CAnalysis, analyzeTsCode} from 'typescript'
+import {CAnalysis, analyzeTsCode, doUnitTest} from 'typescript'
 import {
 	TTextBlock, TMacroBlock, TBlock,
 	TMacroFunc, TMacroLib, isMacroLib,
 	mkBlk, expand, mapString, mapFile,
 	} from 'macros'
 import {doCompileCivet} from 'civet'
-import {setDirTree} from 'unit-test'
+import {setDirTree, getFileOps, TFileOp} from 'unit-test'
 import {CRule, CRuleBranch, mkCodeBlock} from 'rule'
 import {
 	awaitAll, awaitAllSerially,
@@ -43,14 +44,22 @@ debugger
 # ---------------------------------------------------------------------------
 
 EXEC () =>
-	path := 'src/test/fsys/file999.txt'
-	fr := new CReadableFile path
-	line1 := await fr.getLine()
-	console.log "line 1: #{line1}"
-	line2 := await fr.getLine()
-	console.log "line 2: #{line2}"
-	line3 := await fr.getLine()
-	console.log "line 3: #{line3}"
+	path := 'src/test/datatypes.lib.test.civet'
+	h := parsePath(path)
+	stub := h.stub.endsWith('.lib') ? h.stub.replace('.lib', '') : h.stub
+	tsPath := withExt(path, '.ts')
+	await procOneFile path, doCompileCivet, {force: true, quiet: true}
+	hResult := await procOneFile tsPath, doUnitTest, {
+		capture: true
+		quiet: true
+		}
+	DUMP hResult, "hResult for #{stub}"
+
+SKIP () =>
+	desc := ''
+	lFileOps := await parseText<TFileOp[]> 'dir-tree', desc, {trace: true}
+
+	console.log lFileOps
 
 SKIP () =>
 	{stdout, stderr} := await execCmd 'echo', ["Hello"]

@@ -29,6 +29,12 @@ extract unit tests
 	- getArray - not an array, not expected array
 	- getTuple(x, dspath, length)
 
+exec unit tests still fail !!!
+
+IDEA: create a bootstrap command that first checks if
+all .civet files have been compiled. If not, print a
+warning with instructions.
+
 get unit test for fsys lib to 80%
 
 check doInstallCmd and doUninstallCmd

@@ -23,10 +23,9 @@ AllBlocks
     return pm.returnVal($1);
 
 Block
-  "\x23" Name _ Args NL Content? ->
+  HashMark Name _ Args NL+ Content? ->
     pm.match('Block', $loc);
-    const lContent = defined($6) ? $6 : []
-    return pm.returnVal({type: 'macro', name: $2, args: $4, lContent} as TMacroBlock);
+    return pm.returnVal({type: 'macro', name: $2, args: $4, lContent: defined($6) ? $6 : []} as TMacroBlock);
   Line NL+ Content? ->
     pm.match('Block', $loc);
     const lContent = defined($3) ? $3 : []
@@ -66,6 +65,10 @@ UNDENT
 NL
   /\r?\n/ ->
     pm.match('NL', $loc);
+
+HashMark
+  "\x23" ->
+    pm.match('HashMark', $loc);
 
 _
   /\x20*/ ->

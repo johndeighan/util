@@ -32,9 +32,9 @@ datatypes
 	isPromise isIterator isAsyncIterator isIterable isAsyncIterable
 	isAsyncGeneratorFunction isAsyncFunction clearHash clearArray setHash
 exec
-	getCmdLine TStreamType TExecResult notNeededResult mkstr execCmd
-	prelog postlog TProcSpec procFiles procOneFile doRemoveFile doRemoveTsFile
-	doUninstallCmd doRun toStringStream toByteStream
+	getCmdLine TStreamType TExecResult mkstr execCmd CFileHandler prelog
+	TProcSpec procFiles procOneFile doRemoveFile doRemoveTsFile isInstalled
+	doInstallCmd doUninstallCmd doRun
 extract
 	TPathItem getDsPath extract getPathString reportExtractError getString
 	getArray getTuple

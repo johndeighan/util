@@ -64,11 +64,6 @@ export type TExecResult =
 	infile?: string
 	outfile?: string
 
-export notNeededResult: TExecResult = {
-	success: true
-	notNeeded: true
-	}
-
 # ---------------------------------------------------------------------------
 # ASYNC
 
@@ -213,19 +208,36 @@ export abstract class CFileHandler
 	# ..........................................................
 	# ASYNC
 
-	abstract handle(
-			path: string,
-			hOptions: hash
-			): Promise<TExecResult>
-
-	# ..........................................................
-
-	notNeeded(
+	async needed(
 			path: string
 			hOptions: hash = {}
 			): boolean
 
-		return false
+		return true
+
+	# ..........................................................
+	# ASYNC
+
+	abstract handle(
+			path: string
+			hOptions: hash
+			): Promise<TExecResult>
+
+	# ..........................................................
+	# ASYNC
+
+	handleFile(
+			path: string
+			hOptions: hash
+			): TExecResult
+
+		force := ('force' in hOptions) && hOptions.force
+		hResult: TExecResult := (
+			  force                         ? await @handle(path, hOptions)
+			: await @needed(path, hOptions) ? await @handle(path, hOptions)
+			:                                 {success: true, notNeeded: true}
+			)
+		return Object.assign hResult, {infile: path}
 
 	# ..........................................................
 	# SYNC
@@ -303,17 +315,16 @@ export procFiles := (
 
 	timer.timeTaken()    # --- this resets the timer
 
-
 	lFinalResult: TResultAccum := (
 		if serial
 			# --- Build an array of functions that return a promise
 			lFunctions := for path of lPaths
-				() => handler.handle path, hOptions
+				() => handler.handleFile(path, hOptions)
 			await awaitAllSerially lFunctions, lPaths
 		else
 			# --- Build an array of promises
 			lPromises := for path of lPaths
-				handler.handle path, hOptions
+				handler.handleFile(path, hOptions)
 			await awaitAll lPromises, lPaths
 		)
 
@@ -403,11 +414,26 @@ export procOneFile := (
 		hOptions: hash = {}
 		): TExecResult =>
 
-	debugger
-	if handler.notNeeded(path)
-		return {success: true, notNeeded: true}
+	if ('force' not in hOptions) || not hOptions.force
+		if not await handler.needed(path)
+			return {
+				success: true
+				notNeeded: true
+				infile: path
+				}
 
-	assert defined(path) && existsSync(path), "No such file: #{path}"
+	if notdefined(path)
+		return {
+			success: false
+			stderr: "Undefined path"
+			infile: path
+			}
+	if not existsSync(path)
+		return {
+			success: false
+			stderr: "No such file"
+			infile: path
+			}
 	type opt = {
 		inspect: boolean
 		quiet: boolean
@@ -426,7 +452,7 @@ export procOneFile := (
 
 	try
 		timer.timeTaken()    # --- this resets the timer
-		hResult := await handler.handle path, hOptions
+		hResult := await handler.handleFile path, hOptions
 		if quiet
 			return hResult
 
@@ -442,6 +468,7 @@ export procOneFile := (
 		showRejResult handler, path, err, hOptions
 		return {
 			success: false,
+			infile: path
 			}
 
 # ---------------------------------------------------------------------------
@@ -495,13 +522,15 @@ class CFileRemover extends CFileHandler
 	get op()
 		return 'doRemoveFile'
 
-	override handle(
+	override needed(path: string): boolean
+		return await exists(path)
+
+	handle(
 			path: string,
 			hOptions: hash = {}
 			): TExecResult
 
-		if existsSync(path)
-			await Deno.remove path
+		await Deno.remove path
 		return {
 			success: true
 			}
@@ -515,22 +544,53 @@ class CTsFileRemover extends CFileHandler
 	get op()
 		return 'doRemoveTsFile'
 
+	override needed(
+			path: string
+			): boolean
+
+		if not await exists(path)
+			return false
+		civetPath := withExt path, '.civet'
+		return await exists civetPath
+
 	override handle(
-			path: string,
+			path: string
 			hOptions: hash = {}
 			): TExecResult
 
 		assert (fileExt(path) == '.ts'), "Not a TypeScript file: #{path}"
-		civetPath := withExt path, '.civet'
-		if await exists(civetPath)
-			await Deno.remove path
-			return {
-				success: true
-				}
-		else
-			return {success: true, notNeeded: true}
+		await Deno.remove path
+		return {
+			success: true
+			}
 
 export doRemoveTsFile := new CTsFileRemover()
+
+# ---------------------------------------------------------------------------
+
+export isInstalled := (scriptName: string): boolean =>
+
+	homeDir := Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE") ?? ""
+	ext := (Deno.build.os === "windows") ? ".cmd" : ""
+	scriptPath := "#{homeDir}/.deno/bin/#{scriptName}#{ext}"
+
+	try
+		fileInfo := await Deno.stat(scriptPath)
+		return fileInfo.isFile
+	catch
+		return false
+
+# ---------------------------------------------------------------------------
+
+export getCmdName := (
+		path: string
+		hOptions: hash
+		): string =>
+
+	if ('name' in hOptions) && (typeof hOptions.name == 'string')
+		return hOptions.name as string
+	else
+		return parsePath(path).stub.replaceAll('.', '_')
 
 # ---------------------------------------------------------------------------
 
@@ -545,7 +605,8 @@ class CCmdInstaller extends CFileHandler
 			): TExecResult
 
 		assert (fileExt(path) == '.ts'), "Not a TypeScript file: #{path}"
-		name := parsePath(path).stub.replaceAll '.', '_'
+		name := getCmdName(path, hOptions)
+
 		return await execCmd 'deno', [
 			'install'
 			'--global'
@@ -565,12 +626,19 @@ class CCmdUninstaller extends CFileHandler
 	get op()
 		return 'doUninstallCmd'
 
+	override needed(
+			path: string
+			hOptions: hash = {}
+			)
+		name := getCmdName(path, hOptions)
+		return await isInstalled(name)
+
 	override handle(
 			path: string,
 			hOptions: hash = {}
 			): TExecResult
 
-		name := parsePath(path).stub.replaceAll '.', '_'
+		name := getCmdName(path, hOptions)
 		return await execCmd 'deno', [
 			'uninstall'
 			'-g'
@@ -611,24 +679,3 @@ class CFileRunner extends CFileHandler
 		return hResult
 
 export doRun := new CFileRunner()
-
-# ---------------------------------------------------------------------------
-
-export toStringStream := (strm: WritableStream<Uint8Array>): WritableStream<string> =>
-
-	return new WritableStream<string> {
-		write(str)
-			writer := strm.getWriter()
-			await writer.write encode(str)
-			writer.releaseLock()
-		close()
-			await strm.close();
-		abort(reason)
-			await strm.abort(reason)
-		}
-
-# ---------------------------------------------------------------------------
-
-export toByteStream := (strm: WritableStream<string>): WritableStream<Uint8Array> =>
-
-	croak "Not implemented"

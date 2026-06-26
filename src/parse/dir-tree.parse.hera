@@ -76,7 +76,7 @@ Content
 
 Block
 	NL? Line IndentedBlock?
-		return defined($3) ? ($2 + '\n' + $3) : $2
+		return defined($3) ? ($2 + $3) : $2
 
 IndentedBlock
 	INDENT Content UNDENT

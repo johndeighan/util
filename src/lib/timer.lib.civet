@@ -28,7 +28,7 @@ export sinceLoadStr := (
 
 # ---------------------------------------------------------------------------
 
-class CTimer
+export class CTimer
 
 	t0 = Date.now()
 

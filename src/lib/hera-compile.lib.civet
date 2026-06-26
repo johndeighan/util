@@ -40,15 +40,15 @@ export class CHeraCompiler extends CFileHandler
 	get op()
 		return 'doCompileHera'
 
-	override notNeeded(
+	override needed(
 			path: string
 			hOptions: hash = {}
 			): boolean
 
 		destPath := withExt path, '.ts'
-		return (
+		return not (
 			   not hOptions.force
-			&& existsSync(destPath)
+			&& await exists(destPath)
 			&& newerDestFileExists(path, destPath)
 			)
 
@@ -69,8 +69,10 @@ export class CHeraCompiler extends CFileHandler
 		assert (fileExt(path) == '.hera'), "Not a hera file"
 		destPath := withExt path, '.ts'
 		try
+			# --- preprocess, save to a temp file
 			tempPath := withExt(path, '.temp.hera')
 			[heraCode, type] := await preprocHeraFile path, tempPath, hOptions
+
 			fileName := parsePath(path).fileName
 			tsCode := await compileHera heraCode, type, fileName
 			await Deno.writeTextFile withExt(path, '.ts'), tsCode

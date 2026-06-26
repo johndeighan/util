@@ -86,7 +86,7 @@ Content
 Block
   NL? Line IndentedBlock? ->
     pm.match('Block', $loc);
-    return pm.returnVal(defined($3) ? ($2 + '\n' + $3) : $2);
+    return pm.returnVal(defined($3) ? ($2 + $3) : $2);
 
 IndentedBlock
   INDENT Content UNDENT ->

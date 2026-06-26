@@ -11,9 +11,11 @@ import {getFlags, nonOption, allNonOptions, argValue} from 'cmd-args'
 import {
 	isFile, rmDir, withExt, findFile, allFilesMatching, parsePath,
 	} from 'fsys'
-import {execCmd, procFiles, procOneFile, TProcSpec} from 'exec'
+import {execCmd, TExecResult, procFiles, procOneFile, TProcSpec} from 'exec'
 import {doUnitTest} from 'typescript'
 import {doCompileCivet, compileAllLibs} from 'civet'
+import {DUMP} from 'nice'
+import {CTimer} from 'timer'
 
 stdChecks """
 	utest [-I] [-line=<n>] {<stub>} | all
@@ -23,6 +25,39 @@ stdChecks """
    	"""
 
 # ---------------------------------------------------------------------------
+
+dumpResult := (
+		hResult: TExecResult
+		): void =>
+
+	path := hResult.infile
+	if notdefined(path)
+		LOG "MISSING infile"
+		return
+
+	h := parsePath(path)
+	stub := h.stub.endsWith('.lib') ? h.stub.replace('.lib', '') : h.stub
+
+	stdout := hResult.stdout || 'BAD'
+	lMatches := decolorize(stdout).match ///
+		ok \s*
+		\| \s*
+		(\d+) \s*
+		passed \s*
+		\| \s*
+		(\d+) \s*
+		failed \s*
+		\(
+		(\d+)
+		(s | ms)
+		\)
+		///
+	if defined(lMatches)
+		[_, nOK, nBad, tm, units] := lMatches
+		timeStr := "#{tm} #{units}"
+		LOG f"#{stub}:-14 #{nOK}:4 #{nBad}:4 #{timeStr}:8"
+	else
+		LOG hResult.stdout
 
 EXEC () =>
 	assert defined(nonOption(0)), "No unit tests specified"
@@ -40,45 +75,37 @@ EXEC () =>
 		rmDir './coverage', {clear: true}
 		LOG cmdTitle("UNIT TEST ALL")
 
-		# --- This craps out, so we'll do one at a time
-#		await procFiles [doCompileCivet, ['**/*.lib.test.civet']], {force}
-#		await procFiles [doUnitTest, ['**/*.lib.test.ts']], {
-#			inspect
-#			capture: true
-#			}
+		timer := new CTimer()
 
-		LOG f"#{'Lib'}:-14 #{'OK'}:4 #{'Fail'}:4 #{'Time'}:8"
-		LOG [dashes(14), dashes(4), dashes(4), dashes(8)].join(' ')
-		for path of allFilesMatching('./**/*.test.civet')
-			h := parsePath(path)
-			stub := h.stub.endsWith('.lib') ? h.stub.replace('.lib', '') : h.stub
-			tsPath := withExt(path, '.ts')
-			await procOneFile path, doCompileCivet, {force, quiet: true}
-			hResult := await procOneFile tsPath, doUnitTest, {
-				capture: true
-				quiet: true
-				}
-			stdout := hResult.stdout || 'BAD'
-			lMatches := decolorize(stdout).match ///
-				ok \s*
-				\| \s*
-				(\d+) \s*
-				passed \s*
-				\| \s*
-				(\d+) \s*
-				failed \s*
-				\(
-				(\d+)
-				(s | ms)
-				\)
-				///
-			if defined(lMatches)
-				[_, nOK, nBad, tm, units] := lMatches
-				timeStr := "#{tm} #{units}"
-				LOG f"#{stub}:-14 #{nOK}:4 #{nBad}:4 #{timeStr}:8"
-			else
-				LOG hResult.stdout
+		# --- 1st way doesn't work yet
+		works := false
+		if works
+			# --- This craps out, so we'll do one at a time
+			await procFiles [doCompileCivet, ['**/*.lib.test.civet']], {force}
+
+			# --- Print the header
+			LOG f"#{'Lib'}:-14 #{'OK'}:4 #{'Fail'}:4 #{'Time'}:8"
+			LOG [dashes(14), dashes(4), dashes(4), dashes(8)].join(' ')
+
+			for hResult of await procFiles [doUnitTest, ['**/*.lib.test.ts']]
+				assert defined(hResult.infile), "infile not defined"
+				dumpResult hResult
+		else
+			# --- Print the header
+			LOG f"#{'Lib'}:-14 #{'OK'}:4 #{'Fail'}:4 #{'Time'}:8"
+			LOG [dashes(14), dashes(4), dashes(4), dashes(8)].join(' ')
+
+			for path of allFilesMatching('./**/*.test.civet')
+				await procOneFile path, doCompileCivet, {force, quiet: true}
+				hResult := await procOneFile withExt(path, '.ts'), doUnitTest, {
+					capture: true
+					quiet: true
+					}
+				dumpResult hResult
+
+		console.log "TIME TAKEN: #{timer.timeTaken()}"
 	else
+		# --- not all
 		for stub of allNonOptions()
 			fileName := (
 				  stub.includes('.')

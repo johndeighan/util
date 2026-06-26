@@ -116,6 +116,7 @@ falsy  isValidStub('all')
 truthy isPathType('missing')
 truthy isPathType('file')
 falsy  isPathType('xxx')
+falsy  isPathType(42)
 
 equal getPathType('./deno.json'), 'file'
 equal getPathType("./src/test/fsys"), 'dir'
@@ -520,6 +521,12 @@ await (() =>
 	truthy isDir('src/test/fsys/aaa/bbb')
 	rmDir 'src/test/fsys/aaa/bbb'
 	falsy  isDir('src/test/fsys/aaa/bbb')
+	)()
+
+(() =>
+	falsy isDir('src/test/fsys/notthere')
+	clearDir 'src/test/fsys/notthere'
+	truthy isDir('src/test/fsys/notthere')
 	)()
 
 (() =>
