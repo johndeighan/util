@@ -160,11 +160,21 @@ export pathSubDirs := (
 
 # ---------------------------------------------------------------------------
 # --- Should be called like: myself(import.meta.url)
-#     returns full path of current file
+#     returns relative path of current file
 
 export myself := (url: string): string =>
 
 	return toRelPath fromFileUrl url
+
+# ---------------------------------------------------------------------------
+# --- Should be called like: myTestDir(import.meta.url)
+
+export myTestDir := (url: string): string =>
+
+	relPath := myself(url)
+	{dir, stub} := parsePath relPath
+	name := stub.split('.')[0]
+	return './' + mkpath(dir, name)
 
 # ---------------------------------------------------------------------------
 

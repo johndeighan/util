@@ -45,11 +45,12 @@ fsm
 fsys
 	normalizePath toRelPath toFullPath allLinesInFile fileExt withExt
 	TPathType isPathType getPathType isStub touch pathToURL mkpath TPathDesc
-	myself barf barfTempFile modTime newerDestFileExists mkDir clearDir
-	TFsEventHandler FileEventHandler watchFiles watchFile patchFirstLine
-	toJsonFile addJsonValue inSameDir removeCR slurp slurpAsync pathStr
-	allFilesMatching removeFilesMatching findFile allDirsMatching TPathInfo
-	isFile isDir rmFile rmDir isValidStub configFromFile CWritableFile
+	myself myTestDir barf barfTempFile modTime newerDestFileExists mkDir
+	mkDirsForFile TFsEventHandler FileEventHandler watchFiles watchFile
+	fromJsonFile toJsonFile addJsonValue inSameDir removeCR slurp slurpAsync
+	splitPatterns allFilesMatching removeFilesMatching findFile
+	TPathInfo parsePath isFile isDir rmFile rmDir isValidStub configFromFile
+	CReadableFile
 hera-compile
 	CHeraCompiler doCompileHera unbalanced preprocHera preprocHeraFile
 hera-parse
@@ -109,10 +110,10 @@ symbols
 text-table
 	TextTable splitRows mkRow
 timer
-	sinceLoad sinceLoadStr timer
+	sinceLoad sinceLoadStr CTimer timer
 typescript
 	kindStr ts2ast ast2ts descFunc astAsString getImportCode
-	AstWalker CAnalysis getNode analyzeTsCode doCompileTS compileAllTS
+	AstWalker CAnalysis getNode analyzeTsCode doUnitTest
 unicode
 	uni lit delit litC esc escd escm unesc getPrefix
 unify

@@ -633,6 +633,7 @@ class CUnitTester extends CFileHandler
 		hResult := await execCmd 'deno', [
 				'test'
 				'-A'
+				'--trace-leaks'
 				...(inspect
 					? ['--inspect-brk']
 					: ['--coverage=./coverage', '--coverage-raw-data-only']

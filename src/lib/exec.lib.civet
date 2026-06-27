@@ -414,6 +414,12 @@ export procOneFile := (
 		hOptions: hash = {}
 		): TExecResult =>
 
+	if not await exists(path)
+		return {
+			success: false
+			stderr: "No such file"
+			infile: path
+			}
 	if ('force' not in hOptions) || not hOptions.force
 		if not await handler.needed(path)
 			return {
@@ -422,18 +428,6 @@ export procOneFile := (
 				infile: path
 				}
 
-	if notdefined(path)
-		return {
-			success: false
-			stderr: "Undefined path"
-			infile: path
-			}
-	if not existsSync(path)
-		return {
-			success: false
-			stderr: "No such file"
-			infile: path
-			}
 	type opt = {
 		inspect: boolean
 		quiet: boolean
@@ -454,6 +448,7 @@ export procOneFile := (
 		timer.timeTaken()    # --- this resets the timer
 		hResult := await handler.handleFile path, hOptions
 		if quiet
+			# --- handler.handleFile() will have set infile key
 			return hResult
 
 		{success, notNeeded} := hResult
@@ -468,6 +463,7 @@ export procOneFile := (
 		showRejResult handler, path, err, hOptions
 		return {
 			success: false,
+			stderr: getErrStr(err)
 			infile: path
 			}
 
@@ -572,13 +568,8 @@ export isInstalled := (scriptName: string): boolean =>
 
 	homeDir := Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE") ?? ""
 	ext := (Deno.build.os === "windows") ? ".cmd" : ""
-	scriptPath := "#{homeDir}/.deno/bin/#{scriptName}#{ext}"
-
-	try
-		fileInfo := await Deno.stat(scriptPath)
-		return fileInfo.isFile
-	catch
-		return false
+	path := "#{homeDir}/.deno/bin/#{scriptName}#{ext}"
+	return existsSync(path) && Deno.statSync(path).isFile
 
 # ---------------------------------------------------------------------------
 
@@ -626,12 +617,12 @@ class CCmdUninstaller extends CFileHandler
 	get op()
 		return 'doUninstallCmd'
 
-	override needed(
+	override async needed(
 			path: string
 			hOptions: hash = {}
 			)
 		name := getCmdName(path, hOptions)
-		return await isInstalled(name)
+		return isInstalled(name)
 
 	override handle(
 			path: string,

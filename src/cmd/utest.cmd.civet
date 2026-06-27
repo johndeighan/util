@@ -104,6 +104,12 @@ EXEC () =>
 				dumpResult hResult
 
 		console.log "TIME TAKEN: #{timer.timeTaken()}"
+		if not inspect
+			# --- Create HTML coverage file
+			write "Building coverage report..."
+			hResult := await execCmd 'deno', ['coverage', '--html']
+			writeln "Done"
+			LOG hResult.stdout
 	else
 		# --- not all
 		for stub of allNonOptions()
@@ -125,9 +131,3 @@ EXEC () =>
 			else
 				ERR "No such file: #{fileName}"
 
-	if not inspect
-		# --- Create HTML coverage file
-		write "Building coverage report..."
-		hResult := await execCmd 'deno', ['coverage', '--html']
-		writeln "Done"
-		LOG hResult.stdout
