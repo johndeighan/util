@@ -15,17 +15,17 @@ import {
 	curLogLevel, pushLogLevel, popLogLevel,
 	} from 'logger'
 import {
-	pass, undef, defined, notdefined, toRelPath,
+	pass, undef, defined, anyDefined, notdefined, toRelPath,
 	croak, assert, obviously, getErrStr,
 	write, writeln, resetLine, TIterator,
-	encode, decode, TAsyncIterator,
+	encode, decode, TAsyncIterator, colorize,
 	} from 'base'
 import {timer} from 'timer'
 import {
 	hash, isEmpty, TStringMapper,
 	isString, isArray, isArrayOfStrings, nonEmpty,
 	} from 'datatypes'
-import {awaitAll, awaitAllSerially} from 'promise-utils'
+import {awaitAll, TSettleResult} from 'promise-utils'
 import {arrayAndAccumFrom} from 'iter-utils'
 import {MAP, accum} from 'mapper'
 import {
@@ -38,6 +38,8 @@ import {
 	barf, pathStr, allFilesMatching, normalizePath, barfTempFile,
 	fileExt, withExt, slurpAsync, parsePath, CWritableFile,
 	} from 'fsys'
+
+procColor := 'cyan'
 
 # ---------------------------------------------------------------------------
 
@@ -115,27 +117,33 @@ export execCmd := (
 		outfile: undef
 		}
 
-	debugger
 	DBG "execCmd: #{getCmdLine(cmdName, lArgs)}"
 
-	mustPipe := capture || defined(callback) || defined(outfile)
-	if not mustPipe && notdefined(input)
-		cmd := new Deno.Command cmdName, {
-			args: lArgs
-			}
-		hResult := await cmd.output()
+	pipeStdout := capture || anyDefined(callback, outfile)
+	pipeStdin  := anyDefined(input, infile)
 
-		code := hResult.code
-		success := hResult.success
-		stdout := decode(hResult.stdout)
-		stderr := decode(hResult.stderr)
-		return {success, stdout, stderr}
+	if not pipeStdout && not pipeStdin
+#		cmd := new Deno.Command cmdName, {
+#			args: lArgs
+#			stdin: 'inherit'
+#			stdout: 'inherit'
+#			}
+#		child := cmd.spawn()
+		child := Deno.spawn cmdName, lArgs
+		status := await child.status
+		return {success: status.success}
+
+#		code := hResult.code
+#		success := hResult.success
+#		stdout := decode(hResult.stdout)
+#		stderr := decode(hResult.stderr)
+#		return {success, stdout, stderr}
 
 	cmd: Deno.Command := new Deno.Command(cmdName, {
 		args: lArgs
 		env: {DEFAULT_LOGGER: curLogLevel()}
-		stdin:  defined(input) ? 'piped' : 'inherit'   # --- was 'null'
-		stdout: mustPipe || defined(input) ? 'piped' : 'inherit'
+		stdin:  pipeStdin  ? 'piped' : 'inherit'
+		stdout: pipeStdout ? 'piped' : 'inherit'
 		stderr: 'piped'
 		})
 	child: Deno.ChildProcess := cmd.spawn()
@@ -228,16 +236,22 @@ export abstract class CFileHandler
 
 	handleFile(
 			path: string
-			hOptions: hash
+			hOptions: hash = {}
 			): TExecResult
 
-		force := ('force' in hOptions) && hOptions.force
-		hResult: TExecResult := (
-			  force                         ? await @handle(path, hOptions)
-			: await @needed(path, hOptions) ? await @handle(path, hOptions)
-			:                                 {success: true, notNeeded: true}
-			)
-		return Object.assign hResult, {infile: path}
+		if (('force' in hOptions) && hOptions.force)
+			hResult := await @handle(path, hOptions)
+			return Object.assign hResult, {infile: path}
+		isNeeded := await @needed(path, hOptions)
+		if isNeeded
+			hResult := await @handle(path, hOptions)
+			return Object.assign hResult, {infile: path}
+		else
+			return {
+				success: true
+				notNeeded: true
+				infile: path
+				}
 
 	# ..........................................................
 	# SYNC
@@ -245,269 +259,6 @@ export abstract class CFileHandler
 	getOutput(hResult: TExecResult): string
 
 		return (hResult?.stdout || '') + (hResult?.stderr || '')
-
-# ---------------------------------------------------------------------------
-
-export prelog := (
-		op: string,
-		path: string,
-		): void =>
-
-	writeln "#{op} #{toRelPath(path)}"
-	return
-
-# ---------------------------------------------------------------------------
-
-export postlog := (
-		success: boolean
-		notNeeded: boolean?
-		): void =>
-
-	secs := timer.timeTaken()
-	if success
-		if notNeeded
-			writeln f"#{' - not needed'}:{yellow} (#{secs} secs)"
-		else
-			writeln f"#{' - OK'}:{green} (#{secs} secs)"
-	else
-		writeln f"#{' - FAILED'}:{red} (#{secs} secs)"
-	return
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-# --- Later, I want to allow passing multiple TProcSpecs
-#     string is a glob pattern
-
-export type TProcSpec = [CFileHandler, lPatterns: string[]]
-
-export procFiles := (
-		procSpec: TProcSpec,
-		hOptions: hash = {}
-		): TExecResult[] =>
-
-	type opt = {
-		quiet: boolean
-		verbose: boolean
-		serial: boolean
-		}
-	{quiet, verbose, serial
-		} := getOptions<opt> hOptions, {
-			quiet: false
-			verbose: false
-			serial: false
-			}
-
-	assert not (quiet && verbose), "Can't use both quiet and verbose"
-	[handler, lPatterns] := procSpec
-	{op} := handler
-	if verbose
-		writeln "(#{op})"
-
-	lPaths: string[] := Array.from allFilesMatching(lPatterns)
-
-	type TResultAccum = [
-		TExecResult[]  # --- non-error result of execution
-		string[]       #     array of error messages
-		string[]       #     array of paths corresponding to non-error exec
-		string[]       #     array of paths corresponding to errors
-		]
-
-	timer.timeTaken()    # --- this resets the timer
-
-	lFinalResult: TResultAccum := (
-		if serial
-			# --- Build an array of functions that return a promise
-			lFunctions := for path of lPaths
-				() => handler.handleFile(path, hOptions)
-			await awaitAllSerially lFunctions, lPaths
-		else
-			# --- Build an array of promises
-			lPromises := for path of lPaths
-				handler.handleFile(path, hOptions)
-			await awaitAll lPromises, lPaths
-		)
-
-	assert defined(lFinalResult), "Not defined: #{ML(lFinalResult)}"
-	assert isArray(lFinalResult), "Not an array: #{ML(lFinalResult)}"
-	[lFulfilled, lRejected, lFulPaths, lRejPaths] := lFinalResult
-
-	acc0 := [0,0,0]
-	iter := MAP lFulfilled, acc0, (h, acc2) ->
-		yield h
-		[n1, n2, n3] := acc2
-		if h.success
-			if h.notNeeded
-				return [n1+1, n2, n3]
-			else
-				return [n1, n2+1, n3]
-		else
-			return [n1, n2, n3+1]
-
-	[lAllResults, [nNotNeeded, nOk, nErr]] := arrayAndAccumFrom iter
-
-	# --- Write results to the console
-
-	for hResult,i of lAllResults
-		path := lPaths[i]
-		{success} := hResult
-		if success
-			if verbose
-				showOkResult handler, path, hResult, hOptions
-		else
-			showErrResult handler, path, hResult, hOptions
-
-	for reason,i of lRejected
-		showRejResult handler, lRejPaths[i], getErrStr(reason), hOptions
-
-	if not quiet || (nOk + nErr > 0)
-		showFinalResult op, nNotNeeded, nOk, nErr, lRejected.length, lPatterns, verbose
-	return lFulfilled
-
-# ---------------------------------------------------------------------------
-
-let headerPrinted = false
-
-showFinalResult := (
-		op: string,
-		notNeeded: number,
-		nOk: number,
-		nErr: number,
-		nRej: number,
-		lPatterns: string[]
-		verbose: boolean = false
-		): void =>
-
-	resetLine()
-	if verbose
-		return
-	if not headerPrinted
-		LOG '-'.repeat 46
-		LOG [
-			sprintf('%6s', 'secs.')
-			sprintf('%-14s', 'op')
-			sprintf('%3s', 'nnd')
-			sprintf('%3s', 'OK')
-			sprintf('%3s', 'Bad')
-			sprintf('%3s', 'Rej')
-			'file(s)'
-		].join ' '
-		LOG '-'.repeat 46
-		headerPrinted = true
-	LOG [
-		sprintf('%6.2f', timer.timeTaken())
-		sprintf('%-14s', op)
-		sprintf('%3d', notNeeded)
-		sprintf('%3d', nOk)
-		sprintf('%3d', nErr)
-		sprintf('%3d', nRej)
-		lPatterns.join(' + ')
-	].join ' '
-	return
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export procOneFile := (
-		path: string,
-		handler: CFileHandler,
-		hOptions: hash = {}
-		): TExecResult =>
-
-	if not await exists(path)
-		return {
-			success: false
-			stderr: "No such file"
-			infile: path
-			}
-	if ('force' not in hOptions) || not hOptions.force
-		if not await handler.needed(path)
-			return {
-				success: true
-				notNeeded: true
-				infile: path
-				}
-
-	type opt = {
-		inspect: boolean
-		quiet: boolean
-		}
-	{inspect, quiet} := getOptions<opt> hOptions, {
-		inspect: false
-		quiet: false
-		}
-
-	if inspect && not quiet
-		LOG "procOneFile(): inspect is set"
-
-	op := handler.op
-	if not quiet
-		prelog op, path
-
-	try
-		timer.timeTaken()    # --- this resets the timer
-		hResult := await handler.handleFile path, hOptions
-		if quiet
-			# --- handler.handleFile() will have set infile key
-			return hResult
-
-		{success, notNeeded} := hResult
-		postlog success, notNeeded
-		if success
-			showOkResult handler, path, hResult, hOptions
-		else
-			showErrResult handler, path, hResult, hOptions
-		return hResult
-
-	catch err
-		showRejResult handler, path, err, hOptions
-		return {
-			success: false,
-			stderr: getErrStr(err)
-			infile: path
-			}
-
-# ---------------------------------------------------------------------------
-
-showOkResult := (
-		handler: CFileHandler
-		path: string
-		hResult: TExecResult
-		hOptions: hash = {}
-		): void =>
-
-	if hResult.notNeeded
-		return
-	output := handler.getOutput(hResult)
-	if defined(output) && nonEmpty(output)
-		DUMP output, 'OUTPUT', {escape: false}
-	return
-
-# ---------------------------------------------------------------------------
-
-showErrResult := (
-		handler: CFileHandler
-		path: string
-		hResult: TExecResult
-		hOptions: hash = {}
-		): void =>
-
-	output := handler.getOutput(hResult)
-	if output
-		DUMP output, 'OUTPUT'
-	return
-
-# ---------------------------------------------------------------------------
-
-showRejResult := (
-		handler: CFileHandler
-		path: string
-		reason: unknown
-		hOptions: hash = {}
-		): void =>
-
-	DUMP reason, 'ERROR'
-	return
 
 # ---------------------------------------------------------------------------
 #       FileHandlers
@@ -521,7 +272,7 @@ class CFileRemover extends CFileHandler
 	override needed(path: string): boolean
 		return await exists(path)
 
-	handle(
+	override handle(
 			path: string,
 			hOptions: hash = {}
 			): TExecResult
@@ -595,7 +346,7 @@ class CCmdInstaller extends CFileHandler
 			hOptions: hash = {}
 			): TExecResult
 
-		assert (fileExt(path) == '.ts'), "Not a TypeScript file: #{path}"
+		assert path.endsWith('.cmd.ts'), "Not a command file"
 		name := getCmdName(path, hOptions)
 
 		return await execCmd 'deno', [

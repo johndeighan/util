@@ -4,6 +4,7 @@ import {LOG, DBG} from 'logger'
 import {croak, assert, mkTempFile} from 'base'
 import {hash} from 'datatypes'
 import {getOptions} from 'llutils'
+import {DUMP} from 'nice'
 import {execCmd} from 'exec'
 
 # ---------------------------------------------------------------------------
@@ -11,19 +12,23 @@ import {execCmd} from 'exec'
 
 export typeCheckTsFile := (
 		path: string
-		): void =>
+		): boolean =>
 
 	hResult := await execCmd 'deno', ["check", path]
-	assert hResult.success, "type check of #{path} failed"
+	if hResult.success
+		return true
+	else
+		code := await Deno.readTextFile path
+		DUMP code, "BAD CODE"
+		return false
 
 # ---------------------------------------------------------------------------
 # ASYNC
 
 export typeCheckTsCode := (
 		tsCode: string
-		): void =>
+		): boolean =>
 
 	tsPath := await mkTempFile '.ts'
 	await Deno.writeTextFile tsPath, tsCode
-	await typeCheckTsFile tsPath
-	return
+	return await typeCheckTsFile tsPath

@@ -5,14 +5,17 @@ import {TextLineStream} from "jsr:@std/streams/text-line-stream"
 import {exists, existsSync} from '@std/fs'
 
 import {LOG} from 'logger'
-import {TAsyncIterator, deepEqual, assert, sleep, getErrStr} from 'base'
-import {s, toBlock, EXEC, SKIP, sep} from 'llutils'
+import {
+	TAsyncIterator, deepEqual, assert, sleep, getErrStr, colorize,
+	} from 'base'
+import {s, toBlock, EXEC, SKIP, sep, rtrim} from 'llutils'
 import {fromFSM} from 'fsm'
 import {indented} from 'indent'
 import {
-	execCmd, procOneFile, procFiles, doRemoveFile, doRun,
+	execCmd, doRemoveFile, doRun,
 	doInstallCmd, doUninstallCmd, isInstalled,
 	} from 'exec'
+import {procOneFile, procFiles} from 'proc-files'
 import {
 	withExt, rmFile, allDirsMatching,
 	CReadableFile, CWritableFile,
@@ -26,17 +29,20 @@ import {
 import {parseText, str2indents} from 'hera-parse'
 import {compileHera} from 'llhera'
 import {symbolsFromString} from 'symbols'
+import {typeCheckTsCode} from 'lltypescript'
 import {CAnalysis, analyzeTsCode, doUnitTest} from 'typescript'
 import {
 	TTextBlock, TMacroBlock, TBlock,
 	TMacroFunc, TMacroLib, isMacroLib,
 	mkBlk, expand, mapString, mapFile,
 	} from 'macros'
-import {doCompileCivet} from 'civet'
-import {setDirTree, getFileOps, TFileOp} from 'unit-test'
+import {doCompileCivet, civet2tsFile} from 'civet'
+import {
+	setDirTree, getFileOps, TFileOp, mockAsyncTask,
+	} from 'unit-test'
 import {CRule, CRuleBranch, mkCodeBlock} from 'rule'
 import {
-	awaitAll, awaitAllSerially,
+	awaitAll, TSettleResult,
 	} from 'promise-utils'
 
 debugger
@@ -44,6 +50,21 @@ debugger
 # ---------------------------------------------------------------------------
 
 EXEC () =>
+	hResult := await execCmd 'cat', [], {
+		capture: true
+		infile: "src/test/exec/hello.txt"
+		}
+	console.log hResult
+
+SKIP () =>
+	path := "src/test/civet/test.civet"
+	tsPath := withExt path, '.ts'
+
+	await civet2tsFile path, tsPath, {inlineMap: false}
+	code := slurp tsPath
+	DUMP rtrim(code), 'CODE'
+
+SKIP () =>
 	path := 'src/test/datatypes.lib.test.civet'
 	h := parsePath(path)
 	stub := h.stub.endsWith('.lib') ? h.stub.replace('.lib', '') : h.stub

@@ -6,7 +6,8 @@ import {
 	colorize, croak,
 	} from 'base'
 import {findFile, withExt, isFile} from 'fsys'
-import {procOneFile, doRun, TExecResult} from 'exec'
+import {doRun, TExecResult} from 'exec'
+import {procOneFile} from 'proc-files'
 import {f, stdChecks, EXEC} from 'llutils'
 import {flag, argValue, nonOption, getFlags} from 'cmd-args'
 import {doCompileCivet, compileAllLibs} from 'civet'

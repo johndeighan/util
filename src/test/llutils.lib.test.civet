@@ -9,7 +9,7 @@ import {
 import {
 	o, s, s2, t, strToHash, getOptions, truncStr,
 	keys, hasKey, hasKeys, spaces, tabs,
-	rtrim, countChars, words, getLineAndColumn,
+	ltrim, rtrim, countChars, words, getLineAndColumn,
 	blockToArray, allLinesIn, toArray,
 	arrayToBlock, toBlock, rpad, lpad,
 	TAlignment, isAlignment, alignString, zpad,
@@ -113,7 +113,10 @@ equal untabify('\tabc'), '   abc'
 
 equal dashes(3), '---'
 
+equal ltrim('   \t\tbb'), 'bb'
 equal rtrim('bb   \t\t'), 'bb'
+equal ltrim('   \t\tbb '), 'bb '
+equal rtrim(' bb   \t\t'), ' bb'
 
 equal countChars('abcabcabc', 'a'), 3
 

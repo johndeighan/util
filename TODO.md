@@ -8,6 +8,11 @@ chrome is running v8 version 14.8.178.21
 on 6/12/2026
 	deno: 14.9.207.2-rusty
 	chrome: V8 14.9.207.27
+
+on 6/27/2026
+	deno: 14.9.207.2-rusty
+	chrome: V8 14.9.207.35
+
 ------------------------------------------
 Test parsing:
 	counter - OK
@@ -22,14 +27,25 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
+pare down unit tests for: eval and proc-files
+
+Use:
+	deno run -A --inspect-brk src/cmd/utest.cmd.ts exec
+	- to trace through and try to get immediate output
+
+test procFiles(), both serially and concurrently
+procFiles() should probably return an array of results
+allow multiple ops and lPatterns in procFiles()
+
+there's still a bug in the exec unit tests when using CCmdInstaller
+	- try using procOneFile with CCmdInstaller in temp.civet
+
 extract unit tests
 	- extract when eval fails
 	- getString - not a string, not expected string
 	- getNumber - not a number, not expected number
 	- getArray - not an array, not expected array
 	- getTuple(x, dspath, length)
-
-exec unit tests still fail !!!
 
 IDEA: create a bootstrap command that first checks if
 all .civet files have been compiled. If not, print a

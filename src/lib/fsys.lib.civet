@@ -367,7 +367,7 @@ export watchFiles := (
 			break
 		for path of fsEvent.paths
 			# --- fsCallback will be (eventually) called
-			handler.handle fsEvent
+			await handler.handle fsEvent
 export watchFile := watchFiles
 
 # ---------------------------------------------------------------------------

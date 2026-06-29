@@ -60,7 +60,7 @@ export civet2tsFile := (
 		civetPath: string
 		tsPath: string = withExt(civetPath, '.ts')
 		hOptions: hash = {}
-		): string =>
+		): string =>   # --- returns tsPath
 
 	type opt = {
 		inlineMap: boolean
@@ -80,6 +80,5 @@ export civet2tsFile := (
 	tsCode := await civet2ts civetCode, hOptions
 	await Deno.writeTextFile tsPath, tsCode
 	if check
-		await typeCheckTsFile tsPath
+		ok := await typeCheckTsFile tsPath
 	return tsPath
-

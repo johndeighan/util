@@ -7,7 +7,8 @@ import {flag, nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {
 	withExt, findFile, parsePath,
 	} from 'fsys'
-import {doInstallCmd, procFiles, procOneFile} from 'exec'
+import {doInstallCmd} from 'exec'
+import {procFiles, procOneFile} from 'proc-files'
 import {doUnitTest} from 'typescript'
 import {doCompileCivet} from 'civet'
 import {doCompileHera} from 'hera-compile'

@@ -3,7 +3,7 @@
 import {LOG, DBG, ERR} from 'logger'
 import {
 	toRelPath, undef, defined, notdefined, assert,
-	decolorize, write, writeln,
+	decolorize, write, writeln, clearScreen,
 	} from 'base'
 import {isString} from 'datatypes'
 import {stdChecks, cmdTitle, f, dashes, EXEC} from 'llutils'
@@ -11,7 +11,8 @@ import {getFlags, nonOption, allNonOptions, argValue} from 'cmd-args'
 import {
 	isFile, rmDir, withExt, findFile, allFilesMatching, parsePath,
 	} from 'fsys'
-import {execCmd, TExecResult, procFiles, procOneFile, TProcSpec} from 'exec'
+import {execCmd, TExecResult} from 'exec'
+import {TProcSpec, procFiles, procOneFile} from 'proc-files'
 import {doUnitTest} from 'typescript'
 import {doCompileCivet, compileAllLibs} from 'civet'
 import {DUMP} from 'nice'
@@ -26,42 +27,11 @@ stdChecks """
 
 # ---------------------------------------------------------------------------
 
-dumpResult := (
-		hResult: TExecResult
-		): void =>
-
-	path := hResult.infile
-	if notdefined(path)
-		LOG "MISSING infile"
-		return
-
-	h := parsePath(path)
-	stub := h.stub.endsWith('.lib') ? h.stub.replace('.lib', '') : h.stub
-
-	stdout := hResult.stdout || 'BAD'
-	lMatches := decolorize(stdout).match ///
-		ok \s*
-		\| \s*
-		(\d+) \s*
-		passed \s*
-		\| \s*
-		(\d+) \s*
-		failed \s*
-		\(
-		(\d+)
-		(s | ms)
-		\)
-		///
-	if defined(lMatches)
-		[_, nOK, nBad, tm, units] := lMatches
-		timeStr := "#{tm} #{units}"
-		LOG f"#{stub}:-14 #{nOK}:4 #{nBad}:4 #{timeStr}:8"
-	else
-		LOG hResult.stdout
 
 EXEC () =>
 	assert defined(nonOption(0)), "No unit tests specified"
 	await compileAllLibs()
+	clearScreen()
 
 	{force, inspect} := getFlags {
 		force: 'f'
@@ -70,6 +40,41 @@ EXEC () =>
 	lineNum := argValue('line')
 
 	if (nonOption(0) == 'all')
+
+		# --- Define a utility function for display all results
+		dumpResult := (
+				hResult: TExecResult
+				): void =>
+
+			path := hResult.infile
+			if notdefined(path)
+				LOG "MISSING infile"
+				return
+
+			h := parsePath(path)
+			stub := h.stub.endsWith('.lib') ? h.stub.replace('.lib', '') : h.stub
+
+			stdout := hResult.stdout || 'BAD'
+			lMatches := decolorize(stdout).match ///
+				ok \s*
+				\| \s*
+				(\d+) \s*
+				passed \s*
+				\| \s*
+				(\d+) \s*
+				failed \s*
+				\(
+				(\d+)
+				(s | ms)
+				\)
+				///
+			if defined(lMatches)
+				[_, nOK, nBad, tm, units] := lMatches
+				timeStr := "#{tm} #{units}"
+				LOG f"#{stub}:-14 #{nOK}:4 #{nBad}:4 #{timeStr}:8"
+			else
+				LOG hResult.stdout
+
 		assert notdefined(lineNum), "Can't use -line with 'all'"
 		assert not inspect, "Can't use -I with 'all'"
 		rmDir './coverage', {clear: true}
@@ -87,9 +92,7 @@ EXEC () =>
 			LOG f"#{'Lib'}:-14 #{'OK'}:4 #{'Fail'}:4 #{'Time'}:8"
 			LOG [dashes(14), dashes(4), dashes(4), dashes(8)].join(' ')
 
-			for hResult of await procFiles [doUnitTest, ['**/*.lib.test.ts']]
-				assert defined(hResult.infile), "infile not defined"
-				dumpResult hResult
+			await procFiles [doUnitTest, ['**/*.lib.test.ts']]
 		else
 			# --- Print the header
 			LOG f"#{'Lib'}:-14 #{'OK'}:4 #{'Fail'}:4 #{'Time'}:8"
@@ -111,7 +114,7 @@ EXEC () =>
 			writeln "Done"
 			LOG hResult.stdout
 	else
-		# --- not all
+		# --- not 'all'
 		for stub of allNonOptions()
 			fileName := (
 				  stub.includes('.')
@@ -119,15 +122,12 @@ EXEC () =>
 				: "#{stub}.lib.test.civet"   # default is a 'lib' unit test
 				)
 			path := findFile fileName
-			if defined(path)
-				tsPath := withExt(path, '.ts')
-				LOG cmdTitle("RUN UNIT TEST #{toRelPath(path)}")
-				await procOneFile path, doCompileCivet, {force}
-				debugger
-				await procOneFile tsPath, doUnitTest, {
-					lineNum
-					inspect
-					}
-			else
+			if notdefined(path)
 				ERR "No such file: #{fileName}"
-
+				continue
+			tsPath := withExt(path, '.ts')
+			LOG cmdTitle("RUN UNIT TEST #{toRelPath(path)}")
+			hResult := await procOneFile tsPath, doUnitTest, {
+				lineNum
+				inspect
+				}

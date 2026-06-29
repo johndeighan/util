@@ -7,7 +7,8 @@ import {
 import {stdChecks, o, cmdTitle, EXEC} from 'llutils'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {withExt, findFile} from 'fsys'
-import {execCmd, procFiles, procOneFile} from 'exec'
+import {execCmd} from 'exec'
+import {procFiles, procOneFile} from 'proc-files'
 import {doUnitTest} from 'typescript'
 import {doCompileCivet} from 'civet'
 

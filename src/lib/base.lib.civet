@@ -786,7 +786,8 @@ export writeln := (str: string = ''): void =>
 
 export clearScreen := (): void =>
 
-	write '\x1b[H\x1b[2J'
+#	write '\x1b[H\x1b[2J'
+	write '\x1bc'
 	return
 
 # ---------------------------------------------------------------------------

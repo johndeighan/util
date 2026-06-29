@@ -7,7 +7,7 @@ import {
 import {stdChecks, cmdTitle, EXEC} from 'llutils'
 import {nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {findFile} from 'fsys'
-import {procFiles, procOneFile} from 'exec'
+import {procFiles, procOneFile} from 'proc-files'
 import {doCompileHera} from 'hera-compile'
 import {doMakeMarkdown} from 'md-macros'
 

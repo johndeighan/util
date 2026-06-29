@@ -38,9 +38,9 @@ import {
 	OL, toNice, TMapFunc, DUMP, LOGVALUE, DBGVALUE,
 	} from 'nice'
 import {
-	execCmd, CFileHandler, TProcSpec, TExecResult,
-	procOneFile, procFiles,
+	execCmd, CFileHandler, TExecResult,
 	} from 'exec'
+import {TProcSpec, procFiles, procOneFile} from 'proc-files'
 import {Walker, TVisitKind} from 'walker'
 import {CMainScope, CScope} from 'scope'
 import {getNeededImportStmts} from 'symbols'
@@ -625,7 +625,7 @@ class CUnitTester extends CFileHandler
 			lineNum: string?
 			}
 		{capture, inspect, lineNum} := getOptions<opt> hOptions, {
-			capture: true
+			capture: false
 			inspect: false
 			lineNum: undef
 			}

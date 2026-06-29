@@ -53,7 +53,9 @@ export equal := (
 			name: testName
 			sanitizeOps: true
 			fn()
-				assertEquals rtrim(value), rtrim(expected)
+				val1 := rtrim(value)
+				val2 := rtrim(expected)
+				assertEquals val1, val2
 			}
 	else
 		Deno.test {
@@ -233,8 +235,9 @@ export isType := (
 
 	testName := getTestName()
 	# --- returns errMsg or '' if no type error
-	errMsg := await checkType typeStr, value
-	Deno.test testName, () => assert isEmpty(errMsg)
+	result := await checkType typeStr, value
+	Deno.test testName, () =>
+		assert result
 	return
 
 # ---------------------------------------------------------------------------
@@ -246,18 +249,19 @@ export notType := (
 		): void =>
 
 	testName := getTestName()
-	errMsg := await checkType typeStr, value
-	Deno.test testName, () => assert nonEmpty(errMsg)
+	result := await checkType typeStr, value
+	Deno.test testName, () =>
+		assert not result
 	return
 
 # ---------------------------------------------------------------------------
 # ASYNC
 # returns error message or ''
 
-export checkType := (
+checkType := (
 		typeStr: string
 		value: unknown
-		): string =>
+		): boolean =>
 
 	valueStr := (
 		  isFunction(value) ? functionDef(value)
@@ -273,11 +277,8 @@ export checkType := (
 		#{importCode}
 		#{tsCode}
 		"""
-	try
-		await typeCheckTsCode code   # --- throws on error
-		return ''
-	catch err
-		return getErrStr(err)
+
+	return await typeCheckTsCode(code)
 
 # ---------------------------------------------------------------------------
 # --- We need to add ':unknown' to any function parameters
@@ -455,6 +456,25 @@ export fileOpsTable := (
 				tt.data [h.op, h.path, '']
 	tt.fullsep()
 	return tt.asString()
+
+# ---------------------------------------------------------------------------
+# --- Returns a function that, when called, returns a promise
+
+export mockAsyncTask := (
+		id: string | number,
+		ms: number = 10
+		doFail: boolean = false
+		): () => Promise<string> =>
+
+	return () =>
+		return new Promise<string> (resolve, reject) =>
+			LOG "START TASK #{id}"
+			await sleep(ms)
+			LOG "END TASK #{id}"
+			if doFail
+				reject(new Error("Task #{id} failed"))
+			else
+				resolve("Task #{id} completed")
 
 # ---------------------------------------------------------------------------
 # --- Create some values for testing

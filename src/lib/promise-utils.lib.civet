@@ -2,7 +2,8 @@
 
 import {assert, getErrStr, sleep} from 'base'
 import {MAP, accum} from 'mapper'
-import {isArray, isPromise, isFunction} from 'datatypes'
+import {hash, isArray, isPromise, isFunction} from 'datatypes'
+import {getOptions} from 'llutils'
 import {OL} from 'nice'
 
 # ---------------------------------------------------------------------------
@@ -16,7 +17,7 @@ type TRunResult<T> = [T[], string[], string[], string[]]
 #        lRejected is an array of unknown
 #        lFulfilledTags and lRejectedTags are arrays of strings
 
-export awaitAll := <T>(
+export awaitAllConcurrently := <T>(
 		lPromises: Promise<T>[]
 		lTags: string[] = []
 		): TRunResult<T> ->
@@ -63,3 +64,58 @@ export awaitAllSerially := <T,TErr>(
 			lResult[1].push getErrStr(err)
 			lResult[3].push lTags[i]
 	return lResult
+
+# ---------------------------------------------------------------------------
+# ASYNC
+# --- returns an error message if promise rejects
+
+type TResult<T> = [true, T] | [false, string]
+
+export evalPromise := <T=unknown>(
+		prom: Promise<T>
+		): TResult<T> =>
+
+	try
+		return [true, await prom]
+	catch err
+		return [false, getErrStr(err)]
+
+# ---------------------------------------------------------------------------
+
+export type TSettleResult<T> =
+	[true, T, number] | [false, any, number]
+
+export awaitAll := <T>(
+		lTasks: (() => Promise<T>)[]
+		onSettle: (result: TSettleResult<T>) => void
+		hOptions: hash = {}
+		): void =>
+
+	type opt = {
+		serial: boolean
+		}
+
+	{serial} := getOptions<opt> hOptions, {
+		serial: false
+		}
+
+	if serial
+		for task,i of lTasks
+			try
+				value := await task()
+				onSettle [true, value, i]
+			catch (reason)
+				onSettle [false, reason, i]
+	else
+		lWrappedPromises := lTasks.map (task, index) =>
+			try
+				value := await task()
+				successResult: TSettleResult<T> := [true, value, index]
+				onSettle successResult
+				return successResult
+			catch (reason)
+				errorResult: TSettleResult<T> := [false, reason, index]
+				onSettle errorResult
+				return errorResult
+
+		await Promise.all(lWrappedPromises)

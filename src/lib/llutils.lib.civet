@@ -141,11 +141,15 @@ export dashes := (n: number): string =>
 
 # ---------------------------------------------------------------------------
 
+export ltrim := (line: string): string =>
+
+	return line.replace /^\s+/, ''
+
+# ---------------------------------------------------------------------------
+
 export rtrim := (line: string): string =>
 
-	assert isString(line), "not a string: #{typeof line}"
-	lMatches := line.match /^(.*?)\s+$/s
-	return (lMatches == null) ? line : lMatches[1]
+	return line.replace /\s+$/, ''
 
 # ---------------------------------------------------------------------------
 

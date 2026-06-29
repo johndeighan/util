@@ -3,8 +3,9 @@
 import {LOG, DBG} from 'logger'
 import {stdChecks, cmdTitle, EXEC} from 'llutils'
 import {
-	procFiles, doRemoveTsFile, doRemoveFile, doInstallCmd, doUninstallCmd,
+	doRemoveTsFile, doRemoveFile, doInstallCmd, doUninstallCmd,
 	} from 'exec'
+import {procFiles, procOneFile} from 'proc-files'
 import {isDir, rmDir, rmFile, allFilesMatching } from 'fsys'
 
 stdChecks "clearAll"

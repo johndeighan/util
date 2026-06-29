@@ -32,9 +32,8 @@ datatypes
 	isPromise isIterator isAsyncIterator isIterable isAsyncIterable
 	isAsyncGeneratorFunction isAsyncFunction clearHash clearArray setHash
 exec
-	getCmdLine TStreamType TExecResult mkstr execCmd CFileHandler prelog
-	TProcSpec procFiles procOneFile doRemoveFile doRemoveTsFile isInstalled
-	doInstallCmd doUninstallCmd doRun
+	getCmdLine TStreamType TExecResult mkstr execCmd CFileHandler doRemoveFile
+	isInstalled getCmdName doInstallCmd doUninstallCmd doRun
 extract
 	TPathItem getDsPath extract getPathString reportExtractError getString
 	getArray getTuple
@@ -71,7 +70,7 @@ lltypescript
 	typeCheckTsFile typeCheckTsCode
 llutils
 	stdChecks truncStr strToHash o s s2 t keys entries hasKey hasKeys spaces
-	dashes rtrim countChars blockToArray TBlockSpec isBlockSpec toArray
+	dashes ltrim rtrim countChars blockToArray TBlockSpec isBlockSpec toArray
 	toBlock words rpad lpad TAlignment isAlignment alignString zpad allMatches
 	getLineAndColumn blockWidth blockHeight getOptions sep tabify untabify
 	centered cmdTitle CStringSetMap isTAML fromTAML f formatVal fsplit likeNum
@@ -96,8 +95,10 @@ nice
 	toNice displayStr OL OLS ML DUMPER DUMP DDUMP LOGVALUE DBGVALUE OLD_DUMPER
 parse-utils
 	slot TStrLoc TParseMatch CParseMatches
+proc-files
+	TProcSpec TProcResult procFiles procOneFile
 promise-utils
-	awaitAll awaitAllSerially
+	awaitAllConcurrently awaitAllSerially evalPromise TSettleResult awaitAll
 rule
 	isValidRuleName CRuleBranch CRule CRuleSet mkCodeBlock
 scope
@@ -120,7 +121,7 @@ unify
 	unify
 unit-test
 	equal truthy falsy succeeds fails succeedsAsync failsAsync generates
-	same unifies isType notType checkType getTsCode splitFuncStr
-	TFileOp setDirTree getFileOps execFileOps fileOpsTable sampleVal
+	same unifies isType notType getTsCode splitFuncStr getMyOutsideCaller
+	setDirTree getFileOps execFileOps fileOpsTable mockAsyncTask sampleVal
 walker
 	TVisitKind Walker

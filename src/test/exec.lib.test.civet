@@ -12,11 +12,11 @@ import {
 	} from 'fsys'
 import {
 	getCmdLine, TStreamType, TExecResult,
-	mkstr, execCmd, CFileHandler, prelog, postlog,
-	TProcSpec, procFiles, procOneFile,
-	doRemoveFile, doRemoveTsFile, doInstallCmd,
-	doUninstallCmd, doRun,
+	mkstr, execCmd, CFileHandler,
+	doRemoveFile, doRemoveTsFile, isInstalled, getCmdName,
+	doInstallCmd, doUninstallCmd, doRun,
 	} from 'exec'
+import {TProcSpec, TProcResult, procFiles, procOneFile} from 'proc-files'
 import {doCompileCivet} from 'civet'
 import {
 	equal, succeeds, fails, truthy, falsy, setDirTree,
@@ -38,6 +38,8 @@ setup := (): void =>
 
 	await setDirTree """
 		#{root} clear
+		hello.txt
+			Hello
 		temp.txt
 			abc
 			def
@@ -64,7 +66,14 @@ await setup()
 #    Run tests that don't change the file system first
 # ---------------------------------------------------------------------------
 
-truthy isFile(r"temp1.civet")
+truthy isInstalled('analyze')
+truthy isInstalled('builddoc')
+falsy  isInstalled('nosuchcmd')
+
+equal getCmdName(r"sample.cmd.ts", {}), 'sample'
+equal getCmdName(r"sample.cmd.ts", {name: 'mycmd'}), 'mycmd'
+equal getCmdName(r"a.b.c.cmd.ts", {}), "a_b_c"
+
 truthy isFile(r"temp2.civet")
 truthy isFile(r"temp1.ts")
 truthy isFile(r"temp2.ts")
@@ -82,12 +91,22 @@ falsy  isFile(r"missing.txt")
 	equal mkstr(buffer), 'abc'
 	equal mkstr(view), 'abc'
 	equal getCmdLine('dothis', ['-a', 'willy']), 'dothis -a willy'
-	)()
+	)
 
-(() =>
-	{stdout} := await execCmd 'echo', ["Hello"], {capture: true}
+await (() =>
+	{stdout} := await execCmd 'echo', ["Hello"], {
+		capture: true
+		}
 	equal stdout, "Hello"
-	)()
+	)
+
+await (() =>
+	{stdout} := await execCmd 'cat', [], {
+		capture: true
+		infile: r"hello.txt"
+		}
+	equal stdout, "Hello"
+	)
 
 await (() =>
 	path := r'hello.cmd.ts'
@@ -98,12 +117,12 @@ await (() =>
 	succeeds () => await procOneFile path, doInstallCmd
 	sleep 1000
 	succeeds (() => await procOneFile path, doUninstallCmd), 'doUninstallCmd'
-	)()
+	)
 
 (() =>
 	hResult := await procOneFile r'hello.cmd.ts', doRun
 	equal hResult.stdout, "Hello, World!\n"
-	)()
+	)
 
 # ---------------------------------------------------------------------------
 #     Next run commands that only create new files
@@ -116,17 +135,17 @@ await (() =>
 		outfile
 		}
 	equal slurp(outfile), "123\n1313\n"
-	)()
+	)
 
 # ---------------------------------------------------------------------------
 #    Next run commands that add or remove files
 # ---------------------------------------------------------------------------
 
 await (() =>
-	truthy isFile(r'temp.txt'), 'this fails'
+	truthy isFile(r'temp.txt'), 'LINE 146'
 	await procOneFile r'temp.txt', doRemoveFile
 	falsy isFile(r'temp.txt')
-	)()
+	)
 
 await (() =>
 	truthy isFile(r'sample.ts')
@@ -135,7 +154,7 @@ await (() =>
 	await procOneFile r'sample.ts', doRemoveTsFile
 
 	falsy isFile(r'sample.ts'), 'sample.ts is file'
-	)()
+	)
 
 await (() =>
 	lPaths := [
@@ -149,27 +168,29 @@ await (() =>
 
 	for path of lPaths
 		falsy existsSync(path), 'these fail'
-	)()
+	)
 
 await (() =>
 	truthy isFile(r'hello.cmd.ts'), 'cmd hello file exists'
 
 	# --- Remove all *.ts files
-	await procFiles [doRemoveTsFile, [r'*.ts']]
+	await procFiles [doRemoveFile, [r'*.ts']]
 	falsy isFile(r'hello.cmd.ts'), 'cmd hello file does not exist'
 
 	# --- compile all civet files serially
-	await procFiles [doCompileCivet, [r'*.civet']], {serial: true}
-	await procFiles [doCompileCivet, [r'*.civet']], {serial: true, verbose: true}
-	await procFiles [doCompileCivet, [r'*.civet']], {serial: true, quiet: true}
+	spec: TProcSpec := [doCompileCivet, [r'*.civet']]
+
+	succeeds () => await procFiles spec, {serial: true}
+	succeeds () => await procFiles spec, {serial: true, verbose: true}
+	succeeds () => await procFiles spec, {serial: true, quiet: true}
 
 	# --- Write out an invalid civet file
 	barf r'bad.civet', """
 		let  :== 92
 		"""
-	await procFiles [doCompileCivet, [r'*.civet']], {serial: true}
-	await procFiles [doCompileCivet, [r'*.civet']], {serial: true, verbose: true}
-	await procFiles [doCompileCivet, [r'*.civet']], {serial: true, quiet: true}
+	succeeds () => await procFiles spec, {serial: true}
+	succeeds () => await procFiles spec, {serial: true, verbose: true}
+	succeeds () => await procFiles spec, {serial: true, quiet: true}
 	)
 
 # ---------------------------------------------------------------------------
@@ -178,7 +199,7 @@ await (() =>
 
 await (() =>
 	succeeds (() => await execCmd 'civet', ['--version']), 'first execCmd'
-	)()
+	)
 
 await (() =>
 	let version = ''
@@ -190,7 +211,7 @@ await (() =>
 	truthy h.success
 	truthy matches(version, /^\d+\.\d+\.\d+\n$/)
 	equal version, '0.11.7'
-	)()
+	)
 
 await (() =>
 	h := await execCmd 'civet', ['--version'], {
@@ -198,7 +219,7 @@ await (() =>
 		}
 	version := h.stdout as string
 	truthy matches(version, /^\d+\.\d+\.\d+\n$/)
-	)()
+	)
 
 await (() =>
 	let version = ''
@@ -211,7 +232,7 @@ await (() =>
 	truthy matches(version, /^\d+\.\d+\.\d+\n$/)
 	stdout := h.stdout as string
 	truthy matches(stdout, /^\d+\.\d+\.\d+\n$/)
-	)()
+	)
 
 # ---------------------------------------------------------------------------
 # --- Feed strings into grep, output only numeric lines
@@ -226,10 +247,10 @@ gen := () ->
 	return
 
 await (() =>
-	succeeds () => await execCmd 'grep', ['-E', '[0-9]+'], {
+	succeeds (() => await execCmd 'grep', ['-E', '[0-9]+'], {
 		input: gen()
-		}
-	)()
+		}), "NOT OK"
+	)
 
 await (() =>
 	let output = ''
@@ -240,7 +261,7 @@ await (() =>
 			return
 		}
 	equal output, "123\n1313\n42\n"
-	)()
+	)
 
 await (() =>
 	h := await execCmd 'grep', ['-E', '[0-9]+'], {
@@ -249,7 +270,7 @@ await (() =>
 		}
 	output := h.stdout as string
 	equal output, "123\n1313\n42\n"
-	)()
+	)
 
 await (() =>
 	let output = ''
@@ -261,9 +282,9 @@ await (() =>
 			return
 		}
 	output2 := h.stdout as string
-	equal output, "123\n1313\n42\n", 'MARKER'
+	equal output, "123\n1313\n42\n"
 	equal output2, "123\n1313\n42\n"
-	)()
+	)
 
 # ---------------------------------------------------------------------------
 # --- Feed strings into grep async, output only numeric lines
@@ -284,7 +305,7 @@ await (() =>
 	succeeds () => await execCmd 'grep', ['-E', '[0-9]+'], {
 		input: agen()
 		}
-	)()
+	)
 
 await (() =>
 	let output = ''
@@ -295,7 +316,7 @@ await (() =>
 			return
 		}
 	equal output, "123\n1313\n42\n"
-	)()
+	)
 
 await (() =>
 	h := await execCmd 'grep', ['-E', '[0-9]+'], {
@@ -304,7 +325,7 @@ await (() =>
 		}
 	output := h.stdout as string
 	equal output, "123\n1313\n42\n", 'MARKER 2'
-	)()
+	)
 
 await (() =>
 	let output = ''
@@ -318,7 +339,7 @@ await (() =>
 	output2 := h.stdout as string
 	equal output, "123\n1313\n42\n"
 	equal output2, "123\n1313\n42\n"
-	)()
+	)
 
 # ---------------------------------------------------------------------------
 # --- Feed strings into grep, output only numeric lines
@@ -336,7 +357,7 @@ await (() =>
 	succeeds () => await execCmd 'grep', ['-E', '[0-9]+'], {
 		input: lInput
 		}
-	)()
+	)
 
 await (() =>
 	let output = ''
@@ -347,7 +368,7 @@ await (() =>
 			return
 		}
 	equal output, "123\n1313\n42\n"
-	)()
+	)
 
 await (() =>
 	h := await execCmd 'grep', ['-E', '[0-9]+'], {
@@ -356,7 +377,7 @@ await (() =>
 		}
 	output := h.stdout as string
 	equal output, "123\n1313\n42\n"
-	)()
+	)
 
 await (() =>
 	let output = ''
@@ -370,7 +391,7 @@ await (() =>
 	equal output, "123\n1313\n42\n"
 	output2 := h.stdout as string
 	equal output2, "123\n1313\n42\n"
-	)()
+	)
 
 # ---------------------------------------------------------------------------
 # --- Feed one string into grep, output only numeric lines
@@ -388,7 +409,7 @@ await (() =>
 	succeeds () => await execCmd 'grep', ['-E', '[0-9]+'], {
 		input: str
 		}
-	)()
+	)
 
 await (() =>
 	let output = ''
@@ -399,7 +420,7 @@ await (() =>
 			return
 		}
 	equal output, "123\n1313\n42\n"
-	)()
+	)
 
 await (() =>
 	h := await execCmd 'grep', ['-E', '[0-9]+'], {
@@ -408,7 +429,7 @@ await (() =>
 		}
 	output := h.stdout as string
 	equal output, "123\n1313\n42\n"
-	)()
+	)
 
 await (() =>
 	let output = ''
@@ -422,4 +443,4 @@ await (() =>
 	equal output, "123\n1313\n42\n"
 	output2 := h.stdout as string
 	equal output2, "123\n1313\n42\n"
-	)()
+	)

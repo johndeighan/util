@@ -22,7 +22,7 @@ import {
 	allLinesIn, getOptions, sep,
 	} from 'llutils'
 import {OL, ML} from 'nice'
-import {procOneFile} from 'exec'
+import {procOneFile} from 'proc-files'
 import {CParseMatches} from 'parse-utils';
 import {doCompileHera} from 'hera-compile'
 

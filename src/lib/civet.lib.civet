@@ -19,10 +19,8 @@ import {
 	touch, mkpath, barf, barfTempFile, parsePath, addJsonValue,
 	normalizePath, inSameDir, newerDestFileExists,
 	} from 'fsys'
-import {
-	execCmd, CFileHandler, procFiles,
-	TProcSpec, TExecResult,
-	} from 'exec'
+import {execCmd, CFileHandler, TExecResult} from 'exec'
+import {TProcSpec, procFiles, procOneFile} from 'proc-files'
 import {
 	civet2ts, civet2tsFile,
 	} from 'llcivet'
@@ -160,10 +158,11 @@ export civet2ast := (civetCode: string): Node =>
 
 export compileAllLibs := (
 		root: string = '.'
-		): TExecResult[] =>
+		): void =>
 
 	pat := mkpath(root, '**/*.lib.civet')
-	return await procFiles [doCompileCivet, [pat]]
+	await procFiles [doCompileCivet, [pat]]
+	return
 
 # ---------------------------------------------------------------------------
 

@@ -1,0 +1,259 @@
+# proc-files.lib.civet
+
+import {exists, existsSync} from '@std/fs'
+import {sprintf} from '@std/fmt/printf'
+
+import {LOG, DBG} from 'logger'
+import {
+	undef, defined, notdefined, assert, obviously, croak,
+	resetLine, write, writeln, getErrStr, toRelPath,
+	} from 'base'
+import {timer} from 'timer'
+import {awaitAll, TSettleResult} from 'promise-utils'
+import {hash, nonEmpty} from 'datatypes'
+import {f, getOptions} from 'llutils'
+import {DUMP} from 'nice'
+import {allFilesMatching} from 'fsys'
+import {CFileHandler, TExecResult} from 'exec'
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+# --- Later, I want to allow passing multiple TProcSpecs
+#     string is a glob pattern
+
+export type TProcSpec = [CFileHandler, lPatterns: string[]]
+export type TProcResult = [boolean, string]
+
+export procFiles := (
+		procSpec: TProcSpec,
+		hOptions: hash = {}
+		): void =>
+
+	type opt = {
+		quiet: boolean
+		verbose: boolean
+		serial: boolean
+		}
+	{quiet, verbose, serial
+		} := getOptions<opt> hOptions, {
+			quiet: false
+			verbose: false
+			serial: false
+			}
+
+	assert not (quiet && verbose), "Can't use both quiet and verbose"
+	[handler, lPatterns] := procSpec
+	{op} := handler
+	if verbose
+		writeln "(#{op})"
+
+	timer.timeTaken()    # --- this resets the timer
+
+	# --- NOTE: We need array lPaths to index into
+	lPaths: string[] := Array.from allFilesMatching(lPatterns)
+	lFunctions := for path of lPaths
+		() => handler.handleFile(path, hOptions)
+
+	# --- NOTE: if success is true, str is a file path
+	#           if success is false, str is an error message
+
+	let nOk = 0
+	let nErr = 0
+	let nRej = 0
+	let nNotNeeded = 0
+	onSettleHandler := (result: TSettleResult<TExecResult>) =>
+		[resolved, value, i] := result
+		path := lPaths[i]
+		if resolved
+			hResult := value
+			{success, notNeeded} := hResult
+			if success
+				nOk += 1
+				if notNeeded
+					nNotNeeded += 1
+				if verbose
+					showOkResult handler, path, hResult, hOptions
+			else
+				nErr += 1
+				showErrResult handler, path, hResult, hOptions
+		else
+			nRej += 1
+			errMsg := value
+			showRejResult handler, path, errMsg, hOptions
+		return
+
+	await awaitAll lFunctions, onSettleHandler, {serial}
+
+	if not quiet || (nOk + nErr > 0)
+		showFinalResult op, lPatterns, nNotNeeded, nOk, nErr, nRej, verbose
+	return
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export procOneFile := (
+		path: string,
+		handler: CFileHandler,
+		hOptions: hash = {}
+		): TExecResult =>
+
+	if not await exists(path)
+		return {
+			success: false
+			stderr: "No such file"
+			infile: path
+			}
+	if ('force' not in hOptions) || not hOptions.force
+		if not await handler.needed(path)
+			return {
+				success: true
+				notNeeded: true
+				infile: path
+				}
+
+	type opt = {
+		inspect: boolean
+		quiet: boolean
+		}
+	{inspect, quiet} := getOptions<opt> hOptions, {
+		inspect: false
+		quiet: false
+		}
+
+	op := handler.op
+	if not quiet
+		prelog op, path
+
+	try
+		timer.timeTaken()    # --- this resets the timer
+		hResult := await handler.handleFile path, hOptions
+		if quiet
+			# --- handler.handleFile() will have set infile key
+			return hResult
+
+		{success, notNeeded} := hResult
+		postlog success, notNeeded
+		if success
+			showOkResult handler, path, hResult, hOptions
+		else
+			showErrResult handler, path, hResult, hOptions
+		return hResult
+
+	catch err
+		showRejResult handler, path, err, hOptions
+		return {
+			success: false,
+			stderr: getErrStr(err)
+			infile: path
+			}
+
+# ---------------------------------------------------------------------------
+
+prelog := (
+		op: string,
+		path: string,
+		): void =>
+
+	writeln f"#{op}:{cyan} #{toRelPath(path)}"
+	return
+
+# ---------------------------------------------------------------------------
+
+postlog := (
+		success: boolean
+		notNeeded: boolean?
+		): void =>
+
+	secs := timer.timeTaken()
+	if success
+		if notNeeded
+			writeln f"#{' - not needed'}:{yellow} (#{secs} secs)"
+		else
+			writeln f"#{' - OK'}:{green} (#{secs} secs)"
+	else
+		writeln f"#{' - FAILED'}:{red} (#{secs} secs)"
+	return
+
+# ---------------------------------------------------------------------------
+
+showOkResult := (
+		handler: CFileHandler
+		path: string
+		hResult: TExecResult
+		hOptions: hash = {}
+		): void =>
+
+	if hResult.notNeeded
+		return
+	output := handler.getOutput(hResult)
+	if defined(output) && nonEmpty(output)
+		DUMP output, 'OUTPUT', {escape: false}
+	return
+
+# ---------------------------------------------------------------------------
+
+showErrResult := (
+		handler: CFileHandler
+		path: string
+		hResult: TExecResult
+		hOptions: hash = {}
+		): void =>
+
+	output := handler.getOutput(hResult)
+	if output
+		DUMP output, 'ERROR OUTPUT'
+	return
+
+# ---------------------------------------------------------------------------
+
+showRejResult := (
+		handler: CFileHandler
+		path: string
+		reason: unknown
+		hOptions: hash = {}
+		): void =>
+
+	DUMP reason, 'ERROR'
+	return
+
+# ---------------------------------------------------------------------------
+
+let headerPrinted = false
+
+showFinalResult := (
+		op: string,
+		lPatterns: string[]
+		nNotNeeded: number,
+		nOk: number,
+		nErr: number,
+		nRej: number,
+		verbose: boolean = false
+		): void =>
+
+	resetLine()
+	if verbose
+		return
+	if not headerPrinted
+		LOG '-'.repeat 46
+		LOG [
+			sprintf('%6s', 'secs.')
+			sprintf('%-14s', 'op')
+			sprintf('%3s', 'nnd')
+			sprintf('%3s', 'OK')
+			sprintf('%3s', 'Bad')
+			sprintf('%3s', 'Rej')
+			'file(s)'
+		].join ' '
+		LOG '-'.repeat 46
+		headerPrinted = true
+	LOG [
+		sprintf('%6.2f', timer.timeTaken())
+		sprintf('%-14s', op)
+		sprintf('%3d', nNotNeeded)
+		sprintf('%3d', nOk)
+		sprintf('%3d', nErr)
+		sprintf('%3d', nRej)
+		lPatterns.join(' + ')
+	].join ' '
+	return

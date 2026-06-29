@@ -71,6 +71,7 @@
 		"scope":         "file:///C:/Users/johnd/util/src/lib/scope.lib.ts",
 		"parse-utils":   "file:///C:/Users/johnd/util/src/lib/parse-utils.lib.ts",
 		"exec":          "file:///C:/Users/johnd/util/src/lib/exec.lib.ts",
+		"proc-files":    "file:///C:/Users/johnd/util/src/lib/proc-files.lib.ts",
 		"rule":          "file:///C:/Users/johnd/util/src/lib/rule.lib.ts",
 		"hera-compile":  "file:///C:/Users/johnd/util/src/lib/hera-compile.lib.ts",
 		"hera-parse":    "file:///C:/Users/johnd/util/src/lib/hera-parse.lib.ts",

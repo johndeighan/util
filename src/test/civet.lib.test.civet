@@ -1,138 +1,166 @@
 # civet.lib.test.civet
 
+import {exists, existsSync} from '@std/fs'
 import {stripAnsiCode} from "@std/fmt/colors"
 import {SourceFile} from 'npm:typescript'
 
 import {undef, defined} from 'base'
 import {isHash} from 'datatypes'
 import {s, rtrim} from 'llutils'
-import {slurp, withExt} from 'fsys'
+import {slurp, withExt, myTestDir, rmFile} from 'fsys'
+import {procOneFile} from 'proc-files'
 import {ts2ast, astAsString} from 'typescript'
-import {civet2ts, civet2tsFile} from 'llcivet'
-import {a, civet2ast} from 'civet'
+import {civet2ts, civet2tsFile, TCivetOptions, doCompileCivet,
+	civet2ast, compileAllLibs, a, A,
+	} from 'civet'
 import {
 	equal, succeeds, fails, truthy, falsy, setDirTree,
 	} from 'unit-test'
 
-fileName := "test-civet.civet"
+root := myTestDir(import.meta.url)
+console.log "ROOT: #{root}"
 
 # ---------------------------------------------------------------------------
 
-await setDirTree """
-	./src/test/civet
-	#{fileName}
-		x := 42
-	"""
+export r := (lStrings: TemplateStringsArray): string =>
+
+	return "#{root}/#{lStrings[0]}"
 
 # ---------------------------------------------------------------------------
-
-testPath := "src/test/civet/#{fileName}"
-
-civetCode := slurp testPath
-tsCode :=  await civet2ts civetCode
-
-# --- source maps are stripped out before an ast is created
-ast1 := await civet2ast civetCode
-ast2 := ts2ast tsCode
-equal ast1, ast2
-
-equal await civet2ts('x := 42', {inlineMap: false}), """
-	"use strict";
-	const x = 42
-	"""
 
 (() =>
-	await civet2tsFile testPath, undef, {inlineMap: false}
-	code := slurp withExt(testPath, '.ts')
-	equal rtrim(code), """
-		const x = 42
+	await setDirTree """
+		#{root} clear
+		test.civet
+			x := 42
 		"""
-	)()
-
-await succeeds () => await civet2ast('x := 42')
+	)
 
 # ---------------------------------------------------------------------------
 
-equal await a"""
-	import {defined, notdefined} from 'datatypes'
-	""", s"""
-	IMPORTS: datatypes: defined notdefined
-	EXTRA: defined notdefined
-   """
+(() =>
+	civetCode := slurp r"test.civet"
+	tsCode :=  await civet2ts civetCode
 
-equal await a"""
-	x := y + z + func(min)
-	""", s"""
-	MISSING: y z func min
-	EXTRA: x
-	"""
+	# --- source maps are stripped out before an ast is created
+	ast1 := await civet2ast civetCode
+	ast2 := ts2ast tsCode
+	equal ast1, ast2
 
-equal await a"""
-	import {defined, notdefined} from 'datatypes'
-	""", s"""
-	IMPORTS: datatypes: defined notdefined
-	EXTRA: defined notdefined
-   """
+	equal await civet2ts('x := 42', {inlineMap: false}), """
+		"use strict";
+		const x = 42
+		"""
+	)
 
-equal await a"""
-	x := y + z + func(min)
-	""", s"""
-	MISSING: y z func min
-	EXTRA: x
-	"""
+(() =>
+#	path := r"test.civet"
+	path := "src/test/civet/test.civet"
+	tsPath := withExt path, '.ts'
 
-equal await a"""
-	import {defined, notdefined} from 'datatypes'
-	""", s"""
-	IMPORTS: datatypes: defined notdefined
-	EXTRA: defined notdefined
-   """
+	debugger
+	await civet2tsFile path, tsPath, {inlineMap: false}
+	code := rtrim(slurp tsPath)
+	equal code, """
+		"use strict";
+		const x = 42
+		""", "THIS FAILS"
+	)
 
-equal await a"""
-	export meaning := 42
-	""", s"""
-	EXPORTS: meaning
-	"""
+(() =>
+	await succeeds () => await civet2ast('x := 42')
+	)
 
-equal await a"""
-	func "Hello"
-	""", s"""
-	MISSING: func
-	"""
+# ---------------------------------------------------------------------------
 
-equal await a"""
-	func x, y+z
-	""", s"""
-	MISSING: func x y z
-	"""
+(() =>
+	equal await a"""
+		import {defined, notdefined} from 'datatypes'
+		""", s"""
+		IMPORTS: datatypes: defined notdefined
+		EXTRA: defined notdefined
+		"""
 
-# --- imports are not needed
+	equal await a"""
+		x := y + z + func(min)
+		""", s"""
+		MISSING: y z func min
+		EXTRA: x
+		"""
 
-equal await a"""
-	import {func} from 'willy'
+	equal await a"""
+		import {defined, notdefined} from 'datatypes'
+		""", s"""
+		IMPORTS: datatypes: defined notdefined
+		EXTRA: defined notdefined
+		"""
 
-	func x, y+z
-	""", s"""
-	IMPORTS: willy: func
-	MISSING: x y z
-	"""
+	equal await a"""
+		x := y + z + func(min)
+		""", s"""
+		MISSING: y z func min
+		EXTRA: x
+		"""
 
-# --- Only t is needed, s is a parameter
+	equal await a"""
+		import {defined, notdefined} from 'datatypes'
+		""", s"""
+		IMPORTS: datatypes: defined notdefined
+		EXTRA: defined notdefined
+		"""
 
-equal await a"""
-	func := (s: string): string =>
-		return s + t + '.txt'
-	func('abc')
-	""", s"""
-	MISSING: t
-	"""
+	equal await a"""
+		export meaning := 42
+		""", s"""
+		EXPORTS: meaning
+		"""
 
-# --- Same, only using 'function' keyword
+	equal await a"""
+		func "Hello"
+		""", s"""
+		MISSING: func
+		"""
 
-equal await a"""
-	function func(s: string): string
-		return s + t + '.txt'
-	func('abc')
-	""", s"""
-	MISSING: t
-	"""
+	equal await a"""
+		func x, y+z
+		""", s"""
+		MISSING: func x y z
+		"""
+
+	# --- imports are not needed
+
+	equal await a"""
+		import {func} from 'willy'
+
+		func x, y+z
+		""", s"""
+		IMPORTS: willy: func
+		MISSING: x y z
+		"""
+
+	# --- Only t is needed, s is a parameter
+
+	equal await a"""
+		func := (s: string): string =>
+			return s + t + '.txt'
+		func('abc')
+		""", s"""
+		MISSING: t
+		"""
+
+	# --- Same, only using 'function' keyword
+
+	equal await a"""
+		function func(s: string): string
+			return s + t + '.txt'
+		func('abc')
+		""", s"""
+		MISSING: t
+		"""
+
+	await (() =>
+		rmFile r"test.ts"
+		await procOneFile r"test.civet", doCompileCivet
+		truthy await exists r"test.ts"
+		)()
+	)()
