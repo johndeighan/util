@@ -8,8 +8,8 @@ import {
 import {findFile, withExt, isFile} from 'fsys'
 import {doRun, TExecResult} from 'exec'
 import {procOneFile} from 'proc-files'
-import {f, stdChecks, EXEC} from 'llutils'
-import {flag, argValue, nonOption, getFlags} from 'cmd-args'
+import {f, EXEC} from 'llutils'
+import {stdChecks, flag, argValue, nonOption, getFlags} from 'cmd-args'
 import {doCompileCivet, compileAllLibs} from 'civet'
 
 stdChecks """
@@ -21,7 +21,7 @@ stdChecks """
 
 # ---------------------------------------------------------------------------
 
-EXEC () =>
+await EXEC () =>
 	{inspect, force, noCompile} := getFlags {
 		inspect: 'I'
 		force: 'f'

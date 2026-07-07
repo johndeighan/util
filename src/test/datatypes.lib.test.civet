@@ -10,7 +10,7 @@ import {
 	hash, hashof, isHash,
 	TVoidFunc, nonEmptyString,
 	isString, char, isChar, isNonEmptyString, isBoolean,
-	isNumber, isPrimitive, isNonPrimitive, isInteger,
+	isNumber, isPrimitive, isInteger,
 	isArrayOfStrings, isArrayOfIntegers,
 	isFunction, isRegExp, lPrimTypes,
 	isEmpty, nonEmpty,
@@ -260,19 +260,6 @@ truthy isPrimitive((x: string): string => 'abc')
 truthy isPrimitive(/^abc$/)
 falsy  isPrimitive([1,2,3])
 falsy  isPrimitive({a:1, b:2})
-
-truthy isNonPrimitive([1,2,3])
-truthy isNonPrimitive({a:1, b:2})
-falsy  isNonPrimitive(null)
-falsy  isNonPrimitive(undef)
-falsy  isNonPrimitive(true)
-falsy  isNonPrimitive('abc')
-falsy  isNonPrimitive(Symbol())
-falsy  isNonPrimitive(12345n)
-falsy  isNonPrimitive(42)
-falsy  isNonPrimitive(3.14)
-falsy  isNonPrimitive((x: string): string => 'abc')
-falsy  isNonPrimitive(/^abc$/)
 
 truthy isEmpty(undef)
 truthy isEmpty(null)

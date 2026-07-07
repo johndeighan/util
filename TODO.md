@@ -27,7 +27,24 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
-pare down unit tests for: eval and proc-files
+fix command compile-all.cmd.ts
+	- check regular expression to match test files
+
+exec unit test still sometimes leaks???
+
+fsys unit test fails
+
+fsys has both isStub() and isValidStub() ????
+
+Find all calls to Deno.readTextFile and Deno.writeTextFile
+	- make sure they and any functions they're in use await
+
+setDirTree() must be awaited, as well as any function it's inside
+
+When running 'ulib proc-files'
+	there are message saying that file read/write/stat operation
+	was started outside of a test but finished inside the test
+	Find out which test is doing that
 
 Use:
 	deno run -A --inspect-brk src/cmd/utest.cmd.ts exec

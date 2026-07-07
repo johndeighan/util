@@ -1,15 +1,16 @@
 # mapsrc.cmd.civet
 
-import {mapPos, assert, defined} from 'base'
-import {stdChecks, EXEC} from 'llutils'
-import {flag, nonOption, allNonOptions} from 'cmd-args'
+import {mapPos} from 'stack'
+import {assert, defined} from 'base'
+import {EXEC} from 'llutils'
+import {stdChecks, flag, nonOption, allNonOptions} from 'cmd-args'
 import {isFile} from 'fsys'
 
 stdChecks("mapsrc <path> <lineNum>")
 
 # ---------------------------------------------------------------------------
 
-EXEC () =>
+await EXEC () =>
 	source := nonOption 0
 	assert defined(source), "Missing file path"
 	assert isFile(source), "No such file: #{source}"
@@ -21,7 +22,7 @@ EXEC () =>
 		assert defined(str), "Missing line number"
 		assert str.match(/^\d+$/), "Bad line number: #{str}"
 
-		hPos := mapPos {
+		hPos := await mapPos {
 			source
 			line: parseInt(str)
 			col: 1

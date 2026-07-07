@@ -7,13 +7,14 @@ import {
 	toRelPath, assert, TIterator, getErrStr,
 	undef, defined, notdefined, encode,
 	} from 'base'
-import {stdChecks, getOptions, EXEC} from 'llutils'
+import {getOptions, EXEC} from 'llutils'
+import {stdChecks, argValue} from 'cmd-args'
 import {hash} from 'datatypes'
 import {indented} from 'indent'
 import {DBGVALUE} from 'nice'
 import {
 	barf, allFilesMatching, withExt, parsePath,
-	CWritableFile,
+	CReadableFile, CWritableFile,
 	} from 'fsys'
 import {CAnalysis, analyzeTsCode} from 'typescript'
 
@@ -21,44 +22,58 @@ import {CAnalysis, analyzeTsCode} from 'typescript'
 oneIndent := '\n'
 maxLineLen := 75
 
-stdChecks "build-dot-symbols"
+stdChecks {
+	_: {range: [0, 0]}
+	trace: {type: 'string', desc: 'lib to trace'}
+	}
+
+traceStub := argValue('trace')
+if traceStub
+	LOG "trace '#{traceStub}' lib"
+
+# ---------------------------------------------------------------------------
+
+await EXEC () =>
+
+	outfile := new CWritableFile('src/.symbols')
+	for path of allFilesMatching('**/*.lib.ts')
+		try
+			infile := new CReadableFile(path)
+			contents := await infile.getContents()
+			analysis := analyzeTsCode(contents)
+			lExports := analysis.getExports()
+			{stub} := parsePath(path)
+
+			await outfile.writeln(stub)
+			for line of allExportLines lExports
+				if (stub == traceStub)
+					LOG line
+				await outfile.writeln(indented(line))
+		catch err
+			ERR getErrStr(err)
 
 # ---------------------------------------------------------------------------
 # --- TIterator
 
-allLinesFrom := (
+allExportLines := (
 		lExports: string[]
 		): TIterator<string> ->
 
 	lSymbols: string[] := []
 	let lineLen = 0     # --- always <= maxLineLen
-	for name of lExports
+	for name of lExports.sort((a, b) => a.localeCompare(b))
 		pos := name.indexOf '<'
 		sym := (pos == -1) ? name : name.substring(0, pos)
 		if (lineLen + sym.length + 1 > maxLineLen)
 			yield lSymbols.join(' ')
+
+			# --- Initialize next line with current symbol
 			lSymbols.length = 0
-			lineLen = 0
+			lSymbols.push sym
+			lineLen = sym.length
 		else
 			lSymbols.push sym
 			lineLen += sym.length + 1
 	if (lSymbols.length > 0)
 		yield lSymbols.join(' ')
 	return
-
-# ---------------------------------------------------------------------------
-
-EXEC await () =>
-
-	file := new CWritableFile('src/.symbols')
-	for path of allFilesMatching('**/*.lib.ts')
-		try
-			analysis := analyzeTsCode(await Deno.readTextFile(path))
-			lExports := analysis.getExports()
-			{stub} := parsePath(path)
-
-			await file.writeln(stub)
-			for line of allLinesFrom lExports
-				await file.writeln(indented(line))
-		catch err
-			ERR getErrStr(err)

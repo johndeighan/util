@@ -8,12 +8,14 @@ import {
 	numNonOptions, nonOption, allNonOptions,
 	argValue, parseCmdArgs, setCmdArgs,
 	debugging, inspecting, helping, silent,
-	TKeyDesc, TCmdDesc,
+	TKeyDesc, TCmdDesc, stdChecks,
 	helpStr, getCmdArgErrors, checkCmdArgs,
 	} from 'cmd-args'
 import {
 	equal, succeeds, fails, truthy, falsy,
 	} from 'unit-test'
+
+stdChecks()
 
 # ---------------------------------------------------------------------------
 
@@ -52,6 +54,30 @@ import {
 	)()
 
 (() =>
+	h := parseCmdArgs ['-D']
+	truthy h.debugging
+	)()
+
+(() =>
+	h := parseCmdArgs ['-I']
+	truthy h.inspecting
+	)()
+
+(() =>
+	h := parseCmdArgs ['-h']
+	truthy h.helping
+	)()
+
+(() =>
+	h := parseCmdArgs ['-S']
+	truthy h.silent
+	)()
+
+(() =>
+	h := parseCmdArgs ['-DIh']
+	truthy h.debugging
+	truthy h.inspecting
+	truthy h.helping
 	)()
 
 # ---------------------------------------------------------------------------
@@ -72,8 +98,9 @@ import {
 			}
 		t: { desc: 'set flag t' }
 		label: { desc: 'a label to use' }
-		width: { type: 'number' }
+		width: { type: 'float' }
 		prop:  { type: 'number' }
+		numItems:  { type: 'integer' }
 		}
 
 	setCmdArgs [
@@ -144,8 +171,9 @@ import {
 			x: boolean - a lower case X
 			t - set flag t
 			label - a label to use
-			width: number
+			width: float
 			prop: number
+			numItems: integer
 		"""
 
 	falsy  helping

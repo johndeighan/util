@@ -4,9 +4,9 @@ import {exists, existsSync} from '@std/fs'
 import {Node, SourceFile} from 'npm-typescript'
 
 import {LOG, DBG, ERR} from 'logger'
+import {extractSourceMap} from 'stack'
 import {
-	undef, defined, notdefined, croak, assert, getErrStr,
-	extractSourceMap, isFullPath,
+	undef, defined, notdefined, croak, assert, getErrStr, isFullPath,
 	} from 'base'
 import {
 	hash, isString, isHash, isEmpty, nonEmpty,

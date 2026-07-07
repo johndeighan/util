@@ -1,0 +1,286 @@
+# trace-stack.lib.civet
+
+import {
+	undef, defined, notdefined, assert, obviously, croak, deepCopy,
+	} from 'base'
+import {esc} from 'unicode'
+import {tabs, spaces} from 'llutils'
+import {
+	isInteger, isString, isArray, isNonEmptyString,
+	} from 'datatypes'
+import {OL} from 'nice'
+import {LOG, DBG, getLog} from 'logger'
+
+export mainName := '_MAIN_'
+
+# ---------------------------------------------------------------------------
+
+export class CCallNode
+
+	static nextID: number = 1
+
+	id: number
+	name: string
+	lArgs: unknown[]
+	caller: CCallNode?
+	lCalling: CCallNode[] = []
+	isYielded: boolean = false
+	doLog: boolean = false
+
+	constructor(
+			@name: string = mainName
+			lArgs: unknown[] = []
+			@caller: CCallNode? = undef
+			@doLog: boolean = false
+			)
+
+		assert defined(@caller) || (@name == mainName), "Missing caller"
+		@id = CCallNode.nextID
+		CCallNode.nextID += 1
+		assert isNonEmptyString(@name), "Bad funcName: #{@name}"
+		@lArgs = deepCopy(lArgs)
+
+# ---------------------------------------------------------------------------
+
+export class CCallStack
+
+	root: CCallNode = new CCallNode()
+	curFunc: CCallNode
+	level: number = 0
+	logLevel: number = 0
+
+	doLogCalls: boolean    = false
+	doDebugStack: boolean  = false
+	doThrowErrors: boolean = false
+
+	# ........................................................................
+
+	constructor()
+
+		@level = @logLevel = 0
+		@curFunc = @root
+
+	# ........................................................................
+
+	reset(): void
+
+		if @doLogCalls
+			LOG "#{tabs(@level)}RESET"
+		@level = @logLevel = 0
+		@curFunc = @root
+		return
+
+	# ........................................................................
+
+	get curFuncName(): string
+
+		return @curFunc.name
+
+	# ........................................................................
+	# ........................................................................
+
+	enter(
+			funcName: string
+			lArgs: unknown[]? = []
+			doLog: boolean = false
+			): void
+
+		@log 'ENTER', funcName, lArgs
+
+		node := new CCallNode(funcName, lArgs, @curFunc, doLog)
+		@curFunc.lCalling.push node
+		@curFunc = node
+
+		@incLevel()
+
+		@dump()
+		return
+
+	# ........................................................................
+
+	returnFrom(
+			funcName: string
+			val: unknown? = undef
+			): void
+
+		assert (funcName == @curFuncName),
+			"return from #{funcName}, but cur func is #{@curFuncName}"
+
+		# --- Always returns from the current function
+		#     parameter is just a check for correct function name
+
+		@decLevel()   # --- Adjust levels before logging
+
+		@log 'RETURN FROM', funcName, val
+
+		caller := @curFunc.caller
+		assert defined(caller), "Cur func has no caller"
+		@curFunc = caller
+		assert (@curFunc.lCalling.length > 0), "calling stack empty"
+		@curFunc.lCalling.pop()
+
+		@dump()
+		return
+
+	# ........................................................................
+
+	yieldFrom(
+			funcName: string
+			val: unknown?
+			): void
+
+		# --- Adjust levels before logging
+		@decLevel()
+
+		@log 'yield from', funcName, [val]
+
+		assert (@curFuncName != mainName), "yield from #{mainName}"
+		assert (funcName == @curFuncName),
+			"yield from #{funcName}, but cur func is #{@curFuncName}"
+
+		@curFunc.isYielded = true
+		let func = @curFunc.caller
+		assert defined(func), "caller not defined"
+		while defined(func) && (func.isYielded)
+			func = func.caller
+			assert defined(func), "caller not defined"
+		@curFunc = func
+
+		@dump()
+		return
+
+	# ........................................................................
+
+	resume(funcName: string): void
+
+		@log 'resume', funcName
+
+		@curFunc = @curFunc.lCalling[@curFunc.lCalling.length - 1]
+		assert (@curFuncName == funcName),
+			"resume #{funcName} but resumed @curFuncName"
+		assert @curFunc.isYielded, "resume #{funcName} but it's not yielded"
+		@curFunc.isYielded = false
+
+		@incLevel()
+		@dump()
+		return
+
+	# ........................................................................
+	# ........................................................................
+
+	log(
+			op: string
+			funcName: string
+			lArgs: (unknown[] | string | unknown)? = undef
+			): void
+
+		if @isLogging()
+			argStr := (
+				  isString(lArgs) ? esc(lArgs)
+				: isArray(lArgs)  ? OL(lArgs)
+				: defined(lArgs)  ? OL(lArgs)
+				:                   ''
+				)
+			LOG "#{tabs(@level)}#{op} #{funcName} #{argStr}"
+		return
+
+	# ........................................................................
+
+	isActive(
+			funcName: string
+			root: CCallNode = @root
+			): boolean
+
+		if (root.name == funcName)
+			return true
+		for node of root.lCalling
+			if @isActive(funcName, node) && not node.isYielded
+				return true
+		return false
+
+	# ........................................................................
+
+	isLogging(): boolean
+
+		return @curFunc.doLog
+
+	# ........................................................................
+
+	incLevel(): void
+
+		@level += 1
+		if @curFunc.doLog
+			@logLevel += 1
+		return
+
+	# ........................................................................
+
+	decLevel(): void
+
+		assert (@level > 0), "dec level when level is 0"
+		@level -= 1
+		if @isLogging()
+			assert (@logLevel > 0), "dec level when level is 0"
+			@logLevel -= 1
+		return
+
+	# ........................................................................
+
+	dump(): void
+
+		if @doDebugStack
+			prefix := spaces(5).repeat(@level)
+			console.log prefix + '-------- CALL STACK --------'
+			console.log prefix + "(curFunc = #{@curFuncName})"
+			console.log @dumpStr @root, @level, spaces(5)
+			console.log prefix + '----------------------------'
+		return
+
+	# ........................................................................
+
+	dumpStr(
+			node: CCallNode
+			level: number
+			oneIndent: string
+			): string
+
+		assert (node instanceof CCallNode), "not a CCallNode obj in dumpStr()"
+		lLines := []
+		lLines.push oneIndent.repeat(level) + @callStr(node)
+		assert isArray(node.lCalling), "not an array"
+		for nd of node.lCalling
+			lLines.push @dumpStr(nd, level+1, oneIndent)
+		return lLines.join("\n")
+
+	# ........................................................................
+
+	callStr(hNode: CCallNode): string
+
+		curSym := (hNode == @curFunc) ? '> ' : '. '
+
+		{caller, lCalling} := hNode
+		assert isArray(lCalling), "lCalling not an array"
+		callerStr := defined(caller) ? caller.id.toString(10) : '-'
+		callingStr := @idStr(lCalling)
+
+		sym := (
+			if hNode.doLog
+				hNode.isYielded ? ' LY' : ' L'
+			else
+				hNode.isYielded ? ' Y' : ''
+			)
+		return "#{curSym}[#{hNode.id}] #{hNode.name} #{callerStr} #{callingStr} #{sym}"
+
+	# ........................................................................
+
+	idStr(lNodes: CCallNode[]): string
+
+		assert isArray(lNodes), "not an array in idStr()"
+		if (lNodes.length == 0)
+			return '-'
+		lIDs := []
+		for node of lNodes
+			lIDs.push node.id.toString(10)
+		str := lIDs.join(',')
+		assert defined(str), "str not defined"
+		return str

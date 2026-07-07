@@ -1,7 +1,7 @@
 # civet.lib.test.civet
 
 import {exists, existsSync} from '@std/fs'
-import {stripAnsiCode} from "@std/fmt/colors"
+import {stripAnsiCode} from '@std/fmt/colors'
 import {SourceFile} from 'npm:typescript'
 
 import {undef, defined} from 'base'
@@ -22,19 +22,22 @@ console.log "ROOT: #{root}"
 
 # ---------------------------------------------------------------------------
 
-export r := (lStrings: TemplateStringsArray): string =>
+r := (lStrings: TemplateStringsArray): string =>
 
 	return "#{root}/#{lStrings[0]}"
 
 # ---------------------------------------------------------------------------
 
-(() =>
+setup := (): void ->
+
 	await setDirTree """
-		#{root} clear
+		./#{root} clear
 		test.civet
 			x := 42
 		"""
-	)
+	return
+
+await setup()
 
 # ---------------------------------------------------------------------------
 
@@ -73,7 +76,7 @@ export r := (lStrings: TemplateStringsArray): string =>
 
 # ---------------------------------------------------------------------------
 
-(() =>
+await (() =>
 	equal await a"""
 		import {defined, notdefined} from 'datatypes'
 		""", s"""

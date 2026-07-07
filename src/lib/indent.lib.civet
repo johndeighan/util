@@ -1,7 +1,8 @@
 # indent.lib.civet
 
+import {LOG, ERR} from 'logger'
 import {undef, defined, notdefined, croak, assert} from 'base'
-import {esc} from 'unicode'
+import {esc, escm} from 'unicode'
 import {
 	array, isEmpty, isString, isArray, isArrayOfStrings,
 	hash, hashof, isHash, integer, isInteger,
@@ -174,26 +175,28 @@ export function undented(
 		): string | string[]
 
 	# --- NOTE: leave empty lines empty
+
 	let toRemove: string? = undef
 	let nToRemove: number = 0
-	lNewLines: string[] := []
-	for line of toArray(input)
-		assert isString(line), "Bad input to undented: #{input}"
+
+	lNewLines := for line of toArray(input)
 		trimmed := rtrim line
 		if (trimmed == '')
-			lNewLines.push ''
-		else if notdefined(toRemove)
-			[_, prefix, rest] := trimmed.match(/^(\s*)(.*)$/) || ['', '', '']
-			if prefix.length == 0
-				lNewLines.push trimmed
-			else
-				toRemove = prefix
-				nToRemove = prefix.length
-				lNewLines.push rest
+			''
+		else if defined(toRemove)
+			if (trimmed.indexOf(toRemove) != 0)
+				block := isString(input) ? input : toBlock(input)
+				ERR "input =\n#{escm(block)}"
+				ERR "toRemove = #{esc(toRemove)}"
+				ERR "line = #{esc(line)}"
+				croak "can't remove #{esc(toRemove)} from #{esc(line)}"
+			trimmed.substr(nToRemove)
 		else
-			assert (line.indexOf(toRemove) == 0),
-					"can't remove #{esc(toRemove)} from #{esc(line)}"
-			lNewLines.push trimmed.substr(nToRemove)
+			# --- regexp will always match, but TypeScript doesn't know that
+			[_, prefix, rest] := trimmed.match(/^(\s*)(.*)$/) || ['', '', '']
+			toRemove = prefix
+			nToRemove = prefix.length
+			(nToRemove == 0) ? trimmed : rest
 	return isString(input) ? arrayToBlock(lNewLines) : lNewLines
 
 # ---------------------------------------------------------------------------

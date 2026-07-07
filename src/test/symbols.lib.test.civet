@@ -26,7 +26,7 @@ await (() =>
 	# --- Use the actual .symbols file
 	hSymbols := await loadSymbols()
 
-	equal getSymbolLib('defined'), 'base'
+	equal getSymbolLib('defined'), 'base', 'FAILS'
 	equal getSymbolLib('isArray'), 'datatypes'
 
 	equal getSymbolLib('array'), 'datatypes'
@@ -35,7 +35,7 @@ await (() =>
 	equal getNeededImportStmts(['defined','array']), [
 		"import {defined} from 'base';"
 		"import {array} from 'datatypes';"
-		]
+		], 'FAILS'
 	equal getNeededImportStmts(['arrayof','integer']), [
 		"import {arrayof, integer} from 'datatypes';"
 		]

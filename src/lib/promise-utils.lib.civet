@@ -12,61 +12,6 @@ type TRunResult<T> = [T[], string[], string[], string[]]
 
 # ---------------------------------------------------------------------------
 # ASYNC
-# --- returns [lFulfilled, lRejected, lFulfilledTags, lRejectedTags]
-#        lFulfilled is an array of TAccum
-#        lRejected is an array of unknown
-#        lFulfilledTags and lRejectedTags are arrays of strings
-
-export awaitAllConcurrently := <T>(
-		lPromises: Promise<T>[]
-		lTags: string[] = []
-		): TRunResult<T> ->
-
-	lSettled := await Promise.allSettled(lPromises)
-	assert isArray(lSettled), "Not an array: #{lSettled}"
-	acc0: TRunResult<T> := [[],[],[],[]]
-	lFinalAccum := accum lSettled, acc0, (h, acc, i): TRunResult<T> ->
-		tag := (i >= 0) && (i < lTags.length) ? lTags[i] : ''
-		[lFulfilled, lRejected, lTags1, lTags2] := acc
-		if (h.status == 'fulfilled')
-			return [
-				[...lFulfilled, h.value],
-				lRejected,
-				[...lTags1, tag],
-				lTags2
-				]
-		else
-			return [
-				lFulfilled
-				[...lRejected, getErrStr(h.reason)]
-				lTags1
-				[...lTags2, tag]
-				]
-	return lFinalAccum
-
-# ---------------------------------------------------------------------------
-
-type TVoidPromiseFunc<T=unknown> = () => Promise<T>
-
-export awaitAllSerially := <T,TErr>(
-		lFunctions: TVoidPromiseFunc<T>[]
-		lTags: string[] = []
-		): TRunResult<T> ->
-
-	lResult: TRunResult<T> := [[],[],[],[]]
-	for func,i of lFunctions
-		assert isFunction(func), "Not a function: #{func}"
-		try
-			result := await func()
-			lResult[0].push result
-			lResult[2].push lTags[i]
-		catch err
-			lResult[1].push getErrStr(err)
-			lResult[3].push lTags[i]
-	return lResult
-
-# ---------------------------------------------------------------------------
-# ASYNC
 # --- returns an error message if promise rejects
 
 type TResult<T> = [true, T] | [false, string]
@@ -86,36 +31,28 @@ export type TSettleResult<T> =
 	[true, T, number] | [false, any, number]
 
 export awaitAll := <T>(
-		lTasks: (() => Promise<T>)[]
+		lFuncs: (() => Promise<T>)[]
 		onSettle: (result: TSettleResult<T>) => void
-		hOptions: hash = {}
 		): void =>
 
-	type opt = {
-		serial: boolean
-		}
+	await lFuncs.map (func, i) =>
+		[isOk, value] := await evalPromise func()
+		if isOk
+			onSettle [true, value, i]
+		else
+			onSettle [false, value, i]
+	return
 
-	{serial} := getOptions<opt> hOptions, {
-		serial: false
-		}
+# ---------------------------------------------------------------------------
 
-	if serial
-		for task,i of lTasks
-			try
-				value := await task()
-				onSettle [true, value, i]
-			catch (reason)
-				onSettle [false, reason, i]
-	else
-		lWrappedPromises := lTasks.map (task, index) =>
-			try
-				value := await task()
-				successResult: TSettleResult<T> := [true, value, index]
-				onSettle successResult
-				return successResult
-			catch (reason)
-				errorResult: TSettleResult<T> := [false, reason, index]
-				onSettle errorResult
-				return errorResult
+export awaitAllSerially := <T>(
+		lFuncs: (() => Promise<T>)[]
+		onSettle: (result: TSettleResult<T>) => void
+		): void =>
 
-		await Promise.all(lWrappedPromises)
+	for func,i of lFuncs
+		try
+			value := await func()
+			onSettle [true, value, i]
+		catch err
+			onSettle [false, getErrStr(err), i]

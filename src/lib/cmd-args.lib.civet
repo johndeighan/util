@@ -20,15 +20,14 @@ import {OL, DUMP} from 'nice'
 doSetLogLevel := true   # --- maybe check an env var first?
 doHandleClear := true   # --- maybe check an env var first?
 
-export type TCmdArgDesc = {
-	hFlags: hashof<boolean>
-	hValues: hashof<string | number>
-	lNonOptions: string[]
-	helping: boolean
-	debugging: boolean
-	silent: boolean
-	inspecting: boolean
-	clearScreen: boolean
+export type TKeyDesc = {
+	type?: string                # --- ignored for key _
+	range?: [integer, integer]   #     used only for key _
+	desc?: string
+	}
+
+export type TCmdDesc = {
+	[key: string]: TKeyDesc | string
 	}
 
 # ---------------------------------------------------------------------------
@@ -97,7 +96,6 @@ export nonOption := (i: integer): string? =>
 
 	return (
 		  (0 <= i < lNonOptions.length)
-#		  (i >= 0) && (i < lNonOptions.length)
 		? lNonOptions[i]
 		: undef
 		)
@@ -113,6 +111,19 @@ export allNonOptions := (): string[] ->
 export argValue := (name: string): string? =>
 
 	return (name in hValues) ? hValues[name] : undef
+
+# ---------------------------------------------------------------------------
+
+export type TCmdArgDesc = {
+	hFlags: hashof<boolean>
+	hValues: hashof<string | number>
+	lNonOptions: string[]
+	helping: boolean
+	debugging: boolean
+	silent: boolean
+	inspecting: boolean
+	clearScreen: boolean
+	}
 
 # ---------------------------------------------------------------------------
 
@@ -187,20 +198,6 @@ export setCmdArgs := (
 		else if silent
 			initLogLevel 'silent'
 
-setCmdArgs()
-
-# ---------------------------------------------------------------------------
-
-export type TKeyDesc = {
-	type?: string                # --- ignored for key _
-	range?: [integer, integer]   #     used only for key _
-	desc?: string
-	}
-
-export type TCmdDesc = {
-	[key: string]: TKeyDesc | string
-	}
-
 # ---------------------------------------------------------------------------
 
 export helpStr := (hDesc: TCmdDesc): string =>
@@ -238,7 +235,39 @@ export helpStr := (hDesc: TCmdDesc): string =>
 
 # ---------------------------------------------------------------------------
 
-export getCmdArgErrors := (hDesc: TCmdDesc): string[] =>
+export stdChecks := (
+		arg: (string | TCmdDesc) = ''
+		): void =>
+
+	debugger
+	root := Deno.env.get('PROJECT_ROOT_DIR')
+	assert nonEmpty(root), "Please set env var PROJECT_ROOT_DIR"
+	if isString(arg)
+		if helping
+			LOG arg
+			Deno.exit 0
+	else
+		checkCmdArgs arg
+	return
+
+# ---------------------------------------------------------------------------
+# --- Throws exception if problem found
+
+export checkCmdArgs := (hDesc: TCmdDesc): void =>
+
+	lErrors := getCmdArgErrors hDesc
+	if nonEmpty(lErrors)
+		DUMP lErrors, 'lErrors in checkCmdArgs'
+		errMsg := lErrors.join('\n')
+		ERR errMsg
+		croak errMsg
+	return
+
+# ---------------------------------------------------------------------------
+
+export getCmdArgErrors := (
+		hDesc: TCmdDesc
+		): string[] =>
 
 	lErrors: string[] := []
 	for flag of keys(hFlags)
@@ -250,9 +279,12 @@ export getCmdArgErrors := (hDesc: TCmdDesc): string[] =>
 			hKeyDesc := hDesc[key]
 			if isHash(hKeyDesc) && ('type' in hKeyDesc)
 				switch hKeyDesc.type
-					when 'number'
+					when 'number','float'
 						if not matches(value, /^\d+(?:\.\d*)?$/)
 							lErrors.push "Not a number: #{value}"
+					when 'integer'
+						if not matches(value, /^\d+$/)
+							lErrors.push "Not an integer: #{value}"
 		else
 			lErrors.push "Unknown var: #{key}"
 	if ('_' in hDesc) && not isString(hDesc._) && defined(hDesc._.range)
@@ -265,14 +297,5 @@ export getCmdArgErrors := (hDesc: TCmdDesc): string[] =>
 	return lErrors
 
 # ---------------------------------------------------------------------------
-# --- Throws exception if problem found
 
-export checkCmdArgs := (hDesc: TCmdDesc): void =>
-
-	lErrors := getCmdArgErrors hDesc
-	DUMP lErrors, 'lErrors in checkCmdArgs'
-	if nonEmpty(lErrors)
-		errMsg := lErrors.join('\n')
-		ERR errMsg
-		croak errMsg
-	return
+setCmdArgs()

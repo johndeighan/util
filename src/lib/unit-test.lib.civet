@@ -1,16 +1,19 @@
 # unit-test.lib.civet
 
+import {cyan, red, green} from '@std/fmt/colors'
+import {sprintf} from 'jsr:@std/fmt/printf'
+
 import {
 	assert, assertEquals, assertThrows, assertStrictEquals,
 	AssertionError,
 	} from '@std/assert'
 import {doesNotThrow} from "node:assert"
 
-import {LOG, pushLogLevel, popLogLevel} from 'logger'
+import {LOG, DBG, pushLogLevel, popLogLevel} from 'logger'
+import {allStackFrames, TStackFrame, frameStr,} from 'stack'
 import {
 	undef, defined, notdefined, pass, sleep, toBool,
-	croak, allStackFrames, TStackFrame, frameStr,
-	TIterator, TAsyncIterator, getErrStr,
+	croak, TIterator, TAsyncIterator, getErrStr,
 	} from 'base'
 import {esc} from 'unicode'
 import {unify} from 'unify'
@@ -24,7 +27,8 @@ import {TState, fromFSM} from 'fsm'
 import {TextTable} from 'text-table'
 import {parseText} from 'hera-parse'
 import {mkDir, clearDir, barf} from 'fsys'
-import {compileFile} from 'automate'
+import {procOneFile} from 'proc-files'
+import {doCompileFile} from 'automate'
 import {typeCheckTsCode} from 'lltypescript'
 import {getImportCode} from 'typescript'
 
@@ -64,6 +68,20 @@ export equal := (
 			fn()
 				assertEquals value, expected
 			}
+	return
+
+# ---------------------------------------------------------------------------
+
+export mark := (
+		testName: string
+		): void =>
+
+	Deno.test {
+		name: red(sprintf("%-7s", testName))
+		sanitizeOps: true
+		fn()
+			assertEquals 1, 1
+		}
 	return
 
 # ---------------------------------------------------------------------------
@@ -407,7 +425,7 @@ export execFileOps := (
 			when 'clearDir'
 				clearDir h.path
 			when 'compile'
-				await compileFile h.path
+				await procOneFile h.path, doCompileFile
 			when 'barf'
 				barf h.path, h.contents
 	return
@@ -460,21 +478,39 @@ export fileOpsTable := (
 # ---------------------------------------------------------------------------
 # --- Returns a function that, when called, returns a promise
 
-export mockAsyncTask := (
-		id: string | number,
+export mockAsyncTask := <T=unknown>(
+		value: T
 		ms: number = 10
 		doFail: boolean = false
-		): () => Promise<string> =>
+		): () => Promise<T> =>
 
 	return () =>
-		return new Promise<string> (resolve, reject) =>
-			LOG "START TASK #{id}"
+		return new Promise<T> (resolve, reject) =>
+			DBG "START TASK #{value}"
 			await sleep(ms)
-			LOG "END TASK #{id}"
+			DBG "END TASK #{value}"
 			if doFail
-				reject(new Error("Task #{id} failed"))
+				reject(new Error("Task #{value} failed"))
 			else
-				resolve("Task #{id} completed")
+				resolve(value)
+
+# ---------------------------------------------------------------------------
+# --- Returns a function that, when called, returns a promise
+
+export mockPromise := <T=unknown>(
+		value: T
+		ms: number = 10
+		doFail: boolean = false
+		): Promise<T> =>
+
+	return new Promise<T> (resolve, reject) =>
+		DBG "START TASK #{value}"
+		await sleep(ms)
+		DBG "END TASK #{value}"
+		if doFail
+			reject(new Error("Task #{value} failed"))
+		else
+			resolve(value)
 
 # ---------------------------------------------------------------------------
 # --- Create some values for testing

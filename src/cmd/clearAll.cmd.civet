@@ -1,7 +1,8 @@
 # clearAll.cmd.civet
 
 import {LOG, DBG} from 'logger'
-import {stdChecks, cmdTitle, EXEC} from 'llutils'
+import {cmdTitle, EXEC} from 'llutils'
+import {stdChecks} from 'cmd-args'
 import {
 	doRemoveTsFile, doRemoveFile, doInstallCmd, doUninstallCmd,
 	} from 'exec'

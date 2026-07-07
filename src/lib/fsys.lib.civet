@@ -23,7 +23,7 @@ import {
 	allLinesInFile,
 	TIterator, TAsyncIterator,
 	fileExt, withExt, getFileStats, encode,
-	croak, assert, obviously,
+	croak, assert, obviously, words,
 	getEmptyIterator, getEmptyAsyncIterator,
 	} from 'base'
 import {
@@ -35,7 +35,7 @@ import {sinceLoadStr} from 'timer'
 import {MAP} from 'mapper'
 import {
 	getOptions, spaces,
-	arrayToBlock, words, f,
+	arrayToBlock, f,
 	} from 'llutils'
 import {isMetaDataStart, getMetaDataHash} from 'meta-data'
 import {debugging} from 'cmd-args'
@@ -174,7 +174,7 @@ export myTestDir := (url: string): string =>
 	relPath := myself(url)
 	{dir, stub} := parsePath relPath
 	name := stub.split('.')[0]
-	return './' + mkpath(dir, name)
+	return mkpath(dir, name)
 
 # ---------------------------------------------------------------------------
 
@@ -445,6 +445,7 @@ export slurp := (path: string): string =>
 	return defined(data) ? removeCR(data) : ''
 
 # ---------------------------------------------------------------------------
+# ASYNC
 
 export slurpAsync := async (path: string): string =>
 

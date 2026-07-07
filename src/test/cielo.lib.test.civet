@@ -12,10 +12,10 @@ import {
 # ---------------------------------------------------------------------------
 # ASYNC
 
-setup := (): void =>
+setup := (): void ->
 
 	await setDirTree """
-		./src/test/cielo
+		./src/test/cielo clear
 		file.config.ts
 			export default new Object({
 				a: 1,
@@ -23,6 +23,7 @@ setup := (): void =>
 				f: () => 'hello'
 				})
 		"""
+	return
 
 await setup()
 

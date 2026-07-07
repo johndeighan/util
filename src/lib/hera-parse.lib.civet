@@ -8,7 +8,7 @@ import {
 	} from 'logger'
 import {
 	undef, defined, notdefined, deepCopy,
-	croak, assert, getErrStr,
+	croak, assert, getErrStr, allLinesIn,
 	} from 'base'
 import {uni, esc} from 'unicode'
 import {
@@ -18,9 +18,7 @@ import {
 import {isFile, findFile, CReadableFile} from 'fsys'
 import {MAP, mkArray} from 'mapper'
 import {resetOneIndent, splitLine} from 'indent'
-import {
-	allLinesIn, getOptions, sep,
-	} from 'llutils'
+import {getOptions, sep} from 'llutils'
 import {OL, ML} from 'nice'
 import {procOneFile} from 'proc-files'
 import {CParseMatches} from 'parse-utils';

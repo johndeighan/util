@@ -6,8 +6,10 @@ import {
 	decolorize, write, writeln, clearScreen,
 	} from 'base'
 import {isString} from 'datatypes'
-import {stdChecks, cmdTitle, f, dashes, EXEC} from 'llutils'
-import {getFlags, nonOption, allNonOptions, argValue} from 'cmd-args'
+import {cmdTitle, f, dashes, EXEC} from 'llutils'
+import {
+	stdChecks, getFlags, nonOption, allNonOptions, argValue,
+	} from 'cmd-args'
 import {
 	isFile, rmDir, withExt, findFile, allFilesMatching, parsePath,
 	} from 'fsys'
@@ -18,17 +20,27 @@ import {doCompileCivet, compileAllLibs} from 'civet'
 import {DUMP} from 'nice'
 import {CTimer} from 'timer'
 
-stdChecks """
-	utest [-I] [-line=<n>] {<stub>} | all
-		- run unit test with given stub
-   	-I = run with chrome debugger
-   	-line=<n> - run just this one test
-   	"""
+# stdChecks """
+# 	utest [-I] [-line=<n>] {<stub>} | all
+# 		- run unit test with given stub
+#    	-I = run with chrome debugger
+#    	-line=<n> - run just this one test
+#    	"""
+
+stdChecks {
+	_: {
+		range: [1,99]
+		desc: "stubs or 'all'"
+		}
+	line: {
+		type: 'integer'
+		desc: "line to test"
+		}
+	}
 
 # ---------------------------------------------------------------------------
 
-
-EXEC () =>
+await EXEC () =>
 	assert defined(nonOption(0)), "No unit tests specified"
 	await compileAllLibs()
 	clearScreen()
@@ -48,7 +60,7 @@ EXEC () =>
 
 			path := hResult.infile
 			if notdefined(path)
-				LOG "MISSING infile"
+				ERR "MISSING infile"
 				return
 
 			h := parsePath(path)
@@ -112,7 +124,6 @@ EXEC () =>
 			write "Building coverage report..."
 			hResult := await execCmd 'deno', ['coverage', '--html']
 			writeln "Done"
-			LOG hResult.stdout
 	else
 		# --- not 'all'
 		for stub of allNonOptions()

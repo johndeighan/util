@@ -12,9 +12,10 @@ import {
 import {
 	LOG, DBG, ERR, INDENT, UNDENT, pushLogLevel, popLogLevel,
 	} from 'logger'
+import {extractSourceMap} from 'stack'
 import {
 	undef, defined, notdefined, croak, assert, getErrStr,
-	extractSourceMap, withColors, decolorize,
+	withColors, decolorize, words, allLinesIn,
 	} from 'base'
 import {
 	integer, hash, hashof, array,
@@ -22,8 +23,8 @@ import {
 	isFunction, functionDef, isClass, classDef,
 	} from 'datatypes'
 import {
-	getOptions, spaces, o, words, hasKey,
-	CStringSetMap, keys, sep, allLinesIn, f,
+	getOptions, spaces, o, hasKey,
+	CStringSetMap, keys, sep, f,
 	} from 'llutils'
 import {debugging} from 'cmd-args'
 import {

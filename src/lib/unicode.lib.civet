@@ -76,7 +76,7 @@ hEsc: hashof<string> := {
 
 hEscMulti: hashof<string> := {
 	"\r": cyan('←')
-	"\n": cyan('↓\n')
+	"\n": cyan('↓') + '\n'
 	"\t": cyan('→  ')
 	" ": '˳'
 	"←": lit("←")
@@ -89,7 +89,7 @@ hEscMulti: hashof<string> := {
 
 export esc := (
 		str: string,
-		style: 'oneline' | 'multiline' = 'oneline',
+		style: ('oneline' | 'multiline') = 'oneline',
 		pos: number? = undef,
 		len: number = 0
 		): string =>
@@ -110,7 +110,7 @@ export esc := (
 
 export escd := (
 		str: string
-		style: 'oneline' | 'multiline' = 'oneline',
+		style: ('oneline' | 'multiline') = 'oneline',
 		pos: number? = undef,
 		len: number = 0
 		): string =>

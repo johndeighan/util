@@ -1,7 +1,7 @@
 # exec.lib.civet
 
 import {spawnSync} from 'node:child_process';
-import {exists, existsSync} from '@std/fs'
+import {exists} from '@std/fs'
 import {stripAnsiCode} from '@std/fmt/colors'
 import {
 	CompilerOptions, ScriptTarget, ModuleKind, CompilerHost,
@@ -16,7 +16,7 @@ import {
 	} from 'logger'
 import {
 	pass, undef, defined, anyDefined, notdefined, toRelPath,
-	croak, assert, obviously, getErrStr,
+	croak, assert, obviously, getErrStr, allLinesIn,
 	write, writeln, resetLine, TIterator,
 	encode, decode, TAsyncIterator, colorize,
 	} from 'base'
@@ -30,7 +30,7 @@ import {arrayAndAccumFrom} from 'iter-utils'
 import {MAP, accum} from 'mapper'
 import {
 	getOptions, blockToArray, toBlock,
-	sep, centered, allLinesIn, f,
+	sep, centered, f,
 	} from 'llutils'
 import {flag, debugging, inspecting} from 'cmd-args'
 import {OL, ML, DUMP, DBGVALUE, LOGVALUE} from 'nice'
@@ -64,7 +64,8 @@ export type TExecResult =
 	stdout?: string
 	stderr?: string
 	infile?: string
-	outfile?: string
+	outfile?: string | string[]
+	hPostResult?: TExecResult
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -119,25 +120,13 @@ export execCmd := (
 
 	DBG "execCmd: #{getCmdLine(cmdName, lArgs)}"
 
-	pipeStdout := capture || anyDefined(callback, outfile)
 	pipeStdin  := anyDefined(input, infile)
+	pipeStdout := pipeStdin || capture || anyDefined(callback, outfile)
 
 	if not pipeStdout && not pipeStdin
-#		cmd := new Deno.Command cmdName, {
-#			args: lArgs
-#			stdin: 'inherit'
-#			stdout: 'inherit'
-#			}
-#		child := cmd.spawn()
 		child := Deno.spawn cmdName, lArgs
 		status := await child.status
 		return {success: status.success}
-
-#		code := hResult.code
-#		success := hResult.success
-#		stdout := decode(hResult.stdout)
-#		stderr := decode(hResult.stderr)
-#		return {success, stdout, stderr}
 
 	cmd: Deno.Command := new Deno.Command(cmdName, {
 		args: lArgs
@@ -151,14 +140,14 @@ export execCmd := (
 	if defined(infile)
 		assert notdefined(input), "Can't use both infile and input"
 		contents := await Deno.readTextFile infile
-		iter := allLinesIn(contents, {includeNL: true})
+		iter := allLinesIn(contents, true)
 		ReadableStream.from(iter)
 			.pipeThrough(new TextEncoderStream())
 			.pipeTo(child.stdin)
 	else if defined(input)
 		# --- type of child.stdin is WritableStream<Uint8Array>
 		if isString(input)
-			iter := allLinesIn(input, {includeNL: true})
+			iter := allLinesIn(input, true)
 			ReadableStream.from(iter)
 				.pipeThrough(new TextEncoderStream())
 				.pipeTo(child.stdin)
@@ -199,10 +188,15 @@ export execCmd := (
 		  .pipeTo(outStrm, {preventClose: true})
 			)
 	status := await child.status
+
+	# --- putting this, even with the await keyword
+	#     in the returned hash, fails
+	stderr := await child.stderr.text()
+
 	return {
 		success: status.success
 		stdout
-		stderr: await child.stderr.text()
+		stderr
 		...(infile && {infile})
 		...(outfile && {outfile})
 		}
@@ -277,10 +271,9 @@ class CFileRemover extends CFileHandler
 			hOptions: hash = {}
 			): TExecResult
 
+		LOG "Removing file #{path}"
 		await Deno.remove path
-		return {
-			success: true
-			}
+		return {success: true}
 
 export doRemoveFile := new CFileRemover()
 
@@ -297,8 +290,7 @@ class CTsFileRemover extends CFileHandler
 
 		if not await exists(path)
 			return false
-		civetPath := withExt path, '.civet'
-		return await exists civetPath
+		return await exists withExt(path, '.civet')
 
 	override handle(
 			path: string
@@ -314,13 +306,19 @@ class CTsFileRemover extends CFileHandler
 export doRemoveTsFile := new CTsFileRemover()
 
 # ---------------------------------------------------------------------------
+# ASYNC
 
 export isInstalled := (scriptName: string): boolean =>
 
 	homeDir := Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE") ?? ""
 	ext := (Deno.build.os === "windows") ? ".cmd" : ""
 	path := "#{homeDir}/.deno/bin/#{scriptName}#{ext}"
-	return existsSync(path) && Deno.statSync(path).isFile
+	isThere := await exists(path)
+	if isThere
+		fileInfo := await Deno.stat(path)
+		return fileInfo.isFile
+	else
+		return false
 
 # ---------------------------------------------------------------------------
 
@@ -368,12 +366,12 @@ class CCmdUninstaller extends CFileHandler
 	get op()
 		return 'doUninstallCmd'
 
-	override async needed(
+	override needed(
 			path: string
 			hOptions: hash = {}
 			)
 		name := getCmdName(path, hOptions)
-		return isInstalled(name)
+		return await isInstalled(name)
 
 	override handle(
 			path: string,

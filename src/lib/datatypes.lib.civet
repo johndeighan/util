@@ -3,9 +3,9 @@
 import {minify} from 'npm-uglify-js'
 
 import {
-	deepCopy, undef, defined, notdefined,
+	deepCopy, undef, defined, notdefined, words,
 	anyDefined, anyNotDefined,
-	croak, assert, getErrStr,
+	croak, assert, obviously, getErrStr,
 	TIterator, TAsyncIterator, TNonFunction,
 	} from 'base'
 
@@ -252,15 +252,9 @@ export isNonEmptyString := (x: unknown): x is nonEmptyString =>
 
 # ---------------------------------------------------------------------------
 
-export lPrimTypes := [
-	'undefined'
-	'boolean'
-	'string'
-	'symbol'
-	'bigint'
-	'number'
-	'function'
-	]
+export lPrimTypes := words(
+	'undefined boolean string symbol bigint number function'
+	)
 
 export isPrimitive := (x: unknown): boolean =>
 
@@ -269,12 +263,6 @@ export isPrimitive := (x: unknown): boolean =>
 		|| lPrimTypes.includes(typeof x)
 		|| (x instanceof RegExp)
 		)
-
-# ---------------------------------------------------------------------------
-
-export isNonPrimitive := (x: unknown): boolean =>
-
-	return not isPrimitive(x)
 
 # ---------------------------------------------------------------------------
 

@@ -163,6 +163,19 @@ equal inputIndent, spaces(3)
 		"""
 	)()
 
+(() =>
+	resetOneIndent()
+	equal undented("""
+		abc
+		\tdef
+		\t\tghi
+		"""), """
+		abc
+		\tdef
+		\t\tghi
+		"""
+	)()
+
 # ---------------------------------------------------------------------------
 
 # TEST using 3 spaces

@@ -1,0 +1,207 @@
+# heredoc.lib.civet
+
+import {
+	undef, defined, notdefined,
+	assert, croak, TIterator, TDefined,
+	} from 'base'
+import {
+	isString, isClassInstance, integer, hash, hashof,
+	} from 'datatypes'
+import {OL, OLS} from 'nice'
+import {arrayToBlock, fromTAML, CWS} from 'llutils'
+import {
+	indented, undented, splitLine,
+	} from 'indent'
+
+# --- checked in this order - list of type names
+lHereDocs: string[] := []
+hHereDocs: hashof<CHereDocBase> := {}
+
+# ---------------------------------------------------------------------------
+# Returns a string or undef
+
+export mapHereDoc := (block: string): string ->
+
+	for type of lHereDocs
+		result := hHereDocs[type].map(block)
+		if defined(result)
+			return result
+
+	return JSON.stringify(block)    # can directly replace <<<
+
+# ---------------------------------------------------------------------------
+
+getHereDocBlock := (
+		iter: TIterator<string>
+		): string =>
+
+	lLines: string[] := []
+	let {value, done} = iter.next()
+	while not done && (value != '')
+		lLines.push value as string
+		{value, done} = iter.next()
+	block := arrayToBlock(lLines)
+	return undented(block)
+
+# ---------------------------------------------------------------------------
+
+export replaceInLine := (
+		line: string
+		iter: TIterator<string>
+		): string =>
+
+	lParts := lineToParts(line)
+	lNewParts := for part of lParts
+		if (part == '<<<')
+			block := getHereDocBlock(iter)
+			str := mapHereDoc(block)
+			assert isString(str), "Not a string: #{OL(str)}"
+			str
+		else
+			part    # --- keep as is
+
+	return lNewParts.join('')
+
+# ---------------------------------------------------------------------------
+
+export replaceHereDocs := (
+		level: integer
+		iter: TIterator<string>
+		): string =>
+
+	lLines: string[] := []
+	let {value, done} = iter.next()
+	while not done
+		str := value as string
+		if (str.indexOf('<<<') == -1)
+			lLines.push str
+		else
+			lLines.push replaceInLine(str, iter)
+		{value, done} = iter.next()
+	return arrayToBlock lLines
+
+# ---------------------------------------------------------------------------
+
+export lineToParts := (
+		line: string
+		): string[] =>
+
+	# --- Always returns an odd number of parts
+	#     Odd numbered parts are '<<<', Even numbered parts are not '<<<'
+
+	lParts: string[] := []
+	let start = 0
+	let pos = line.indexOf('<<<')
+	while (pos != -1)
+		lParts.push line.substring(start, pos)
+		lParts.push '<<<'
+		start = pos + 3
+		pos = line.indexOf('<<<', start)
+	lParts.push line.substring(start)
+	return lParts
+
+# ---------------------------------------------------------------------------
+
+export addHereDocType := (
+		type: string
+		obj: CHereDocBase
+		): void ->
+
+	assert notdefined(hHereDocs[type]), "Heredoc type #{type} already installed"
+	lHereDocs.push type
+	hHereDocs[type] = obj
+	return
+
+# ---------------------------------------------------------------------------
+# --- To extend,
+#        define map(block) that:
+#           returns undef if it's not your HEREDOC type
+#           else returns a TypeScript value
+
+export abstract class CHereDocBase
+
+	abstract isMine(head: string): boolean
+
+	# ..........................................................
+
+	# --- block will NOT include the header line
+	abstract convert(
+			head: string
+			block: string
+			): string
+
+	# ..........................................................
+
+	# --- block will include the header line
+	map(block: string): string?
+
+		[head, rest] := @behead(block)
+		if not @isMine(head)
+			return undef
+		return @convert head, rest
+
+	# ..........................................................
+
+	behead(block: string): [string, string]
+
+		nlPos := block.indexOf("\n")
+		if  (nlPos == -1)
+			return [block, '']
+		return [
+			block.substring(0, nlPos)
+			block.substring(nlPos+1)
+			]
+
+# ---------------------------------------------------------------------------
+#    Built-in heredoc types
+# ---------------------------------------------------------------------------
+
+class ExplicitBlockHereDoc extends CHereDocBase
+	# --- First line must be '==='
+	#     Return value is quoted string of remaining lines
+
+	isMine(head: string): boolean
+		return (head == '===')
+
+	convert(
+			head: string
+			block: string
+			): string
+		return JSON.stringify(block)
+
+# ---------------------------------------------------------------------------
+
+class OneLineHereDoc extends CHereDocBase
+	# --- First line must begin with '...'
+	#     Return value is single line string after '...' with
+	#        runs of whitespace replaced with a single space char
+
+	isMine(head: string): boolean
+		return head.startsWith('...')
+
+	convert(
+			head: string
+			block: string
+			): string
+		return JSON.stringify(CWS(head.substring(3) + ' ' + block))
+
+# ---------------------------------------------------------------------------
+
+class TAMLHereDoc extends CHereDocBase
+	# --- First line must be '---'
+
+	isMine(head: string): boolean
+		return (head == '---')
+
+	convert(
+			head: string
+			block: string
+			): string
+		return JSON.stringify(fromTAML(block))
+
+# ---------------------------------------------------------------------------
+
+# --- Add the standard HEREDOC types
+addHereDocType 'one line', new OneLineHereDoc()
+addHereDocType 'block', new ExplicitBlockHereDoc()
+addHereDocType 'taml', new TAMLHereDoc()

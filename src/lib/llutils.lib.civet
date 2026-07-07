@@ -9,13 +9,13 @@ import {parse: parseYAML} from "@std/yaml"
 import {
 	undef, defined, notdefined, deepEqual, croak, assert, matches,
 	colorize, isColor, toRelPath, obviously, toBool, TIterator,
-	getErrStr,
+	getErrStr, allLinesIn,
 	} from 'base'
 import {esc} from 'unicode'
 import {
 	isHash, isArray, isNonEmptyString, char,
 	isArrayOfStrings, isEmpty, nonEmpty, isString, isInteger,
-	integer, hash, hashof, array, arrayof, TVoidFunc, isNonPrimitive,
+	integer, hash, hashof, array, arrayof, TVoidFunc,
 	functionDef, TStringMapper, isAsyncFunction,
 	} from 'datatypes'
 import {MAP} from 'mapper'
@@ -24,12 +24,9 @@ defWidth := 64     # ---used in sep, centered
 
 # ---------------------------------------------------------------------------
 
-export stdChecks := (helpStr: string = ''): void =>
+export CWS = (str: string): string =>
 
-	debugger
-	root := Deno.env.get('PROJECT_ROOT_DIR')
-	assert nonEmpty(root), "Please set env var PROJECT_ROOT_DIR"
-	return
+	return str.trim().replace(/\s+/sg, ' ')
 
 # ---------------------------------------------------------------------------
 
@@ -204,23 +201,6 @@ export toBlock := (strOrArray: TBlockSpec): string =>
 
 # ---------------------------------------------------------------------------
 
-wsSplit := (str: string): string[] =>
-
-	newstr := str.trim()
-	return (newstr == '') ? [] : newstr.split(/\s+/)
-
-# ---------------------------------------------------------------------------
-
-export words := (...lStrings: string[]): string[] =>
-
-	lWords := []
-	for str of lStrings
-		for word of wsSplit(str)
-			lWords.push word
-	return lWords
-
-# ---------------------------------------------------------------------------
-
 getNExtra := (str: string, len: number): number =>
 
 	extra := len - str.length
@@ -362,39 +342,6 @@ export untabify := (
 		): string =>
 
 	return str.replaceAll '\t', replacement
-
-# ---------------------------------------------------------------------------
-
-export allLinesIn := (
-		block: string
-		hOptions: hash = {}
-		): TIterator<string> ->
-
-	# --- remove any carriage return characters from block
-	block = block.replaceAll('\r', '')
-
-	type opt = {
-		includeNL: boolean
-		}
-	{includeNL} := getOptions<opt> hOptions, {
-		includeNL: false
-		}
-
-	let start = 0
-	let end = block.indexOf('\n')
-	if includeNL
-		while (end != -1)
-			yield block.substring(start, end+1)
-			start = end + 1
-			end = block.indexOf('\n', start)
-	else
-		while (end != -1)
-			yield block.substring(start, end)
-			start = end + 1
-			end = block.indexOf('\n', start)
-	if (start < block.length)
-		yield block.substring(start)
-	return
 
 # ---------------------------------------------------------------------------
 # --- valid options:
@@ -620,6 +567,7 @@ execAsync := (
 
 # ---------------------------------------------------------------------------
 # --- if passed an async function, will return a promise
+#     in that case, you must use await
 
 export EXEC := (
 		func: () => void

@@ -1,6 +1,6 @@
 # unicode.lib.test.civet
 
-import {undef} from 'base'
+import {undef, decolorize} from 'base'
 import {
 	uni, lit, delit, litC,
 	esc, escm, escd, unesc, getPrefix,
@@ -49,3 +49,4 @@ equal getPrefix(2, 'withYield'),  '│   ├<─ '
 equal getPrefix(2, 'noLastVbar'), '│       '
 equal getPrefix(2, 'none'),       '        '
 
+equal decolorize(escm('abc\ndef')), 'abc↓\ndef'

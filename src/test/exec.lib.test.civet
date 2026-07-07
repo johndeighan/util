@@ -1,23 +1,13 @@
 # exec.lib.test.civet
 
-import {exists, existsSync} from '@std/fs'
-
-import {LOG} from 'logger'
 import {undef, sleep, matches} from 'base'
-import {esc} from 'unicode'
-import {isEmpty, nonEmpty} from 'datatypes'
-import {o, sep} from 'llutils'
-import {
-	isFile, slurp, barf, withExt, myTestDir, mkpath,
-	} from 'fsys'
+import {isFile, slurp, myTestDir} from 'fsys'
 import {
 	getCmdLine, TStreamType, TExecResult,
 	mkstr, execCmd, CFileHandler,
 	doRemoveFile, doRemoveTsFile, isInstalled, getCmdName,
 	doInstallCmd, doUninstallCmd, doRun,
 	} from 'exec'
-import {TProcSpec, TProcResult, procFiles, procOneFile} from 'proc-files'
-import {doCompileCivet} from 'civet'
 import {
 	equal, succeeds, fails, truthy, falsy, setDirTree,
 	} from 'unit-test'
@@ -27,17 +17,58 @@ console.log "ROOT: #{root}"
 
 # ---------------------------------------------------------------------------
 
-export r := (lStrings: TemplateStringsArray): string =>
+r := (lStrings: TemplateStringsArray): string =>
 
 	return "#{root}/#{lStrings[0]}"
 
 # ---------------------------------------------------------------------------
+
+gen := () ->
+	yield 'abc\n'
+	yield '123\n'
+	yield 'def\n'
+	yield '1313\n'
+	yield 'ghi\n'
+	yield '42\n'
+	return
+
+agen := () ->
+	await sleep 100
+	yield 'abc\n'
+	yield '123\n'
+	await sleep 100
+	yield 'def\n'
+	yield '1313\n'
+	await sleep 100
+	yield 'ghi\n'
+	yield '42\n'
+	return
+
+lInput := [
+	'abc\n'
+	'123\n'
+	'def\n'
+	'1313\n'
+	'ghi\n'
+	'42\n'
+	]
+
+str := """
+	abc
+	123
+	def
+	1313
+	ghi
+	42
+	"""
+
+# ---------------------------------------------------------------------------
 # ASYNC
 
-setup := (): void =>
+setup := (): void ->
 
 	await setDirTree """
-		#{root} clear
+		./#{root} clear
 		hello.txt
 			Hello
 		temp.txt
@@ -52,6 +83,8 @@ setup := (): void =>
 			123
 			def
 			1313
+		nocivet.ts
+			const x = 13;
 		sample.ts
 			const x = 42;
 		sample.civet
@@ -59,6 +92,7 @@ setup := (): void =>
 		hello.cmd.ts
 			console.log("Hello, World!");
 		"""
+	return
 
 await setup()
 
@@ -66,9 +100,9 @@ await setup()
 #    Run tests that don't change the file system first
 # ---------------------------------------------------------------------------
 
-truthy isInstalled('analyze')
-truthy isInstalled('builddoc')
-falsy  isInstalled('nosuchcmd')
+truthy await isInstalled('analyze'), 'LINE 103'
+truthy await isInstalled('builddoc'), 'LINE 104'
+falsy  await isInstalled('nosuchcmd'), 'LINE 105'
 
 equal getCmdName(r"sample.cmd.ts", {}), 'sample'
 equal getCmdName(r"sample.cmd.ts", {name: 'mycmd'}), 'mycmd'
@@ -78,6 +112,18 @@ truthy isFile(r"temp2.civet")
 truthy isFile(r"temp1.ts")
 truthy isFile(r"temp2.ts")
 falsy  isFile(r"missing.txt")
+
+equal doRemoveFile.op, 'doRemoveFile'
+equal doRemoveTsFile.op, 'doRemoveTsFile'
+equal doInstallCmd.op, 'doInstallCmd', 'LINE 118'
+equal doUninstallCmd.op, 'doUninstallCmd'
+equal doRun.op, 'doRun'
+
+truthy await doRemoveFile.needed(r"hello.txt")
+falsy  await doRemoveFile.needed(r"dummy.txt")
+truthy await doRemoveTsFile.needed(r"temp1.ts")
+falsy  await doRemoveTsFile.needed(r"dummy.ts")
+falsy  await doRemoveTsFile.needed(r"nocivet.ts")
 
 (() =>
 	buffer := new ArrayBuffer(3)
@@ -91,14 +137,14 @@ falsy  isFile(r"missing.txt")
 	equal mkstr(buffer), 'abc'
 	equal mkstr(view), 'abc'
 	equal getCmdLine('dothis', ['-a', 'willy']), 'dothis -a willy'
-	)
+	)()
 
 await (() =>
 	{stdout} := await execCmd 'echo', ["Hello"], {
 		capture: true
 		}
 	equal stdout, "Hello"
-	)
+	)()
 
 await (() =>
 	{stdout} := await execCmd 'cat', [], {
@@ -106,23 +152,7 @@ await (() =>
 		infile: r"hello.txt"
 		}
 	equal stdout, "Hello"
-	)
-
-await (() =>
-	path := r'hello.cmd.ts'
-
-	txtPath := withExt(path, '.txt')
-	fails () => await procOneFile txtPath, doInstallCmd
-
-	succeeds () => await procOneFile path, doInstallCmd
-	sleep 1000
-	succeeds (() => await procOneFile path, doUninstallCmd), 'doUninstallCmd'
-	)
-
-(() =>
-	hResult := await procOneFile r'hello.cmd.ts', doRun
-	equal hResult.stdout, "Hello, World!\n"
-	)
+	)()
 
 # ---------------------------------------------------------------------------
 #     Next run commands that only create new files
@@ -134,8 +164,8 @@ await (() =>
 		input: slurp(r'numbers.txt')
 		outfile
 		}
-	equal slurp(outfile), "123\n1313\n"
-	)
+	equal slurp(outfile), "123\n1313\n", 'LINE 167'
+	)()
 
 # ---------------------------------------------------------------------------
 #    Next run commands that add or remove files
@@ -143,55 +173,21 @@ await (() =>
 
 await (() =>
 	truthy isFile(r'temp.txt'), 'LINE 146'
-	await procOneFile r'temp.txt', doRemoveFile
+	await doRemoveFile.handle r'temp.txt'
 	falsy isFile(r'temp.txt')
-	)
+
+	# --- this time it should not be needed
+	falsy await doRemoveFile.needed(r'temp.txt')
+	)()
 
 await (() =>
 	truthy isFile(r'sample.ts')
 
 	# --- NOTE: Only removes a .ts file if there's a .civet file
-	await procOneFile r'sample.ts', doRemoveTsFile
+	await doRemoveTsFile.handle r'sample.ts'
 
 	falsy isFile(r'sample.ts'), 'sample.ts is file'
-	)
-
-await (() =>
-	lPaths := [
-		r'temp2.civet'
-		r'temp2.ts'
-		]
-	for path of lPaths
-		truthy existsSync(path)
-
-	lResults := await procFiles [doRemoveFile, [r'temp2*']]
-
-	for path of lPaths
-		falsy existsSync(path), 'these fail'
-	)
-
-await (() =>
-	truthy isFile(r'hello.cmd.ts'), 'cmd hello file exists'
-
-	# --- Remove all *.ts files
-	await procFiles [doRemoveFile, [r'*.ts']]
-	falsy isFile(r'hello.cmd.ts'), 'cmd hello file does not exist'
-
-	# --- compile all civet files serially
-	spec: TProcSpec := [doCompileCivet, [r'*.civet']]
-
-	succeeds () => await procFiles spec, {serial: true}
-	succeeds () => await procFiles spec, {serial: true, verbose: true}
-	succeeds () => await procFiles spec, {serial: true, quiet: true}
-
-	# --- Write out an invalid civet file
-	barf r'bad.civet', """
-		let  :== 92
-		"""
-	succeeds () => await procFiles spec, {serial: true}
-	succeeds () => await procFiles spec, {serial: true, verbose: true}
-	succeeds () => await procFiles spec, {serial: true, quiet: true}
-	)
+	)()
 
 # ---------------------------------------------------------------------------
 # --- Exhaustively test execCmd()
@@ -199,7 +195,7 @@ await (() =>
 
 await (() =>
 	succeeds (() => await execCmd 'civet', ['--version']), 'first execCmd'
-	)
+	)()
 
 await (() =>
 	let version = ''
@@ -211,15 +207,15 @@ await (() =>
 	truthy h.success
 	truthy matches(version, /^\d+\.\d+\.\d+\n$/)
 	equal version, '0.11.7'
-	)
+	)()
 
 await (() =>
 	h := await execCmd 'civet', ['--version'], {
 		capture: true
 		}
 	version := h.stdout as string
-	truthy matches(version, /^\d+\.\d+\.\d+\n$/)
-	)
+	truthy matches(version, /^\d+\.\d+\.\d+\n$/), 'LINE 217'
+	)()
 
 await (() =>
 	let version = ''
@@ -232,25 +228,16 @@ await (() =>
 	truthy matches(version, /^\d+\.\d+\.\d+\n$/)
 	stdout := h.stdout as string
 	truthy matches(stdout, /^\d+\.\d+\.\d+\n$/)
-	)
+	)()
 
 # ---------------------------------------------------------------------------
 # --- Feed strings into grep, output only numeric lines
-
-gen := () ->
-	yield 'abc\n'
-	yield '123\n'
-	yield 'def\n'
-	yield '1313\n'
-	yield 'ghi\n'
-	yield '42\n'
-	return
 
 await (() =>
 	succeeds (() => await execCmd 'grep', ['-E', '[0-9]+'], {
 		input: gen()
 		}), "NOT OK"
-	)
+	)()
 
 await (() =>
 	let output = ''
@@ -260,8 +247,8 @@ await (() =>
 			output += s
 			return
 		}
-	equal output, "123\n1313\n42\n"
-	)
+	equal output, "123\n1313\n42\n", 'FAILS NOW'
+	)()
 
 await (() =>
 	h := await execCmd 'grep', ['-E', '[0-9]+'], {
@@ -270,7 +257,7 @@ await (() =>
 		}
 	output := h.stdout as string
 	equal output, "123\n1313\n42\n"
-	)
+	)()
 
 await (() =>
 	let output = ''
@@ -282,30 +269,18 @@ await (() =>
 			return
 		}
 	output2 := h.stdout as string
-	equal output, "123\n1313\n42\n"
-	equal output2, "123\n1313\n42\n"
-	)
+	equal output, "123\n1313\n42\n", 'LINE 272'
+	equal output2, "123\n1313\n42\n", 'LINE 273'
+	)()
 
 # ---------------------------------------------------------------------------
 # --- Feed strings into grep async, output only numeric lines
 
-agen := () ->
-	await sleep 100
-	yield 'abc\n'
-	yield '123\n'
-	await sleep 100
-	yield 'def\n'
-	yield '1313\n'
-	await sleep 100
-	yield 'ghi\n'
-	yield '42\n'
-	return
-
 await (() =>
 	succeeds () => await execCmd 'grep', ['-E', '[0-9]+'], {
 		input: agen()
 		}
-	)
+	)()
 
 await (() =>
 	let output = ''
@@ -315,8 +290,8 @@ await (() =>
 			output += s
 			return
 		}
-	equal output, "123\n1313\n42\n"
-	)
+	equal output, "123\n1313\n42\n", 'LINE 293'
+	)()
 
 await (() =>
 	h := await execCmd 'grep', ['-E', '[0-9]+'], {
@@ -324,8 +299,8 @@ await (() =>
 		capture: true
 		}
 	output := h.stdout as string
-	equal output, "123\n1313\n42\n", 'MARKER 2'
-	)
+	equal output, "123\n1313\n42\n", 'LINE 302'
+	)()
 
 await (() =>
 	let output = ''
@@ -336,28 +311,19 @@ await (() =>
 			output += s
 			return
 		}
-	output2 := h.stdout as string
+	output2 := h.stdout
 	equal output, "123\n1313\n42\n"
 	equal output2, "123\n1313\n42\n"
-	)
+	)()
 
 # ---------------------------------------------------------------------------
 # --- Feed strings into grep, output only numeric lines
 
-lInput := [
-	'abc\n'
-	'123\n'
-	'def\n'
-	'1313\n'
-	'ghi\n'
-	'42\n'
-	]
-
 await (() =>
 	succeeds () => await execCmd 'grep', ['-E', '[0-9]+'], {
 		input: lInput
 		}
-	)
+	)()
 
 await (() =>
 	let output = ''
@@ -367,8 +333,8 @@ await (() =>
 			output += s
 			return
 		}
-	equal output, "123\n1313\n42\n"
-	)
+	equal output, "123\n1313\n42\n", 'LINE 336'
+	)()
 
 await (() =>
 	h := await execCmd 'grep', ['-E', '[0-9]+'], {
@@ -376,8 +342,8 @@ await (() =>
 		capture: true
 		}
 	output := h.stdout as string
-	equal output, "123\n1313\n42\n"
-	)
+	equal output, "123\n1313\n42\n", 'LINE 345'
+	)()
 
 await (() =>
 	let output = ''
@@ -391,25 +357,16 @@ await (() =>
 	equal output, "123\n1313\n42\n"
 	output2 := h.stdout as string
 	equal output2, "123\n1313\n42\n"
-	)
+	)()
 
 # ---------------------------------------------------------------------------
 # --- Feed one string into grep, output only numeric lines
 
-str := """
-	abc
-	123
-	def
-	1313
-	ghi
-	42
-	"""
-
 await (() =>
 	succeeds () => await execCmd 'grep', ['-E', '[0-9]+'], {
 		input: str
 		}
-	)
+	)()
 
 await (() =>
 	let output = ''
@@ -419,8 +376,8 @@ await (() =>
 			output += s
 			return
 		}
-	equal output, "123\n1313\n42\n"
-	)
+	equal output, "123\n1313\n42\n", 'LINE 379'
+	)()
 
 await (() =>
 	h := await execCmd 'grep', ['-E', '[0-9]+'], {
@@ -429,7 +386,7 @@ await (() =>
 		}
 	output := h.stdout as string
 	equal output, "123\n1313\n42\n"
-	)
+	)()
 
 await (() =>
 	let output = ''
@@ -443,4 +400,13 @@ await (() =>
 	equal output, "123\n1313\n42\n"
 	output2 := h.stdout as string
 	equal output2, "123\n1313\n42\n"
-	)
+	)()
+
+# ---------------------------------------------------------------------------
+
+await (() =>
+	await doInstallCmd.handle(r"hello.cmd.ts")
+	await sleep(1000)
+	truthy await isInstalled('hello')
+	await doUninstallCmd.handle('hello')
+	)()

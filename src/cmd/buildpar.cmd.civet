@@ -2,8 +2,10 @@
 
 import {LOG, DBG, ERR} from 'logger'
 import {assert, defined} from 'base'
-import {stdChecks, centered, EXEC} from 'llutils'
-import {flag, nonOption, allNonOptions, getFlags} from 'cmd-args'
+import {centered, EXEC} from 'llutils'
+import {
+	stdChecks, flag, nonOption, allNonOptions, getFlags,
+	} from 'cmd-args'
 import {
 	withExt, findFile, parsePath,
 	} from 'fsys'
@@ -25,7 +27,7 @@ stdChecks """
 #     since unit test may require command to be installed
 
 hStyle  := {char: '=', color: 'cyan'}
-EXEC () =>
+await EXEC () =>
 	# --- echoes if flag is set
 	{force, doTest, inspect} := getFlags {
 		force: 'f'

@@ -48,6 +48,7 @@
 		"npm-pug": "npm:pug",
 
 		"logger":        "file:///C:/Users/johnd/util/src/lib/logger.lib.ts",
+		"stack":         "file:///C:/Users/johnd/util/src/lib/stack.lib.ts",
 		"base":          "file:///C:/Users/johnd/util/src/lib/base.lib.ts",
 		"timer":         "file:///C:/Users/johnd/util/src/lib/timer.lib.ts",
 		"llfs":          "file:///C:/Users/johnd/util/src/lib/llfs.lib.ts",
@@ -65,6 +66,7 @@
 		"section-map":   "file:///C:/Users/johnd/util/src/lib/section-map.lib.ts",
 		"extract":       "file:///C:/Users/johnd/util/src/lib/extract.lib.ts",
 		"cmd-args":      "file:///C:/Users/johnd/util/src/lib/cmd-args.lib.ts",
+		"heredoc":       "file:///C:/Users/johnd/util/src/lib/heredoc.lib.ts",
 		"text-table":    "file:///C:/Users/johnd/util/src/lib/text-table.lib.ts",
 		"fsys":          "file:///C:/Users/johnd/util/src/lib/fsys.lib.ts",
 		"walker":        "file:///C:/Users/johnd/util/src/lib/walker.lib.ts",
@@ -92,6 +94,8 @@
 		"html-window":   "file:///C:/Users/johnd/util/src/lib/html-window.lib.ts",
 		"macros":        "file:///C:/Users/johnd/util/src/lib/macros.lib.ts",
 		"md-macros":     "file:///C:/Users/johnd/util/src/lib/md-macros.lib.ts",
+		"trace":         "file:///C:/Users/johnd/util/src/lib/trace.lib.ts",
+		"trace-stack":   "file:///C:/Users/johnd/util/src/lib/trace-stack.lib.ts",
 
 		"civetconfig":   "file:///C:/Users/johnd/civet.config.json"
 	}

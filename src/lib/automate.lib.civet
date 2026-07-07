@@ -29,13 +29,8 @@ import {cielo2civetFile} from 'cielo'
 # Please, no dependencies on the directory structure!
 # ---------------------------------------------------------------------------
 
-export type TCompileResult = TExecResult & {
-	lOutPaths?: string[]
-	postProcStatus?: string    # --- was successful if not present
-	}
-
-export type TCompilerFunc = (path: string) => TCompileResult
-export type TPostProcessor = (path: string) => void
+export type TCompilerFunc = (path: string, hOptions: hash) => TExecResult
+export type TPostProcessor = (path: string, hOptions: hash) => TExecResult
 
 export type TCompilerInfo = {
 	isInstalled: () => boolean
@@ -58,78 +53,6 @@ export isCompilerConfig := (x: unknown): x is TCompilerConfig =>
 		return ('hCompilers' in x) && ('hPostProcessors' in x)
 	else
 		return false
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-# --- src can be a full or relative path
-#     throws error if file does not exist
-#
-#     Possible status values:
-#        'temp'       - it was a temp file, not compiled
-#        'nocompiler' - has no compiler, not compiled
-#        'notNeeded'  - newer compiled file already exists
-#        'failed'     - compiling failed
-#        'compiled'   - successfully compiled
-
-export compileFile := (
-		path: string,
-		hOptions: hash = {}
-		): TCompileResult =>
-
-	assert isFile(path), "No such file: #{OL(path)}"
-	DBG "COMPILE: #{OL(path)}", INDENT
-	type opt = {
-		nopp: boolean
-		}
-	{nopp} := getOptions<opt> hOptions, {
-		nopp: false
-		}
-
-	{stub, purpose, ext} := parsePath path
-	if notdefined(ext)
-		DBG "Not compiling - no file extension in #{OL(path)}", UNDENT
-		return {
-			success: true
-			notNeeded: true
-			}
-
-	hCompilerInfo := await getCompilerInfo ext
-	if notdefined(hCompilerInfo)
-		DBG "Not compiling - no compiler for #{OL(ext)}", UNDENT
-		return {
-			success: true
-			notNeeded: true
-			}
-
-	{compiler, getOutPaths} := hCompilerInfo
-	lOutPaths := getOutPaths path
-	assert isArray(lOutPaths),
-		"Non-array return from getOutPaths() for #{ext}: #{lOutPaths}"
-	DBG "lOutPaths = #{OL(lOutPaths)}"
-	if allOf lOutPaths, (p) => newerDestFileExists(path, p)
-		DBG "Not compiling, newer #{OL(lOutPaths)} exist", UNDENT
-		return {
-			success: true
-			notNeeded: true
-			lOutPaths
-			}
-
-	DBG "compiling #{OL(path)} to #{OL(lOutPaths)}"
-	hResult := compiler path
-	{success} := hResult
-
-	if success && defined(purpose) && not nopp
-		postProc := await getPostProcessor purpose
-		if defined(postProc)
-			DBG "post-processing file"
-			try
-				postProc path
-			catch err
-				hResult.postProcStatus = getErrStr(err)
-
-	DBG UNDENT
-	return hResult
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -195,111 +118,102 @@ class CFileCompiler extends CFileHandler
 	get op()
 		return 'doCompileFile'
 
+	# ..........................................................
+	# ASYNC
+
+	override async needed(
+			path: string
+			hOptions: hash = {}
+			): boolean
+
+		return true
+
+	# ..........................................................
+
+	postProcess(
+			purpose: string
+			path: string
+			hOptions: hash = {}
+			): TExecResult
+
+		postProc := await getPostProcessor purpose
+		if defined(postProc)
+			DBG "post-processing file"
+			try
+				return await postProc(path, hOptions)
+			catch err
+				return {
+					success: false
+					stderr: getErrStr(err)
+					}
+		else
+			return {
+				success: true
+				notNeeded: true
+				}
+
+	# ..........................................................
+	# --- file existance has already been checked.
+
 	override async handle(
 			path: string
 			hOptions: hash = {}
 			): TExecResult
 
-		hResult := await compileFile(path, hOptions)
-		{success, notNeeded, lOutPaths, postProcStatus} := hResult
-		return {
-			success
-			notNeeded
+		debugger
+		DBG "COMPILE: #{OL(path)}", INDENT
+		type opt = {
+			nopp: boolean
+			}
+		{nopp} := getOptions<opt> hOptions, {
+			nopp: false
 			}
 
+		{stub, purpose, ext} := parsePath path
+		if notdefined(ext)
+			DBG "Not compiling - no file extension in #{OL(path)}", UNDENT
+			return {
+				success: true
+				notNeeded: true
+				}
+
+		hCompilerInfo := await getCompilerInfo ext
+		if notdefined(hCompilerInfo)
+			DBG "Not compiling - no compiler for ext #{OL(ext)}", UNDENT
+			return {
+				success: true
+				notNeeded: true
+				}
+
+		{isInstalled, compiler, getOutPaths} := hCompilerInfo
+		if not isInstalled()
+			DBG "compiler for ext #{OL(ext)} not installed", UNDENT
+			return {
+				success: true
+				notNeeded: true
+				}
+
+		lOutPaths := getOutPaths path
+		DBG "lOutPaths = #{OL(lOutPaths)}"
+		if allOf(lOutPaths, (p) => newerDestFileExists(path, p))
+			hResult: TExecResult := {
+				success: true
+				notNeeded: true
+				outfile: lOutPaths
+				}
+			if defined(purpose) && not nopp
+				hResult.hPostResult = await @postProcess(purpose, path, hOptions)
+			DBG "Not compiling, newer #{OL(lOutPaths)} exist", UNDENT
+			return hResult
+
+		DBG "compiling #{OL(path)} to #{OL(lOutPaths)}"
+		hResult := compiler(path, hOptions)
+		{success} := hResult
+
+		if success && defined(purpose) && not nopp
+			hResult.hPostResult = await @postProcess(purpose, path)
+
+		DBG UNDENT
+		return hResult
+
 export doCompileFile := new CFileCompiler()
-
-# ---------------------------------------------------------------------------
-# --- ASYNC GENERATOR
-
-export runUnitTestsFor := (
-		path: nonEmptyString
-		hOptions: hash = {}
-		): AsyncGenerator<TExecResult> ->
-
-	type opt = {
-		verbose: boolean
-		}
-	{verbose} := getOptions<opt> hOptions, {
-		verbose: false
-		}
-
-	DBG "Running unit tests for #{toRelPath(path)}"
-	if not verbose
-		pushLogLevel 'silent'
-
-	# --- Compile and run all unit tests for file
-
-	{stub, purpose, ext} := parsePath(path)
-	for testPath of allFilesMatching("src/**/#{stub}.#{purpose}.test.*")
-		{success, lOutPaths} := await compileFile testPath, {nopp: true}
-		assert success, "compile of #{testPath} failed"
-		if notdefined(lOutPaths)
-			continue
-		for outPath of lOutPaths
-			assert isFile(outPath), "File #{OL(outPath)} not found"
-			assert (fileExt(outPath) == '.ts'),
-					"Not a TS file: #{OL(toRelPath(outPath))}"
-
-		# --- Run the unit tests, yield results
-		for outPath of lOutPaths
-			yield await execCmd 'deno', [
-				'test'
-				'-qA'
-				outPath
-				]
-	if not verbose
-		popLogLevel()
-	return
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export installCmd := (
-		path: string,
-		name: string? = undef
-		): void =>
-
-	if notdefined(name)
-		await execCmd 'deno', [
-			'install'
-			'-fgA'
-			'--config'
-			'deno.json'
-			path
-			]
-	else
-		await execCmd 'deno', [
-			'install'
-			'-fgA'
-			'-n'
-			name
-			'--config'
-			'deno.json'
-			path
-			]
-	return
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export uninstallCmd := (
-		path: string,
-		name: string? = undef
-		): void =>
-
-	if notdefined(name)
-		await execCmd 'deno', [
-			'uninstall'
-			'-g'
-			path
-			]
-	else
-		await execCmd 'deno', [
-			'uninstall'
-			'-g'
-			'-n'
-			name
-			path
-			]
-	return

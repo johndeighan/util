@@ -20,16 +20,17 @@ import {
 # ---------------------------------------------------------------------------
 # ASYNC
 
-setup := (): void =>
+setup := (): void ->
 
 	await setDirTree """
-		./src/test/typescript
+		./src/test/typescript clear
 		tstest.ts
 			const str: string = 'abc'
 		tstest2.ts
 			const func1 = (str: string): boolean =>
 				return true
 		"""
+	return
 
 await setup()
 

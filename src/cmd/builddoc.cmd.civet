@@ -4,8 +4,8 @@ import {LOG} from 'logger'
 import {
 	undef, defined, notdefined, assert, croak, toRelPath,
 	} from 'base'
-import {stdChecks, cmdTitle, EXEC} from 'llutils'
-import {nonOption, allNonOptions, getFlags} from 'cmd-args'
+import {cmdTitle, EXEC} from 'llutils'
+import {stdChecks, nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {findFile} from 'fsys'
 import {procFiles, procOneFile} from 'proc-files'
 import {doCompileHera} from 'hera-compile'
@@ -19,7 +19,7 @@ stdChecks """
 
 # ---------------------------------------------------------------------------
 
-EXEC () =>
+await EXEC () =>
 	# --- echoes if flag is set
 	{force, inspect} := getFlags {
 		force: 'f'

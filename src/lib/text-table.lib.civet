@@ -5,7 +5,7 @@ import {sprintf} from '@std/fmt/printf'
 import {LOG, DBG, pushLogLevel, popLogLevel} from 'logger'
 import {
 	undef, defined, notdefined, croak, assert, obviously,
-	toBool, matches, range,
+	toBool, matches, range, words,
 	} from 'base'
 import {
 	isString, isNumber, isInteger, isArray, array, arrayof, jsType,
@@ -13,7 +13,7 @@ import {
 	TStringMapper, isArrayOfStrings,
 	} from 'datatypes'
 import {
-	getOptions, words, rtrim, alignString, toBlock, TAlignment,
+	getOptions, rtrim, alignString, toBlock, TAlignment,
 	blockWidth, blockHeight, likeNum, blockToArray,
 	} from 'llutils'
 import {OL, LOGVALUE} from 'nice'

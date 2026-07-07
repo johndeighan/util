@@ -6,11 +6,12 @@ import {
 	} from 'base'
 import {EXEC} from 'llutils'
 import {allNonOptions} from 'cmd-args'
+import {CReadableFile} from 'fsys'
 import {parseText} from 'hera-parse'
 
 # ---------------------------------------------------------------------------
 
-EXEC () =>
+await EXEC () =>
 	lNonOptions := allNonOptions()
 	[stub, inFileName] := switch lNonOptions.length
 			case 0:
@@ -23,7 +24,9 @@ EXEC () =>
 				[lNonOptions[0], lNonOptions[1]]
 
 	LOG "inFileName = #{inFileName}"
-	str := Deno.readTextFileSync(inFileName)
+
+	file := new CReadableFile(inFileName)
+	str := await file.getContents()
 
 	try
 		result := await parseText(stub, str)

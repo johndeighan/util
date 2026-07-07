@@ -7,14 +7,16 @@ import {EXEC} from 'llutils'
 import {OL} from 'nice'
 import {flag, numNonOptions, allNonOptions} from 'cmd-args'
 import {watchFiles, allFilesMatching} from 'fsys'
-import {compileFile, TCompileResult} from 'automate'
+import {TExecResult} from 'exec'
+import {procOneFile} from 'proc-files'
+import {doCompileFile} from 'automate'
 
 let numCompiled = 0
 
 # ---------------------------------------------------------------------------
 
 logResult := (
-		hResult: TCompileResult
+		hResult: TExecResult
 		path: string
 		): void =>
 
@@ -28,11 +30,11 @@ logResult := (
 
 # ---------------------------------------------------------------------------
 
-EXEC () =>
+await EXEC () =>
 	if (numNonOptions() == 0)
 		DBG "=====  Compiling all files  ====="
 		for path of allFilesMatching('src/**/*.{lib,cmd}.civet')
-			hResult := await compileFile path
+			hResult := await procOneFile(path, doCompileFile)
 			logResult hResult, path
 	else
 		# --- Files can be specified as:
@@ -49,16 +51,16 @@ EXEC () =>
 					pat := 'src/**/' + stub + '.' + purpose + '.*'
 					for path of allFilesMatching(pat)
 						DBG "compile file #{OL(path)}"
-						logResult await compileFile(path), path
+						logResult await procOneFile(path, doCompileFile), path
 				else if (lMatches2 := str.match(/^([A-Za-z0-9_-]+)\.(lib|cmd)\.test$/))
 					[_, stub, purpose] := lMatches2
 					pat := 'src/**/' + stub + '.' + purpose + '.test.*'
 					for path of allFilesMatching(pat)
 						DBG "compile file #{OL(path)}"
-						logResult await compileFile(path), path
+						logResult await procOneFile(path, doCompileFile), path
 				else
 					DBG "compile file #{OL(str)}"
-					logResult await compileFile(str), str
+					logResult await procOneFile(str, doCompileFile), str
 	LOG "(#{numCompiled} files compiled)"
 	if flag('w')
 		watchFiles Deno.cwd(), (kind, path) =>

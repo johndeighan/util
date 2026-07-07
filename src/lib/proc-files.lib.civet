@@ -2,6 +2,7 @@
 
 import {exists, existsSync} from '@std/fs'
 import {sprintf} from '@std/fmt/printf'
+import {cyan, red, green, yellow} from '@std/fmt/colors'
 
 import {LOG, DBG} from 'logger'
 import {
@@ -9,7 +10,7 @@ import {
 	resetLine, write, writeln, getErrStr, toRelPath,
 	} from 'base'
 import {timer} from 'timer'
-import {awaitAll, TSettleResult} from 'promise-utils'
+import {awaitAll, awaitAllSerially, TSettleResult} from 'promise-utils'
 import {hash, nonEmpty} from 'datatypes'
 import {f, getOptions} from 'llutils'
 import {DUMP} from 'nice'
@@ -28,7 +29,7 @@ export type TProcResult = [boolean, string]
 export procFiles := (
 		procSpec: TProcSpec,
 		hOptions: hash = {}
-		): void =>
+		): [boolean, TExecResult[]] =>
 
 	type opt = {
 		quiet: boolean
@@ -52,8 +53,12 @@ export procFiles := (
 
 	# --- NOTE: We need array lPaths to index into
 	lPaths: string[] := Array.from allFilesMatching(lPatterns)
+	if (lPaths.length == 0)
+		LOG "(#{op}:{cyan} - No files match"
+		return [true, []]
+
 	lFunctions := for path of lPaths
-		() => handler.handleFile(path, hOptions)
+		() => await handler.handleFile(path, hOptions)
 
 	# --- NOTE: if success is true, str is a file path
 	#           if success is false, str is an error message
@@ -62,12 +67,16 @@ export procFiles := (
 	let nErr = 0
 	let nRej = 0
 	let nNotNeeded = 0
-	onSettleHandler := (result: TSettleResult<TExecResult>) =>
+
+	lAllResults: TExecResult[] := []
+	onSettle := (result: TSettleResult<TExecResult>) =>
 		[resolved, value, i] := result
 		path := lPaths[i]
 		if resolved
+			# --- value is a TExecResult hash
 			hResult := value
-			{success, notNeeded} := hResult
+			lAllResults.push hResult
+			{success, notNeeded, infile} := hResult
 			if success
 				nOk += 1
 				if notNeeded
@@ -78,16 +87,21 @@ export procFiles := (
 				nErr += 1
 				showErrResult handler, path, hResult, hOptions
 		else
-			nRej += 1
+			# --- value is an error message
 			errMsg := value
+			lAllResults.push {success: false, stderr: errMsg}
+			nRej += 1
 			showRejResult handler, path, errMsg, hOptions
 		return
 
-	await awaitAll lFunctions, onSettleHandler, {serial}
+	if serial
+		await awaitAllSerially lFunctions, onSettle
+	else
+		await awaitAll lFunctions, onSettle
 
-	if not quiet || (nOk + nErr > 0)
+	if not quiet || (nRej + nErr > 0)
 		showFinalResult op, lPatterns, nNotNeeded, nOk, nErr, nRej, verbose
-	return
+	return [(nErr + nRej == 0), lAllResults]
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -249,11 +263,11 @@ showFinalResult := (
 		headerPrinted = true
 	LOG [
 		sprintf('%6.2f', timer.timeTaken())
-		sprintf('%-14s', op)
+		cyan(sprintf('%-14s', op))
 		sprintf('%3d', nNotNeeded)
-		sprintf('%3d', nOk)
-		sprintf('%3d', nErr)
-		sprintf('%3d', nRej)
+		(nOk == 0)  ? sprintf('%3d', nOk)  : green(sprintf('%3d', nOk))
+		(nErr == 0) ? sprintf('%3d', nErr) : red(sprintf('%3d', nErr))
+		(nRej == 0) ? sprintf('%3d', nRej) : red(sprintf('%3d', nRej))
 		lPatterns.join(' + ')
 	].join ' '
 	return

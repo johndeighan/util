@@ -4,18 +4,20 @@ import {compile: compileSvelte} from 'npm-svelte/compiler'
 
 import {LOG} from 'logger'
 import {assert} from 'base'
+import {hash} from 'datatypes'
 import {
 	fileExt, withExt, rmFile, barf, slurp,
 	parsePath, patchFirstLine,
 	} from 'fsys'
-import {execCmd} from 'exec'
+import {execCmd, doInstallCmd, TExecResult} from 'exec'
+import {procOneFile} from 'proc-files'
 import {civet2tsFile} from 'civet'
 import {cielo2civetFile} from 'cielo'
-import {runUnitTestsFor, installCmd} from 'automate'
+import {doUnitTest} from 'typescript'
 
 # ---------------------------------------------------------------------------
 # --- NOTE:
-#        isInstalled and compiler can be ASYNC
+#        isInstalled and compiler should be ASYNC
 
 export hConfig := {
 
@@ -24,37 +26,54 @@ export hConfig := {
 		# --- keys are file extensions
 		'.svelte': {
 
-			isInstalled: =>
+			isInstalled: () =>
 				return true
 
-			getOutPaths: (path: string) =>
-				return [withExt path, '.js']
+			getOutPaths: (path: string): string[] =>
+				return [withExt(path, '.js')]
 
-			compiler: (path: string) =>
+			compiler: (
+					path: string,
+					hOptions: hash = {}
+					): TExecResult =>
+
 				jsPath := withExt path, '.js'
 				rmFile jsPath
 				{js, warnings} := compileSvelte slurp(path),
 					customElement: true
 					runes: true
 				{code, map} := js
-				barf jsPath, code
-				return 'compiled'
+				await Deno.writeTextFile jsPath, code
+				return {
+					success: true
+					outfile: jsPath
+					}
 			}
 
 		'.dot': {
-			getOutPaths: (path: string) =>
-				return [withExt path, '.svg']
+
+			getOutPaths: (path: string): string[] =>
+				return [withExt(path, '.svg')]
+
 			isInstalled: =>
 				try
 					hResult := await execCmd('dot', ['--version'])
 					return hResult.success
 				catch err
 					return false
-			compiler: (path: string) =>
+
+			compiler: (
+					path: string,
+					hOptions: hash = {}
+					): TExecResult =>
+
 				svgPath := withExt path, '.svg'
 				rmFile svgPath
 				await execCmd 'dot', ['-Tsvg', path]
-				return 'compiled'
+				return {
+					success: true
+					outfile: svgPath
+					}
 			}
 
 		'.cielo': {
@@ -62,7 +81,7 @@ export hConfig := {
 			#     but give it a purpose of 'temp'
 			#     so it won't get compiled by the compile script
 
-			getOutPaths: (path: string) =>
+			getOutPaths: (path: string): string[] =>
 				return [withExt(path, '.ts')]
 
 			isInstalled: =>
@@ -70,7 +89,11 @@ export hConfig := {
 				hResult := await execCmd('civet', ['--version'])
 				return hResult.success
 
-			compiler: (path: string) =>
+			compiler: (
+					path: string,
+					hOptions: hash = {}
+					): TExecResult =>
+
 				# --- start with a *.cielo file
 				debugger
 				assert (fileExt(path) == '.cielo'), "Not a .cielo file"
@@ -85,42 +108,76 @@ export hConfig := {
 				{fileName} := parsePath path
 				patchFirstLine civetPath, fileName, withExt(fileName, '.temp.civet')
 				patchFirstLine tsPath, fileName, withExt(fileName, '.ts')
-				return 'compiled'
+				return {
+					success: true
+					outfile: tsPath
+					}
 			}
 
 		'.civet': {
-			getOutPaths: (path: string) =>
-				return [withExt path, '.ts']
+
+			getOutPaths: (path: string): string[] =>
+				return [withExt(path, '.ts')]
+
 			isInstalled: =>
 				hResult := await execCmd('civet', ['--version'])
 				return hResult.success
-			compiler: (path: string) =>
+
+			compiler: (
+					path: string,
+					hOptions: hash = {}
+					): TExecResult =>
+
 				{purpose, fileName} := parsePath path
 				if (purpose == 'temp')
-					return 'temp'
+					return {
+						success: true
+						notNeeded: true
+						}
 				tsPath := withExt path, '.ts'
 				tsName := withExt fileName, '.ts'
 				await civet2tsFile path, tsPath
 				patchFirstLine tsPath, fileName, tsName
-				return 'compiled'
+				return {
+					success: true
+					outfile: tsPath
+					}
 			}
 		} # --- end hCompilers
 
 	hPostProcessors: {
 
 		# --- Keys are a purpose
-		'test': (path: string): void =>
-			return
+		#     path is path of original, processed file
 
-		'lib': (path: string): void =>
-			for await {success} of runUnitTestsFor(path)
-				if not success
-					LOG "Unit test #{path} failed"
-			return
+		'test': (
+				path: string
+				hOptions: hash = {}
+				): TExecResult =>
 
-		'cmd': (path: string): void =>
+			return {success: true}
+
+		'lib': (
+				path: string
+				hOptions: hash = {}
+				): TExecResult =>
+
+			tsPath := withExt(path, '.ts')
+			h := await procOneFile tsPath, doUnitTest
+			if not h.success
+				LOG "Unit test #{path} failed"
+			return h
+
+		'cmd': (
+				path: string
+				hOptions: hash = {}
+				): TExecResult =>
+
+			tsPath := withExt(path, '.ts')
 			LOG "- installing command #{path}"
-			installCmd path
-			return
+			h := await procOneFile tsPath, doInstallCmd
+			if not h.success
+				LOG "Command #{tsPath} not installed"
+			return h
 		} # --- end hPostProcessors
 	}

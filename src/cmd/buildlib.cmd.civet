@@ -4,8 +4,8 @@ import {LOG, ERR} from 'logger'
 import {
 	assert, defined, notdefined, toRelPath,
 	} from 'base'
-import {stdChecks, o, cmdTitle, EXEC} from 'llutils'
-import {nonOption, allNonOptions, getFlags} from 'cmd-args'
+import {o, cmdTitle, EXEC} from 'llutils'
+import {stdChecks, nonOption, allNonOptions, getFlags} from 'cmd-args'
 import {withExt, findFile} from 'fsys'
 import {execCmd} from 'exec'
 import {procFiles, procOneFile} from 'proc-files'
@@ -22,7 +22,7 @@ stdChecks """
 
 # ---------------------------------------------------------------------------
 
-EXEC () =>
+await EXEC () =>
 	# --- echoes if flag is set
 	{force, doTest, inspect, inspectTest} := getFlags {
 		force: 'f'

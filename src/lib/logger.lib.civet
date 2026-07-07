@@ -1,8 +1,18 @@
 # logger.lib.civet
 
-import {
-	cyan, red,
-	} from '@std/fmt/colors'
+import {cyan, red, yellow} from '@std/fmt/colors'
+import {existsSync} from '@std/fs'
+
+export let logWidth = 78
+
+# ---------------------------------------------------------------------------
+
+export stringFits := (
+		str: string
+		width: number = logWidth
+		): boolean =>
+
+	return (str.length <= width)
 
 # ---------------------------------------------------------------------------
 
@@ -27,7 +37,7 @@ export openDebugFile := (
 
 	path := "./logs/#{stub}.log"
 	setDebugFiles.add path
-	if clear
+	if clear && existsSync(path)
 		Deno.removeSync path
 	return
 
@@ -91,10 +101,12 @@ export pushLogLevel := (
 export popLogLevel := (): TLogLevel =>
 
 	if (lLogLevels.length == 0)
-		return 'info'
+		throw new Error("Empty lLogLevels in pop()")
+	result := lLogLevels.pop()
+	if (result == undefined)
+		throw new Error("Empty lLogLevels in pop()")
 	else
-		result := lLogLevels.pop()
-		return result || 'info'
+		return result
 
 # ---------------------------------------------------------------------------
 
@@ -137,26 +149,27 @@ export DBG := (
 # ---------------------------------------------------------------------------
 
 export WARN := (
-		...lMsgs: unknown[]
+		msg: string
+		label: string = 'WARN'
 		): void =>
 
+	lLogLines.push msg
 	if notLogging()
 		return
-	for msg of lMsgs
-		console.error "#{cyan('WARNING')}: #{msg}"
+	console.error yellow(label) + ': ' + msg
 	return
 
 # ---------------------------------------------------------------------------
 
 export ERR := (
-		errMsg: string
+		msg: string
 		label: string = 'ERR'
 		): void =>
 
-	lLogLines.push errMsg
+	lLogLines.push msg
 	if notLogging()
 		return
-	console.error red(label) + ': ' + errMsg
+	console.error red(label) + ': ' + msg
 	return
 
 # ---------------------------------------------------------------------------

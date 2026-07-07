@@ -5,7 +5,7 @@ import {sprintf} from '@std/fmt/printf'
 import {LOG, DBG} from 'logger'
 import {
 	undef, defined, notdefined, anyDefined, croak, assert,
-	write, writeln, toBool,
+	write, writeln, toBool, allLinesIn,
 	} from 'base'
 import {uni, esc, escd} from 'unicode'
 import {
@@ -15,7 +15,7 @@ import {
 	symbolName, className, functionName, regexpDef, jsType,
 	} from 'datatypes'
 import {
-	getOptions, o, toBlock, spaces, sep, keys, f, allLinesIn,
+	getOptions, o, toBlock, spaces, sep, keys, f,
 	} from 'llutils'
 import {indented} from 'indent'
 import {MAP} from 'mapper'

@@ -1,5 +1,7 @@
 # fsys.lib.test.civet
 
+import {cyan, red, green} from '@std/fmt/colors'
+
 import {
 	undef, defined, notdefined, sleep, toRelPath,
 	} from 'base'
@@ -18,20 +20,29 @@ import {
 	TPathType, TPathInfo, patchFirstLine, toFullPath, splitPatterns,
 	isValidStub, barfTempFile,
 	fromJsonFile, toJsonFile, addJsonValue, pathStr,
-	CReadableFile, CWritableFile,
+	CReadableFile, CWritableFile, myTestDir,
 	} from 'fsys'
 import {
 	equal, truthy, falsy, unifies,
 	succeeds, fails, setDirTree, fileOpsTable,
 	} from 'unit-test'
 
+root := myTestDir(import.meta.url)
+console.log "ROOT: #{root}"
+
+# ---------------------------------------------------------------------------
+
+r := (lStrings: TemplateStringsArray): string =>
+
+	return "#{root}/#{lStrings[0]}"
+
 # ---------------------------------------------------------------------------
 # ASYNC
 
-setup := (): void =>
+setup := (): void ->
 
 	await setDirTree """
-		./src/test/fsys clear
+		./#{root} clear
 		file.config.ts
 			export default new Object({
 				a: 1,
@@ -99,13 +110,13 @@ await setup()
 truthy isFile('./deno.json')
 truthy isFile('deno.json')
 falsy  isFile('./src/lib/notafile.txt')
-truthy isFile("./src/test/fsys/dummy.txt")
-falsy  isFile("./src/test/fsys")
+truthy isFile(r"dummy.txt")
+falsy  isFile(root)
 
-truthy isDir('src/test')
+truthy isDir(root)
+truthy isDir("./#{root}")
 falsy  isDir('nosuchdir')
-truthy isDir("./src/test/fsys")
-falsy  isDir("./src/test/fsys/dummy.txt")
+falsy  isDir(r"dummy.txt")
 
 truthy isValidStub('abc')
 falsy  isValidStub('ab,cd')
@@ -119,9 +130,9 @@ falsy  isPathType('xxx')
 falsy  isPathType(42)
 
 equal getPathType('./deno.json'), 'file'
-equal getPathType("./src/test/fsys"), 'dir'
-equal getPathType('./src/lib/notafile.txt'), 'missing'
-equal getPathType("./src/test"), 'dir'
+equal getPathType(root), 'dir'
+equal getPathType(r'notafile.txt'), 'missing'
+equal getPathType("./#{root}"), 'dir'
 equal getPathType("./src/test/fsys.lib.test.civet"), 'file'
 equal getPathType("C:/temp/file.txt"), 'missing'
 
@@ -171,7 +182,7 @@ unifies parsePath(import.meta.url), {
 		{fileName} := parsePath(path)
 		return fileName.match(/^[a-z0-9]+\.txt$/)
 
-	lPaths := Array.from(allFilesMatching('src/test/fsys/**'))
+	lPaths := Array.from(allFilesMatching(r'**'))
 	equal lPaths.filter(filterFunc).map((x) => parsePath(x).fileName), [
 		'newfile.txt'
 		'oldfile.txt'
@@ -185,18 +196,18 @@ unifies parsePath(import.meta.url), {
 	)()
 
 (() =>
-	lDirs := Array.from(allDirsMatching('src/test/fsys/**'))
+	lDirs := Array.from(allDirsMatching(r'**'))
 	equal lDirs.map((x) => toRelPath(x)), [
-		'src/test/fsys'
-		'src/test/fsys/aaa'
-		'src/test/fsys/aaa/bbb'
-		'src/test/fsys/subdir'
+		root
+		r'aaa'
+		r'aaa/bbb'
+		r'subdir'
 		]
 	)()
 
 (() =>
 	lLines: string[] := []
-	for await line of allLinesInFile('./src/test/fsys/file1.txt')
+	for await line of allLinesInFile(r'file1.txt')
 		lLines.push line
 
 	equal lLines, [
@@ -230,17 +241,17 @@ equal mkpath('.', '**/*.lib.civet'), './**/*.lib.civet'
 equal toRelPath('C:/Users/johnd/util/deno.json'), 'deno.json'
 
 (() =>
-	fullPath := "C:/Users/johnd/util/src/test/fsys/deno.json"
-	relPath  := "src/test/fsys/deno.json"
+	fullPath := mkpath('C:/Users/johnd/util', r'deno.json')
+	relPath  := r"deno.json"
 
 	# --- try both full and relative paths
 	equal pathSubDirs(fullPath), {
-		dir: 'C:/Users/johnd/util/src/test/fsys'
+		dir: mkpath('C:/Users/johnd/util', root)
 		root: "C:/"
 		lParts: ['Users', 'johnd', 'util', 'src', 'test', 'fsys']
 		}
 	equal pathSubDirs(relPath), {
-		dir: 'C:/Users/johnd/util/src/test/fsys'
+		dir: mkpath('C:/Users/johnd/util', root)
 		root: "C:/"
 		lParts: ['Users', 'johnd', 'util', 'src', 'test', 'fsys']
 		}
@@ -250,7 +261,7 @@ equal myself(import.meta.url), 'src/test/fsys.lib.test.ts'
 
 # ---------------------------------------------------------------------------
 
-equal slurp('./src/test/fsys/file1.txt'), """
+equal slurp(r'file1.txt'), """
 	---
 	fname: John
 	lname: Deighan
@@ -260,7 +271,7 @@ equal slurp('./src/test/fsys/file1.txt'), """
 	line3
 	"""
 
-await equal await slurpAsync('./src/test/fsys/file1.txt'), """
+await equal await slurpAsync(r'file1.txt'), """
 	---
 	fname: John
 	lname: Deighan
@@ -358,23 +369,23 @@ await equal await slurpAsync('./src/test/fsys/file1.txt'), """
 		{kind: 'modify', path: '/usr/lib/temp.txt'}
 		]
 
-	equal lChanges, expected
+	equal lChanges, expected, red('MIDDLE')
 	)()
 
 # ---------------------------------------------------------------------------
 # --- These tests depend on my particular directory structure
 
 (() =>
-	lFiles := Array.from(allFilesMatching('src/test/fsys/file*.txt'))
+	lFiles := Array.from(allFilesMatching(r'file*.txt'))
 	equal lFiles.map((x) => toRelPath(x)), [
-		'src/test/fsys/file1.txt'
-		'src/test/fsys/file2.txt'
-		'src/test/fsys/file3.flags.txt'
+		r'file1.txt'
+		r'file2.txt'
+		r'file3.flags.txt'
 		]
 	)()
 
 (() =>
-	lFiles :=  Array.from(allFilesMatching('src/test/fsys/**', o'includeDirs'))
+	lFiles :=  Array.from(allFilesMatching(r'**', o'includeDirs'))
 	equal lFiles.map((x) => parsePath(x).fileName), [
 		'fsys',
 		'aaa',
@@ -405,7 +416,7 @@ await equal await slurpAsync('./src/test/fsys/file1.txt'), """
 		else
 			return false
 
-	lPaths := Array.from(allFilesMatching('src/test/fsys/**', {includeDirs: true}))
+	lPaths := Array.from(allFilesMatching(r'**', {includeDirs: true}))
 	equal lPaths.filter(filterFunc).map((x) => parsePath(x).fileName), [
 		'aaa',
 		'bbb',
@@ -424,7 +435,7 @@ await equal await slurpAsync('./src/test/fsys/file1.txt'), """
 # ---------------------------------------------------------------------------
 
 await (() =>
-	hConfig := await configFromFile 'src/test/fsys/file.config.ts'
+	hConfig := await configFromFile r'file.config.ts'
 	truthy defined(hConfig)
 	truthy defined(hConfig.a)
 	falsy  defined(hConfig.x)
@@ -445,8 +456,8 @@ await (() =>
 # ---------------------------------------------------------------------------
 
 (() =>
-	path1 := 'src/test/fsys/file4.cielo'
-	path2 :='src/test/fsys/file5.cielo'
+	path1 := r'file4.cielo'
+	path2 := r'file5.cielo'
 	patchFirstLine path1, '.cielo', '.civet'
 	patchFirstLine path2, '.cielo', '.civet'
 	truthy slurp(path1).includes 'file.civet'
@@ -454,7 +465,7 @@ await (() =>
 	)()
 
 (() =>
-	barfPath := 'src/test/fsys/barfed.txt'
+	barfPath := r'barfed.txt'
 
 	contents := """
 		abc
@@ -469,8 +480,8 @@ await (() =>
 		xyz
 		"""
 
-	truthy newerDestFileExists('src/test/fsys/file1.txt', barfPath)
-	falsy  newerDestFileExists(barfPath, 'src/test/fsys/file1.txt')
+	truthy newerDestFileExists(r'file1.txt', barfPath)
+	falsy  newerDestFileExists(barfPath, r'file1.txt')
 	fails () => newerDestFileExists('dummy.txt', '.txt')
 
 	truthy isFile(barfPath)
@@ -479,23 +490,23 @@ await (() =>
 	)()
 
 (() =>
-	falsy  isDir('src/test/fsys/tempdir')
-	falsy  isFile('src/test/fsys/tempdir/file42.txt')
-	mkDir 'src/test/fsys/tempdir', true
-	barf 'src/test/fsys/tempdir/file42.txt', 'abc'
-	truthy isDir('src/test/fsys/tempdir')
-	truthy isFile('src/test/fsys/tempdir/file42.txt')
+	falsy  isDir(r'tempdir')
+	falsy  isFile(r'tempdir/file42.txt')
+	mkDir r'tempdir', true
+	barf r'tempdir/file42.txt', 'abc'
+	truthy isDir(r'tempdir')
+	truthy isFile(r'tempdir/file42.txt')
 
-	rmDir 'src/test/fsys/tempdir', o'clear'
-	falsy  isDir('src/test/fsys/tempdir')
+	rmDir r'tempdir', o'clear'
+	falsy  isDir(r'tempdir')
 	)()
 
 (() =>
-	path := 'src/test/fsys/xxx/yyy/newfile.txt'
+	path := r'xxx/yyy/newfile.txt'
 	mkDirsForFile path
-	truthy isDir('src/test/fsys/xxx')
-	truthy isDir('src/test/fsys/xxx/yyy')
-	falsy  isDir('src/test/fsys/xxx/yyy/ccc')
+	truthy isDir(r'xxx')
+	truthy isDir(r'xxx/yyy')
+	falsy  isDir(r'xxx/yyy/ccc')
 	falsy  isFile(path)
 	barf path, 'abc'
 	truthy isFile(path)
@@ -507,31 +518,31 @@ await (() =>
 (() =>
 	removeFilesMatching '**/*file.txt'
 
-	falsy  isFile('src/test/fsys/aaa/newfile.txt')
-	falsy  isFile('src/test/fsys/aaa/bbb/newfile.txt')
-	falsy  isFile('src/test/fsys/aaa/bbb/oldfile.txt')
-	truthy isFile('src/test/fsys/aaa/bbb/temp.txt')
+	falsy  isFile(r'aaa/newfile.txt')
+	falsy  isFile(r'aaa/bbb/newfile.txt')
+	falsy  isFile(r'aaa/bbb/oldfile.txt')
+	truthy isFile(r'aaa/bbb/temp.txt')
 	)()
 
 (() =>
-	clearDir 'src/test/fsys/aaa'
-	truthy isDir('src/test/fsys/aaa')
-	falsy  isDir('src/test/fsys/aaa/bbb')
-	clearDir 'src/test/fsys/aaa/bbb'
-	truthy isDir('src/test/fsys/aaa/bbb')
-	rmDir 'src/test/fsys/aaa/bbb'
-	falsy  isDir('src/test/fsys/aaa/bbb')
+	clearDir r'aaa'
+	truthy isDir(r'aaa')
+	falsy  isDir(r'aaa/bbb')
+	clearDir r'aaa/bbb'
+	truthy isDir(r'aaa/bbb')
+	rmDir r'aaa/bbb'
+	falsy  isDir(r'aaa/bbb')
 	)()
 
 (() =>
-	falsy isDir('src/test/fsys/notthere')
-	clearDir 'src/test/fsys/notthere'
-	truthy isDir('src/test/fsys/notthere')
+	falsy isDir(r'notthere')
+	clearDir r'notthere'
+	truthy isDir(r'notthere')
 	)()
 
 (() =>
 	# --- Set contents of dummy.txt to standard contents
-	path := toFullPath('src/test/fsys/dummy.txt')
+	path := toFullPath(r'dummy.txt')
 	barf path, 'dummy'
 
 	let doStop: boolean = false
@@ -572,7 +583,7 @@ await (() =>
 # ---------------------------------------------------------------------------
 
 (() =>
-	path := 'src/test/fsys/data.json'
+	path := r'data.json'
 	falsy isFile(path)
 	toJsonFile path, {a: 13}
 	truthy isFile(path)
@@ -582,7 +593,7 @@ await (() =>
 	h1 := fromJsonFile(path)
 	equal h1, {a: 13, x: 42}
 
-	path2 := 'src/test/fsys/data2.json'
+	path2 := r'data2.json'
 	Deno.writeTextFileSync path2, ''
 	equal fromJsonFile(path2), {}
 	equal fromJsonFile('doesNotExist.tst'), {}
@@ -592,7 +603,7 @@ fullpath := "c:\\Users\\johnd\\util\\src\\lib\\datatypes.lib.civet"
 equal pathStr(fullpath), 'src/lib/datatypes.lib.civet'
 
 (() =>
-	path := 'src/test/fsys/dummy.txt'
+	path := r'dummy.txt'
 	t0 := modTime(path)
 	touch path
 	t1 := modTime(path)
@@ -602,7 +613,7 @@ equal pathStr(fullpath), 'src/lib/datatypes.lib.civet'
 # ---------------------------------------------------------------------------
 
 (await () =>
-	path := 'src/test/fsys/file99.txt'
+	path := r'file99.txt'
 	f := new CWritableFile path
 	await f.writeln 'abc'
 	await f.writeln 'def'
@@ -612,7 +623,7 @@ equal pathStr(fullpath), 'src/lib/datatypes.lib.civet'
 	)()
 
 (await () =>
-	path := 'src/test/fsys/file99.txt'
+	path := r'file99.txt'
 	fr := new CReadableFile path
 	line1 := await fr.getLine()
 	equal line1, 'abc'
@@ -626,7 +637,7 @@ equal pathStr(fullpath), 'src/lib/datatypes.lib.civet'
 # ---------------------------------------------------------------------------
 
 (await () =>
-	path := 'src/test/fsys/file999.txt'
+	path := r'file999.txt'
 	f := new CWritableFile path
 	await f.writeln '---'
 	await f.writeln 'name: John'
@@ -639,7 +650,7 @@ equal pathStr(fullpath), 'src/lib/datatypes.lib.civet'
 	)()
 
 (await () =>
-	path := 'src/test/fsys/file999.txt'
+	path := r'file999.txt'
 	fr := new CReadableFile path
 	line1 := await fr.getLine()
 	equal line1, 'abc'
@@ -651,7 +662,7 @@ equal pathStr(fullpath), 'src/lib/datatypes.lib.civet'
 	)()
 
 (await () =>
-	path := 'src/test/fsys/file999.txt'
+	path := r'file999.txt'
 	fr := new CReadableFile path
 	line1 := await fr.getLine()
 	equal line1, 'abc'
@@ -662,7 +673,7 @@ equal pathStr(fullpath), 'src/lib/datatypes.lib.civet'
 	)()
 
 (await () =>
-	path := 'src/test/fsys/file999.txt'
+	path := r'file999.txt'
 	fr := new CReadableFile path
 	contents := await fr.getContents()
 	equal contents, 'abc\ndef'

@@ -5,8 +5,8 @@ import {
 	toRelPath, assert, croak,
 	undef, defined, notdefined,
 	} from 'base'
-import {stdChecks, EXEC} from 'llutils'
-import {flag, nonOption} from 'cmd-args'
+import {EXEC} from 'llutils'
+import {stdChecks, flag, nonOption} from 'cmd-args'
 import {DUMP} from 'nice'
 import {findFile, slurp, fileExt} from 'fsys'
 import {analyzeTsCode} from 'typescript'
@@ -19,7 +19,7 @@ stdChecks """
 
 # ---------------------------------------------------------------------------
 
-EXEC () =>
+await EXEC () =>
 	fileName := nonOption(0)
 	assert defined(fileName), "No file name provided"
 	path := (

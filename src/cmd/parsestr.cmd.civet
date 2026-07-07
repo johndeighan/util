@@ -8,7 +8,7 @@ import {parseText} from 'hera-parse'
 
 # ---------------------------------------------------------------------------
 
-EXEC () =>
+await EXEC () =>
 	lNonOptions := allNonOptions()
 	[stub, str] := switch lNonOptions.length
 			case 0:

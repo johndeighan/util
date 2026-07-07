@@ -20,8 +20,15 @@ import {delay} from "@std/async/delay"
 import {
 	curLogLevel, LOG, DBG, openDebugFile, closeDebugFile,
 	} from 'logger'
+import {
+	allStackFrames, getErrStr, normalizePath, toRelPath,
+	isFullPath, toFullPath, frameStr,
+	} from 'stack'
 
-export {deepEqual}
+export {
+	deepEqual, getErrStr, normalizePath, toRelPath,
+	isFullPath, toFullPath,
+	}
 export deepCopy = structuredClone
 export sleep = delay
 
@@ -63,8 +70,8 @@ export pass := (): void =>
 # ---------------------------------------------------------------------------
 
 export undef := undefined
-type TDefined = NonNullable<unknown>
-type TNotDefined = null | undefined
+export type TDefined = NonNullable<unknown>
+export type TNotDefined = null | undefined
 
 # ---------------------------------------------------------------------------
 
@@ -183,18 +190,6 @@ export findFile := (
 
 # ---------------------------------------------------------------------------
 
-export normalizePath := (
-		path: string
-		): string =>
-
-	newpath := path.replaceAll '\\', '/'
-	if (newpath.charAt(1) == ':')
-		return newpath.charAt(0).toUpperCase() + newpath.substring(1)
-	else
-		return newpath
-
-# ---------------------------------------------------------------------------
-
 export fileExt := (path: string): string =>
 
 	lMatches := path.match(/\.[^\.]+$/)
@@ -208,31 +203,6 @@ export withExt := (path: string, ext: string): string =>
 	pos := path.lastIndexOf '.'
 	assert (pos >= 0), "path contains no period: #{path}"
 	return normalizePath path.substring(0, pos) + ext
-
-# ---------------------------------------------------------------------------
-
-export toRelPath := (
-		path: string,
-		root: string = Deno.cwd()
-		): string =>
-
-	return normalizePath relative(root, path)
-
-# ---------------------------------------------------------------------------
-
-export toFullPath := (
-		path: string
-		): string =>
-
-	return normalizePath resolve('.', path)
-
-# ---------------------------------------------------------------------------
-
-export isFullPath := (
-		path: string
-		): boolean =>
-
-	return isAbsolute(path)
 
 # ---------------------------------------------------------------------------
 
@@ -274,6 +244,26 @@ export getFileStats := (
 		isDirectory: hStats.isDirectory
 		mtime:       hStats.mtime || undef
 		}
+
+# ---------------------------------------------------------------------------
+
+export allLinesIn := (
+		block: string
+		includeNL: boolean = false
+		): TIterator<string> ->
+
+	# --- remove any carriage return characters from block
+	block = block.replaceAll('\r', '')
+
+	let start = 0
+	let end = block.indexOf('\n')
+	while (end != -1)
+		yield block.substring(start, (includeNL ? end+1 : end))
+		start = end + 1
+		end = block.indexOf('\n', start)
+	if (start < block.length)
+		yield block.substring(start)
+	return
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -360,339 +350,6 @@ export type TFilePosition = {
 	}
 
 # ---------------------------------------------------------------------------
-# ASYNC
-
-export mapPos := (
-	filePos: TFilePosition
-	): TFilePosition? =>
-
-	{source, line, col} := filePos
-	contents := await Deno.readTextFile source
-	[code, hSrcMap] := extractSourceMap contents
-	if defined(hSrcMap)
-		consumer := await new SourceMapConsumer(hSrcMap)
-		pos := consumer.originalPositionFor({line, column: col})
-		return pos as TFilePosition
-	else
-		return undef
-
-# ---------------------------------------------------------------------------
-
-export mapPosSync := (
-	filePos: TFilePosition
-	): TFilePosition? =>
-
-	{source, line, col} := filePos
-	contents := Deno.readTextFileSync source
-	[code, hSrcMap] := extractSourceMap contents
-	if defined(hSrcMap)
-		[fileNum, srcLine, srcCol] := getOrgPos hSrcMap, line, col
-		fileName := hSrcMap.sources[fileNum]
-		return {
-			source: normalizePath "#{dirname(source)}/#{fileName}"
-			line: srcLine
-			col: srcCol
-			}
-	else
-		return undef
-
-# ---------------------------------------------------------------------------
-
-export extractSourceMap := (
-		contents: string
-		): [string, RawSourceMap?] =>
-
-	lMatches := contents.match ///^
-			(.*)
-			\/ \/ \# \s+
-			sourceMappingURL=data:application\/json;
-			(?:charset=utf-8;)?
-			base64,
-			(.+)
-			$///s
-	if (lMatches == null)
-		return [contents, undef]
-	[_, code, hSrcMapStr] := lMatches
-	hSrcMap := JSON.parse(atob(hSrcMapStr)) as RawSourceMap
-	{file} := hSrcMap
-	hSrcMap.file = toRelPath(file)
-	hSrcMap.sources = for path of hSrcMap.sources
-		toRelPath(path)
-	return [code, hSrcMap]
-
-# ---------------------------------------------------------------------------
-
-type TOrgPos = [fileNum: number, line: number, col: number]
-type TCompareResult = -1 | 0 | 1
-
-compare := (
-		find: [number, number],
-		gen:  [number, number]
-		): TCompareResult =>
-
-	return (
-		  (find[0] < gen[0]) ? -1
-		: (find[0] > gen[0]) ?  1
-		: (find[1] < gen[1]) ? -1
-		: (find[1] > gen[1]) ?  1
-		:                       0
-		)
-
-export getOrgPos := (
-		hSrcMap: RawSourceMap,
-		line: number,
-		col: number
-		): TOrgPos =>
-
-	lMappings := getMappings(hSrcMap.mappings)
-	assert (lMappings.length > 0), "Empty mappings array"
-	let pos = 0, end = lMappings.length - 1
-	while (pos <= end)
-
-		# --- Calculate the middle index
-		mid := Math.floor((pos + end) / 2)
-		[tsLine, tsCol, orgFileNum, civetLine, civetCol] := lMappings[mid]
-		switch compare([line, col], [tsLine, tsCol])
-			when 0
-				return [orgFileNum, civetLine, civetCol]
-			when -1
-				end = mid - 1;
-			when 1
-				pos = mid + 1;
-
-	# --- If the loop finishes, the target is not in the array
-	if (pos < lMappings.length)
-		let [tsLine, tsCol, orgFileNum, civetLine, civetCol] = lMappings[pos]
-		if (tsLine != line) || (tsCol != col)
-			[tsLine, tsCol, orgFileNum, civetLine, civetCol] = lMappings[pos-1]
-		return [orgFileNum, civetLine, civetCol]
-	else
-		last := lMappings.at(-1)
-		assert defined(last), "last not defined"
-		[tsLine, tsCol, orgFileNum, civetLine, civetCol] := last
-		return [orgFileNum, civetLine, civetCol]
-
-# ---------------------------------------------------------------------------
-
-export getMappings := (
-		data: string,
-		): number[][] =>
-
-	lMappings: number[][] := []
-	var sum: number[] = [0, 0, 0, 0]
-	for line,lineNum of data.split(";")
-		sum[0] = 0
-		decodeLine(line).forEach (p) =>
-			for (i of [0...p.length])
-				sum[i] += p[i]
-			lMappings.push [lineNum, sum[0], sum[1], sum[2], sum[3]]
-	return lMappings
-
-# ---------------------------------------------------------------------------
-
-export decodeLine := (line: string): number[][] =>
-
-	if (line == '')
-		return []
-
-	return for token of line.split(',')
-		lOutput: number[] := []
-		let i = 0
-		while (i < token.length)
-			let v = 0, d = atob("AAA" + token[i]).charCodeAt(2)
-			i += 1
-			v |= (d & 31)          # put lowest 5 bits of d into v
-			let shift = 5
-			while (d & 32)         # repeat if high bit of d is set
-				d = atob("AAA" + token[i]).charCodeAt(2)
-				i += 1
-				v |= (d & 31) << shift   # put lowest 5 bits of d into v
-				shift += 5
-			lOutput.push(v & 1 ? -(v >> 1) : v >> 1) # low bit is sign
-		lOutput
-
-# ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
-
-export type TFrameType = (
-	'eval' |
-	'native' |
-	'constructor' |
-	'method' |
-	'function' |
-	'script' |
-	'unknown'
-	)
-
-export type TStackFrame = {
-	i: number
-	type: string
-	source: string        # relative file path or 'unknown'
-	line: number
-	col: number
-	name: string          # name of function or method
-	orgSource?: string
-	orgLine?: number
-	orgCol?: number
-	}
-
-# ---------------------------------------------------------------------------
-
-export allStackFrames := (
-		trace = false
-		): TIterator<TStackFrame> ->
-
-	process.setSourceMapsEnabled(false)
-	openDebugFile 'stack'
-	fmt := (
-			line: number,
-			col: number,
-			src: string
-			): string =>
-		return "#{sprintf('%3d', line)} #{sprintf('%3d', col)} #{src}"
-
-	try
-		# @ts-ignore
-		oldLimit := Error.stackTraceLimit
-		# @ts-ignore
-		oldPreparer := Error.prepareStackTrace
-		# @ts-ignore
-		Error.stackTraceLimit = 99
-
-		let prevFrame: TStackFrame? = undefined
-
-		# @ts-ignore
-		Error.prepareStackTrace = (error, lOrgFrames) =>
-
-			let lFrames: TStackFrame[] = []
-
-			for orgFrame,i of lOrgFrames
-
-				src := orgFrame.getFileName()    # --- a full path
-				if notdefined(src) || src.match(///ext \: cli \/ \d+_test\.js///)
-					continue
-
-				# --- These are constants
-				orgSource := normalizePath src
-				orgLine   := orgFrame.getLineNumber() || 0
-				orgCol    := orgFrame.getColumnNumber() || 0
-
-				DBG '-'.repeat 64
-				DBG fmt(orgLine, orgCol, orgSource)
-
-				# --- These can be overwritten when using source maps
-				let source = orgSource
-				let line   = orgLine
-				let col    = orgCol
-
-				functionName := orgFrame.getFunctionName()
-				methodName   := orgFrame.getMethodName()
-
-				# --- follow source maps recursively
-				let newFilePos = mapPosSync({source, line, col})
-				while defined(newFilePos)
-					source = newFilePos.source   # --- already normalized
-					line   = newFilePos.line
-					col    = newFilePos.col
-					DBG fmt(line, col, source)
-					newFilePos = mapPosSync(newFilePos)
-
-				frame: TStackFrame := {
-					i
-					type: (
-						  functionName             ? 'function'
-						: methodName               ? 'method'
-						: orgFrame.isToplevel()    ? 'script'
-						: orgFrame.isEval()        ? 'eval'
-						: orgFrame.isNative()      ? 'native'
-						: orgFrame.isConstructor() ? 'constructor'
-						:                            'unknown'
-						)
-					source
-					line
-					col
-					name: functionName || methodName || ''
-					}
-
-				# --- Add original source, line & col if mapped
-				if (source != orgSource)
-					frame.orgSource = orgSource
-					frame.orgLine = orgLine
-					frame.orgCol = orgCol
-
-				# --- fix a bug in the V8 engine where calls inside a
-				#     top level anonymous function is reported as
-				#     being of type 'script'
-
-				if prevFrame && (frame.type == 'script') && (prevFrame.type == 'script')
-					prevFrame.type = 'function'
-					prevFrame.name = '<anon>'
-
-				if trace
-					LOG frameStr(frame, 'ORG FRAME')
-				prevFrame = frame
-				lFrames.push frame
-
-			return lFrames
-
-		obj: Object := {}
-		Error.captureStackTrace(obj)
-		# @ts-ignore
-		lStack: TStackFrame[] := obj.stack
-
-		# --- reset to previous values
-		# @ts-ignore
-		Error.stackTraceLimit = oldLimit
-		# @ts-ignore
-		Error.prepareStackTrace = oldPreparer
-		for frame of lStack
-			yield frame
-		return
-
-	catch err
-		console.error "#{red('ERROR in allStackFrames:')} #{getErrStr(err)}"
-		return
-	finally
-		closeDebugFile 'stack'
-
-# ---------------------------------------------------------------------------
-
-export getMyCaller := (): TStackFrame? =>
-
-	for frame,i of allStackFrames()
-		if (i == 3)
-			return frame
-	return undef
-
-# ---------------------------------------------------------------------------
-
-export frameStr := (
-		frame: TStackFrame,
-		label: string = 'FRAME'
-		): string =>
-
-	{i, type, source, line, col, name} := frame
-	typeStr := sprintf('%-8s', type)
-	nameStr := sprintf('%-16s', name)
-	if source
-		return "#{label}[#{i}]: #{typeStr} #{nameStr} #{source}:#{line}:#{col}"
-	else
-		return "#{label}[#{i}]: #{typeStr} #{nameStr} <none>"
-
-# ---------------------------------------------------------------------------
-
-export getErrStr := (err: unknown): string =>
-
-	if (typeof err == 'string')
-		return err
-	else if (err instanceof AssertionError)
-		errmsg := err.message || '<No message in Error object>'
-		return "#{colorize('AssertionError: ', 'red')}#{errmsg}"
-	else if (err instanceof Error)
-		return err.message || '<No message in Error object>'
-	else
-		return "SERIOUS ERROR"
-
 # ---------------------------------------------------------------------------
 
 export type TPredicate<T=unknown> = (item: T) => boolean
@@ -730,7 +387,7 @@ export allOf := <T>(
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 
-isAsyncGeneratorFunction := (
+export isAsyncGeneratorFunction := (
 		x: unknown
 		): x is AsyncGeneratorFunction =>
 
@@ -863,3 +520,20 @@ export isChineseChar := (str: string): boolean =>
 
 	assert (str.length == 1), "Not a single char"
 	return toBool str.match(/^[\u4e00-\u9fff]$/u)
+
+# ---------------------------------------------------------------------------
+
+wsSplit := (str: string): string[] =>
+
+	newstr := str.trim()
+	return (newstr == '') ? [] : newstr.split(/\s+/)
+
+# ---------------------------------------------------------------------------
+
+export words := (...lStrings: string[]): string[] =>
+
+	lWords := []
+	for str of lStrings
+		for word of wsSplit(str)
+			lWords.push word
+	return lWords

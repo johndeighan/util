@@ -5,7 +5,7 @@ import {exists, existsSync} from '@std/fs'
 import {LOG, DBG, ERR, pushLogLevel, popLogLevel} from 'logger'
 import {
 	pass, undef, defined, notdefined,
-	croak, assert, getErrStr,
+	croak, assert, getErrStr, allLinesIn,
 	TIterator, TAsyncIterator, toBool,
 	} from 'base'
 import {uni, esc} from 'unicode'
@@ -13,7 +13,7 @@ import {
 	hash, isEmpty, nonEmpty, isString, isIterator, isHash,
 	} from 'datatypes'
 import {
-	allLinesIn, arrayToBlock, getOptions,
+	arrayToBlock, getOptions,
 	sep, untabify, f, hasKey, spaces, countChars,
 	} from 'llutils'
 import {

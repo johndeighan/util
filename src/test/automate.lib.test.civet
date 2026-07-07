@@ -1,47 +1,44 @@
 # automate.lib.test.civet
 
-import {defined} from 'base'
+import {undef, defined} from 'base'
 import {isHash, isFunction} from 'datatypes'
 import {o} from 'llutils'
-import {withExt, TPathInfo, isFile} from 'fsys'
+import {withExt, TPathInfo, isFile, myTestDir} from 'fsys'
+import {procOneFile} from 'proc-files'
 import {
-	TCompilerFunc, TPostProcessor, compileFile,
+	TCompilerFunc, TPostProcessor, doCompileFile,
 	TCompilerInfo, isCompilerInfo, TCompilerConfig, isCompilerConfig,
-	TCompileResult, getCompilerConfig, getCompilerInfo, getPostProcessor,
+	getCompilerConfig, getCompilerInfo, getPostProcessor,
 	} from 'automate'
 import {
 	equal, succeeds, fails, truthy, falsy, setDirTree,
 	} from 'unit-test'
 
+root := myTestDir(import.meta.url)
+console.log "ROOT: #{root}"
+
+# ---------------------------------------------------------------------------
+
+r := (lStrings: TemplateStringsArray): string =>
+
+	return "#{root}/#{lStrings[0]}"
+
 # ---------------------------------------------------------------------------
 # ASYNC
 
-setup := (): void =>
+setup := (): void ->
 
 	await setDirTree """
-		./src/test/automate clear
-		test1.cielo compile
-			# test1.cielo
-
-			LOG := (str: string) => console.log str
-			LOG "Hello, World!"
-		test2.civet compile
-			# test2.civet
-
-			LOG := (str: string) => console.log str
-			LOG "Hello, World!"
-		test3.coffee
-			# test3.coffee
-
-			LOG = (str: string) => console.log str
-			LOG "Hello, World!"
+		./#{root} clear
+		hello
+			console.log("Hello, World!");
+		hello.cmd.civet
+			console.log("Hello, World!");
 		graph.dot
 			EE -> EO | OE | OO
 			EO -> EE
 			OE -> EE
 			OO -> EE
-		hello.ts
-			console.log("Hello, World!");
 		mycompile.config.civet
 			import {withExt} from 'fsys'
 			export default new Object {
@@ -61,4 +58,50 @@ await setup()
 
 # ---------------------------------------------------------------------------
 
-equal 2+2, 4
+hInfo := {
+	isInstalled: () =>
+		return true
+
+	getOutPaths: (path: string) =>
+		return [withExt(path, '.js')]
+
+	compiler: (path: string) =>
+		jsPath := withExt(path, '.js')
+		return 'compiled'
+	}
+
+truthy isCompilerInfo hInfo
+falsy  isCompilerInfo {a: 42}
+falsy  isCompilerInfo 42
+
+truthy isCompilerConfig {
+	hCompilers: hInfo
+	hPostProcessors: {}
+	}
+falsy isCompilerConfig {
+	a: 13
+	b: 92
+	}
+falsy isCompilerConfig 42
+
+await (() =>
+	falsy isFile r"hello.cmd.ts"
+	result := await procOneFile(r"hello.cmd.civet", doCompileFile)
+	equal result, {
+		infile: r"hello.cmd.civet"
+		success: true
+		outfile: "src/test/automate/hello.cmd.ts"
+		}
+
+	truthy isFile r"hello.cmd.ts"
+	)()
+
+await (() =>
+	result := await procOneFile(r"hello", doCompileFile)
+	equal result, {
+		infile: r"hello"
+		notNeeded: true
+		success: true
+		}
+
+	)()

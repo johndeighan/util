@@ -9,14 +9,14 @@ import {
 import {
 	o, s, s2, t, strToHash, getOptions, truncStr,
 	keys, hasKey, hasKeys, spaces, tabs,
-	ltrim, rtrim, countChars, words, getLineAndColumn,
-	blockToArray, allLinesIn, toArray,
+	ltrim, rtrim, countChars, getLineAndColumn,
+	blockToArray, toArray,
 	arrayToBlock, toBlock, rpad, lpad,
 	TAlignment, isAlignment, alignString, zpad,
 	TBlockSpec, isBlockSpec, allMatches,
 	blockWidth, blockHeight, CStringSetMap,
 	isTAML, fromTAML, f, SKIP, EXEC,
-	stdChecks, dashes, sep, centered,
+	dashes, sep, centered,
 	tabify, untabify, cmdTitle, likeNum,
 	} from 'llutils'
 import {
@@ -127,27 +127,6 @@ equal blockToArray("""
 	def
 	"""), ['abcx','def']
 
-equal Array.from(allLinesIn("""
-	abcy
-	def
-	""")), ['abcy', 'def']
-
-equal Array.from(allLinesIn("""
-	qqq
-
-	def
-	""")), ['qqq', '', 'def']
-
-equal Array.from(allLinesIn("a\nb\n")), [
-	'a'
-	'b'
-	]
-
-equal Array.from(allLinesIn("abc\n\t/^\\u000f\\u000e]+/\n")), [
-	'abc'
-	'\t/^\\u000f\\u000e]+/'
-	]
-
 truthy isBlockSpec('vvv')
 truthy isBlockSpec(['ttt','def'])
 falsy  isBlockSpec(42)
@@ -159,19 +138,6 @@ equal arrayToBlock(['a','b']), 'a\nb'
 
 equal toBlock(['a','b']), 'a\nb'
 equal toBlock("bbb\ndef"), "bbb\ndef"
-
-equal words("abc def"), ["abc", "def"]
-equal words("abc"), ["abc"]
-equal words(""), []
-equal words("  "), []
-equal words("\t"), []
-equal words("  abc  def\t\t"), ["abc", "def"]
-equal words(" abc  def", "ghi j "), [
-	"abc"
-	"def"
-	"ghi"
-	"j"
-	]
 
 equal rpad('abcd', 10, '-'), 'abcd------'
 
@@ -361,8 +327,6 @@ equal fromTAML(str), {
 	str := f":{blue}meaning is #{meaning}:3{red}"
 	equal decolorize(str), "meaning is  42"
 	)()
-
-succeeds () => stdChecks()
 
 equal sep(), '-'.repeat(64)
 equal sep('=', undef, 5), '====='

@@ -1,10 +1,10 @@
 # meta-data.lib.civet
 
 import {
-	undef, defined, notdefined, croak, assert,
+	undef, defined, notdefined, croak, assert, allLinesIn,
 	} from 'base'
 import {isString, isHash, hash, hashof} from 'datatypes'
-import {fromTAML, f, allLinesIn} from 'llutils'
+import {fromTAML, f} from 'llutils'
 
 export type TConverter = (str: string) => unknown
 
