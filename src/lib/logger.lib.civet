@@ -5,6 +5,11 @@ import {existsSync} from '@std/fs'
 
 export let logWidth = 78
 
+export type TLogLevel = 'testing' | 'silent' | 'info' | 'debug'
+export let lLogLevels: TLogLevel[] = ['info']
+export let logLevel: TLogLevel = 'info'
+export getLogLevels := () => return lLogLevels
+
 # ---------------------------------------------------------------------------
 
 export stringFits := (
@@ -23,10 +28,6 @@ let lLogLines: string[] = []
 
 export INDENT := Symbol 'indent'
 export UNDENT := Symbol 'undent'
-
-export type TLogLevel = 'testing' | 'silent' | 'info' | 'debug'
-export let lLogLevels: TLogLevel[] = ['info']
-export getLogLevels := () => return lLogLevels
 
 # ---------------------------------------------------------------------------
 
@@ -65,17 +66,7 @@ export closeDebugFile := (stub: string): void =>
 
 export curLogLevel := (): TLogLevel =>
 
-	return (
-		(lLogLevels.length == 0)
-		? 'info'
-		: lLogLevels[lLogLevels.length-1]
-		)
-
-# ---------------------------------------------------------------------------
-
-export notLogging := (): boolean =>
-
-	return (curLogLevel() == 'silent') || (curLogLevel() == 'testing')
+	return logLevel
 
 # ---------------------------------------------------------------------------
 
@@ -94,19 +85,19 @@ export pushLogLevel := (
 		): void =>
 
 	lLogLevels.push level
+	logLevel = level
 	return
 
 # ---------------------------------------------------------------------------
 
-export popLogLevel := (): TLogLevel =>
+export popLogLevel := (): void =>
 
 	if (lLogLevels.length == 0)
 		throw new Error("Empty lLogLevels in pop()")
-	result := lLogLevels.pop()
-	if (result == undefined)
+	logLevel = lLogLevels.pop() || 'info'
+	if (logLevel == undefined)
 		throw new Error("Empty lLogLevels in pop()")
-	else
-		return result
+	return
 
 # ---------------------------------------------------------------------------
 
@@ -120,7 +111,7 @@ export LOG := (
 		...lItems: unknown[]
 		): void =>
 
-	if notLogging()
+	if (logLevel == 'silent')
 		return
 	for item of lItems
 		if (item == INDENT)
@@ -154,7 +145,7 @@ export WARN := (
 		): void =>
 
 	lLogLines.push msg
-	if notLogging()
+	if (logLevel == 'silent')
 		return
 	console.error yellow(label) + ': ' + msg
 	return
@@ -167,7 +158,7 @@ export ERR := (
 		): void =>
 
 	lLogLines.push msg
-	if notLogging()
+	if (logLevel == 'silent')
 		return
 	console.error red(label) + ': ' + msg
 	return
@@ -185,7 +176,8 @@ logLine := (
 		): void =>
 
 	line := '\t'.repeat(indentLevel) + unknownToString(x)
-	console.log line
+	if (logLevel != 'testing')
+		console.log line
 	lLogLines.push line
 	return
 

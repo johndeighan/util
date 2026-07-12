@@ -2,7 +2,7 @@
 
 import {pathToFileURL} from 'node-url'
 
-import {LOG, DBG, pushLogLevel, popLogLevel} from 'logger'
+import {LOG, DBG} from 'logger'
 import {
 	pass, undef, defined, notdefined, croak, assert, sleep,
 	} from 'base'

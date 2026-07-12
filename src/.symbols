@@ -1,15 +1,15 @@
 automate
-	compileFile doCompileFile getCompilerConfig getCompilerInfo
-	getPostProcessor isCompilerConfig isCompilerInfo runUnitTestsFor
-	TCompilerConfig TCompileResult TCompilerFunc TCompilerInfo TPostProcessor
+	doCompileFile getCompilerConfig getCompilerInfo getPostProcessor
+	isCompilerConfig isCompilerInfo TCompilerConfig TCompilerFunc TCompilerInfo
+	TPostProcessor
 base
-	allChars allCharsAsync allLinesInFile allOf allValuesFrom
-	allValuesFromAsync anyDefined anyNotDefined anyOf assert clearPreviousLines
-	clearScreen colorize croak decode decolorize deepCopy deepEqual defined
-	encode fileExt findFile getEmptyAsyncIterator getEmptyIterator getErrStr
-	getFileStats isAsyncGeneratorFunction isChineseChar isColor isFullPath
-	matches max mkTempFile mkTempFileSync newerDestFileExists normalizePath
-	notdefined obviously pass range RawSourceMap resetLine sleep TAssertFunc
+	allChars allLinesIn allLinesInFile allOf allValuesFrom allValuesFromAsync
+	anyDefined anyNotDefined anyOf assert clearPreviousLines clearScreen
+	colorize croak decode decolorize deepCopy deepEqual defined encode fileExt
+	findFile getEmptyAsyncIterator getEmptyIterator getErrStr getFileStats
+	isAsyncGeneratorFunction isChineseChar isColor isFullPath matches max
+	mkTempFile mkTempFileSync newerDestFileExists normalizePath notdefined
+	obviously pass range RawSourceMap resetLine sleep TAssertFunc
 	TAsyncIterator TColor TDefined TFilePosition TFileStats TIterator
 	TNonFunction TNotDefined toBool toFullPath toRelPath TPredicate undef
 	withColors withExt words write writeln
@@ -61,6 +61,7 @@ hera-parse
 	parseFile parseText str2indents toDebugStr
 heredoc
 	addHereDocType CHereDocBase lineToParts mapHereDoc replaceHereDocs
+	replaceInLine
 html-window
 	CHtmlWindow
 indent
@@ -76,15 +77,15 @@ llhera
 lltypescript
 	typeCheckTsCode typeCheckTsFile
 llutils
-	alignString allLinesIn allMatches arrayToBlock blockHeight blockToArray
-	blockWidth centered cmdTitle countChars CStringSetMap CWS dashes entries
-	EXEC f formatVal fromTAML fsplit getLineAndColumn getOptions hasKey hasKeys
+	alignString allMatches arrayToBlock blockHeight blockToArray blockWidth
+	centered cmdTitle countChars CStringSetMap CWS dashes entries EXEC f
+	formatVal fromTAML fsplit getLineAndColumn getOptions hasKey hasKeys
 	isAlignment isBlockSpec isTAML keys likeNum lpad ltrim o require rpad rtrim
 	s s2 sep SKIP spaces strToHash t tabify tabs TAlignment TBlockSpec toArray
 	toBlock truncStr untabify zpad
 logger
 	appendDebugFile clearLog closeDebugFile curLogLevel DBG ERR getLog
-	getLogLevels INDENT initLogLevel lLogLevels LOG logWidth notLogging
+	getLogLevels INDENT initLogLevel lLogLevels LOG logLevel logWidth
 	openDebugFile popLogLevel pushLogLevel stringFits TLogLevel toJSON UNDENT
 	unknownToString WARN
 macros
@@ -127,12 +128,12 @@ text-table
 timer
 	CTimer sinceLoad sinceLoadStr timer
 trace-stack
-	CCallNode CCallStack mainName
+	CCallNode CCallStack mainName traceStackInternalDebugging
 trace
-	debugTracing doTrace dumpFuncList dumpLoggers getFuncList isTracingFunc
-	LOGVALUE parseFuncStr resetTracing setEnterLogger shortStr stack stdEnter
-	stdLogValue stdResume stdReturn stdYield tr trEnter trResume trReturn
-	trYield
+	dumpFuncList dumpLoggers getFuncList isTracingFunc LOGVALUE parseFuncStr
+	resetTracing setEnterLogger setTracing shortStr stack stdEnter stdLogValue
+	stdResume stdReturn stdYield tr traceInternalDebugging trEnter trResume
+	trReturn trYieldFrom
 typescript
 	analyzeTsCode ast2ts astAsString AstWalker CAnalysis descFunc doUnitTest
 	getImportCode getNode getSymbolsFromType kindStr ts2ast
@@ -142,8 +143,10 @@ unify
 	unify
 unit-test
 	equal execFileOps fails failsAsync falsy fileOpsTable generates
-	generatesAsync getFileOps getMyOutsideCaller getTsCode isType mark
+	generatesAsync getFileOps getMyOutsideCaller getTsCode isType line mark
 	mockAsyncTask mockPromise notType same sampleVal setDirTree splitFuncStr
 	succeeds succeedsAsync TFileOp truthy unifies
+ut-macros
+	CUnitTestMaker doMakeUnitTest
 walker
 	TVisitKind Walker

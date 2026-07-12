@@ -4,9 +4,11 @@ import {expandGlobSync} from '@std/fs/expand-glob'
 import {TextLineStream} from "jsr:@std/streams/text-line-stream"
 import {exists, existsSync} from '@std/fs'
 
-import {LOG} from 'logger'
+import {LOG, clearLog, getLog} from 'logger'
 import {
-	TAsyncIterator, deepEqual, assert, sleep, getErrStr, colorize,
+	undef, defined, notdefined, assert, obviously, croak,
+	TAsyncIterator, deepEqual, sleep, getErrStr, colorize,
+	decolorize,
 	} from 'base'
 import {s, toBlock, EXEC, SKIP, sep, rtrim} from 'llutils'
 import {fromFSM} from 'fsm'
@@ -46,18 +48,43 @@ import {
 	} from 'promise-utils'
 import {mockPromise} from 'unit-test'
 import {doCompileFile} from 'automate'
+import {
+	stack, setTracing,
+	trEnter, trReturn, trYieldFrom, trResume, tr,
+	} from 'trace'
+import {CCallStack} from 'trace-stack'
+import {civet2js, civet2ts} from 'llcivet'
 
 # ---------------------------------------------------------------------------
 
-await EXEC () =>
-	path := "src/test/automate/hello.cmd.civet"
-	hResult := await procOneFile(path, doCompileFile)
-	console.log hResult
-	expected := {
-		infile: "hello.cmd.civet"
-		success: true
-		outfile: "src/test/automate/hello.cmd.ts"
-		}
+EXEC () =>
+	code := """
+		x: string := 'abc'
+		"""
+	jsCode := await civet2js code
+	DUMP jsCode, 'JS'
+
+await SKIP () =>
+	clearLog()
+	setTracing true
+
+	trEnter 'func1', [42, undef]
+	trEnter 'func2', ['abc', []]
+	tr undef, 'x'
+	trYieldFrom 'func2', 42
+	trResume 'func2'
+	tr 42, 'x'
+	trReturn 'func2'
+	trReturn 'func1'
+
+	str := getLog()
+
+	expected := """
+		enter func1
+		│   enter func2
+		│   └─> return ｟undef｠ from func2\n
+		└─> return ｟undef｠ from func1\n
+		"""
 
 SKIP () =>
 	path := "src/test/civet/test.civet"

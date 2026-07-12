@@ -27,12 +27,11 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
-fix command compile-all.cmd.ts
-	- check regular expression to match test files
+in show.civet, create function append() and use it
+
+convert show.civet into a unit test for html-window
 
 exec unit test still sometimes leaks???
-
-fsys unit test fails
 
 fsys has both isStub() and isValidStub() ????
 

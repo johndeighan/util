@@ -1,0 +1,102 @@
+# ut-macros.lib.civet
+
+import {exists, existsSync} from '@std/fs'
+
+import {
+	undef, defined, notdefined, assert, obviously, croak,
+	newerDestFileExists, getErrStr,
+	} from 'base'
+import {hash} from 'datatypes'
+import {getOptions} from 'llutils'
+import {fileExt, withExt, pathStr} from 'fsys'
+import {CFileHandler, TExecResult} from 'exec'
+import {TMacroLib, mapString} from 'macros'
+
+# ---------------------------------------------------------------------------
+
+hUnitTestLib: TMacroLib := {
+	'#preproc': (block) =>
+		return """
+			<style>
+				p.head {
+					font-weight: bold
+					}
+				p.desc {
+					font-weight: normal
+					}
+			</style>
+			#{block}
+			"""
+	def: (block) =>
+		lLines := block.split('\n')
+		lOutput := [
+			"""
+				<p class="head">
+					#{lLines[0]}
+				</p>
+				<p class="desc">
+				"""
+			]
+		for line of lLines.slice(1)
+			lOutput.push "\t#{line}<br>"
+		return lOutput.join('\n') + '\n</p>'
+	}
+
+# ---------------------------------------------------------------------------
+
+export class CUnitTestMaker extends CFileHandler
+
+	get op()
+		return 'doMakeMarkdown'
+
+	# ..........................................................
+
+	override needed(
+			path: string
+			hOptions: hash = {}
+			): boolean
+
+		assert (fileExt(path) == '.$md'), "Not an md macro file"
+		destPath := withExt path, '.md'
+		return not (
+			   not hOptions.force
+			&& await exists(destPath)
+			&& newerDestFileExists(path, destPath)
+			)
+
+	# ..........................................................
+	# ASYNC
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): TExecResult
+
+		type opt = {
+			force: boolean
+			trace: boolean
+			}
+		{force, trace} := getOptions<opt> hOptions, {
+			force: false
+			trace: false
+			}
+
+		assert (fileExt(path) == '.$md'), "Not an md macro file"
+		try
+			input := await Deno.readTextFile path
+			output := await mapString(input, hUnitTestLib)
+			await Deno.writeTextFile withExt(path, '.md'), output
+			return {
+				success: true
+				stdout: output
+				}
+
+		catch err
+			errMsg := "MARKDOWN PREPROC FAILED: #{pathStr(path)} - #{getErrStr(err)}"
+			return {
+				success: false
+				stdout: ''
+				stderr: errMsg
+				}
+
+export doMakeUnitTest := new CUnitTestMaker()

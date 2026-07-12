@@ -25,6 +25,7 @@ export type TVoidIterator<T=unknown> = () => TIterator<T>
 export type TUnaryFunc<TIn, TOut> = (item: TIn) => TOut
 export type TStringifier = (item: unknown) => string
 export type TStringMapper = (str: string) => string
+export type TAsyncStringMapper = (str: string) => Promise<string>
 export type TStringFilterFunc = (str: string) => boolean
 
 # ---------------------------------------------------------------------------

@@ -16,7 +16,7 @@ import {
 	TBlockSpec, isBlockSpec, allMatches,
 	blockWidth, blockHeight, CStringSetMap,
 	isTAML, fromTAML, f, SKIP, EXEC,
-	dashes, sep, centered,
+	dashes, sep, centered, abbrevStr,
 	tabify, untabify, cmdTitle, likeNum,
 	} from 'llutils'
 import {
@@ -351,3 +351,18 @@ vfunc: TVoidFunc := (): void =>
 
 succeeds () => EXEC(vfunc)
 succeeds () => SKIP(vfunc)
+
+(() =>
+	longStr := """
+		<html lang="en">
+		<head>
+			<title>My Title</title>
+		</head>
+		<body>
+			<h1>My Header</title>
+		</body>
+		</html>
+		"""
+
+	equal abbrevStr(longStr), "<html˳lang=\"en\"…</body>↓</html>"
+	)()

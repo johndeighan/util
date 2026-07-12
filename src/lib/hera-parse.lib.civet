@@ -2,10 +2,7 @@
 
 import {toFileUrl} from "@std/path"
 
-import {
-	LOG, DBG, ERR,
-	curLogLevel, pushLogLevel, popLogLevel,
-	} from 'logger'
+import {logLevel, LOG, DBG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, deepCopy,
 	croak, assert, getErrStr, allLinesIn,
@@ -145,7 +142,7 @@ export parseText := <T = unknown>(
 		return deepCopy(result)
 
 	catch err
-		if (curLogLevel() != 'silent') && (curLogLevel() != 'testing')
+		if (logLevel != 'silent') && (logLevel != 'testing')
 			ERR getErrStr(err)
 			ERR "Parser: '#{stub}'", 'PARSE ERROR'
 			LOG "Parsing: #{esc(text)}"

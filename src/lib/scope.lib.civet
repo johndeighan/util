@@ -1,7 +1,9 @@
 # scope.lib.civet
 
 import {LOG} from 'logger'
-import {undef, defined, notdefined, croak, assert} from 'base'
+import {
+	undef, defined, notdefined, croak, assert, TIterator,
+	} from 'base'
 import {hash} from 'datatypes'
 
 # ---------------------------------------------------------------------------
@@ -27,7 +29,7 @@ export class CScope
 
 	# ..........................................................
 
-	allDefined(): Generator<string>
+	allDefined(): TIterator<string>
 
 		for name of @sDefined.values()
 			yield name
@@ -37,11 +39,11 @@ export class CScope
 
 	getDefined(): string[]
 
-		return Array.from @sDefined.keys()
+		return Array.from @sDefined.values()
 
 	# ..........................................................
 
-	allUsed(): Generator<string>
+	allUsed(): TIterator<string>
 
 		for name of @sUsed.values()
 			yield name
@@ -51,7 +53,7 @@ export class CScope
 
 	getUsed(): string[]
 
-		return Array.from @sUsed.keys()
+		return Array.from @sUsed.values()
 
 	# ..........................................................
 

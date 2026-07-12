@@ -28,7 +28,7 @@ export evalPromise := <T=unknown>(
 # ---------------------------------------------------------------------------
 
 export type TSettleResult<T> =
-	[true, T, number] | [false, any, number]
+	[true, T, number] | [false, unknown, number]
 
 export awaitAll := <T>(
 		lFuncs: (() => Promise<T>)[]

@@ -22,7 +22,7 @@ import {
 import {debugging} from 'cmd-args'
 import {ML, DUMP, DDUMP} from 'nice'
 import {
-	fileExt, withExt, isValidStub, pathStr, newerDestFileExists,
+	fileExt, withExt, pathStr, newerDestFileExists,
 	CReadableFile, barfTempFile, parsePath,
 	} from 'fsys'
 import {TState, fromFSM} from 'fsm'

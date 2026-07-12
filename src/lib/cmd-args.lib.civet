@@ -30,6 +30,7 @@ export type TCmdDesc = {
 	[key: string]: TKeyDesc | string
 	}
 
+
 # ---------------------------------------------------------------------------
 
 hFlags: hashof<boolean> := {}

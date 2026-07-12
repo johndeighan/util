@@ -4,7 +4,6 @@ import {compile: compileSvelte} from 'npm-svelte/compiler'
 
 import {
 	LOG, DBG, WARN, ERR, INDENT, UNDENT,
-	pushLogLevel, popLogLevel
 	} from 'logger'
 import {
 	undef, defined, notdefined, toRelPath,

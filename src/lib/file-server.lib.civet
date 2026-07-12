@@ -10,39 +10,27 @@ import {hash, TStringFilterFunc} from 'datatypes'
 import {getOptions} from 'llutils'
 import {mkpath, fileExt} from 'fsys'
 
-defPort := 8000
+type TFileResponse = [true, string] | [false, number]
 
 # ---------------------------------------------------------------------------
 
 export class CFileServer
-	port: number
-	verbose: boolean
 	root: string
+	port: number
+	hostname: string
 	server: Deno.HttpServer
 
-	eventSource: EventSource? = undef
+	# ..........................................................
 
 	constructor(
 			@root: string
-			hOptions: hash = {}
+			@port: number = 8000
+			@hostname = 'localhost'
 			)
-
-		type opt = {
-			port: number
-			verbose: boolean
-			allow: TStringFilterFunc
-			}
-		{port, verbose, allow} := getOptions<opt> hOptions, {
-			port: defPort
-			verbose: true
-			allow: (s) => true
-			}
-		@port = port
-		@verbose = verbose
 
 		@server = Deno.serve
 			{
-				hostname: 'localhost'
+				hostname: @hostname
 				port: @port
 				onListen: @onListen
 				}
@@ -51,7 +39,7 @@ export class CFileServer
 				url := new URL(req.url)
 				path := decodeURIComponent(url.pathname)
 
-				if @forbid(path, req)
+				if not @allow(path, req)
 					return new Response("403: Forbidden", {status: 403})
 
 				try
@@ -61,78 +49,19 @@ export class CFileServer
 
 	# ..........................................................
 
-	sseConnect(url: string): void
-
-		LOG "📡 Connecting to SSE stream..."
-
-		# --- 🔌 Create EventSource connection
-		@eventSource = new EventSource(url)
-
-		# --- 🎧 Listen for incoming messages
-		@eventSource.onmessage = (event) =>
-			console.log "📨 Message received: #{event.data}"
-			@handleMessage JSON.parse(event.data)
-
-		# --- ✅ Connection opened successfully
-		@eventSource.onopen = () =>
-      	console.log "✅ SSE connection established!"
-
-		# --- ❌ Handle connection errors
-		@eventSource.onerror = (err) =>
-			console.error "❌ SSE connection error: #{getErrStr(err)}"
-
-		# --- 🔍 Check connection state
-		if (this.eventSource?.readyState == EventSource.CLOSED)
-			console.log "🔌 SSE connection closed"
-		else if (this.eventSource?.readyState == EventSource.CONNECTING)
-			console.log "🔄 SSE reconnecting..."
-		return
-
-	# ..........................................................
-
-	sseDisconnect(): void
-
-		if @eventSource
-			console.log "🔌 Closing SSE connection..."
-			@eventSource.close()
-			@eventSource = undef
-		return
-
-	# ..........................................................
-
-	handleMessage(data: any): void
-
-		# --- Override in subclasses or provide callback
-		console.log "📥 Processing message: #{data}"
-		return
-
-	# ..........................................................
-
 	onListen(): void
 
-		if @verbose
-			LOG "Listening on port #{@port}"
+		DBG "Listening on port #{@port}"
 		return
 
 	# ..........................................................
 
-	forbid(path: string, req: Request): boolean
+	allow(
+			path: string
+			req: Request
+			): boolean
 
-		return false
-
-	# ..........................................................
-
-	customResponse(
-			contents: string,
-			content_type: string = 'text/plain'
-			): Response
-
-		return new Response contents, {
-			status: 200
-			headers: {
-				'Content-type': content_type
-				}
-			}
+		return true
 
 	# ..........................................................
 
@@ -155,21 +84,19 @@ export class CFileServer
 		switch content_type
 			when 'text/typescript'
 				contents := await Deno.readTextFile mkpath(@root, path)
-				assert defined(contents), "in getFileResponse(): undef contents"
+				assert defined(contents),
+						"in getFileResponse(): undef contents"
 				return new Response contents, {
 					status: 200
-					headers: {
-						'Content-type': content_type
-						}
+					headers: {'Content-type': content_type}
 					}
 			else
 				contents := await Deno.readTextFile mkpath(@root, path)
-				assert defined(contents), "in getFileResponse()2: undef contents"
+				assert defined(contents),
+						"in getFileResponse()2: undef contents"
 				return new Response contents, {
 					status: 200
-					headers: {
-						'Content-type': content_type
-						}
+					headers: {'Content-type': content_type}
 					}
 
 	# ..........................................................
@@ -193,3 +120,20 @@ export class CFileServer
 		LOG "stopping file server"
 		@server.shutdown()
 		return
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export getFile := (
+		fileName: string
+		port: number = 8000
+		hostname: string = 'localhost'
+		): TFileResponse =>
+
+	response := await fetch("http://#{hostname}:#{port}/#{fileName}")
+	{ok, status, type} := response
+	if ok
+		return [true, await response.text()]
+	else
+		return [false, status]
+

@@ -11,8 +11,7 @@ import {
 import {sprintf} from '@std/fmt/printf'
 
 import {
-	LOG, DBG, WARN, ERR, INDENT, UNDENT,
-	curLogLevel, pushLogLevel, popLogLevel,
+	LOG, DBG, WARN, ERR, INDENT, UNDENT, curLogLevel,
 	} from 'logger'
 import {
 	pass, undef, defined, anyDefined, notdefined, toRelPath,
@@ -22,7 +21,7 @@ import {
 	} from 'base'
 import {timer} from 'timer'
 import {
-	hash, isEmpty, TStringMapper,
+	hash, isEmpty, TStringMapper, isIterator, isAsyncIterator,
 	isString, isArray, isArrayOfStrings, nonEmpty,
 	} from 'datatypes'
 import {awaitAll, TSettleResult} from 'promise-utils'
@@ -146,15 +145,22 @@ export execCmd := (
 			.pipeTo(child.stdin)
 	else if defined(input)
 		# --- type of child.stdin is WritableStream<Uint8Array>
-		if isString(input)
-			iter := allLinesIn(input, true)
-			ReadableStream.from(iter)
-				.pipeThrough(new TextEncoderStream())
-				.pipeTo(child.stdin)
-		else
-			ReadableStream.from(input)
-				.pipeThrough(new TextEncoderStream())
-				.pipeTo(child.stdin)
+		lStrings := (
+			if isString(input)
+				Array.from(allLinesIn(input, true))
+			else if isAsyncIterator(input)
+				await Array.fromAsync(input)
+			else if isIterator(input)
+				Array.from(input)
+			else if isArray(input)
+				input
+			else
+				croak "Bad input"
+			)
+
+		ReadableStream.from(lStrings)
+			.pipeThrough(new TextEncoderStream())
+			.pipeTo(child.stdin)
 
 	# --- Create a WritableStream that output can be sent to
 	# --- type of child.stdout is WritableStream<Uint8Array>
@@ -311,7 +317,7 @@ export doRemoveTsFile := new CTsFileRemover()
 export isInstalled := (scriptName: string): boolean =>
 
 	homeDir := Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE") ?? ""
-	ext := (Deno.build.os === "windows") ? ".cmd" : ""
+	ext := (Deno.build.os == "windows") ? ".cmd" : ""
 	path := "#{homeDir}/.deno/bin/#{scriptName}#{ext}"
 	isThere := await exists(path)
 	if isThere

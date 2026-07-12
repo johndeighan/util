@@ -1,4 +1,4 @@
-// compile-all.cmd.ts
+// bootstrap.cmd.ts
 
 import {red, green, yellow} from 'jsr:@std/fmt/colors'
 import {expandGlob} from 'jsr:@std/fs/expand-glob'
@@ -17,47 +17,87 @@ function decode(str: AllowSharedBufferSource): string {
 	}
 
 // --------------------------------------------------------------------------
+// ASYNC
 
-async function compile(path: string): Promise<void> {
+type TExecResult = {
+	code: number
+	stdout: string
+	stderr: string
+	}
 
-	// --- deno run -A @danielx/civet --inline-map -o .ts -c <path>
+async function execCmd(
+		cmdName: string,
+		lArgs: string[] = [],
+		quiet: boolean = false
+		): Promise<TExecResult> {
 
-	const compileCmd = new Deno.Command("deno", {
-		args: [
-			'run',
-			'-A',
-			'@danielx/civet',
-			'--inline-map',
-			'-o', '.ts',
-			'-c', path
-			],
+	const cmd = new Deno.Command(cmdName, {
+		args: lArgs,
 		stdout: 'piped',
 		stderr: 'piped'
 		});
 
-	const {code, stdout, stderr} = await compileCmd.output();
+	if (!quiet) {
+		console.log(`RUN: ${cmdName} ${lArgs.join(' ')}`);
+		}
+	const {code, stdout, stderr} = await cmd.output();
+	return {
+		code,
+		stdout: decode(stdout),
+		stderr: decode(stderr)
+		}
+	}
+
+// --------------------------------------------------------------------------
+// ASYNC
+
+async function fireCmd(
+		cmdName: string,
+		lArgs: string[] = [],
+		): Promise<number> {
+
+	const cmd = new Deno.Command(cmdName, {
+		args: lArgs,
+		stdin: 'inherit',
+		stdout: 'inherit',
+		stderr: 'inherit'
+		});
+
+	const process = cmd.spawn();
+	const status = await process.status;
+	return status.code;
+	}
+
+// --------------------------------------------------------------------------
+
+async function compile(path: string): Promise<void> {
+
+	const {code, stdout, stderr} = await execCmd("deno", [
+		'run',
+		'-A',
+		'@danielx/civet',
+		'--inline-map',
+		'-o', '.ts',
+		'-c', path
+		], true);
+
 	if (code === 0) {
 		// --- type check the TypeScript file
-		const checkCmd = new Deno.Command("deno", {
-			args: [
-				'check',
-				withExt(path, '.ts')
-				],
-			stdout: 'piped',
-			stderr: 'piped'
-			});
+		const {code, stdout, stderr} = await execCmd("deno", [
+			'check',
+			withExt(path, '.ts')
+			], true);
 
-		const {code, stdout, stderr} = await checkCmd.output();
 		if (code === 0) {
 			console.log('   ' + green(path));
 			}
 		else {
-			console.error(red(decode(stderr)));
+			console.error(red(stderr));
 			}
 		}
 	else {
 		console.log(`error code is ${code}`);
-		console.error(red(decode(stderr)));
+		console.error(red(stderr));
 		}
 	}
 
@@ -91,8 +131,35 @@ async function newerDestFileExists(
 
 // --------------------------------------------------------------------------
 
+async function installCmd(
+		cmdName: string,
+		path: string
+		): Promise<void> {
+
+	const {code, stdout, stderr} = await execCmd('deno', [
+		'install',
+		'--global',
+		'--force',
+		'--config', 'deno.json',
+		'-A',
+		'--name', cmdName,
+		path
+		], true);
+	if (code == 0) {
+		console.log(`Command ${cmdName} installed`);
+		}
+	else {
+		console.error(`Install of command ${cmdName} failed`);
+		console.error(stderr);
+		}
+	}
+
+// --------------------------------------------------------------------------
+
 const t0 = Date.now()
+
 let nCompiled = 0;
+
 const lPromises = []
 for await (const entry of expandGlob("**/*.civet")) {
 	const path = relative(Deno.cwd(), entry.path);
@@ -110,3 +177,9 @@ for await (const entry of expandGlob("**/*.civet")) {
 const results = await Promise.allSettled(lPromises);
 const timeTaken = Date.now() - t0;
 console.log(`${nCompiled} files compiled in ${sprintf("%.2f", timeTaken/1000)} secs`);
+
+await installCmd('buildcmd', 'src/cmd/buildcmd.cmd.ts');
+await fireCmd('buildcmd', ['all']);
+await fireCmd('build-dot-symbols');
+await fireCmd('buildpar', ['all']);
+await fireCmd('utest', ['all']);

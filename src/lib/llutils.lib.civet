@@ -11,7 +11,7 @@ import {
 	colorize, isColor, toRelPath, obviously, toBool, TIterator,
 	getErrStr, allLinesIn,
 	} from 'base'
-import {esc} from 'unicode'
+import {esc, escd, uni} from 'unicode'
 import {
 	isHash, isArray, isNonEmptyString, char,
 	isArrayOfStrings, isEmpty, nonEmpty, isString, isInteger,
@@ -588,3 +588,20 @@ export SKIP := (func: () => void): void =>
 
 	return
 
+# ---------------------------------------------------------------------------
+
+export abbrevStr := (
+		str: string,
+		maxlen: number = 31
+		): string =>
+
+	escaped := escd(str)
+	len := escaped.length
+	if (len <= maxlen)
+		return escaped
+	seglen := Math.trunc((maxlen-1) / 2)
+	return (
+		  escaped.substring(0, seglen)
+		+ uni.ellipsis
+		+ escaped.substring(len - seglen)
+		)

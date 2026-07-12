@@ -1,7 +1,9 @@
 # parse-utils.lib.test.civet
 
 import {s} from 'llutils'
-import {CParseMatches} from 'parse-utils'
+import {
+	slot, TStrLoc, TParseMatch, CParseMatches,
+	} from 'parse-utils'
 import {equal} from 'unit-test'
 
 # ---------------------------------------------------------------------------

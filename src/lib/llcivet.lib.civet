@@ -1,7 +1,7 @@
 # llcivet.lib.civet
 
 import {
-	compile as compileCivet, CompileOptions,
+	compile, CompileOptions,
 	} from '@danielx/civet'
 import {findInDir, loadConfig} from "@danielx/civet/config"
 
@@ -47,8 +47,32 @@ export civet2ts := (
 		}
 	try
 		hConfig := await getCivetConfig {inlineMap}
-		tsCode := await compileCivet civetCode, hConfig
+		tsCode := await compile civetCode, hConfig
 		return tsCode
+	catch err
+		ERR getErrStr(err)
+		throw err
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export civet2js := (
+		civetCode: string,
+		hOptions: hash = {}
+		): string =>
+
+	type opt = {
+		inlineMap: boolean
+		}
+	{inlineMap} := getOptions<opt> hOptions, {
+		inlineMap: false
+		}
+	try
+		hConfig := await getCivetConfig {inlineMap}
+		assert defined(hConfig.parseOptions), "Bad config file"
+		hConfig.js = true
+		jsCode := await compile civetCode, hConfig
+		return jsCode
 	catch err
 		ERR getErrStr(err)
 		throw err

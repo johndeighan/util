@@ -95,13 +95,6 @@ export getPathType := (path: string): TPathType =>
 
 # ---------------------------------------------------------------------------
 
-export isStub := (str: string): boolean =>
-
-	# --- a stub cannot contain any of '\\', '/'
-	return notdefined(str.match /[\\\/]/) && (str[0] != '.')
-
-# ---------------------------------------------------------------------------
-
 export touch := (path: string): void =>
 
 	fd := openSync(path, 'a')
@@ -740,15 +733,6 @@ export rmDir := (
 		else
 			Deno.removeSync path
 	return
-
-# ---------------------------------------------------------------------------
-
-export isValidStub := (stub: string): boolean =>
-
-	for ch of [',', '/', '\\']
-		if stub.includes(ch)
-			return false
-	return (stub != 'all')
 
 # ---------------------------------------------------------------------------
 # ASYNC

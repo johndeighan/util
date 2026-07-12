@@ -126,16 +126,6 @@ export allChars := (str: string): TIterator<string> ->
 	return
 
 # ---------------------------------------------------------------------------
-# ASYNC
-
-export allCharsAsync := (str: string): TAsyncIterator<string> ->
-
-	for ch of str
-		yield ch
-		await sleep 100
-	return
-
-# ---------------------------------------------------------------------------
 #             LOGGING
 # ---------------------------------------------------------------------------
 

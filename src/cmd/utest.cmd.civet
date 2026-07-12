@@ -8,9 +8,6 @@ import {
 import {isString} from 'datatypes'
 import {cmdTitle, f, dashes, EXEC} from 'llutils'
 import {
-	stdChecks, getFlags, nonOption, allNonOptions, argValue,
-	} from 'cmd-args'
-import {
 	isFile, rmDir, withExt, findFile, allFilesMatching, parsePath,
 	} from 'fsys'
 import {execCmd, TExecResult} from 'exec'
@@ -19,18 +16,18 @@ import {doUnitTest} from 'typescript'
 import {doCompileCivet, compileAllLibs} from 'civet'
 import {DUMP} from 'nice'
 import {CTimer} from 'timer'
-
-# stdChecks """
-# 	utest [-I] [-line=<n>] {<stub>} | all
-# 		- run unit test with given stub
-#    	-I = run with chrome debugger
-#    	-line=<n> - run just this one test
-#    	"""
+import {
+	stdChecks, getFlags, nonOption, allNonOptions, argValue,
+	} from 'cmd-args'
 
 stdChecks {
 	_: {
 		range: [1,99]
 		desc: "stubs or 'all'"
+		}
+	p: {
+		type: 'boolean'
+		desc: 'run in parallel'
 		}
 	line: {
 		type: 'integer'
@@ -43,11 +40,11 @@ stdChecks {
 await EXEC () =>
 	assert defined(nonOption(0)), "No unit tests specified"
 	await compileAllLibs()
-	clearScreen()
 
-	{force, inspect} := getFlags {
+	{force, inspect, parallel} := getFlags {
 		force: 'f'
 		inspect: 'I'
+		parallel: 'p'
 		}
 	lineNum := argValue('line')
 
@@ -95,8 +92,7 @@ await EXEC () =>
 		timer := new CTimer()
 
 		# --- 1st way doesn't work yet
-		works := false
-		if works
+		if parallel
 			# --- This craps out, so we'll do one at a time
 			await procFiles [doCompileCivet, ['**/*.lib.test.civet']], {force}
 
@@ -136,6 +132,7 @@ await EXEC () =>
 			if notdefined(path)
 				ERR "No such file: #{fileName}"
 				continue
+			await procOneFile path, doCompileCivet, {force, quiet: true}
 			tsPath := withExt(path, '.ts')
 			LOG cmdTitle("RUN UNIT TEST #{toRelPath(path)}")
 			hResult := await procOneFile tsPath, doUnitTest, {

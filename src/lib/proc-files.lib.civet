@@ -4,7 +4,7 @@ import {exists, existsSync} from '@std/fs'
 import {sprintf} from '@std/fmt/printf'
 import {cyan, red, green, yellow} from '@std/fmt/colors'
 
-import {LOG, DBG} from 'logger'
+import {LOG, DBG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, assert, obviously, croak,
 	resetLine, write, writeln, getErrStr, toRelPath,
@@ -85,13 +85,16 @@ export procFiles := (
 					showOkResult handler, path, hResult, hOptions
 			else
 				nErr += 1
-				showErrResult handler, path, hResult, hOptions
+				showErrResult handler, path, handler.getOutput(hResult), hOptions
 		else
 			# --- value is an error message
-			errMsg := value
-			lAllResults.push {success: false, stderr: errMsg}
+			errMsg := getErrStr(value)
+			lAllResults.push {
+				success: false
+				stderr: errMsg
+				}
 			nRej += 1
-			showRejResult handler, path, errMsg, hOptions
+			showErrResult handler, path, errMsg, hOptions
 		return
 
 	if serial
@@ -151,11 +154,11 @@ export procOneFile := (
 		if success
 			showOkResult handler, path, hResult, hOptions
 		else
-			showErrResult handler, path, hResult, hOptions
+			showErrResult handler, path, handler.getOutput(hResult), hOptions
 		return hResult
 
 	catch err
-		showRejResult handler, path, err, hOptions
+		showErrResult handler, path, getErrStr(err), hOptions
 		return {
 			success: false,
 			stderr: getErrStr(err)
@@ -210,25 +213,14 @@ showOkResult := (
 showErrResult := (
 		handler: CFileHandler
 		path: string
-		hResult: TExecResult
+		errMsg: string
 		hOptions: hash = {}
 		): void =>
 
-	output := handler.getOutput(hResult)
-	if output
-		DUMP output, 'ERROR OUTPUT'
-	return
-
-# ---------------------------------------------------------------------------
-
-showRejResult := (
-		handler: CFileHandler
-		path: string
-		reason: unknown
-		hOptions: hash = {}
-		): void =>
-
-	DUMP reason, 'ERROR'
+	if errMsg.includes('\n')
+		DUMP errMsg, 'ERROR OUTPUT'
+	else
+		ERR "ERROR: #{errMsg}"
 	return
 
 # ---------------------------------------------------------------------------

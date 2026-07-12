@@ -10,7 +10,7 @@ import {
 	} from 'npm-typescript'
 
 import {
-	LOG, DBG, ERR, INDENT, UNDENT, pushLogLevel, popLogLevel,
+	LOG, DBG, ERR, INDENT, UNDENT,
 	} from 'logger'
 import {extractSourceMap} from 'stack'
 import {

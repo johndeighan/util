@@ -1,87 +1,154 @@
 # html-window.lib.civet
 
 import {createResponse} from '@mwid/better-sse'
-import {Webview} from '@webview/webview'
 import {WebUI} from '@webui'
+import {render} from 'npm-pug'
 
 import {LOG, DBG, ERR} from 'logger'
 import {
-	undef, defined, notdefined, croak, assert,
+	undef, defined, notdefined, croak, assert, matches,
 	} from 'base'
-import {TVoidFunc, hash, hashof} from 'datatypes'
-import {getOptions} from 'llutils'
+import {
+	TVoidFunc, hash, hashof, TStringMapper, TAsyncStringMapper,
+	} from 'datatypes'
+import {getOptions, abbrevStr} from 'llutils'
+import {DUMP} from 'nice'
 import {mkpath, slurp, isFile, isDir} from 'fsys'
+import {civet2js} from 'llcivet'
+
+# ---------------------------------------------------------------------------
+
+export isHTML := (str: string): boolean =>
+
+	return matches str, ///^
+		( \s* \<!DOCTYPE .*? \> )?
+		\s* \< html
+		.*
+		\< \/ html \> \s*
+		$///s
+
+# ---------------------------------------------------------------------------
+
+export isPug := (str: string): boolean =>
+
+	return matches str, ///^
+		( doctype \s html \s)?
+		html
+		///s
+
+# ---------------------------------------------------------------------------
+
+export pug2html := (
+		code: string,
+		h: hash = {}
+		): string =>
+
+	return render(code, h)
 
 # ---------------------------------------------------------------------------
 # uses deno-webui
+# see https://webui.me/docs.html#/deno
 
 export class CHtmlWindow
 
 	window = new WebUI()
-
-	constructor()
-
-		@window.setPublic true
+	html: string
+	userScript: string
+	converter: TStringMapper | TAsyncStringMapper
+	hOptions: hash
 
 	# ..........................................................
 
-	defineFunc(
-			funcName: string
-			func: TVoidFunc
-			): void
+	constructor(
+			source: string,
+			@userScript = ''
+			@hOptions: hash = {}
+			)
 
-		@window.bind funcName, func
+		html := (
+			  source.endsWith('.html') ? slurp(source)
+			: isHTML(source)           ? source
+			: isPug(source)            ? pug2html(source)
+			:                            'bad'
+			)
+		assert isHTML(html), "Bad HTML source: #{abbrevStr(source)}"
+		@html = html.replace
+			'</html>'
+			"""
+				<script src="webui.js"></script>
+				<script src="https://cdnjs.cloudflare.com/ajax/libs/blissfuljs/1.0.6/bliss.min.js"></script>
+				<script>
+					function elem(tag, h) {
+						if (
+								   (typeof h === 'string')
+								|| (typeof h === 'number')
+								|| (h instanceof Element)
+								|| Array.isArray(h)
+								) {
+							return $.create(tag, {contents: h});
+							}
+						else {
+							return $.create(tag, h);
+							}
+						}
+				</script>
+				</html>
+				"""
+
+		type opt = {
+			isPublic: boolean
+			width: number
+			height: number
+			converter: TStringMapper | TAsyncStringMapper
+			}
+		{isPublic, width, height, converter,
+			} := getOptions<opt> @hOptions, {
+				isPublic: true
+				width: 800
+				height: 600
+				converter: civet2js
+				}
+
+		@window.setPublic isPublic
+		@window.setSize(width, height)
+		@converter = converter
+
+	# ..........................................................
+	# ASYNC
+
+	show(root: string): void
+
+		if @userScript
+			jsCode := await @converter(@userScript)
+			@html = @html.replace
+				'</html>'
+				"<script>#{jsCode}</script></html>"
+		@window.setRootFolder root
+		await @window.showBrowser @html, WebUI.Browser.ChromiumBased
 		return
 
 	# ..........................................................
 	# ASYNC
 
-	# --- source can be HTML or a file name
+	run(code: string): void
 
-	show(
-			source: string
-			hOptions: hash = {}
-			): void
-
-		type opt = {
-			width: number
-			height: number
-			}
-		{width, height} := getOptions<opt> hOptions, {
-			width: 400
-			height: 300
-			}
-
-		html := (
-			if source.startsWith('<html')
-				source
-			else
-				path := mkpath(Deno.cwd(), source)
-				LOG "CHtmlWindow path = #{path}"
-				if isFile(path)
-					slurp path
-				else
-					croak """
-						Expected HTML or name of HTML file
-						GOT source = #{source}
-						"""
-			)
-		@window.setSize(width, height)
-
-		# --- Bind a backend function to a frontend element
-		@window.bind "exit", () =>
-			# --- Closes all windows and exits the Deno process
-			await WebUI.exit();
-
-		await @window.showBrowser html, WebUI.Browser.Chrome
+		jsCode := await @converter code
+		@window.run jsCode
 		return
 
-	# ..........................................................run
+	# ..........................................................
+	# ASYNC
 
-	sendEvent(evtName: string, data: unknown): void
+	script(code: string): unknown
 
-		json := JSON.stringify(data)
-		return
+		jsCode := await @converter code
+		return @window.script jsCode
+
+	# ..........................................................
+
+	close(): void
+
+		@window.close()
 
 	# ..........................................................
 

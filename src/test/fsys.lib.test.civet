@@ -12,18 +12,17 @@ import {sinceLoad, sinceLoadStr} from 'timer'
 import {o, spaces} from 'llutils'
 import {
 	isFile, isDir, getPathType, fileExt, withExt, inSameDir, modTime,
-	isStub, parsePath, allFilesMatching, allDirsMatching, allLinesInFile,
+	parsePath, allFilesMatching, allDirsMatching, allLinesInFile,
 	normalizePath, pathToURL, mkpath, pathSubDirs, myself, touch,
-	rmFile, rmDir, newerDestFileExists, configFromFile,
+	rmFile, rmDir, newerDestFileExists, configFromFile, barfTempFile,
 	clearDir, mkDir, mkDirsForFile, slurp, slurpAsync, barf, isPathType,
 	removeFilesMatching, watchFile, FileEventHandler, TFsEventHandler,
 	TPathType, TPathInfo, patchFirstLine, toFullPath, splitPatterns,
-	isValidStub, barfTempFile,
 	fromJsonFile, toJsonFile, addJsonValue, pathStr,
 	CReadableFile, CWritableFile, myTestDir,
 	} from 'fsys'
 import {
-	equal, truthy, falsy, unifies,
+	equal, truthy, falsy, unifies, line,
 	succeeds, fails, setDirTree, fileOpsTable,
 	} from 'unit-test'
 
@@ -118,12 +117,6 @@ truthy isDir("./#{root}")
 falsy  isDir('nosuchdir')
 falsy  isDir(r"dummy.txt")
 
-truthy isValidStub('abc')
-falsy  isValidStub('ab,cd')
-falsy  isValidStub('ab/cd')
-falsy  isValidStub('ab\\cd')
-falsy  isValidStub('all')
-
 truthy isPathType('missing')
 truthy isPathType('file')
 falsy  isPathType('xxx')
@@ -149,11 +142,6 @@ equal withExt("c:\\temp/to/file.flag.txt", ".js"), "C:/temp/to/file.flag.js"
 equal inSameDir("C:/temp/file.txt", "tempfile.js"), "C:/temp/tempfile.js"
 equal inSameDir("c:\\temp/to/file.txt", "file3.js"), "C:/temp/to/file3.js"
 equal inSameDir("c:\\temp/to/file.flag.txt", "file.flag2.js"), "C:/temp/to/file.flag2.js"
-
-truthy isStub('abc')
-falsy  isStub('.js')
-falsy  isStub('abc/deno')
-falsy  isStub('abc\\deno')
 
 equal parsePath("C:/temp/file.txt"), {
 	root: 'C:/'
@@ -612,17 +600,17 @@ equal pathStr(fullpath), 'src/lib/datatypes.lib.civet'
 
 # ---------------------------------------------------------------------------
 
-(await () =>
+await (() =>
 	path := r'file99.txt'
 	f := new CWritableFile path
 	await f.writeln 'abc'
 	await f.writeln 'def'
 	f.close()
 
-	equal slurp(path), 'abc\ndef\n'
+	equal slurp(path), 'abc\ndef\n', line(610)
 	)()
 
-(await () =>
+await (() =>
 	path := r'file99.txt'
 	fr := new CReadableFile path
 	line1 := await fr.getLine()
@@ -630,7 +618,7 @@ equal pathStr(fullpath), 'src/lib/datatypes.lib.civet'
 	line2 := await fr.getLine()
 	equal line2, 'def'
 	line3 := await fr.getLine()
-	equal line3, undef
+	equal line3, undef,          line(621)
 	equal await fr.metaData(), {}
 	)()
 
@@ -646,7 +634,7 @@ equal pathStr(fullpath), 'src/lib/datatypes.lib.civet'
 	await f.writeln 'def'
 	f.close()
 
-	equal slurp(path), '---\nname: John\n---\nabc\ndef\n'
+	equal slurp(path), '---\nname: John\n---\nabc\ndef\n', line(637)
 	)()
 
 (await () =>

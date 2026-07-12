@@ -1,6 +1,7 @@
 # unicode.lib.civet
 
 import {cyan} from '@std/fmt/colors'
+
 import {undef, defined, decolorize} from 'base'
 import {hash, hashof, char} from 'datatypes'
 
@@ -38,6 +39,7 @@ export uni := {
 	uparrow: '↑'
 	shiftin: '\x0F'  # U+000F
 	shiftout: '\x0E' # U+000E
+	ellipsis: '…'    # U+2026
 	}
 
 # ---------------------------------------------------------------------------

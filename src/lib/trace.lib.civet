@@ -3,13 +3,13 @@
 # --- REFERENCE base-utils repo
 
 import {
+	LOG, DBG, ERR, stringFits, clearLog, getLog, logWidth,
+	} from 'logger'
+import {
 	pass, undef, defined, notdefined,
 	assert, obviously, croak, words,
 	} from 'base'
 import {getPrefix} from 'unicode'
-import {
-	LOG, stringFits, clearLog, getLog, logWidth,
-	} from 'logger'
 import {
 	jsType, hash, isArrayOfStrings, integer, isString,
 	isFunction, isArray, isInteger, nonEmpty, isObject,
@@ -21,6 +21,21 @@ import {OL, ML, toNice} from 'nice'
 import {parsePath} from 'fsys'
 import {CCallStack} from 'trace-stack'
 
+let internalDebugging = false
+
+# ---------------------------------------------------------------------------
+
+export traceInternalDebugging := (
+		debugFlag = true
+		): void =>
+
+	internalDebugging = debugFlag
+	if debugFlag
+		LOG "turn on internal debugging in trace.lib.civet"
+	else
+		LOG "turn off internal debugging in trace.lib.civet"
+	return
+
 # ---------------------------------------------------------------------------
 
 export stack := new CCallStack()
@@ -30,10 +45,8 @@ type TFuncDesc = {
 	plus: boolean
 	}
 
-# --- Comes from call to doTrace()
+# --- Comes from call to setTracing()
 let lFuncList: TFuncDesc[] = []
-
-let internalDebugging = false
 
 type TLogFuncMult = (
 	level: number,
@@ -52,21 +65,27 @@ type TLogFuncNone = (
 	funcName: string,
 	) => void
 
-type TLogFunc = TLogFuncMult | TLogFuncOne | TLogFuncNone
+type TLogValue = (
+	level: number,
+	value: unknown
+	label: string
+	) => void
+
+type TLogFunc = TLogFuncMult | TLogFuncOne | TLogFuncNone | TLogValue
 
 # --- Loggers
 let logEnter:  TLogFuncMult
 let logReturn: TLogFuncOne
 let logYield:  TLogFuncOne
 let logResume: TLogFuncNone
-let logValue:  TLogFuncOne
+let logValue:  TLogValue
 
 let traceAll = false   # --- if true, always log
 let traceNone = false  # --- if true, never log
 
 # ---------------------------------------------------------------------------
 
-export doTrace := (
+export setTracing := (
 		traceWhat: boolean | string | string[]
 		): void =>
 
@@ -76,7 +95,7 @@ export doTrace := (
 	#        3. an array of strings (names of functions)
 
 	if internalDebugging
-		console.log "doTrace #{OL(traceWhat)}"
+		LOG "setTracing #{OL(traceWhat)}"
 
 	resetTracing()
 
@@ -85,15 +104,15 @@ export doTrace := (
 		when 'boolean'
 			if traceWhat
 				if internalDebugging
-					console.log "set traceAll"
+					LOG "set traceAll"
 				traceAll = true
 			else
 				if internalDebugging
-					console.log "set traceNone"
+					LOG "set traceNone"
 				traceNone = true
 		when 'string', 'array'
 			if internalDebugging
-				console.log "traceWhat is #{OL(traceWhat)}"
+				LOG "traceWhat is #{OL(traceWhat)}"
 			obviously (typeof traceWhat == 'string') || isArray(traceWhat)
 			lFuncList = getFuncList(traceWhat)
 		else
@@ -130,7 +149,7 @@ export setEnterLogger := (
 		): void =>
 
 	if internalDebugging
-		console.log "set custom enter logger"
+		DBG "set custom enter logger"
 	logEnter = func
 	return
 
@@ -158,98 +177,95 @@ export getFuncList := (
 	return lFuncs
 
 # ---------------------------------------------------------------------------
-# Stack is only modified in these 8 functions (it is reset in doTrace())
+# Stack is only modified in these 8 functions (it is reset in setTracing())
 # ---------------------------------------------------------------------------
 
 export trEnter := (
 		funcName: string
-		lValues: unknown[] = []
-		): boolean =>
+		lArgs: unknown[] = []
+		): void =>
 
-	doTrace := isTracingFunc(funcName)
+	isTracing := isTracingFunc(funcName)
 	if internalDebugging
-		if defined(lValues)
-			console.log "trEnter #{OL(funcName)}, #{OL(lValues)}"
-		else
-			console.log "trEnter #{OL(funcName)}"
-		console.log "   - doTrace = #{OL(doTrace)}"
+		LOG "trEnter #{funcName} #{OL(lArgs)}"
+		LOG "   - isTracing = #{OL(isTracing)}"
 
-	if doTrace
-		level := stack.logLevel
-		logEnter level, funcName, lValues
-
-	stack.enter funcName, lValues, doTrace
-	return true
+	if isTracing
+		logEnter stack.logLevel, funcName, lArgs
+	stack.enter funcName, lArgs, isTracing
+	return
 
 # ---------------------------------------------------------------------------
 
 export trReturn := (
 		funcName: string,
 		val: unknown? = undef
-		): boolean =>
+		): void =>
 
 	assert (funcName == stack.curFuncName),
 		"trReturn(#{funcName}) but cur func is #{stack.curFuncName}"
-	doTrace := isTracingFunc(funcName)
+	isTracing := isTracingFunc(funcName)
 	if internalDebugging
-		console.log "trReturn #{OL(funcName)}"
-		console.log "   - doTrace = #{OL(doTrace)}"
-	if doTrace
+		LOG "trReturn #{OL(funcName)}"
+		LOG "   - isTracing = #{OL(isTracing)}"
+
+	if isTracing
 		level := stack.logLevel
 		logReturn level, funcName, val
-
 	stack.returnFrom funcName, val
-	return true
+	return
 
 # ---------------------------------------------------------------------------
 
-export trYield := (
+export trYieldFrom := (
 		funcName: string
 		val: unknown?
-		): boolean =>
+		): void =>
 
-	doTrace := isTracingFunc(funcName)
+	isTracing := isTracingFunc(funcName)
 	if internalDebugging
-		console.log "trYield #{OL(funcName)} #{OL(val)}"
-		console.log "   - doTrace = #{OL(doTrace)}"
-	if doTrace
+		LOG "trYieldFrom #{OL(funcName)} #{OL(val)}"
+		LOG "   - isTracing = #{OL(isTracing)}"
+
+	if isTracing
 		level := stack.logLevel
 		logYield level, funcName, val
-
 	stack.yieldFrom funcName, val
-	return true
+	return
 
 # ---------------------------------------------------------------------------
 
 export trResume := (
 		funcName: string
-		): boolean =>
+		): void =>
 
-	doTrace := isTracingFunc(funcName)
+	isTracing := isTracingFunc(funcName)
 	if internalDebugging
-		console.log "trResume #{OL(funcName)}"
-		console.log "   - doTrace = #{OL(doTrace)}"
-	if doTrace
+		LOG "trResume #{OL(funcName)}"
+		LOG "   - isTracing = #{OL(isTracing)}"
+
+	stack.resume funcName
+	if isTracing
 		level := stack.logLevel
 		logResume level-1, funcName
-	stack.resume funcName
-	return true
+	return
 
 # ---------------------------------------------------------------------------
 
 export tr := (
-		label: string
 		val: unknown
-		): boolean =>
+		label: string = ''
+		): void =>
 
-	doTrace := isTracingFunc(stack.curFuncName)
+	isTracing := isTracingFunc(stack.curFuncName)
 	if internalDebugging
-		console.log "tr #{OL(label)}, #{OL(val)}"
-		console.log "   - doTrace = #{OL(doTrace)}"
-	if doTrace
+		LOG "tr #{OL(val)}, #{OL(label)}"
+		LOG "   - isTracing = #{OL(isTracing)}"
+
+	if isTracing
 		level := stack.logLevel
-		logValue level, label, val
-	return true
+		logValue level, val, label
+	return
 
 # ---------------------------------------------------------------------------
 
@@ -267,20 +283,20 @@ export isTracingFunc := (
 	# --- We KNOW that funcName is active!
 
 	if internalDebugging
-		console.log "isTracingFunc(#{OL(funcName)})"
-		console.log lFuncList
-		stack.dump()
+		LOG "isTracingFunc(#{OL(funcName)})"
+		LOG lFuncList
+		stack.dumpStack()
 
 	lParts := funcName.split('.')
 
 	for h of lFuncList
 		if (h.funcName == funcName)
 			if internalDebugging
-				console.log "   - TRUE - #{OL(funcName)} is in lFuncList"
+				LOG "   - TRUE - #{OL(funcName)} is in lFuncList"
 			return true
 		if h.plus && stack.isActive(h.funcName)
 			if internalDebugging
-				console.log "   - TRUE - #{OL(h.funcName)} is active"
+				LOG "   - TRUE - #{OL(h.funcName)} is active"
 			return true
 
 	if (lParts.length == 2)   # --- came from trEnter()
@@ -288,10 +304,10 @@ export isTracingFunc := (
 		for h of lFuncList
 			if (h.funcName == methodName)
 				if internalDebugging
-					console.log "   - TRUE - #{OL(methodName)} is in lFuncList"
+					LOG "   - TRUE - #{OL(methodName)} is in lFuncList"
 				return true
 	if internalDebugging
-		console.log "   - FALSE"
+		LOG "   - FALSE"
 	return false
 
 # ---------------------------------------------------------------------------
@@ -314,7 +330,7 @@ export stdEnter: TLogFuncMult := (
 		else
 			LOG labelPre + "enter #{funcName}"
 			for arg,i of lArgs
-				LOGVALUE "arg[#{i}]", arg, {
+				LOGVALUE arg, "arg[#{i}]", {
 						prefix: getPrefix(level+1, 'plain')
 						itemPrefix: getPrefix(level+2, 'noLastVbar')
 						short: false
@@ -335,7 +351,7 @@ export stdReturn: TLogFuncOne := (
 		LOG labelPre + str
 	else
 		LOG labelPre + "return from #{funcName}"
-		LOGVALUE "val", val, {
+		LOGVALUE val, "val", {
 			prefix: getPrefix(level, 'noLastVbar')
 			itemPrefix: getPrefix(level, 'noLastVbar')
 			short: false
@@ -355,7 +371,7 @@ export stdYield: TLogFuncOne := (
 	if stringFits(str)
 		LOG labelPre + str
 	else
-		LOGVALUE '', val, {
+		LOGVALUE val, '', {
 			prefix: getPrefix(level, 'plain'),
 			itemPrefix: getPrefix(level, 'plain')
 			}
@@ -375,15 +391,13 @@ export stdResume: TLogFuncNone := (
 
 # ---------------------------------------------------------------------------
 
-export stdLogValue: TLogFuncOne := (
+export stdLogValue: TLogValue := (
 		level: integer
-		label: string
 		val: unknown
+		label: string = ''
 		): void =>
 
-	assert isInteger(level), "level not an integer"
-
-	LOGVALUE label, val, {
+	LOGVALUE val, label, {
 		prefix: getPrefix(level, 'plain')
 		}
 	return
@@ -410,22 +424,11 @@ export parseFuncStr := (str: string): [string, string] =>
 
 # ---------------------------------------------------------------------------
 
-export debugTracing := (debugFlag = true): void =>
-
-	internalDebugging = debugFlag
-	if debugFlag
-		console.log "turn on internal debugging in debug.coffee"
-	else
-		console.log "turn off internal debugging in debug.coffee"
-	return
-
-# ---------------------------------------------------------------------------
-
 export dumpFuncList := () =>
 
-	console.log 'lFuncList: --------------------------------'
-	console.log toNice(lFuncList)
-	console.log '-------------------------------------------'
+	LOG 'lFuncList: --------------------------------'
+	LOG toNice(lFuncList)
+	LOG '-------------------------------------------'
 	return
 
 # ---------------------------------------------------------------------------
@@ -442,7 +445,7 @@ export dumpLoggers := (label = undef): void =>
 	lLines.push "   yield      - #{logType(logYield, stdYield)}"
 	lLines.push "   resume     - #{logType(logResume, stdResume)}"
 	lLines.push "   value      - #{logType(logValue, stdLogValue)}"
-	console.log arrayToBlock(lLines)
+	LOG arrayToBlock(lLines)
 	return
 
 # ---------------------------------------------------------------------------
@@ -462,8 +465,8 @@ logType := (
 # ---------------------------------------------------------------------------
 
 export LOGVALUE = (
-		label: string
 		value: unknown
+		label: string = ''
 		hOptions: hash = {}
 		): void =>
 
@@ -481,10 +484,10 @@ export LOGVALUE = (
 		}
 
 	if internalDebugging
-		str1 := OL(label)
-		str2 := OL(value)
+		str1 := OL(value)
+		str2 := OL(label)
 		str3 := OL(prefix)
-		console.log "CALL LOGVALUE(#{str1}, #{str2}), prefix=#{str3}"
+		LOG "CALL LOGVALUE(#{str1}, #{str2}), prefix=#{str3}"
 
 	labelStr := defined(label) ? "#{label} = " : ''
 
@@ -497,7 +500,7 @@ export LOGVALUE = (
 	olStr := "#{prefix}#{labelStr}#{OL(value)}"
 	if isShortVal(jsTyp) || stringFits(olStr)
 		if internalDebugging
-			console.log "Using OL(), #{olStr.length} <= #{logWidth}"
+			LOG "Using OL(), #{olStr.length} <= #{logWidth}"
 		LOG olStr
 		return
 
