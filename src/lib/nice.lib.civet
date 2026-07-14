@@ -4,8 +4,9 @@ import {sprintf} from '@std/fmt/printf'
 
 import {LOG, DBG} from 'logger'
 import {
-	undef, defined, notdefined, anyDefined, croak, assert,
-	write, writeln, toBool, allLinesIn,
+	undef, defined, notdefined, anyDefined,
+	croak, assert, obviously,
+	write, writeln, toBool, allLinesIn, words,
 	} from 'base'
 import {uni, esc, escd} from 'unicode'
 import {
@@ -15,10 +16,15 @@ import {
 	symbolName, className, functionName, regexpDef, jsType,
 	} from 'datatypes'
 import {
-	getOptions, o, toBlock, spaces, sep, keys, f,
+	getOptions, o, toBlock, spaces, sep, keys, f, truncStr,
 	} from 'llutils'
 import {indented} from 'indent'
 import {MAP} from 'mapper'
+
+lShortTypes := words(
+	'undef null boolean integer float bigint symbol'
+	'NaN inf neginf null regexp'
+	)
 
 # ---------------------------------------------------------------------------
 #      How to force something to be a string
@@ -57,7 +63,7 @@ export needsEscape := (str: string): boolean =>
 
 # ---------------------------------------------------------------------------
 
-export toOLString := (
+export strToOL := (
 		str: string,
 		hOptions: hash = {}
 		): string =>
@@ -66,19 +72,19 @@ export toOLString := (
 		return mark('emptyString')
 
 	type opt = {
-		nocolors: boolean
+		colors: boolean
+		maxLen: number?
 		}
-	{nocolors} := getOptions<opt> hOptions, {
-		nocolors: false
+	{colors, maxLen} := getOptions<opt> hOptions, {
+		colors: true
+		maxLen: undef
 		}
 
 	# --- escape spaces and \t, \n or \r with unicode chars
-	estr := nocolors ? escd(str) : esc(str)
+	estr := colors ? esc(str) : escd(str)
 
-	if needsEscape estr
-		return uni.lsmartq + estr
-	else
-		return estr
+	result := needsEscape(estr) ? uni.lsmartq + estr : estr
+	return defined(maxLen) ? truncStr(result, maxLen) : result
 
 # ---------------------------------------------------------------------------
 # --- Returns a function that:
@@ -143,7 +149,9 @@ export type TMapFunc = (
 # ---------------------------------------------------------------------------
 
 export type TNiceOptions = {
-	compact: boolean
+	oneLine: boolean         # if true, all text on one line
+	abbrev: boolean          # if true, use words 'HASH', 'ARRAY'
+	maxLen: number?
 	recoverable: boolean
 	oneIndent: string
 	ignoreEmptyKeys: boolean
@@ -157,7 +165,9 @@ export type TNiceOptions = {
 	}
 
 export hNiceDefaults := {
-	compact: false
+	oneLine: false
+	abbrev: false
+	maxLen: undef
 	recoverable: false
 	oneIndent: '   '
 	ignoreEmptyKeys: false
@@ -181,16 +191,16 @@ export seq2nice := (
 		): string =>
 
 	# --- ignoreEmptyItems does not apply to arrays or sets
-	{compact, oneIndent} := getOptions<TNiceOptions> hOptions, hNiceDefaults
+	{oneLine, oneIndent, maxLen
+		} := getOptions<TNiceOptions> hOptions, hNiceDefaults
 
 	let hasMultiLine = false
 	lParts := Array.from MAP lValues, (val, i) ->
-		# @ts-ignore - for some reason, TS thinks lPath has unknown elements
 		lNewPath: TPathIndex[] := [lPath..., i]
 		yield toNice(val, hOptions, mapVisited, lNewPath)
 		return
 
-	if compact
+	if oneLine
 		if (kind == 'array')
 			return '[' + lParts.join(' ') + ']'
 		else
@@ -217,8 +227,8 @@ export hash2nice := (
 		lPath: TPathIndex[] = []
 		): string =>
 
-	{compact, sortFunc, sortKeys, lInclude, lExclude, ignoreEmptyKeys,
-		displayFunc, descFunc, oneIndent, recoverable,
+	{oneLine, sortFunc, sortKeys, lInclude, lExclude, ignoreEmptyKeys,
+		displayFunc, descFunc, oneIndent, recoverable, maxLen,
 		} := getOptions<TNiceOptions> hOptions, hNiceDefaults
 
 	getter: TGetter := (
@@ -259,7 +269,7 @@ export hash2nice := (
 			switch jsType(val)
 				when 'array', 'hash', 'set', 'map'
 					str := toNice(val, hOptions, mapVisited, [lPath..., key])
-					if compact || isEmpty(val) || str.startsWith('｟')
+					if oneLine || isEmpty(val) || str.startsWith('｟')
 						yield "#{key}#{mark} #{str}"
 					else
 						yield "#{key}#{mark}\n" + indented(str, 1, {oneIndent})
@@ -267,12 +277,14 @@ export hash2nice := (
 					str := displayStr(key, val, x, displayFunc, descFunc)
 					yield "#{key}#{mark} #{str}"
 	return (
-		  compact
+		  oneLine
 		? '{' + lParts.join(' ') + '}'
 		: lParts.join('\n')
 		)
 
 # ---------------------------------------------------------------------------
+# --- with option {oneLine: true}, should always appear on one line
+# --- with option {abbrev: true}, use names 'HASH','ARRAY','SET','MAP'
 
 export toNice := (
 	x: unknown
@@ -280,6 +292,11 @@ export toNice := (
 	mapVisited: Map<object, string> = new Map<object, string>(),
 	lPath: TPathIndex[] = []
 	): string =>
+
+	# --- We don't need to unpack hOptions. It is passed directly to:
+	#        strToOL()
+	#        seq2nice()
+	#        hash2nice()
 
 	typ := jsType(x)
 	switch typ
@@ -290,7 +307,7 @@ export toNice := (
 		when 'boolean'
 			return x ? mark('true') : mark('false')
 		when 'string'
-			return toOLString(x as string, hOptions)
+			return strToOL(x as string, hOptions)
 		when 'symbol'
 			name := symbolName x
 			return name ? mark("symbol #{name}") : mark("symbol")
@@ -320,7 +337,7 @@ export toNice := (
 		# --- Complex objects
 
 		when 'array'
-			assert isArray(x), "in toNice(): not an array"
+			obviously isArray(x)
 			if isEmpty(x)
 				return '[]'
 			else
@@ -333,7 +350,7 @@ export toNice := (
 					return seq2nice 'array', x, hOptions, mapVisited, lPath
 
 		when 'set'
-			assert (x instanceof Set), "in toNice(): not a Set"
+			obviously (x instanceof Set)
 			if isEmpty(x)
 				return mark('emptySet')
 			else
@@ -347,7 +364,7 @@ export toNice := (
 					return seq2nice 'set', lValues, hOptions, mapVisited, lPath
 
 		when 'hash'
-			assert isHash(x), "in toNice(): not a hash"
+			obviously isHash(x)
 			if isEmpty(x)
 				return '{}'
 			else
@@ -360,7 +377,7 @@ export toNice := (
 					return hash2nice 'hash', x, keys(x), hOptions, mapVisited, lPath
 
 		when 'map'
-			assert (x instanceof Map), "in toNice(): not a Map"
+			obviously (x instanceof Map)
 			if (x.size == 0)
 				return mark('emptyMap')
 			else
@@ -400,39 +417,50 @@ export displayStr := (
 		)
 
 # ---------------------------------------------------------------------------
+# --- hOptions must not have key 'oneLine'
 
 export OL := (
 		x: unknown,
 		hOptions = {}
 		): string =>
 
+	assert ('oneLine' not in hOptions), "hOptions has oneLine key"
+
 	type opt = {
-		label: string?
-		pos: number?
-		debug: boolean
+		label: string
+		maxLen: number?
+		abbrev: boolean
 		}
-	{label, pos, debug} := getOptions<opt> hOptions, {
-		label: undef
-		pos: undef
-		debug: false
+	{label, maxLen, abbrev} := getOptions<opt> hOptions, {
+		label: ''
+		maxLen: undef
+		abbrev: false
 		}
 
-	text := (
-		if defined(label)
-			"#{label} = #{toNice(x, {compact: true})}"
-		else
-			toNice(x, compact: true)
-		)
-	if debug
-		n := Math.floor(text.length / 10) + 1
-		return [
-			text
-			'\n'
-			' '.repeat(if defined(label) then label.length + 3 else 0)
-			"|         ".repeat(n)
-		].join ''
+	trimmed := label.trim()
+	prefix := nonEmpty(trimmed) ? "#{trimmed} = " : ""
+	prefixLen := prefix.length
+
+	str := toNice x, {oneLine: true}
+	if notdefined(maxLen) || (str.length <= maxLen)
+		return "#{prefix}#{str}"
 	else
-		return text
+		return prefix + toNice x, {oneLine: true, abbrev: true}
+
+# ---------------------------------------------------------------------------
+# --- hOptions must not have key 'oneLine'
+
+export ML := (
+		x: unknown
+		hOptions: hash = {}
+		): string =>
+
+	assert ('oneLine' not in hOptions), "hOptions has oneLine key"
+	if isString(x)
+		return toNice(x, hOptions).replaceAll('↓', '↓\n')
+	else
+		hOptions.oneLine = false
+		return toNice(x, hOptions)
 
 # ---------------------------------------------------------------------------
 
@@ -449,17 +477,8 @@ export OLS := (
 		}
 
 	lParts := for obj in lObjects
-		OL(obj, {...hOptions, compact: true})
+		OL(obj, {...hOptions, oneLine: true})
 	return lParts.join(sep)
-
-# ---------------------------------------------------------------------------
-
-export ML := (x: unknown): string =>
-
-	if isString(x)
-		return toNice(x).replaceAll('↓', '↓\n')
-	else
-		return toNice(x, {compact: false})
 
 # ---------------------------------------------------------------------------
 
@@ -525,55 +544,69 @@ export DDUMP := (
 
 # ---------------------------------------------------------------------------
 
-export LOGVALUE := (label: string, value: unknown): void =>
+export LOGVALUE := (
+		value: unknown
+		hOptions: hash = {}
+		): void =>
 
-	LOG f"#{label}:{blue} = #{ML(value)}"
+	type opt = {
+		label: string
+		maxLen: number
+		}
+	{label, maxLen} := getOptions<opt> hOptions, {
+		label: 'VALUE'
+		maxLen: 78
+		}
+
+	if defined(label)
+		max := maxLen - label.length - 3
+		LOG f"#{label}:{blue} = #{ML(value, {maxLen: max})}"
+	else
+		LOG ML(value, {maxLen})
 	return
 
 # ---------------------------------------------------------------------------
 
-export DBGVALUE := (label: string, value: unknown): void =>
+export DBGVALUE := (
+		value: unknown
+		hOptions: hash = {}
+		): void =>
 
+	label := hOptions.label || 'VALUE'
 	DBG f"#{label}:{blue} = #{ML(value)}"
 	return
 
 # ---------------------------------------------------------------------------
 
-export OLD_DUMPER := (
-		x: unknown,
-		label: string? = undef,
-		hOptions: hash = {}
+export shortStr := (
+		value: unknown
+		maxLen: number = 16
 		): string =>
 
-	type opt = {
-		width: number
-		char: string
-		endLabel: boolean
-		escape: boolean
-		lineNumbers: boolean
-		type: 'nice' | 'json'
-		}
-	{width, char, endLabel, escape, lineNumbers, type
-		} := getOptions<opt> hOptions, {
-			width: 64
-			char: '-'
-			endLabel: false
-			escape: false
-			lineNumbers: false
-			type: 'nice'
-			}
+	str := OL(value)
+	if (str.length <= maxLen)
+		return str
 
-	lLines: string[] := [sep(char, label, width)]
-	if isString(x)
-		for line,i of allLinesIn(x)
-			str := escape ? esc(line) : line
-			lLines.push (lineNumbers ? "#{sprintf('%3d', i+1)} #{str}" : str)
-	else
-		lLines.push (
-			  (type == 'nice')
-			? toNice(x, hOptions)
-			: JSON.stringify(x, null, 3)
-			)
-	lLines.push sep(char, (endLabel ? "END #{label}" : undef), width)
-	return lLines.join('\n')
+	typ := jsType value
+	if lShortTypes.includes(typ)
+		return OL(value)
+	switch typ
+		when 'string'
+			obviously (typeof value == 'string')
+			escaped := OL(value)
+			if (escaped.length <= maxLen)
+				return escaped
+			else
+				return truncStr(escaped, maxLen)
 
+		when 'hash'           then return 'HASH'
+		when 'array'          then return 'ARRAY'
+		when 'set'            then return 'SET'
+		when 'map'            then return 'MAP'
+		when 'iterator'       then return 'ITERATOR'
+		when 'asyncIterator'  then return 'ASYNC ITERATOR'
+		when 'class'          then return 'CLASS'
+		when 'generator'      then return 'GENERATOR'
+		when 'asyncGenerator' then return 'ASYNC GENERATOR'
+		when 'plainFunction'  then return 'FUNCTION'
+		else croak "Unknown value type: #{OL(value)}"

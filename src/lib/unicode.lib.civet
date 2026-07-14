@@ -2,6 +2,7 @@
 
 import {cyan} from '@std/fmt/colors'
 
+import {curLogLevel} from 'logger'
 import {undef, defined, decolorize} from 'base'
 import {hash, hashof, char} from 'datatypes'
 
@@ -106,7 +107,8 @@ export esc := (
 			if (len > 0) && (i == pos + len)
 				lParts.push uni.alt_lparen
 		lParts.push (hReplace[ch] || ch)
-	return lParts.join ''
+	result := lParts.join ''
+	return (curLogLevel() == 'testing') ? decolorize(result) : result
 
 # ---------------------------------------------------------------------------
 

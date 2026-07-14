@@ -34,7 +34,25 @@ export truncStr := (str: string, len: number) =>
 
 	if str.length <= len
 		return str
-	return str.substring(0, len - 3) + '...'
+	return str.substring(0, len-1) + uni.ellipsis
+
+# ---------------------------------------------------------------------------
+
+export abbrevStr := (
+		str: string,
+		maxlen: number = 31
+		): string =>
+
+	escaped := escd(str)
+	len := escaped.length
+	if (len <= maxlen)
+		return escaped
+	seglen := Math.trunc((maxlen-1) / 2)
+	return (
+		  escaped.substring(0, seglen)
+		+ uni.ellipsis
+		+ escaped.substring(len - seglen)
+		)
 
 # ---------------------------------------------------------------------------
 
@@ -587,21 +605,3 @@ export EXEC := (
 export SKIP := (func: () => void): void =>
 
 	return
-
-# ---------------------------------------------------------------------------
-
-export abbrevStr := (
-		str: string,
-		maxlen: number = 31
-		): string =>
-
-	escaped := escd(str)
-	len := escaped.length
-	if (len <= maxlen)
-		return escaped
-	seglen := Math.trunc((maxlen-1) / 2)
-	return (
-		  escaped.substring(0, seglen)
-		+ uni.ellipsis
-		+ escaped.substring(len - seglen)
-		)

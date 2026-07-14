@@ -6,6 +6,7 @@ import {
 import {
 	functionDef, isArray, isHash, TVoidFunc,
 	} from 'datatypes'
+import {uni} from 'unicode'
 import {
 	o, s, s2, t, strToHash, getOptions, truncStr,
 	keys, hasKey, hasKeys, spaces, tabs,
@@ -231,7 +232,7 @@ equal getLineAndColumn('abc\ndef\nghi', 5), [2, 2]
 equal getLineAndColumn('abcd\nefgh\nijkl', 5), [2, 1]
 
 equal truncStr('abc', 12), 'abc'
-equal truncStr('abcdefg', 5), 'ab...'
+equal truncStr('abcdefg', 5), 'abcd' + uni.ellipsis
 
 equal blockWidth("""
 	abc

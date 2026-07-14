@@ -14,6 +14,7 @@ import {procOneFile} from 'proc-files'
 import {civet2tsFile} from 'civet'
 import {cielo2civetFile} from 'cielo'
 import {doUnitTest} from 'typescript'
+import {pug2htmlFile} from 'html-window'
 
 # ---------------------------------------------------------------------------
 # --- NOTE:
@@ -141,6 +142,33 @@ export hConfig := {
 				return {
 					success: true
 					outfile: tsPath
+					}
+			}
+
+		'.pug': {
+
+			getOutPaths: (path: string): string[] =>
+				return [withExt(path, '.html')]
+
+			isInstalled: =>
+				return true
+
+			compiler: (
+					path: string,
+					hOptions: hash = {}
+					): TExecResult =>
+
+				{purpose, fileName} := parsePath path
+				if (purpose == 'temp')
+					return {
+						success: true
+						notNeeded: true
+						}
+				htmlPath := withExt path, '.html'
+				await pug2htmlFile path
+				return {
+					success: true
+					outfile: htmlPath
 					}
 			}
 		} # --- end hCompilers

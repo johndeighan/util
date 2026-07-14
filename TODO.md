@@ -27,9 +27,13 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
-in show.civet, create function append() and use it
+continue with new lib to-nice
+	- test arrays with various values of maxWidth
 
-convert show.civet into a unit test for html-window
+in setDirTree(), allow copying binary files from somewhere
+
+in nice.lib.civet, use option maxLen in
+	seq2nice and hash2nice
 
 exec unit test still sometimes leaks???
 
@@ -37,8 +41,6 @@ fsys has both isStub() and isValidStub() ????
 
 Find all calls to Deno.readTextFile and Deno.writeTextFile
 	- make sure they and any functions they're in use await
-
-setDirTree() must be awaited, as well as any function it's inside
 
 When running 'ulib proc-files'
 	there are message saying that file read/write/stat operation

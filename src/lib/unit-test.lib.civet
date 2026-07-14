@@ -9,7 +9,9 @@ import {
 	} from '@std/assert'
 import {doesNotThrow} from "node:assert"
 
-import {LOG, DBG, pushLogLevel, popLogLevel} from 'logger'
+import {
+	LOG, DBG, initLogLevel, pushLogLevel, popLogLevel,
+	} from 'logger'
 import {allStackFrames, TStackFrame, frameStr,} from 'stack'
 import {
 	undef, defined, notdefined, pass, sleep, toBool,

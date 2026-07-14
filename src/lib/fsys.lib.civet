@@ -580,7 +580,7 @@ export findFile := (
 	lPaths := Array.from allFilesMatching pat, {
 		lIgnoreDirs
 		}
-	DBGVALUE 'lPaths', lPaths
+	DBGVALUE lPaths, {label: 'lPaths'}
 	switch lPaths.length
 		case 1:
 			path := lPaths[0]

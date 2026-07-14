@@ -31,8 +31,9 @@ datatypes
 	isGeneratorFunction isHash isInteger isIterable isIterator isNonEmptyString
 	isNumber isObject isPrimitive isPromise isRegExp isString isStringMapper
 	isSymbol jsType lPrimTypes nonEmpty nonEmptyString regexp regexpDef
-	setArray setHash symbolName TIntArray TSequence TStringFilterFunc
-	TStringifier TStringMapper TStringSeq TUnaryFunc TVoidFunc TVoidIterator
+	setArray setHash symbolName TAsyncStringMapper TIntArray TSequence
+	TStringFilterFunc TStringifier TStringMapper TStringSeq TUnaryFunc
+	TVoidFunc TVoidIterator
 exec
 	CFileHandler doInstallCmd doRemoveFile doRemoveTsFile doRun doUninstallCmd
 	execCmd getCmdLine getCmdName isInstalled mkstr TExecResult TStreamType
@@ -40,7 +41,7 @@ extract
 	extract getArray getDsPath getNumber getPathString getString getTuple
 	reportExtractError TPathItem
 file-server
-	CFileServer
+	CFileServer getFile
 fsm
 	defaultDoneFunc fromFSM fsmAsync fsmSync isStateNum TDoneFunc TState
 	TStateFunc
@@ -48,12 +49,11 @@ fsys
 	addJsonValue allDirsMatching allFilesMatching allLinesInFile barf
 	barfTempFile clearDir configFromFile CReadableFile CWritableFile
 	FileEventHandler fileExt findFile fromJsonFile getFileStats getPathType
-	inSameDir isDir isFile isPathType isStub isValidStub mkDir mkDirsForFile
-	mkpath modTime myself myTestDir newerDestFileExists normalizePath parsePath
-	patchFirstLine pathStr pathSubDirs pathToURL removeCR removeFilesMatching
-	rmDir rmFile slurp slurpAsync splitPatterns TFsEventHandler toFullPath
-	toJsonFile toRelPath touch TPathDesc TPathInfo TPathType watchFile
-	watchFiles withExt
+	inSameDir isDir isFile isPathType mkDir mkDirsForFile mkpath modTime myself
+	myTestDir newerDestFileExists normalizePath parsePath patchFirstLine
+	pathStr pathSubDirs pathToURL removeCR removeFilesMatching rmDir rmFile
+	slurp slurpAsync splitPatterns TFsEventHandler toFullPath toJsonFile
+	toRelPath touch TPathDesc TPathInfo TPathType watchFile watchFiles withExt
 hera-compile
 	CHeraCompiler doCompileHera preprocHera preprocHeraFile testHeraCode
 	unbalanced
@@ -63,7 +63,7 @@ heredoc
 	addHereDocType CHereDocBase lineToParts mapHereDoc replaceHereDocs
 	replaceInLine
 html-window
-	CHtmlWindow
+	CHtmlWindow isHTML isPug pug2html pug2htmlFile
 indent
 	blockify Blockify indented indentLevel inputIndent outputIndent
 	resetOneIndent splitLine TBlockDesc undented
@@ -71,15 +71,15 @@ iter-utils
 	accumFrom accumFromAsync allValuesFrom allValuesFromAsync
 	arrayAndAccumFrom asyncArrayAndAccumFrom generateAsync
 llcivet
-	civet2ts civet2tsFile getCivetConfig
+	civet2js civet2ts civet2tsFile getCivetConfig
 llhera
 	compileHera isHeraType THeraType
 lltypescript
 	typeCheckTsCode typeCheckTsFile
 llutils
-	alignString allMatches arrayToBlock blockHeight blockToArray blockWidth
-	centered cmdTitle countChars CStringSetMap CWS dashes entries EXEC f
-	formatVal fromTAML fsplit getLineAndColumn getOptions hasKey hasKeys
+	abbrevStr alignString allMatches arrayToBlock blockHeight blockToArray
+	blockWidth centered cmdTitle countChars CStringSetMap CWS dashes entries
+	EXEC f formatVal fromTAML fsplit getLineAndColumn getOptions hasKey hasKeys
 	isAlignment isBlockSpec isTAML keys likeNum lpad ltrim o require rpad rtrim
 	s s2 sep SKIP spaces strToHash t tabify tabs TAlignment TBlockSpec toArray
 	toBlock truncStr untabify zpad
@@ -100,9 +100,9 @@ meta-data
 	isMetaDataStart mdGet TConverter
 nice
 	alphaCompare buildPath DBGVALUE DDUMP displayStr DUMP DUMPER
-	getCompareFunc hash2nice hNiceDefaults LOGVALUE mark ML needsEscape OL
-	OLD_DUMPER OLS rotpos seq2nice setCharNeedsEsc TCompareFunc TMapFunc
-	TNiceOptions toNice toOLString TPathIndex
+	getCompareFunc hash2nice hNiceDefaults LOGVALUE mark ML needsEscape OL OLS
+	rotpos seq2nice setCharNeedsEsc shortStr strToOL TCompareFunc TMapFunc
+	TNiceOptions toNice TPathIndex
 parse-utils
 	CParseMatches slot TParseMatch TStrLoc
 proc-files
@@ -128,12 +128,11 @@ text-table
 timer
 	CTimer sinceLoad sinceLoadStr timer
 trace-stack
-	CCallNode CCallStack mainName traceStackInternalDebugging
+	CCallNode CCallStack mainName
 trace
-	dumpFuncList dumpLoggers getFuncList isTracingFunc LOGVALUE parseFuncStr
-	resetTracing setEnterLogger setTracing shortStr stack stdEnter stdLogValue
-	stdResume stdReturn stdYield tr traceInternalDebugging trEnter trResume
-	trReturn trYieldFrom
+	dumpFuncList getFuncList isTracingFunc logEnter logResume logReturn
+	logValue LOGVALUE logYield parseFuncStr resetTracing setTracing shortStr
+	stack tr traceInternalDebugging trEnter trResume trReturn trYieldFrom
 typescript
 	analyzeTsCode ast2ts astAsString AstWalker CAnalysis descFunc doUnitTest
 	getImportCode getNode getSymbolsFromType kindStr ts2ast

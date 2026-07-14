@@ -22,6 +22,7 @@ import {parsePath} from 'fsys'
 import {CCallStack} from 'trace-stack'
 
 let internalDebugging = false
+let traceWidth = 78
 
 # ---------------------------------------------------------------------------
 
@@ -72,13 +73,6 @@ type TLogValue = (
 	) => void
 
 type TLogFunc = TLogFuncMult | TLogFuncOne | TLogFuncNone | TLogValue
-
-# --- Loggers
-let logEnter:  TLogFuncMult
-let logReturn: TLogFuncOne
-let logYield:  TLogFuncOne
-let logResume: TLogFuncNone
-let logValue:  TLogValue
 
 let traceAll = false   # --- if true, always log
 let traceNone = false  # --- if true, never log
@@ -131,28 +125,10 @@ export resetTracing := () =>
 	lFuncList = []
 	traceAll = false
 	traceNone = false
-	logEnter  = stdEnter
-	logReturn = stdReturn
-	logYield  = stdYield
-	logResume = stdResume
-	logValue  = stdLogValue
 	clearLog()
 	return
 
 # ---------------------------------------------------------------------------
-#  EXPAND THESE
-# ---------------------------------------------------------------------------
-
-export setEnterLogger := (
-		type: string
-		func: TLogFuncMult
-		): void =>
-
-	if internalDebugging
-		DBG "set custom enter logger"
-	logEnter = func
-	return
-
 # ---------------------------------------------------------------------------
 
 export getFuncList := (
@@ -314,7 +290,7 @@ export isTracingFunc := (
 # ---------------------------------------------------------------------------
 #    Only these 8 functions ever call LOG or LOGVALUE
 
-export stdEnter: TLogFuncMult := (
+export logEnter: TLogFuncMult := (
 		level: integer
 		funcName: string
 		lArgs: unknown[]
@@ -325,12 +301,13 @@ export stdEnter: TLogFuncMult := (
 		LOG labelPre + "enter #{funcName}"
 	else
 		str := "enter #{funcName} #{OL(lArgs)}"
-		if stringFits("#{labelPre}#{str}")
+		if stringFits("#{labelPre}#{str}", traceWidth)
 			LOG labelPre + str
 		else
 			LOG labelPre + "enter #{funcName}"
 			for arg,i of lArgs
-				LOGVALUE arg, "arg[#{i}]", {
+				LOGVALUE arg, {
+						label: "arg[#{i}]"
 						prefix: getPrefix(level+1, 'plain')
 						itemPrefix: getPrefix(level+2, 'noLastVbar')
 						short: false
@@ -339,7 +316,7 @@ export stdEnter: TLogFuncMult := (
 
 # ---------------------------------------------------------------------------
 
-export stdReturn: TLogFuncOne := (
+export logReturn: TLogFuncOne := (
 		level: integer
 		funcName: string
 		val: unknown
@@ -347,11 +324,12 @@ export stdReturn: TLogFuncOne := (
 
 	labelPre := getPrefix(level, 'withArrow')
 	str := "return #{OL(val)} from #{funcName}"
-	if stringFits(str)
+	if stringFits(str, traceWidth)
 		LOG labelPre + str
 	else
 		LOG labelPre + "return from #{funcName}"
-		LOGVALUE val, "val", {
+		LOGVALUE val, {
+			label: 'val'
 			prefix: getPrefix(level, 'noLastVbar')
 			itemPrefix: getPrefix(level, 'noLastVbar')
 			short: false
@@ -360,7 +338,7 @@ export stdReturn: TLogFuncOne := (
 
 # ---------------------------------------------------------------------------
 
-export stdYield: TLogFuncOne := (
+export logYield: TLogFuncOne := (
 		level: integer
 		funcName: string
 		val: unknown
@@ -368,10 +346,10 @@ export stdYield: TLogFuncOne := (
 
 	labelPre := getPrefix(level, 'withYield')
 	str := "yield from #{funcName}: #{OL(val)}"
-	if stringFits(str)
+	if stringFits(str, traceWidth)
 		LOG labelPre + str
 	else
-		LOGVALUE val, '', {
+		LOGVALUE val, {
 			prefix: getPrefix(level, 'plain'),
 			itemPrefix: getPrefix(level, 'plain')
 			}
@@ -379,7 +357,7 @@ export stdYield: TLogFuncOne := (
 
 # ---------------------------------------------------------------------------
 
-export stdResume: TLogFuncNone := (
+export logResume: TLogFuncNone := (
 		level: integer
 		funcName: string,
 		): void =>
@@ -391,19 +369,19 @@ export stdResume: TLogFuncNone := (
 
 # ---------------------------------------------------------------------------
 
-export stdLogValue: TLogValue := (
+export logValue: TLogValue := (
 		level: integer
 		val: unknown
 		label: string = ''
 		): void =>
 
-	LOGVALUE val, label, {
+	LOGVALUE val, {
+		label
 		prefix: getPrefix(level, 'plain')
 		}
 	return
 
 # ---------------------------------------------------------------------------
-# ........................................................................
 
 export parseFuncStr := (str: string): [string, string] =>
 	# --- returns [fullName, modifier]
@@ -433,40 +411,8 @@ export dumpFuncList := () =>
 
 # ---------------------------------------------------------------------------
 
-export dumpLoggers := (label = undef): void =>
-
-	lLines: string[] := []
-	if nonEmpty(label)
-		lLines.push "LOGGERS (#{label})"
-	else
-		lLines.push "LOGGERS"
-	lLines.push "   enter      - #{logType(logEnter, stdEnter)}"
-	lLines.push "   return     - #{logType(logReturn, stdReturn)}"
-	lLines.push "   yield      - #{logType(logYield, stdYield)}"
-	lLines.push "   resume     - #{logType(logResume, stdResume)}"
-	lLines.push "   value      - #{logType(logValue, stdLogValue)}"
-	LOG arrayToBlock(lLines)
-	return
-
-# ---------------------------------------------------------------------------
-
-logType := (
-		cur: TLogFunc
-		std: TLogFunc
-		): string =>
-
-	if (cur == std)
-		return 'std'
-	else if defined(cur)
-		return 'custom'
-	else
-		return 'undef'
-
-# ---------------------------------------------------------------------------
-
 export LOGVALUE = (
 		value: unknown
-		label: string = ''
 		hOptions: hash = {}
 		): void =>
 
@@ -476,18 +422,20 @@ export LOGVALUE = (
 		prefix: string
 		short: boolean
 		oneIndent: string
+		label: string
 		}
-	{prefix, short, oneIndent} := getOptions<opt> hOptions, {
+	{prefix, short, oneIndent, label} := getOptions<opt> hOptions, {
 		prefix: ''
 		short: false      # prefer short strings, e.g. 'HASH', 'ARRAY'
 		oneIndent: '\t'
+		label: ''
 		}
 
 	if internalDebugging
 		str1 := OL(value)
 		str2 := OL(label)
 		str3 := OL(prefix)
-		LOG "CALL LOGVALUE(#{str1}, #{str2}), prefix=#{str3}"
+		LOG "CALL LOGVALUE(#{str1}, label=#{str2}), prefix=#{str3}"
 
 	labelStr := defined(label) ? "#{label} = " : ''
 
@@ -498,7 +446,7 @@ export LOGVALUE = (
 	#     in any case
 
 	olStr := "#{prefix}#{labelStr}#{OL(value)}"
-	if isShortVal(jsTyp) || stringFits(olStr)
+	if isShortVal(jsTyp) || stringFits(olStr, traceWidth)
 		if internalDebugging
 			LOG "Using OL(), #{olStr.length} <= #{logWidth}"
 		LOG olStr
@@ -599,7 +547,3 @@ export shortStr := (
 		when 'asyncGenerator' then return 'ASYNC GENERATOR'
 		when 'plainFunction'  then return 'FUNCTION'
 		else croak "Unknown value type: #{OL(value)}"
-
-# ---------------------------------------------------------------------------
-
-resetTracing()

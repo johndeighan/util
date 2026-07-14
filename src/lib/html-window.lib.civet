@@ -13,7 +13,7 @@ import {
 	} from 'datatypes'
 import {getOptions, abbrevStr} from 'llutils'
 import {DUMP} from 'nice'
-import {mkpath, slurp, isFile, isDir} from 'fsys'
+import {mkpath, withExt, slurp, barf, isFile, isDir} from 'fsys'
 import {civet2js} from 'llcivet'
 
 # ---------------------------------------------------------------------------
@@ -40,90 +40,158 @@ export isPug := (str: string): boolean =>
 
 export pug2html := (
 		code: string,
-		h: hash = {}
+		hData: hash = {}
 		): string =>
 
-	return render(code, h)
+	return render(code, hData)
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export pug2htmlFile := (
+		path: string,
+		hData: hash = {}
+		): void =>
+
+	code := await Deno.readTextFile path
+	html := render code, hData
+	await Deno.writeTextFile withExt(path, '.html'), html
+	return
 
 # ---------------------------------------------------------------------------
 # uses deno-webui
 # see https://webui.me/docs.html#/deno
 
+# --- Define blissPlus functions
+
+blissPlusStr := """
+	function elem(tag, h) {
+		if (
+					(typeof h === 'string')
+				|| (typeof h === 'number')
+				|| (h instanceof Element)
+				|| Array.isArray(h)
+				) {
+			return $.create(tag, {contents: h});
+			}
+		else {
+			return $.create(tag, h);
+			}
+		}
+	"""
+
 export class CHtmlWindow
 
 	window = new WebUI()
-	html: string
-	userScript: string
-	converter: TStringMapper | TAsyncStringMapper
-	hOptions: hash
+	initialized: boolean = false
+	root: string
+
+	source: string
+	userScript: string?
+
+	html: string = ''        # --- actual HTML
+	jsCode: string? = undef  # --- actual JavaScript
+
+	codeConverter: TStringMapper | TAsyncStringMapper
+	htmlConverter: TStringMapper | TAsyncStringMapper
+
+	bliss: boolean
+	blissPlus: boolean
 
 	# ..........................................................
 
 	constructor(
-			source: string,
-			@userScript = ''
+			@root: string
+			@source: string
+			@userScript: string? = undef
 			@hOptions: hash = {}
 			)
 
-		html := (
-			  source.endsWith('.html') ? slurp(source)
-			: isHTML(source)           ? source
-			: isPug(source)            ? pug2html(source)
-			:                            'bad'
-			)
-		assert isHTML(html), "Bad HTML source: #{abbrevStr(source)}"
-		@html = html.replace
-			'</html>'
-			"""
-				<script src="webui.js"></script>
-				<script src="https://cdnjs.cloudflare.com/ajax/libs/blissfuljs/1.0.6/bliss.min.js"></script>
-				<script>
-					function elem(tag, h) {
-						if (
-								   (typeof h === 'string')
-								|| (typeof h === 'number')
-								|| (h instanceof Element)
-								|| Array.isArray(h)
-								) {
-							return $.create(tag, {contents: h});
-							}
-						else {
-							return $.create(tag, h);
-							}
-						}
-				</script>
-				</html>
-				"""
-
+		# --- unpack options
 		type opt = {
 			isPublic: boolean
 			width: number
 			height: number
-			converter: TStringMapper | TAsyncStringMapper
+			codeConverter: TStringMapper | TAsyncStringMapper
+			htmlConverter: TStringMapper | TAsyncStringMapper
+			bliss: boolean
+			blissPlus: boolean
 			}
-		{isPublic, width, height, converter,
+		{
+			isPublic
+			width
+			height
+			htmlConverter: @htmlConverter
+			codeConverter: @codeConverter
+			bliss: @bliss
+			blissPlus: @blissPlus
 			} := getOptions<opt> @hOptions, {
 				isPublic: true
 				width: 800
 				height: 600
-				converter: civet2js
+				htmlConverter: pug2html
+				codeConverter: civet2js
+				bliss: true
+				blissPlus: true
 				}
 
+		@window.setRootFolder @root
 		@window.setPublic isPublic
 		@window.setSize(width, height)
-		@converter = converter
 
 	# ..........................................................
 	# ASYNC
 
-	show(root: string): void
+	initialize(): void
+
+		@html = await (
+			if isHTML(@source)
+				@source
+			else
+				src := await @htmlConverter(@source)
+				assert isHTML(src), "Bad HTML source: #{abbrevStr(@source)}"
+				src
+			)
+
+		@html = @html.replace
+			'</html>'
+			"""
+				<script src="webui.js"></script>
+				</html>
+				"""
+
+		if @bliss
+			@html = @html.replace
+				'</html>'
+				"""
+					<script src="https://cdnjs.cloudflare.com/ajax/libs/blissfuljs/1.0.6/bliss.min.js"></script>
+					</html>
+					"""
+
+		if @blissPlus
+			@html = @html.replace
+				'</html>'
+				"""
+					<script>#{blissPlusStr}</script>
+					</html>
+					"""
 
 		if @userScript
-			jsCode := await @converter(@userScript)
+			jsCode := await @codeConverter(@userScript)
 			@html = @html.replace
 				'</html>'
 				"<script>#{jsCode}</script></html>"
-		@window.setRootFolder root
+		@initialized = true
+
+	# ..........................................................
+	# ASYNC
+
+	show(): void
+
+		if not @initialized
+			await @initialize()
+			@initialized = true
+
 		await @window.showBrowser @html, WebUI.Browser.ChromiumBased
 		return
 
@@ -132,23 +200,31 @@ export class CHtmlWindow
 
 	run(code: string): void
 
-		jsCode := await @converter code
+		if not @initialized
+			await @initialize()
+			@initialized = true
+
+		jsCode := await @codeConverter code
 		@window.run jsCode
 		return
 
 	# ..........................................................
 	# ASYNC
 
+		if not @initialized
+			await @initialize()
+			@initialized = true
+
 	script(code: string): unknown
 
-		jsCode := await @converter code
+		jsCode := await @codeConverter code
 		return @window.script jsCode
 
 	# ..........................................................
 
 	close(): void
 
-		@window.close()
+		await @window.close()
 
 	# ..........................................................
 

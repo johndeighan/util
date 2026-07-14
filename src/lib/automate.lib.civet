@@ -152,14 +152,13 @@ class CFileCompiler extends CFileHandler
 				}
 
 	# ..........................................................
-	# --- file existance has already been checked.
+	# --- file existence has already been checked.
 
 	override async handle(
 			path: string
 			hOptions: hash = {}
 			): TExecResult
 
-		debugger
 		DBG "COMPILE: #{OL(path)}", INDENT
 		type opt = {
 			nopp: boolean

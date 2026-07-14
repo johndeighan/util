@@ -127,10 +127,10 @@ export getImportCode := (typeStr: string): string =>
 
 	DBG "CALL getImportCode()"
 	lSymbols := getSymbolsFromType typeStr
-	DBGVALUE 'lSymbols', lSymbols
+	DBGVALUE lSymbols, {label: 'lSymbols'}
 	if nonEmpty(lSymbols)
 		lStmts := getNeededImportStmts lSymbols
-		DBGVALUE 'lStmts', lStmts
+		DBGVALUE lStmts, {label: 'lStmts'}
 		return lStmts.join '\n'
 	else
 		return ''
