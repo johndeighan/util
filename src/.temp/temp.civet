@@ -23,7 +23,8 @@ import {
 	CReadableFile, CWritableFile,
 	barf, slurp, parsePath,
 	} from 'fsys'
-import {DUMP, toNice, OL, ML} from 'nice'
+import {DUMP, toNice} from 'nice'
+import {nice, OL} from 'nice'
 import {TextTable, splitRows} from 'text-table'
 import {
 	doCompileHera, testHeraCode, preprocHera, preprocHeraFile,
@@ -58,11 +59,18 @@ import {civet2js, civet2ts} from 'llcivet'
 # ---------------------------------------------------------------------------
 
 EXEC () =>
-	code := """
-		x: string := 'abc'
-		"""
-	jsCode := await civet2js code
-	DUMP jsCode, 'JS'
+	try
+		result := OL(['abcdefg','hijklmnop'])
+		console.log result
+	catch err
+		console.log "Doesn't fit"
+
+	try
+		result := OL({abcde: 13, fghij: 42})
+		console.log result
+	catch err
+		console.log "Doesn't fit"
+
 
 await SKIP () =>
 	clearLog()

@@ -9,7 +9,7 @@ import {
 	isEmpty, nonEmpty, integer, array,
 	} from 'datatypes'
 import {sep} from 'llutils'
-import {toNice} from 'nice'
+import {nice} from 'nice'
 
 # ---------------------------------------------------------------------------
 
@@ -65,7 +65,7 @@ export reportExtractError := (
 	LOG sep '=', "ERROR EXTRACTING #{pathstr}"
 	LOG sep '=', 'FROM'
 	try
-		LOG toNice(x), {ignoreEmptyKeys: true}
+		LOG nice(x), {ignoreEmptyKeys: true}
 	catch err
 		LOG JSON.stringify(x, null, 3)
 	LOG sep '='

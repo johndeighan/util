@@ -4,8 +4,8 @@ import {cyan, red, green} from '@std/fmt/colors'
 import {sprintf} from 'jsr:@std/fmt/printf'
 
 import {
-	assert, assertEquals, assertThrows, assertStrictEquals,
-	AssertionError,
+	assert, assertEquals, assertThrows, assertRejects,
+	assertStrictEquals, AssertionError,
 	} from '@std/assert'
 import {doesNotThrow} from "node:assert"
 
@@ -148,12 +148,14 @@ export fails := (
 	): void =>
 
 	Deno.test name || getTestName(), () =>
-		pushLogLevel 'testing'
-		try
-			func()
-			throw new Error("in fails(), but function succeeded")
-		popLogLevel()
-		return
+		assertThrows () =>
+			pushLogLevel 'testing'
+			try
+				result := func()
+			catch err
+				popLogLevel()
+				throw err
+			return
 	return
 
 # ---------------------------------------------------------------------------
@@ -186,12 +188,14 @@ export failsAsync := (
 	): void =>
 
 	Deno.test name || getTestName(), () =>
-		pushLogLevel 'testing'
-		try
-			await func()
-			throw new Error("in fails(), but function succeeded")
-		popLogLevel()
-		return
+		await assertRejects () =>
+			pushLogLevel 'testing'
+			try
+				result := await func()
+			catch err
+				popLogLevel()
+				throw err
+			return
 	return
 
 # ---------------------------------------------------------------------------

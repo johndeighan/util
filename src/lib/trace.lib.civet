@@ -17,7 +17,7 @@ import {
 import {
 	blockToArray, arrayToBlock, getOptions, spaces, tabs,
 	} from 'llutils'
-import {OL, ML, toNice} from 'nice'
+import {OL, nice} from 'nice'
 import {parsePath} from 'fsys'
 import {CCallStack} from 'trace-stack'
 
@@ -405,7 +405,7 @@ export parseFuncStr := (str: string): [string, string] =>
 export dumpFuncList := () =>
 
 	LOG 'lFuncList: --------------------------------'
-	LOG toNice(lFuncList)
+	LOG nice(lFuncList)
 	LOG '-------------------------------------------'
 	return
 
@@ -476,7 +476,7 @@ export LOGVALUE = (
 			LOG "#{itemPrefix}\"\"\""
 
 		when 'hash'
-			str := toNice(value, {
+			str := nice(value, {
 				sortKeys: true
 				oneIndent: spaces(3)
 				})
@@ -486,7 +486,7 @@ export LOGVALUE = (
 				LOG "#{itemPrefix}#{s}"
 
 		when 'array'
-			str := toNice(value, {
+			str := nice(value, {
 				sortKeys: true
 				oneIndent: spaces(3)
 				})
@@ -499,7 +499,7 @@ export LOGVALUE = (
 			LOG "#{prefix}#{labelStr}<function>"
 
 		when 'object'
-			str := toNice(value)
+			str := nice(value)
 			if str.includes("\n")
 				if labelStr
 					LOG "#{prefix}#{labelStr}"

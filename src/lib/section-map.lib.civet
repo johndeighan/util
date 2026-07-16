@@ -6,7 +6,7 @@ import {
 	isInteger, isString, isHash, isArray, isFunction,
 	} from 'datatypes'
 import {toBlock, f} from 'llutils'
-import {OL, ML} from 'nice'
+import {OL} from 'nice'
 import {indented} from 'indent'
 
 # ---------------------------------------------------------------------------

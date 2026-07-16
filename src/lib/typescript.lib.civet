@@ -36,7 +36,7 @@ import {
 	pathStr, mkpath, newerDestFileExists,
 	} from 'fsys'
 import {
-	OL, toNice, TMapFunc, DUMP, LOGVALUE, DBGVALUE,
+	OL, nice, TMapFunc, DUMP, LOGVALUE, DBGVALUE,
 	} from 'nice'
 import {
 	execCmd, CFileHandler, TExecResult,
@@ -85,7 +85,7 @@ export ast2ts := (
 	return printer.printNode(EmitHint.Unspecified, node, node as SourceFile)
 
 # ---------------------------------------------------------------------------
-# --- passed to toNice() to add a description to some nodes
+# --- passed to nice() to add a description to some nodes
 
 export descFunc: TMapFunc := (
 		key: string
@@ -109,7 +109,7 @@ export astAsString := (
 		lInclude: undef
 		}
 
-	return toNice hAst, {
+	return nice hAst, {
 		ignoreEmptyKeys: true
 		lInclude
 		lExclude: words("""
@@ -127,10 +127,10 @@ export getImportCode := (typeStr: string): string =>
 
 	DBG "CALL getImportCode()"
 	lSymbols := getSymbolsFromType typeStr
-	DBGVALUE lSymbols, {label: 'lSymbols'}
+	DBGVALUE lSymbols, 'lSymbols'
 	if nonEmpty(lSymbols)
 		lStmts := getNeededImportStmts lSymbols
-		DBGVALUE lStmts, {label: 'lStmts'}
+		DBGVALUE lStmts, 'lStmts'
 		return lStmts.join '\n'
 	else
 		return ''

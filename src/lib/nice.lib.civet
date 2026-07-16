@@ -4,30 +4,284 @@ import {sprintf} from '@std/fmt/printf'
 
 import {LOG, DBG} from 'logger'
 import {
-	undef, defined, notdefined, anyDefined,
-	croak, assert, obviously,
-	write, writeln, toBool, allLinesIn, words,
+	undef, defined, notdefined, assert, croak, obviously,
+	toBool, TIterator, allLinesIn,
 	} from 'base'
+import {
+	jsType, hash, isEmpty,
+	isString, isHash, isArray, isNumber, isFunction,
+	isClass, setToIterator, mapToIterator, hashToIterator,
+	symbolName, regexpDef, functionName, functionDef,
+	className, classDef, THashEntry, TMapEntry,
+	} from 'datatypes'
+import {MAP, accum} from 'mapper'
 import {uni, esc, escd} from 'unicode'
 import {
-	hash, hashof, isString, isArray, isClass,
-	isRegExp, isObject, isFunction, isHash,
-	isEmpty, nonEmpty, integer,
-	symbolName, className, functionName, regexpDef, jsType,
-	} from 'datatypes'
-import {
-	getOptions, o, toBlock, spaces, sep, keys, f, truncStr,
+	getOptions, keys, truncStr, f, sep,
 	} from 'llutils'
 import {indented} from 'indent'
-import {MAP} from 'mapper'
 
-lShortTypes := words(
-	'undef null boolean integer float bigint symbol'
-	'NaN inf neginf null regexp'
-	)
+type TPathIndex = string | number
 
 # ---------------------------------------------------------------------------
-#      How to force something to be a string
+
+type TOptNiceOptions = {
+	truncStrings?: boolean
+	colors?: boolean
+	prefix?: string
+	oneIndent?: string
+	}
+
+type TNiceOptions = {
+	truncStrings: boolean
+	colors: boolean
+	prefix: string
+	oneIndent: string
+	}
+
+export hNiceDefaults := {
+	truncStrings: true
+	colors: true
+	prefix: ''
+	oneIndent: '\t'
+	}
+
+export hNiceDefaultsNC := {...hNiceDefaults, {colors: false}}
+
+# ---------------------------------------------------------------------------
+
+export nice := (
+		val: unknown
+		hOrgOptions: TOptNiceOptions = {}
+		maxWidth: number = 78
+		mapVisited: Map<object, string> = new Map<object, string>()
+		lPath: TPathIndex[] = []
+		): string =>
+
+	hOptions := getOptions(hOrgOptions, hNiceDefaults) as TNiceOptions
+	{prefix} := hOptions
+	try
+		return prefix + OL(val, hOptions, maxWidth, mapVisited, lPath)
+	catch err
+		# --- Doesn't fit on one line
+		#     typ is one of hash, array, map, set
+		lParts := switch jsType(val)
+			when 'array', 'set'
+				let sym: string
+				lItems: unknown[] | TIterator<unknown> := (
+					if isArray(val)
+						sym = '-'
+						val
+					else if (val instanceof Set)
+						sym = '--'
+						setToIterator<unknown> val
+					else
+						sym = '-'
+						[]
+					)
+				Array.from MAP lItems, (x) ->
+					yield nice(
+						x
+						{...hOptions, prefix: sym}
+						maxWidth-3,
+						mapVisited,
+						lPath
+						)
+			when 'hash','map'
+				let sym: string
+				lItems: TIterator<THashEntry> | TIterator<TMapEntry> := (
+					if (val instanceof Map)
+						sym = '::'
+						mapToIterator(val)
+					else
+						sym = ':'
+						obviously isHash(val)
+						hashToIterator(val)
+					)
+				Array.from MAP lItems, ([key,value]) ->
+					yield nice(
+						value
+						{...hOptions, prefix: key + sym}
+						maxWidth-3,
+						mapVisited,
+						lPath
+						)
+			else
+				croak "Bad type in nice()"
+
+		return lParts.join('\n')
+
+# ---------------------------------------------------------------------------
+# --- throws exception if:
+#        x cannot be fit within maxWidth
+#           AND
+#        x can be split (array, hash, set, map) (string in the future)
+
+export OL := (
+		val: unknown
+		hOptions: TNiceOptions = hNiceDefaults
+		maxWidth: number = 78
+		mapVisited: Map<object, string> = new Map<object, string>()
+		lPath: TPathIndex[] = []
+		): string =>
+
+	{colors, truncStrings} := hOptions
+
+	typ := jsType(val)
+	switch typ
+		# --- Primitives
+
+		when 'undef','NaN','inf','neginf','null'
+			return mark(typ)
+		when 'boolean'
+			return val ? mark('true') : mark('false')
+		when 'string'
+			obviously isString(val)
+			if (val == '')
+				return mark('emptyString')
+			else
+				# --- replace spaces and \t, \n or \r with unicode chars
+				estr := colors ? esc(val, ['“']) : escd(val, ['“'])
+				result := needsEscape(estr) ? uni.lsmartq + ' ' + estr : estr
+				return (
+					  defined(maxWidth) && (result.length > maxWidth)
+					? truncStr(result, maxWidth)
+					: result
+					)
+		when 'symbol'
+			name := symbolName val
+			return name ? mark("symbol #{name}") : mark("symbol")
+		when 'bigint'
+			return (val as bigint).toString() + 'n'
+		when 'integer','float'
+			obviously isNumber(val)
+			return val.toString()
+		when 'regexp'
+			defStr := regexpDef(val)
+			desc := colors ? esc(defStr, ['“']) : escd(defStr, ['“'])
+			return '/' + desc + '/'
+
+		# --- Functions
+
+		when 'plainFunction'
+			obviously isFunction(val)
+			return mark("function #{functionName(val)}")
+		when 'class'
+			obviously isClass(val)
+			return mark("class #{className(val)}")
+		when 'generator'
+			obviously isFunction(val)
+			return mark("generator #{functionName(val)}")
+		when 'asyncGenerator'
+			obviously isFunction(val)
+			return mark("asyncGenerator #{functionName(val)}")
+
+		# --- Splittable objects
+
+		when 'array'
+			obviously isArray(val)
+			if isEmpty(val)
+				return'[]'
+
+			# --- Check if object was previously visited
+			prevpath := mapVisited.get val
+			if prevpath
+				return mark("ref #{prevpath}")
+
+			mapVisited.set val, buildPath(lPath)
+			return '[' + seqOL(val, hOptions, maxWidth) + ']'
+
+		when 'set'
+			obviously (val instanceof Set)
+			if isEmpty(val)
+				return mark('emptySet')
+
+			# --- Check if object was previously visited
+			prevpath := mapVisited.get val
+			if prevpath
+				return mark("ref #{prevpath}")
+
+			mapVisited.set val, buildPath(lPath)
+			return '〚' + seqOL(val.values(), hOptions, maxWidth) + '〛'
+
+		when 'hash'
+			obviously isHash(val)
+			if isEmpty(val)
+				return '{}'
+
+			# --- Check if object was previously visited
+			prevpath := mapVisited.get val
+			if prevpath
+				return mark("ref #{prevpath}")
+
+			mapVisited.set val, buildPath(lPath)
+			return '{' + hashOL(Object.entries(val), hOptions, maxWidth) + '}'
+
+		when 'map'
+			obviously (val instanceof Map)
+			if (val.size == 0)
+				return mark('emptyMap')
+
+			# --- Check if object was previously visited
+			prevpath := mapVisited.get val
+			if prevpath
+				return mark("ref #{prevpath}")
+
+			mapVisited.set val, buildPath(lPath)
+			return '{' + hashOL(val.entries(), hOptions, maxWidth) + '}'
+
+		else
+			croak "Value #{val} has unknown type"
+
+# ---------------------------------------------------------------------------
+
+export seqOL := (
+		val: SetIterator<unknown> | unknown[]
+		hOptions: TNiceOptions
+		maxWidth: number = 78
+		mapVisited: Map<object, string> = new Map<object, string>()
+		lPath: TPathIndex[] = []
+		): string =>
+
+	# --- build up what's going inside [ and ]
+	lParts: string[] := []
+	let w = 2
+	for x,i of val
+		str := OL(x, hOptions, maxWidth-w, mapVisited, lPath)
+		if (i==0)
+			w += str.length
+		else
+			w += str.length + 1
+		assert (w <= maxWidth), "too long"
+		lParts.push str
+
+	return lParts.join(' ')
+
+# ---------------------------------------------------------------------------
+
+export hashOL := (
+		val: MapIterator<[string, unknown]> | [string, unknown][]
+		hOptions: TNiceOptions
+		maxWidth: number = 78
+		mapVisited: Map<object, string> = new Map<object, string>()
+		lPath: TPathIndex[] = []
+		): string =>
+
+	# --- build up what's going inside { and }
+	lParts: string[] := []
+	let w = 2
+	for [key, x],i of val
+		str := OL(x, hOptions, maxWidth-w, mapVisited, lPath)
+		if (i==0)
+			w += key.length + str.length + 1
+		else
+			w += key.length + str.length + 2
+		assert (w <= maxWidth), "too long"
+		lParts.push key + ':'
+		lParts.push str
+
+	return lParts.join(' ')
+
 # ---------------------------------------------------------------------------
 
 export mark := (str: string): string =>
@@ -36,15 +290,7 @@ export mark := (str: string): string =>
 
 # ---------------------------------------------------------------------------
 
-export type TCompareFunc = (a: string, b: string) => number
-
-export alphaCompare: TCompareFunc := (a: string, b: string): number =>
-
-	return if (a < b) then -1 else if (a > b) then 1 else 0
-
-# ---------------------------------------------------------------------------
-
-export setCharNeedsEsc := new Set([
+setCharNeedsEsc := new Set([
 	'{', '[', '/',
 	uni.alt_lbrace,
 	uni.alt_lbracket,
@@ -63,71 +309,6 @@ export needsEscape := (str: string): boolean =>
 
 # ---------------------------------------------------------------------------
 
-export strToOL := (
-		str: string,
-		hOptions: hash = {}
-		): string =>
-
-	if (str == '')
-		return mark('emptyString')
-
-	type opt = {
-		colors: boolean
-		maxLen: number?
-		}
-	{colors, maxLen} := getOptions<opt> hOptions, {
-		colors: true
-		maxLen: undef
-		}
-
-	# --- escape spaces and \t, \n or \r with unicode chars
-	estr := colors ? esc(str) : escd(str)
-
-	result := needsEscape(estr) ? uni.lsmartq + estr : estr
-	return defined(maxLen) ? truncStr(result, maxLen) : result
-
-# ---------------------------------------------------------------------------
-# --- Returns a function that:
-#        compares 2 strings based on their position in lSortKeys
-#        else compares alphabetically
-
-export getCompareFunc := (
-		lSortKeys: string[]
-		): TCompareFunc =>
-
-	# --- Create map of key to number
-	h: hashof<number> := {}
-	let i1 = 0
-	for key of lSortKeys
-		i := i1++
-		h[key] = i + 1
-	return function(a: string, b: string): number
-		aVal := h[a]
-		bVal := h[b]
-		if defined(aVal)
-			if defined(bVal)
-				# --- compare numerically
-				return (aVal < bVal) ? -1 : (aVal > bVal) ? 1 : 0
-			else
-				return -1
-		else
-			if defined(bVal)
-				return 1
-			else
-				return alphaCompare a, b
-
-# ---------------------------------------------------------------------------
-
-export rotpos := <T>(
-	lArray: T[],
-	i: integer
-	): T =>
-
-	return lArray[i % lArray.length]
-
-# ---------------------------------------------------------------------------
-
-export type TPathIndex = string | number
 export buildPath := (lPath: TPathIndex[]): string =>
 
 	let str = 'root'
@@ -140,345 +321,18 @@ export buildPath := (lPath: TPathIndex[]): string =>
 
 # ---------------------------------------------------------------------------
 
-export type TMapFunc = (
-		key: string,
-		value: unknown,
-		hParent: unknown
-		) => string
+export DBGVALUE := (
+		value: unknown
+		label: string = 'VALUE'
+		): void =>
 
-# ---------------------------------------------------------------------------
-
-export type TNiceOptions = {
-	oneLine: boolean         # if true, all text on one line
-	abbrev: boolean          # if true, use words 'HASH', 'ARRAY'
-	maxLen: number?
-	recoverable: boolean
-	oneIndent: string
-	ignoreEmptyKeys: boolean
-	ignoreEmptyItems: boolean
-	sortKeys: boolean
-	sortFunc: TCompareFunc?
-	displayFunc: TMapFunc?
-	descFunc: TMapFunc?
-	lInclude: string[]?
-	lExclude: string[]
-	}
-
-export hNiceDefaults := {
-	oneLine: false
-	abbrev: false
-	maxLen: undef
-	recoverable: false
-	oneIndent: '   '
-	ignoreEmptyKeys: false
-	ignoreEmptyItems: false
-	sortKeys: false
-	sortFunc: undef
-	displayFunc: undef
-	descFunc: undef
-	lInclude: undef
-	lExclude: []
-	}
-
-# ---------------------------------------------------------------------------
-
-export seq2nice := (
-		kind: string
-		lValues: unknown[]
-		hOptions: hash = {}
-		mapVisited: Map<object, string> = new Map()
-		lPath: TPathIndex[] = []
-		): string =>
-
-	# --- ignoreEmptyItems does not apply to arrays or sets
-	{oneLine, oneIndent, maxLen
-		} := getOptions<TNiceOptions> hOptions, hNiceDefaults
-
-	let hasMultiLine = false
-	lParts := Array.from MAP lValues, (val, i) ->
-		lNewPath: TPathIndex[] := [lPath..., i]
-		yield toNice(val, hOptions, mapVisited, lNewPath)
-		return
-
-	if oneLine
-		if (kind == 'array')
-			return '[' + lParts.join(' ') + ']'
-		else
-			return uni.alt_lbracket + lParts.join(' ') + uni.alt_rbracket
+	str := nice(value)
+	if str.includes('\n')
+		DBG f"#{label}:{blue} ="
+		DBG indented(str)
 	else
-		prefix := (kind == 'array') ? '-' : '--'
-		lBlocks := Array.from MAP lParts, (str) ->
-			if str.includes('\n')
-				yield prefix + '\n' + indented(str, 1, {oneIndent})
-			else
-				yield prefix + ' ' + str
-		return lBlocks.join('\n')
-
-# ---------------------------------------------------------------------------
-
-type TGetter = (name: string) => unknown
-
-export hash2nice := (
-		kind: string
-		x: unknown
-		lKeys: string[]
-		hOptions: hash = {}
-		mapVisited: Map<object, string> = new Map()
-		lPath: TPathIndex[] = []
-		): string =>
-
-	{oneLine, sortFunc, sortKeys, lInclude, lExclude, ignoreEmptyKeys,
-		displayFunc, descFunc, oneIndent, recoverable, maxLen,
-		} := getOptions<TNiceOptions> hOptions, hNiceDefaults
-
-	getter: TGetter := (
-		  isHash(x)          ? (name) => x[name]
-		: (x instanceof Map) ? (name) => return x.get(name)
-		:                      croak "Bad"
-		)
-
-	# --- You can provide sortKeys or a sortFunc, but not both
-	assert not (sortKeys && defined(sortFunc)),
-		"Can't use both options sortKeys and sortFunc"
-
-	mark := (kind == 'hash') ? ':' : '::'
-	if recoverable
-		assert notdefined(displayFunc), "can't use displayFunc w/recoverable"
-		assert notdefined(descFunc), "can't use descFunc w/recoverable"
-
-	func: TCompareFunc? := (
-		if defined(sortFunc)
-			sortFunc
-		else if defined(lInclude)
-			getCompareFunc(lInclude)
-		else if sortKeys
-			alphaCompare
-		else
-			undef
-		)
-	useKey := (key: string): boolean =>
-		if lExclude.includes(key)
-			return false
-		if defined(lInclude) && not lInclude.includes(key)
-			return false
-		return true
-	iterKeys := (defined(func) ? lKeys.sort(func) : lKeys).filter(useKey)
-	lParts := Array.from MAP iterKeys, (key: string): Generator<string> ->
-		val := getter(key)
-		if not ignoreEmptyKeys || nonEmpty(val)
-			switch jsType(val)
-				when 'array', 'hash', 'set', 'map'
-					str := toNice(val, hOptions, mapVisited, [lPath..., key])
-					if oneLine || isEmpty(val) || str.startsWith('｟')
-						yield "#{key}#{mark} #{str}"
-					else
-						yield "#{key}#{mark}\n" + indented(str, 1, {oneIndent})
-				else
-					str := displayStr(key, val, x, displayFunc, descFunc)
-					yield "#{key}#{mark} #{str}"
-	return (
-		  oneLine
-		? '{' + lParts.join(' ') + '}'
-		: lParts.join('\n')
-		)
-
-# ---------------------------------------------------------------------------
-# --- with option {oneLine: true}, should always appear on one line
-# --- with option {abbrev: true}, use names 'HASH','ARRAY','SET','MAP'
-
-export toNice := (
-	x: unknown
-	hOptions: hash = {},
-	mapVisited: Map<object, string> = new Map<object, string>(),
-	lPath: TPathIndex[] = []
-	): string =>
-
-	# --- We don't need to unpack hOptions. It is passed directly to:
-	#        strToOL()
-	#        seq2nice()
-	#        hash2nice()
-
-	typ := jsType(x)
-	switch typ
-		# --- Primitives
-
-		when 'undef','NaN','inf','neginf','null'
-			return mark(typ)
-		when 'boolean'
-			return x ? mark('true') : mark('false')
-		when 'string'
-			return strToOL(x as string, hOptions)
-		when 'symbol'
-			name := symbolName x
-			return name ? mark("symbol #{name}") : mark("symbol")
-		when 'bigint'
-			return (x as bigint).toString() + 'n'
-		when 'integer','float'
-			return (x as number).toString()
-		when 'regexp'
-			desc := esc regexpDef x
-			return '/' + desc + '/'
-
-		# --- Functions
-
-		when 'generator'
-			assert isFunction(x), "in toNice(): not a function"
-			return mark("generator #{functionName(x)}")
-		when 'asyncGenerator'
-			assert isFunction(x), "in toNice(): not a function"
-			return mark("asyncGenerator #{functionName(x)}")
-		when 'class'
-			assert isClass(x), "in toNice(): not a class"
-			return mark("class #{className(x)}")
-		when 'plainFunction'
-			assert isFunction(x), "in toNice(): not a function"
-			return mark("function #{functionName(x)}")
-
-		# --- Complex objects
-
-		when 'array'
-			obviously isArray(x)
-			if isEmpty(x)
-				return '[]'
-			else
-				# --- Check if object was previously visited
-				prevpath := mapVisited.get x
-				if prevpath
-					return mark("ref #{prevpath}")
-				else
-					mapVisited.set x, buildPath(lPath)
-					return seq2nice 'array', x, hOptions, mapVisited, lPath
-
-		when 'set'
-			obviously (x instanceof Set)
-			if isEmpty(x)
-				return mark('emptySet')
-			else
-				# --- Check if object was previously visited
-				prevpath := mapVisited.get x
-				if prevpath
-					return mark("ref #{prevpath}")
-				else
-					mapVisited.set x, buildPath(lPath)
-					lValues := Array.from(x.values())
-					return seq2nice 'set', lValues, hOptions, mapVisited, lPath
-
-		when 'hash'
-			obviously isHash(x)
-			if isEmpty(x)
-				return '{}'
-			else
-				# --- Check if object was previously visited
-				prevpath := mapVisited.get x
-				if prevpath
-					return mark("ref #{prevpath}")
-				else
-					mapVisited.set x, buildPath(lPath)
-					return hash2nice 'hash', x, keys(x), hOptions, mapVisited, lPath
-
-		when 'map'
-			obviously (x instanceof Map)
-			if (x.size == 0)
-				return mark('emptyMap')
-			else
-				# --- Check if object was previously visited
-				prevpath := mapVisited.get x
-				if prevpath
-					return mark("ref #{prevpath}")
-				else
-					mapVisited.set x, buildPath(lPath)
-					lKeys := Array.from(x.keys())
-					return hash2nice 'map', x, lKeys, hOptions, mapVisited, lPath
-
-	return mark('unknown')
-
-# ---------------------------------------------------------------------------
-# --- val must be a primitive
-
-export displayStr := (
-		key: string
-		val: unknown
-		parent: unknown
-		displayFunc: TMapFunc?
-		descFunc: TMapFunc?
-		): string =>
-
-	assert not ['array','hash','set','map'].includes(jsType(val)),
-		"val is not a primitive: #{typeof val}, #{jsType(val)}"
-	str := (
-		  defined(displayFunc)
-		? displayFunc(key, val, parent)
-		: toNice(val)
-		)
-	return (
-		  defined(descFunc)
-		? f"#{str} #{descFunc(key, val, parent)}:{cyan}"
-		: str
-		)
-
-# ---------------------------------------------------------------------------
-# --- hOptions must not have key 'oneLine'
-
-export OL := (
-		x: unknown,
-		hOptions = {}
-		): string =>
-
-	assert ('oneLine' not in hOptions), "hOptions has oneLine key"
-
-	type opt = {
-		label: string
-		maxLen: number?
-		abbrev: boolean
-		}
-	{label, maxLen, abbrev} := getOptions<opt> hOptions, {
-		label: ''
-		maxLen: undef
-		abbrev: false
-		}
-
-	trimmed := label.trim()
-	prefix := nonEmpty(trimmed) ? "#{trimmed} = " : ""
-	prefixLen := prefix.length
-
-	str := toNice x, {oneLine: true}
-	if notdefined(maxLen) || (str.length <= maxLen)
-		return "#{prefix}#{str}"
-	else
-		return prefix + toNice x, {oneLine: true, abbrev: true}
-
-# ---------------------------------------------------------------------------
-# --- hOptions must not have key 'oneLine'
-
-export ML := (
-		x: unknown
-		hOptions: hash = {}
-		): string =>
-
-	assert ('oneLine' not in hOptions), "hOptions has oneLine key"
-	if isString(x)
-		return toNice(x, hOptions).replaceAll('↓', '↓\n')
-	else
-		hOptions.oneLine = false
-		return toNice(x, hOptions)
-
-# ---------------------------------------------------------------------------
-
-export OLS := (
-		lObjects: unknown[],
-		hOptions: hash = {}
-		) =>
-
-	type opt = {
-		sep: string
-		}
-	{sep} := getOptions<opt> hOptions, {
-		sep: ','
-		}
-
-	lParts := for obj in lObjects
-		OL(obj, {...hOptions, oneLine: true})
-	return lParts.join(sep)
+		DBG f"#{label}:{blue} = #{nice(value)}"
+	return
 
 # ---------------------------------------------------------------------------
 
@@ -514,7 +368,7 @@ export DUMPER := (
 	else
 		lLines.push (
 			  (type == 'nice')
-			? toNice(x, hOptions)
+			? nice(x, hOptions)
 			: JSON.stringify(x, null, 3)
 			)
 	lLines.push sep(char, (endLabel ? "END #{label}" : undef), width)
@@ -546,67 +400,7 @@ export DDUMP := (
 
 export LOGVALUE := (
 		value: unknown
-		hOptions: hash = {}
+		label: string = 'VALUE'
 		): void =>
 
-	type opt = {
-		label: string
-		maxLen: number
-		}
-	{label, maxLen} := getOptions<opt> hOptions, {
-		label: 'VALUE'
-		maxLen: 78
-		}
-
-	if defined(label)
-		max := maxLen - label.length - 3
-		LOG f"#{label}:{blue} = #{ML(value, {maxLen: max})}"
-	else
-		LOG ML(value, {maxLen})
-	return
-
-# ---------------------------------------------------------------------------
-
-export DBGVALUE := (
-		value: unknown
-		hOptions: hash = {}
-		): void =>
-
-	label := hOptions.label || 'VALUE'
-	DBG f"#{label}:{blue} = #{ML(value)}"
-	return
-
-# ---------------------------------------------------------------------------
-
-export shortStr := (
-		value: unknown
-		maxLen: number = 16
-		): string =>
-
-	str := OL(value)
-	if (str.length <= maxLen)
-		return str
-
-	typ := jsType value
-	if lShortTypes.includes(typ)
-		return OL(value)
-	switch typ
-		when 'string'
-			obviously (typeof value == 'string')
-			escaped := OL(value)
-			if (escaped.length <= maxLen)
-				return escaped
-			else
-				return truncStr(escaped, maxLen)
-
-		when 'hash'           then return 'HASH'
-		when 'array'          then return 'ARRAY'
-		when 'set'            then return 'SET'
-		when 'map'            then return 'MAP'
-		when 'iterator'       then return 'ITERATOR'
-		when 'asyncIterator'  then return 'ASYNC ITERATOR'
-		when 'class'          then return 'CLASS'
-		when 'generator'      then return 'GENERATOR'
-		when 'asyncGenerator' then return 'ASYNC GENERATOR'
-		when 'plainFunction'  then return 'FUNCTION'
-		else croak "Unknown value type: #{OL(value)}"
+	LOG f"#{label}:{blue} = #{nice(value)}"

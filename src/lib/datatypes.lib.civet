@@ -82,6 +82,9 @@ export type hashof<T> = {
 	}
 export type hash = hashof<unknown>
 
+export type THashEntry<T=unknown> = [string | symbol, T]
+export type TMapEntry<T=unknown,V=unknown> = [T, V]
+
 export type arrayof<T> = T[]
 export type array = arrayof<unknown>
 
@@ -513,3 +516,23 @@ export setArray := (l: array, l2: array): void =>
 		l.push x
 	return
 
+# ---------------------------------------------------------------------------
+
+export setToIterator := <T=unknown>(set: Set<T>) ->
+
+	# --- yield* reads all items from the iterator one by one
+	yield* set.values()
+
+# ---------------------------------------------------------------------------
+
+export mapToIterator := <T=unknown,V=unknown>(map: Map<T,V>) ->
+
+	# --- yield* reads all items from the iterator one by one
+	yield* map.values()
+
+# ---------------------------------------------------------------------------
+
+export hashToIterator := <T=unknown>(h: hashof<T>) ->
+
+	# --- yield* reads all items from the iterator one by one
+	yield* Object.entries(h)

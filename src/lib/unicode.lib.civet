@@ -3,7 +3,7 @@
 import {cyan} from '@std/fmt/colors'
 
 import {curLogLevel} from 'logger'
-import {undef, defined, decolorize} from 'base'
+import {undef, defined, assert, decolorize} from 'base'
 import {hash, hashof, char} from 'datatypes'
 
 # ---------------------------------------------------------------------------
@@ -45,68 +45,37 @@ export uni := {
 
 # ---------------------------------------------------------------------------
 
-export lit := (str: string): string =>
+export lit := (str: char): string =>
 
 	return "｟" + str + "｠"
 
 # ---------------------------------------------------------------------------
 
-export delit := (str: string): string? =>
-
-	lMatches := str.match /^｟(.*)｠$/
-	return defined(lMatches) ? lMatches[1].trim() : undef
-
-# ---------------------------------------------------------------------------
-
-export litC := (str: string): string =>
-
-	return "\\" + str
-
-# ---------------------------------------------------------------------------
-
 hEsc: hashof<string> := {
-	"\r": cyan('←')
-	"\n": cyan('↓')
-	"\t": cyan('→')
-	" ": '˳'
-	"←": lit("←")
-	"↓": lit("↓")
-	"→": lit("→")
-	"˳": lit("˳")
-	'\x0F': cyan(uni.rightshift)
-	'\x0E': cyan(uni.leftshift)
+	"\r":    cyan('←')
+	"\n":    cyan('↓')
+	"\t":    cyan('→')
+	" ":    '˳'
+	'\x0F': cyan('»')
+	'\x0E': cyan('«')
 	}
 
-hEscMulti: hashof<string> := {
-	"\r": cyan('←')
-	"\n": cyan('↓') + '\n'
-	"\t": cyan('→  ')
-	" ": '˳'
-	"←": lit("←")
-	"↓": lit("↓")
-	"→": lit("→")
-	"˳": lit("˳")
-	'\x0F': cyan(uni.rightshift)
-	'\x0E': cyan(uni.leftshift)
-	}
+# --- these are always literalized
+lSpecials: string[] := ["˳", "←", "↓", "→", '»', '«']
+
+# ---------------------------------------------------------------------------
 
 export esc := (
-		str: string,
-		style: ('oneline' | 'multiline') = 'oneline',
-		pos: number? = undef,
-		len: number = 0
+		str: string
+		lNeedsEsc: string[] = []
 		): string =>
 
-	hReplace := (style == 'multiline') ? hEscMulti : hEsc
 	lParts: string[] := []
-	let i1 = 0
 	for ch,i of str
-		if defined(pos)
-			if (i == pos)
-				lParts.push (len == 0) ? uni.poschar : uni.alt_lparen
-			if (len > 0) && (i == pos + len)
-				lParts.push uni.alt_lparen
-		lParts.push (hReplace[ch] || ch)
+		if lNeedsEsc.includes(ch) || lSpecials.includes(ch)
+			lParts.push lit(ch)
+		else
+			lParts.push (hEsc[ch] || ch)
 	result := lParts.join ''
 	return (curLogLevel() == 'testing') ? decolorize(result) : result
 
@@ -114,20 +83,28 @@ export esc := (
 
 export escd := (
 		str: string
-		style: ('oneline' | 'multiline') = 'oneline',
-		pos: number? = undef,
-		len: number = 0
+		lNeedsEsc: string[] = []
 		): string =>
 
-	return decolorize(esc(str, style, pos, len))
+	return decolorize(esc(str, lNeedsEsc))
 
 # ---------------------------------------------------------------------------
 
 export escm := (
 		str: string
-		) =>
+		lNeedsEsc: string[] = []
+		): string =>
 
-	return esc(str, 'multiline')
+	return esc(str, lNeedsEsc).replaceAll(cyan('↓'), cyan('↓') + '\n')
+
+# ---------------------------------------------------------------------------
+
+export escdm := (
+		str: string
+		lNeedsEsc: string[] = []
+		): string =>
+
+	return decolorize(escm(str, lNeedsEsc))
 
 # ---------------------------------------------------------------------------
 

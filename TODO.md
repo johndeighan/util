@@ -27,8 +27,8 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
-continue with new lib to-nice
-	- test arrays with various values of maxWidth
+test to-nice gradually, using temp.test.civet
+	run with utemp
 
 in setDirTree(), allow copying binary files from somewhere
 

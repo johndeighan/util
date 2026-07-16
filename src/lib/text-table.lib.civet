@@ -18,7 +18,7 @@ import {
 	} from 'llutils'
 import {OL, LOGVALUE} from 'nice'
 import {mkArray, accum, getBoth} from 'mapper'
-import {toNice, DUMP, DDUMP} from 'nice'
+import {nice, DUMP, DDUMP} from 'nice'
 
 # ---------------------------------------------------------------------------
 
@@ -119,7 +119,7 @@ export class TextTable
 		@hOptions = getOptions<TTableOptions> hOptions, {
 			decPlaces: 2
 			parseNumbers: false
-			stringify: toNice
+			stringify: nice
 			}
 		@stringify = @hOptions.stringify
 

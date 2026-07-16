@@ -20,7 +20,7 @@ import {
 	resetOneIndent, splitLine, indented, undented,
 	} from 'indent'
 import {debugging} from 'cmd-args'
-import {ML, DUMP, DDUMP} from 'nice'
+import {DUMP, DDUMP} from 'nice'
 import {
 	fileExt, withExt, pathStr, newerDestFileExists,
 	CReadableFile, barfTempFile, parsePath,

@@ -10,7 +10,7 @@ import {
 	isAsyncIterator, isAsyncFunction,
 	} from 'datatypes'
 import {f, getOptions} from 'llutils'
-import {OL, ML} from 'nice'
+import {OL, nice} from 'nice'
 
 # ---------------------------------------------------------------------------
 
@@ -59,7 +59,7 @@ export fsmSync := <TIn, TOut>(
 		if (x instanceof Error)
 			throw x
 		DBG "END STATE #{state}"
-		DBG ML(x)
+		DBG nice(x)
 		return x as TOut
 
 # ---------------------------------------------------------------------------
@@ -86,7 +86,7 @@ export fsmAsync := <TIn, TOut>(
 		if (x instanceof Error)
 			throw x
 		DBG "END STATE #{state}"
-		DBG ML(x)
+		DBG nice(x)
 		return x as Awaited<TOut>
 
 # ---------------------------------------------------------------------------

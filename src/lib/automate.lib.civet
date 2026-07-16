@@ -79,7 +79,7 @@ export getCompilerConfig := (
 
 	let hConfig = await configFromFile fileName
 
-	DBGVALUE 'hConfig', hConfig
+	DBGVALUE hConfig, 'hConfig'
 	assert isCompilerConfig(hConfig), "Bad compiler config: #{hConfig}"
 
 	# --- Remove any compilers for which the

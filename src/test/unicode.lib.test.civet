@@ -2,8 +2,8 @@
 
 import {undef, decolorize} from 'base'
 import {
-	uni, lit, delit, litC,
-	esc, escm, escd, unesc, getPrefix,
+	uni, lit, esc, escm, escd, escdm,
+	unesc, getPrefix,
 	} from 'unicode'
 import {
 	equal, succeeds, fails, truthy, falsy,
@@ -11,22 +11,22 @@ import {
 
 # ---------------------------------------------------------------------------
 
-equal lit('undef'), '｟undef｠'
+equal lit('x'), '｟x｠'
+equal lit('˳'), '｟˳｠'
 
-equal delit('｟undef｠'), 'undef'
-equal delit('abc'), undef
-equal delit(''), undef
-
-equal litC('undef'), '\\undef'
+equal escd('˳'), '｟˳｠'
+equal escd('←'), '｟←｠'
+equal escd('↓'), '｟↓｠'
+equal escd('→'), '｟→｠'
 
 equal escd('cba'), 'cba'
 equal escd('   acb'), '˳˳˳acb'
 equal escd('\t\t\tabc'), '→→→abc'
 equal escd('abc\r\ndef'), 'abc←↓def'
-equal escd('abc\r\ndef', 'multiline'), 'abc←↓\ndef'
+equal escdm('abc\r\ndef'), 'abc←↓\ndef'
 equal escd('abcc\n'), 'abcc↓'
 equal escd('abcb\r\n'), 'abcb←↓'
-equal escd('abcb\r\n', 'multiline'), 'abcb←↓\n'
+equal escdm('abcb\r\n'), 'abcb←↓\n'
 equal escd('ab cd'), 'ab˳cd'
 equal escd('ab\tcd'), 'ab→cd'
 

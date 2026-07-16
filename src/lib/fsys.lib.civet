@@ -39,7 +39,7 @@ import {
 	} from 'llutils'
 import {isMetaDataStart, getMetaDataHash} from 'meta-data'
 import {debugging} from 'cmd-args'
-import {OL, ML, DBGVALUE} from 'nice'
+import {OL, DBGVALUE} from 'nice'
 import {civet2tsFile} from 'llcivet'
 
 export {
@@ -580,7 +580,7 @@ export findFile := (
 	lPaths := Array.from allFilesMatching pat, {
 		lIgnoreDirs
 		}
-	DBGVALUE lPaths, {label: 'lPaths'}
+	DBGVALUE lPaths, 'lPaths'
 	switch lPaths.length
 		case 1:
 			path := lPaths[0]
