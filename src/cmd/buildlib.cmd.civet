@@ -5,33 +5,36 @@ import {
 	assert, defined, notdefined, toRelPath,
 	} from 'base'
 import {o, cmdTitle, EXEC} from 'llutils'
-import {stdChecks, nonOption, allNonOptions, getFlags} from 'cmd-args'
+import {getCmdArgs} from 'cmd-args'
 import {withExt, findFile} from 'fsys'
 import {execCmd} from 'exec'
 import {procFiles, procOneFile} from 'proc-files'
 import {doUnitTest} from 'typescript'
 import {doCompileCivet} from 'civet'
 
-stdChecks """
-	buildlib -ftI (all | <stub>*)
-	   -f = force, i.e. always compile
-	   -t = test, i.e. run unit tests
-	   -I = use Chrome debugger for compile
-	   -J = use Chrome debugger for unit test
-	"""
+# getCmdArgs """
+# 	buildlib -ftI (all | <stub>*)
+# 	   -f = force, i.e. always compile
+# 	   -t = test, i.e. run unit tests
+# 	   -I = use Chrome debugger for compile
+# 	   -J = use Chrome debugger for unit test
+# 	"""
+
+[
+	lStubs
+	{force, doTest, inspect, inspectTest}
+	] := getCmdArgs 'buildlib', {
+		_: {range: [1,99]}
+		force:       {flag: 'f', desc: 'force build'}
+		doTest:      {flag: 't', desc: 'run unit tests'}
+		inspect:     {flag: 'I', desc: 'inspect compile'}
+		inspectTest: {flag: 'J', desc: 'inspect unit test'}
+		}
 
 # ---------------------------------------------------------------------------
 
 await EXEC () =>
-	# --- echoes if flag is set
-	{force, doTest, inspect, inspectTest} := getFlags {
-		force: 'f'
-		doTest: 't'
-		inspect: 'I'
-		inspectTest: 'J'
-		}
-
-	if (nonOption(0) == 'all')
+	if (lStubs[0] == 'all')
 		LOG cmdTitle("BUILD ALL LIBS serially")
 		await procFiles [doCompileCivet, ['**/*.lib.civet']], {force, serial: true}
 		if doTest
@@ -41,8 +44,7 @@ await EXEC () =>
 			# --- Create HTML coverage file
 			await execCmd 'deno', ['coverage', '--html']
 	else
-		lNonOptions := Array.from(allNonOptions())
-		for stub of allNonOptions()
+		for stub of lStubs
 			fileName := "#{stub}.lib.civet"
 			path := findFile fileName
 			assert defined(path), "No such file: #{fileName}"

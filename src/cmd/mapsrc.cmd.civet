@@ -3,24 +3,27 @@
 import {mapPos} from 'stack'
 import {assert, defined} from 'base'
 import {EXEC} from 'llutils'
-import {stdChecks, flag, nonOption, allNonOptions} from 'cmd-args'
+import {looksLikeInteger} from 'datatypes'
+import {getCmdArgs} from 'cmd-args'
 import {isFile} from 'fsys'
 
-stdChecks("mapsrc <path> <lineNum>")
+[lArgs] := getCmdArgs 'mapsrc', {
+		_: {range: [2,99], desc: 'file path and line numbers'}
+		}
 
 # ---------------------------------------------------------------------------
 
 await EXEC () =>
-	source := nonOption 0
+	source := lArgs[0]
 	assert defined(source), "Missing file path"
 	assert isFile(source), "No such file: #{source}"
 
-	for str,i of allNonOptions()
+	for str,i of lArgs
 		if (i == 0)
 			# --- skip the path
 			continue
 		assert defined(str), "Missing line number"
-		assert str.match(/^\d+$/), "Bad line number: #{str}"
+		assert looksLikeInteger(str), "Bad line number: #{str}"
 
 		hPos := await mapPos {
 			source

@@ -2,14 +2,14 @@
 
 import {LOG, DBG} from 'logger'
 import {cmdTitle, EXEC} from 'llutils'
-import {stdChecks} from 'cmd-args'
+import {getCmdArgs} from 'cmd-args'
 import {
 	doRemoveTsFile, doRemoveFile, doInstallCmd, doUninstallCmd,
 	} from 'exec'
 import {procFiles, procOneFile} from 'proc-files'
 import {isDir, rmDir, rmFile, allFilesMatching } from 'fsys'
 
-stdChecks "clearAll"
+getCmdArgs "clearAll"
 
 # ---------------------------------------------------------------------------
 

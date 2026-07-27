@@ -1,7 +1,8 @@
 # exec.lib.test.civet
 
+import {initLogLevel} from 'logger'
 import {undef, sleep, matches} from 'base'
-import {isFile, slurp, myTestDir} from 'fsys'
+import {isFile, slurp} from 'fsys'
 import {
 	getCmdLine, TStreamType, TExecResult,
 	mkstr, execCmd, CFileHandler,
@@ -9,17 +10,10 @@ import {
 	doInstallCmd, doUninstallCmd, doRun,
 	} from 'exec'
 import {
-	equal, succeeds, fails, truthy, falsy, setDirTree, line,
+	equal, succeeds, fails, truthy, falsy, beginUnitTest, setDirTree, line,
 	} from 'unit-test'
 
-root := myTestDir(import.meta.url)
-console.log "ROOT: #{root}"
-
-# ---------------------------------------------------------------------------
-
-r := (lStrings: TemplateStringsArray): string =>
-
-	return "#{root}/#{lStrings[0]}"
+r := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 
@@ -68,7 +62,7 @@ str := """
 setup := (): void ->
 
 	await setDirTree """
-		./#{root} clear
+		./#{r''} clear
 		hello.txt
 			Hello
 		temp.txt

@@ -5,11 +5,19 @@ import {assert, pass} from 'base'
 import {isArray} from 'datatypes'
 import {EXEC} from 'llutils'
 import {OL} from 'nice'
-import {flag, numNonOptions, allNonOptions} from 'cmd-args'
+import {getCmdArgs} from 'cmd-args'
 import {watchFiles, allFilesMatching} from 'fsys'
 import {TExecResult} from 'exec'
 import {procOneFile} from 'proc-files'
 import {doCompileFile} from 'automate'
+
+[
+	lFiles
+	{watch}
+	] := getCmdArgs 'compile', {
+		_:     {range: [0,99],  desc: 'files to compile'}
+		watch: {flag: 'w',      desc: 'watch for further file changes'}
+		}
 
 let numCompiled = 0
 
@@ -31,7 +39,7 @@ logResult := (
 # ---------------------------------------------------------------------------
 
 await EXEC () =>
-	if (numNonOptions() == 0)
+	if (lFiles.length == 0)
 		DBG "=====  Compiling all files  ====="
 		for path of allFilesMatching('src/**/*.{lib,cmd}.civet')
 			hResult := await procOneFile(path, doCompileFile)
@@ -42,7 +50,7 @@ await EXEC () =>
 		#        - <stub>.(lib|cmd).test
 		#        - a full or relative path
 		#     Multiple files can be comma-separated
-		for str of allNonOptions()
+		for str of lFiles
 			DBG "non-option: #{OL(str)}"
 			for item of str.split(',')
 				str: string := item
@@ -62,7 +70,7 @@ await EXEC () =>
 					DBG "compile file #{OL(str)}"
 					logResult await procOneFile(str, doCompileFile), str
 	LOG "(#{numCompiled} files compiled)"
-	if flag('w')
+	if watch
 		watchFiles Deno.cwd(), (kind, path) =>
 			console.log "EVENT: #{kind} #{OL(path)}"
 			return false

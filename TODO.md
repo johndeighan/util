@@ -13,6 +13,8 @@ on 6/27/2026
 	deno: 14.9.207.2-rusty
 	chrome: V8 14.9.207.35
 
+Font: Segoe UI Symbol
+
 ------------------------------------------
 Test parsing:
 	counter - OK
@@ -27,8 +29,53 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
-test to-nice gradually, using temp.test.civet
-	run with utemp
+in 'typescript' unit test
+	- last test fails
+	- need to display name of 'kind' value, which is an int
+
+Unit test for fsm has a test that should fail, but doesn't
+	- it's currently skipped, line 117
+
+Unit test for indent has a test that should fail but doesn't
+	- commented out on line 69
+
+Some unit tests in fsm started working only after
+	calls to line(n) were added
+
+Some unit tests in 'typescript' are commented out
+
+failing unit tests in:
+	rule
+	scope
+	typescript - too much output also
+
+Unit Test Failures:
+	extract     59
+	fsm        111
+	indent      65
+	llutils    102,103
+	rule        49
+	scope       65
+	text-table 542,570
+	typescript ???
+
+Work on nice lib
+	Split long strings
+	Support options
+		ignoreEmptyKeys
+		truncStrings
+		colors
+		descFunc
+		lInclude
+		lExclude
+		oneIndent
+
+Should we keep croak() as is, i.e. no stack dump?
+
+continue working with boot script
+	- executing build-dot-symbols gives stack exceeded error
+	- build parsers using boot-style function
+	- execute unit tests using boot-style function
 
 in setDirTree(), allow copying binary files from somewhere
 

@@ -1,9 +1,14 @@
 # text-table.lib.test.civet
 
+import {initLogLevel} from 'logger'
 import {undef} from 'base'
 import {o, s} from 'llutils'
 import {TextTable} from 'text-table'
-import {equal, unifies} from 'unit-test'
+import {
+	beginUnitTest, equal, unifies, line,
+	} from 'unit-test'
+
+r := beginUnitTest(import.meta.url)
 
 # -------------------------------------------------------------
 
@@ -333,11 +338,12 @@ import {equal, unifies} from 'unit-test'
 			lRow: ['', '1170.00', '140.00']
 			}
 		]
+
 	equal table.lCols, [
 		{align: 'l', format: undef,  width: 6, total: undef, subtotal: undef}
 		{align: 'r', format: '%.2f', width: 7, total: 1170, subtotal: 1010}
 		{align: 'r', format: '%.2f', width: 6, total: 140, subtotal: 60}
-		]
+		], line(340)
 	)()
 
 # -------------------------------------------------------------
@@ -539,16 +545,15 @@ import {equal, unifies} from 'unit-test'
 	table.fullsep '-'
 
 	equal table.asString(), s"""
-		------------------
-			  matches
-		------------------
-		 Op  Pos Len data
-		---- --- --- -----
+		----------------------
+		       matches
+		----------------------
+		 Op  Pos Len   data
+		---- --- --- ---------
 		Main   0   3 abc
-		Main   0   3 - abc
-		             - def
-		------------------
-		"""
+		Main   0   3 [abc def]
+		----------------------
+		""", line(545)
 	)()
 
 # -------------------------------------------------------------
@@ -567,15 +572,13 @@ import {equal, unifies} from 'unit-test'
 	table.fullsep '-'
 
 	equal table.asString(), s"""
-		-----------------
-			  matches
-		-----------------
-		 Op  Pos Len data
-		---- --- --- ----
+		------------------------
+		        matches
+		------------------------
+		 Op  Pos Len    data
+		---- --- --- -----------
 		Main   0   3 abc
-		Main   0   3 a: 1
-		             b: 2
-		-----------------
-		"""
+		Main   0   3 {a: 1 b: 2}
+		------------------------
+		""", line(573)
 	)()
-

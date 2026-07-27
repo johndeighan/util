@@ -1,8 +1,8 @@
 # unit-test.lib.civet
 
-import {cyan, red, green} from '@std/fmt/colors'
-import {sprintf} from 'jsr:@std/fmt/printf'
-
+import {yellow, cyan, red, green} from '@std/fmt/colors'
+import {sprintf} from '@std/fmt/printf'
+import {relative} from '@std/path'
 import {
 	assert, assertEquals, assertThrows, assertRejects,
 	assertStrictEquals, AssertionError,
@@ -15,30 +15,48 @@ import {
 import {allStackFrames, TStackFrame, frameStr,} from 'stack'
 import {
 	undef, defined, notdefined, pass, sleep, toBool,
-	croak, TIterator, TAsyncIterator, getErrStr,
+	croak, TIterator, TAsyncIterator, getErrStr, deepEqual,
 	} from 'base'
 import {esc} from 'unicode'
 import {unify} from 'unify'
 import {
-	TVoidFunc, hash, isString, isEmpty, nonEmpty,
+	TVoidFunc, TAsyncVoidFunc, hash, isString, isEmpty, nonEmpty,
 	isIterator, isAsyncIterator, isIterable,
 	isFunction, functionDef, isClass, classDef,
 	} from 'datatypes'
-import {getOptions, truncStr, blockToArray, f, rtrim} from 'llutils'
+import {
+	getOptions, truncStr, blockToArray, f, rtrim, centered,
+	} from 'llutils'
 import {TState, fromFSM} from 'fsm'
 import {TextTable} from 'text-table'
 import {parseText} from 'hera-parse'
-import {mkDir, clearDir, barf} from 'fsys'
+import {
+	mkDir, clearDir, barf, myself, parsePath, mkpath,
+	} from 'fsys'
 import {procOneFile} from 'proc-files'
 import {doCompileFile} from 'automate'
 import {typeCheckTsCode} from 'lltypescript'
 import {getImportCode} from 'typescript'
+import {nice, OL, ML} from 'nice'
 
 let nextNum = 1
 
 # ---------------------------------------------------------------------------
 
-export line = (n: number): string =>
+export beginUnitTest := (url: string): Function =>
+
+	initLogLevel 'testing'
+
+	{dir, stub} := parsePath url
+	name := stub.split('.')[0]
+	root := mkpath(relative(Deno.cwd(), dir), name)
+	return (lStrings: TemplateStringsArray): string =>
+		str := lStrings[0]
+		return (str == '') ? root : "#{root}/#{str}"
+
+# ---------------------------------------------------------------------------
+
+export line := (n: number): string =>
 
 	return cyan('line ' + n.toString())
 
@@ -162,7 +180,7 @@ export fails := (
 # ASYNC
 
 export succeedsAsync := (
-	func: TVoidFunc
+	func: TAsyncVoidFunc
 	name?: string
 	): void =>
 
@@ -183,18 +201,13 @@ export succeedsAsync := (
 # ASYNC
 
 export failsAsync := (
-	func: TVoidFunc
+	func: TAsyncVoidFunc
 	name?: string
 	): void =>
 
 	Deno.test name || getTestName(), () =>
 		await assertRejects () =>
-			pushLogLevel 'testing'
-			try
-				result := await func()
-			catch err
-				popLogLevel()
-				throw err
+			await func()
 			return
 	return
 
@@ -309,6 +322,59 @@ checkType := (
 		"""
 
 	return await typeCheckTsCode(code)
+
+# ---------------------------------------------------------------------------
+
+export _header := (name?: string): void =>
+
+	console.log centered yellow(name || getTestName()), {width: 64, char: '-'}
+	return
+
+# ---------------------------------------------------------------------------
+
+export _equal := (
+		value: unknown,
+		expected: unknown = undef
+		name?: string
+		): void =>
+
+	_header name
+	console.log cyan(ML(value))
+	if defined(expected) && not deepEqual(value, expected)
+		console.log red('Not same as expected')
+	return
+
+# ---------------------------------------------------------------------------
+
+export _fails := (
+	func: TVoidFunc
+	name?: string
+	): void =>
+
+	_header name
+	try
+		value := func()
+		console.log red("Test successfully returned:")
+		console.log cyan(ML(value))
+	catch err
+		console.log cyan('OK')
+	return
+
+# ---------------------------------------------------------------------------
+
+export _failsAsync := (
+	func: TVoidFunc
+	name?: string
+	): void =>
+
+	_header name
+	try
+		value := await func()
+		console.log red("Test successfully returned:")
+		console.log cyan(ML(value))
+	catch err
+		console.log cyan('OK')
+	return
 
 # ---------------------------------------------------------------------------
 # --- We need to add ':unknown' to any function parameters

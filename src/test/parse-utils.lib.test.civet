@@ -1,10 +1,13 @@
 # parse-utils.lib.test.civet
 
+import {initLogLevel} from 'logger'
 import {s} from 'llutils'
 import {
 	slot, TStrLoc, TParseMatch, CParseMatches,
 	} from 'parse-utils'
-import {equal} from 'unit-test'
+import {beginUnitTest, equal} from 'unit-test'
+
+r := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 

@@ -1,8 +1,13 @@
 # dir-tree.parse.test.civet
 
+import {initLogLevel} from 'logger'
 import {DUMP} from 'nice'
 import {parseText} from 'hera-parse'
-import {equal} from 'unit-test'
+import {beginUnitTest, equal} from 'unit-test'
+
+r := beginUnitTest(import.meta.url)
+
+# ---------------------------------------------------------------------------
 
 await (() =>
 	lOps := await parseText 'dir-tree', """

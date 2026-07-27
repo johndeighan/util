@@ -289,9 +289,9 @@ export class TextTable
 
 	dumpInternals(): void
 
-		LOGVALUE @numCols, {label: 'numCols'}
-		LOGVALUE @lCols, {label: 'lCols'}
-		LOGVALUE @lRows, {label: 'lRows'}
+		LOGVALUE @numCols, 'numCols'
+		LOGVALUE @lCols, 'lCols'
+		LOGVALUE @lRows, 'lRows'
 		return
 
 	# ..........................................................

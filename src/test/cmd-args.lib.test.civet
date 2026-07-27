@@ -1,209 +1,155 @@
 # cmd-args.lib.test.civet
 
+import {initLogLevel} from 'logger'
 import {undef} from 'base'
 import {s} from 'llutils'
 import {DUMP} from 'nice'
 import {
-	TCmdArgDesc, flag, flags, getFlags, setFlag, clearFlag,
-	numNonOptions, nonOption, allNonOptions,
-	argValue, parseCmdArgs, setCmdArgs,
-	debugging, inspecting, helping, silent,
-	TKeyDesc, TCmdDesc, stdChecks,
-	helpStr, getCmdArgErrors, checkCmdArgs,
+	TNonOptionDesc, TValueDesc, TBoolValDesc, TArgDesc,
+	helping, debugging, inspect, silent,
+	getCmdArgs, parseCmdArgDesc, helpStr,
+	doSetLogLevel, doHandleClearScreen,
 	} from 'cmd-args'
 import {
-	equal, succeeds, fails, truthy, falsy,
+	equal, succeeds, fails, truthy, falsy, beginUnitTest,
 	} from 'unit-test'
 
-stdChecks()
+r := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 
 (() =>
-	h := parseCmdArgs [
-		'-n'
-		'-xtI'
-		'abc'
-		'--'
-		'-h'
-		'-label=xyz'
-		'-width=32'
-		'-prop=0.25'
-		'!'
+	equal parseCmdArgDesc({
+			force: {flag: 'f'}
+			label: {valType: 'string'}
+			}),
+		{
+			hFlagNames: {f: 'force'}
+			hStrTypes:  {label: 'string'}
+			hNumTypes:   {}
+			minNonOpt:  0
+			maxNonOpt:  0
+			}
+	)()
+
+(() =>
+	equal parseCmdArgDesc({
+			_: {range: [1,3]}
+			force: {flag: 'f'}
+			label: {valType: 'string'}
+			}),
+		{
+			hFlagNames: {f: 'force'}
+			hStrTypes:  {label: 'string'}
+			hNumTypes:   {}
+			minNonOpt:  1
+			maxNonOpt:  3
+			}
+	)()
+
+(() =>
+	equal parseCmdArgDesc({
+			_: {range: [0,10]}
+			force: {flag: 'f'}
+			count: {valType: 'integer'}
+			}),
+		{
+			hFlagNames:  {f: 'force'}
+			hStrTypes:   {}
+			hNumTypes:   {count: 'integer'}
+			minNonOpt:   0
+			maxNonOpt:  10
+			}
+	)()
+
+(() =>
+	hDesc := {
+		_:          {range: [1,3]}
+		force:      {flag: 'f'}
+		verbose:    {flag: 'v'}
+		label:      {valType: 'string'}
+		numAllowed: {valType: 'integer'}
+		}
+	h := getCmdArgs 'doit', hDesc, ['-vf', 'file.txt']
+	equal h, [
+		['file.txt']
+		{force: true, verbose: true}
+		{}
+		{}
 		]
-	equal h, {
-		hFlags: {
-			n: true
-			x: true
-			t: true
-			I: true
-			h: true
-			}
-		hValues: {
-			label: 'xyz'
-			width: 32
-			prop: 0.25
-			}
-		lNonOptions: ['abc']
-		helping: true
-		debugging: false
-		silent: false
-		inspecting: true
-		clearScreen: true
-		}
+	falsy helping
+	falsy debugging
+	falsy inspect
+	falsy silent
 	)()
 
 (() =>
-	h := parseCmdArgs ['-D']
-	truthy h.debugging
-	)()
-
-(() =>
-	h := parseCmdArgs ['-I']
-	truthy h.inspecting
-	)()
-
-(() =>
-	h := parseCmdArgs ['-h']
-	truthy h.helping
-	)()
-
-(() =>
-	h := parseCmdArgs ['-S']
-	truthy h.silent
-	)()
-
-(() =>
-	h := parseCmdArgs ['-DIh']
-	truthy h.debugging
-	truthy h.inspecting
-	truthy h.helping
-	)()
-
-# ---------------------------------------------------------------------------
-
-(() ->
-	hDesc: TCmdDesc := {
-		_: {
-			desc: 'the alphabet'
-			range: [1, 3]
-			}
-		n: {
-			desc: 'do not test'
-			type: 'boolean'
-			}
-		x: {
-			desc: 'a lower case X'
-			type: 'boolean'
-			}
-		t: { desc: 'set flag t' }
-		label: { desc: 'a label to use' }
-		width: { type: 'float' }
-		prop:  { type: 'number' }
-		numItems:  { type: 'integer' }
+	hDesc := {
+		_: {range: [1,3]}
+		force: {flag: 'f'}
+		verbose: {flag: 'v'}
+		label: {valType: 'string'}
+		numAllowed: {valType: 'integer'}
 		}
 
-	setCmdArgs [
-		'-n'
-		'-xtI'
-		'abc'
-		'--'
-		'-label=xyz'
-		'-width=32'
-		'-prop=0.25'
-		'!'
+	h := getCmdArgs 'doit', hDesc, ['-vfD', 'file.txt']
+
+	equal h, [
+		['file.txt']
+		{force: true, verbose: true}
+		{}
+		{}
+		]
+	falsy helping
+	truthy debugging
+	falsy inspect
+	falsy silent
+	)()
+
+(() =>
+	hDesc := {
+		_: {range: [1,3]}
+		force: {flag: 'f'}
+		verbose: {flag: 'v'}
+		label: {valType: 'string'}
+		numAllowed: {valType: 'integer'}
+		}
+
+	h := getCmdArgs 'doit', hDesc, [
+		'file.txt'
+		'-vfS',
+		'-label=myfile'
+		'-numAllowed=5'
 		]
 
-	lErrors := getCmdArgErrors(hDesc)
-	equal lErrors, []
+	equal h, [
+		['file.txt']
+		{force: true, verbose: true}
+		{label: 'myfile'}
+		{numAllowed: 5}
+		]
+	falsy helping
+	falsy debugging
+	falsy inspect
+	truthy silent
+	)()
 
-	succeeds () => checkCmdArgs(hDesc)
-
-	# --- for some reason, this test fails
-	succeeds () => checkCmdArgs(hDesc)
-
-	# --- test flag functions
-
-	truthy flag('n')
-	truthy flag('x')
-	truthy flag('t')
-	truthy flag('I')
-	falsy  flag('a')
-	falsy  flag('l')
-
-	equal flags('n','t','i'), [true, true, false]
-
-	h := getFlags({
-		next: 'n'
-		tell: 't'
-		micro: 'm'
-		})
-	equal h, {
-		next: true
-		tell: true
-		micro: false
+(() =>
+	hDesc := {
+		force:      {flag: 'f',          desc: 'force build'}
+		traceLib:   {valType: 'string',  desc: 'lib to trace'}
+		oneIndent:  {valType: 'string',  desc: 'indent by',    defStr: '\t'}
+		maxLineLen: {valType: 'integer', desc: 'max line len', defNum: 75}
 		}
+	[
+		_
+		{force}
+		{traceLib, oneIndent}
+		{maxLineLen}
+		] := getCmdArgs 'build-dot-symbols', hDesc, ['-f']
 
-	# --- test non-option functions
-
-	equal numNonOptions(), 1
-
-	equal allNonOptions(), ['abc']
-	equal nonOption(0), 'abc'
-	equal nonOption(1), undef
-
-	# --- test arg value functions
-
-	equal argValue('label'), 'xyz'
-	equal argValue('width'), 32
-	equal argValue('prop'), 0.25
-	equal argValue('dummy'), undef
-	equal argValue('n'), undef
-
-	# --- test building a help string
-
-	equal helpStr(hDesc), s"""
-		Usage:
-			non-options: the alphabet
-				min: 1
-				max: 3
-			n: boolean - do not test
-			x: boolean - a lower case X
-			t - set flag t
-			label - a label to use
-			width: float
-			prop: number
-			numItems: integer
-		"""
-
-	falsy  helping
-	falsy  debugging
-	truthy inspecting
-	falsy  silent
-
-	setFlag 'm'
-
-	h2 := getFlags({
-		next: 'n'
-		tell: 't'
-		micro: 'm'
-		})
-	equal h2, {
-		next: true
-		tell: true
-		micro: true
-		}
-
-	clearFlag 'm'
-
-	h3 := getFlags({
-		next: 'n'
-		tell: 't'
-		micro: 'm'
-		})
-	equal h3, {
-		next: true
-		tell: true
-		micro: false
-		}
+	truthy force
+	equal traceLib, undef
+	equal oneIndent, '\t'
+	equal maxLineLen, 75
 	)()

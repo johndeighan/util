@@ -1,9 +1,10 @@
 # automate.lib.test.civet
 
+import {initLogLevel} from 'logger'
 import {undef, defined} from 'base'
 import {isHash, isFunction} from 'datatypes'
 import {o} from 'llutils'
-import {withExt, TPathInfo, isFile, myTestDir} from 'fsys'
+import {withExt, TPathInfo, isFile} from 'fsys'
 import {procOneFile} from 'proc-files'
 import {
 	TCompilerFunc, TPostProcessor, doCompileFile,
@@ -11,17 +12,10 @@ import {
 	getCompilerConfig, getCompilerInfo, getPostProcessor,
 	} from 'automate'
 import {
-	equal, succeeds, fails, truthy, falsy, setDirTree,
+	equal, succeeds, fails, truthy, falsy, beginUnitTest, setDirTree,
 	} from 'unit-test'
 
-root := myTestDir(import.meta.url)
-console.log "ROOT: #{root}"
-
-# ---------------------------------------------------------------------------
-
-r := (lStrings: TemplateStringsArray): string =>
-
-	return "#{root}/#{lStrings[0]}"
+r := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -29,7 +23,7 @@ r := (lStrings: TemplateStringsArray): string =>
 setup := (): void ->
 
 	await setDirTree """
-		./#{root} clear
+		./#{r''} clear
 		hello
 			console.log("Hello, World!");
 		hello.cmd.civet

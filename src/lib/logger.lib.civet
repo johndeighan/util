@@ -183,7 +183,8 @@ logLine := (
 
 	line := '\t'.repeat(indentLevel) + unknownToString(x)
 	if (logLevel != 'testing')
-		console.log line
+		# --- Anything going to the console has TABs replaced
+		console.log line.replaceAll('\t', '   ')
 	lLogLines.push line
 	return
 

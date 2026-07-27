@@ -5,11 +5,11 @@
 import {
 	LOG, DBG, ERR, stringFits, clearLog, getLog, logWidth,
 	} from 'logger'
+import {uni} from 'unicode'
 import {
 	pass, undef, defined, notdefined,
 	assert, obviously, croak, words,
 	} from 'base'
-import {getPrefix} from 'unicode'
 import {
 	jsType, hash, isArrayOfStrings, integer, isString,
 	isFunction, isArray, isInteger, nonEmpty, isObject,
@@ -17,7 +17,7 @@ import {
 import {
 	blockToArray, arrayToBlock, getOptions, spaces, tabs,
 	} from 'llutils'
-import {OL, nice} from 'nice'
+import {OL, OLS, nice} from 'nice'
 import {parsePath} from 'fsys'
 import {CCallStack} from 'trace-stack'
 
@@ -173,21 +173,21 @@ export trEnter := (
 
 # ---------------------------------------------------------------------------
 
-export trReturn := (
+export trReturnFrom := (
 		funcName: string,
 		val: unknown? = undef
 		): void =>
 
 	assert (funcName == stack.curFuncName),
-		"trReturn(#{funcName}) but cur func is #{stack.curFuncName}"
+		"trReturnFrom(#{funcName}) but cur func is #{stack.curFuncName}"
 	isTracing := isTracingFunc(funcName)
 	if internalDebugging
-		LOG "trReturn #{OL(funcName)}"
+		LOG "trReturnFrom #{OL(funcName)}"
 		LOG "   - isTracing = #{OL(isTracing)}"
 
 	if isTracing
 		level := stack.logLevel
-		logReturn level, funcName, val
+		logReturnFrom level, funcName, val
 	stack.returnFrom funcName, val
 	return
 
@@ -288,7 +288,7 @@ export isTracingFunc := (
 
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
-#    Only these 8 functions ever call LOG or LOGVALUE
+#    Only these 8 functions ever call LOG or TRACEVAL
 
 export logEnter: TLogFuncMult := (
 		level: integer
@@ -300,14 +300,13 @@ export logEnter: TLogFuncMult := (
 	if (lArgs.length == 0)
 		LOG labelPre + "enter #{funcName}"
 	else
-		str := "enter #{funcName} #{OL(lArgs)}"
+		str := "enter #{funcName} #{OLS(lArgs)}"
 		if stringFits("#{labelPre}#{str}", traceWidth)
 			LOG labelPre + str
 		else
 			LOG labelPre + "enter #{funcName}"
 			for arg,i of lArgs
-				LOGVALUE arg, {
-						label: "arg[#{i}]"
+				TRACEVAL arg, "arg[#{i}]", {
 						prefix: getPrefix(level+1, 'plain')
 						itemPrefix: getPrefix(level+2, 'noLastVbar')
 						short: false
@@ -316,20 +315,23 @@ export logEnter: TLogFuncMult := (
 
 # ---------------------------------------------------------------------------
 
-export logReturn: TLogFuncOne := (
+export logReturnFrom: TLogFuncOne := (
 		level: integer
 		funcName: string
 		val: unknown
 		): void =>
 
 	labelPre := getPrefix(level, 'withArrow')
-	str := "return #{OL(val)} from #{funcName}"
-	if stringFits(str, traceWidth)
+	str := (
+		  defined(val)
+		? "return #{OL(val)} from #{funcName}"
+		: "return from #{funcName}"
+		)
+	if stringFits(str, traceWidth) || notdefined(val)
 		LOG labelPre + str
 	else
 		LOG labelPre + "return from #{funcName}"
-		LOGVALUE val, {
-			label: 'val'
+		TRACEVAL val, 'val', {
 			prefix: getPrefix(level, 'noLastVbar')
 			itemPrefix: getPrefix(level, 'noLastVbar')
 			short: false
@@ -349,7 +351,7 @@ export logYield: TLogFuncOne := (
 	if stringFits(str, traceWidth)
 		LOG labelPre + str
 	else
-		LOGVALUE val, {
+		TRACEVAL val, 'val', {
 			prefix: getPrefix(level, 'plain'),
 			itemPrefix: getPrefix(level, 'plain')
 			}
@@ -375,8 +377,7 @@ export logValue: TLogValue := (
 		label: string = ''
 		): void =>
 
-	LOGVALUE val, {
-		label
+	TRACEVAL val, label, {
 		prefix: getPrefix(level, 'plain')
 		}
 	return
@@ -411,8 +412,9 @@ export dumpFuncList := () =>
 
 # ---------------------------------------------------------------------------
 
-export LOGVALUE = (
+export TRACEVAL = (
 		value: unknown
+		label: string = ''
 		hOptions: hash = {}
 		): void =>
 
@@ -422,20 +424,18 @@ export LOGVALUE = (
 		prefix: string
 		short: boolean
 		oneIndent: string
-		label: string
 		}
-	{prefix, short, oneIndent, label} := getOptions<opt> hOptions, {
+	{prefix, short, oneIndent} := getOptions<opt> hOptions, {
 		prefix: ''
 		short: false      # prefer short strings, e.g. 'HASH', 'ARRAY'
-		oneIndent: '\t'
-		label: ''
+		oneIndent: '    '
 		}
 
 	if internalDebugging
 		str1 := OL(value)
 		str2 := OL(label)
 		str3 := OL(prefix)
-		LOG "CALL LOGVALUE(#{str1}, label=#{str2}), prefix=#{str3}"
+		LOG "CALL TRACEVAL(#{str1}, label=#{str2}), prefix=#{str3}"
 
 	labelStr := defined(label) ? "#{label} = " : ''
 
@@ -476,23 +476,23 @@ export LOGVALUE = (
 			LOG "#{itemPrefix}\"\"\""
 
 		when 'hash'
-			str := nice(value, {
+			str := nice(value, 78, {
 				sortKeys: true
 				oneIndent: spaces(3)
 				})
 			if labelStr
 				LOG "#{prefix}#{labelStr}"
-			for s in blockToArray(str)
+			for s of blockToArray(str)
 				LOG "#{itemPrefix}#{s}"
 
 		when 'array'
-			str := nice(value, {
+			str := nice(value, 78, {
 				sortKeys: true
 				oneIndent: spaces(3)
 				})
 			if labelStr
 				LOG "#{prefix}#{labelStr}"
-			for s in blockToArray(str)
+			for s of blockToArray(str)
 				LOG "#{itemPrefix}#{s}"
 
 		when 'function'
@@ -503,7 +503,7 @@ export LOGVALUE = (
 			if str.includes("\n")
 				if labelStr
 					LOG "#{prefix}#{labelStr}"
-				for line in blockToArray(str)
+				for line of blockToArray(str)
 					LOG "#{itemPrefix}#{line}"
 			else
 				LOG "#{prefix}#{labelStr}#{str}"
@@ -547,3 +547,60 @@ export shortStr := (
 		when 'asyncGenerator' then return 'ASYNC GENERATOR'
 		when 'plainFunction'  then return 'FUNCTION'
 		else croak "Unknown value type: #{OL(value)}"
+
+# ---------------------------------------------------------------------------
+
+pre := {
+	fourSpaces: uni.space    + uni.space     + uni.space     + uni.space
+	oneIndent:  uni.vbar     + uni.space     + uni.space     + uni.space
+	arrow:      uni.blcorner + uni.hbar      + uni.arrowhead + uni.space
+	flat:       uni.tee      + uni.hbar      + uni.hbar      + uni.space
+	resume:     uni.tee      + uni.hbar      + uni.arrowhead + uni.space
+	yieldSym:   uni.tee      + uni.backarrow + uni.hbar      + uni.space
+	}
+
+# ---------------------------------------------------------------------------
+
+# --- options (if level = 2):
+#        plain         '│   │   '
+#        withArrow     '│   └─> '
+#        withResume    '│   ├─> '
+#        withFlat      '│   ├── '
+#        withYield     '│   ├<─ '
+#        noLastVbar    '│       '
+#        none
+
+export getPrefix := (
+		level: number
+		option = 'none'
+		): string =>
+
+	switch option
+		case 'plain','':
+			return pre.oneIndent.repeat level
+		case 'withArrow':
+			if level == 0
+				return pre.arrow
+			else
+				return pre.oneIndent.repeat(level - 1) + pre.arrow
+		case 'withResume':
+			if level == 0
+				return pre.resume
+			else
+				return pre.oneIndent.repeat(level - 1) + pre.resume
+		case 'withFlat':
+			if level == 0
+				return pre.flat
+			else
+				return pre.oneIndent.repeat(level - 1) + pre.flat
+		case 'withYield':
+			if level == 0
+				return pre.yieldSym
+			else
+				return pre.oneIndent.repeat(level - 1) + pre.yieldSym
+		case 'noLastVbar':
+			if level == 0
+				throw new Error("getPrefix(): noLastVbar but level is 0")
+			return pre.oneIndent.repeat(level - 1) + pre.fourSpaces
+		default:
+			return pre.fourSpaces.repeat level

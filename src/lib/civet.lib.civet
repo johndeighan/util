@@ -12,7 +12,7 @@ import {
 	hash, isString, isHash, isEmpty, nonEmpty,
 	} from 'datatypes'
 import {getOptions, o, rtrim} from 'llutils'
-import {flag, debugging, inspecting} from 'cmd-args'
+import {debugging, inspect} from 'cmd-args'
 import {
 	isFile, fileExt, withExt, slurp, slurpAsync, pathStr,
 	touch, mkpath, barf, barfTempFile, parsePath, addJsonValue,

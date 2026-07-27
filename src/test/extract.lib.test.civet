@@ -1,13 +1,16 @@
 # extract.lib.test.civet
 
+import {initLogLevel} from 'logger'
 import {
 	TPathItem, getDsPath, extract,
 	getPathString, reportExtractError,
 	getString, getNumber, getArray, getTuple,
 	} from 'extract'
 import {
-	equal, truthy, falsy, succeeds, fails,
+	beginUnitTest, equal, truthy, falsy, succeeds, fails, line,
 	} from 'unit-test'
+
+r := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 
@@ -49,14 +52,14 @@ fails () => extract(h, '..dummy')
 
 equal getString(h, '.address.city'), 'Blacksburg'
 fails () => getString(h, '.address.city', 'Roanoke')
-fails () => getString(h, '..dummy')
+fails (() => getString(h, '..dummy')), line(55)
 
 equal getNumber(h, '.age'), 73
 fails () => getNumber(h, '.age', 22)
 fails () => getNumber(h, '..dummy')
 
 equal getArray(h, '.nicknames'), ['JD', 'Deighan']
-fails () => getArray(h, '.nicknames', ['JD','dummy'])
+fails (() => getArray(h, '.nicknames', ['JD','dummy'])), line(62)
 fails () => getArray(h, '..dummy')
 
 equal getTuple(h, '.nicknames'), ['JD', 'Deighan']

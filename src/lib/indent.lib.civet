@@ -1,7 +1,9 @@
 # indent.lib.civet
 
 import {LOG, ERR} from 'logger'
-import {undef, defined, notdefined, croak, assert} from 'base'
+import {
+	undef, defined, notdefined, croak, assert, matches,
+	} from 'base'
 import {esc, escm} from 'unicode'
 import {
 	array, isEmpty, isString, isArray, isArrayOfStrings,
@@ -71,6 +73,12 @@ export indentLevel := (line: string): number =>
 	#     (but TypeScript doesn't know that)
 
 	[prefix] := line.match(/^\s*/) || ['']
+	return levelFromPrefix prefix
+
+# ---------------------------------------------------------------------------
+
+export levelFromPrefix := (prefix: string): number =>
+
 	if (prefix.length == 0)
 		return 0
 
@@ -78,7 +86,7 @@ export indentLevel := (line: string): number =>
 	numTABs := countChars prefix, "\t"
 	numSpaces := countChars prefix, " "
 	assert (numTABs == 0) || (numSpaces == 0),
-			"Invalid mix of TABs and spaces in #{esc(line)}"
+			"Invalid mix of TABs and spaces in prefix #{esc(prefix)}"
 
 	# --- inputIndent must be one of:
 	#        undef
@@ -115,11 +123,11 @@ type TLineDesc = [level: number, text: string]
 export splitLine := (line: string): TLineDesc =>
 
 	[_, prefix, str] := line.match(/^(\s*)(.*)$/) || ['', '', '']
-	trimmed := str.trim()
-	if (trimmed == '')
+	if isEmpty(str)
 		return [0, '']
 	else
-		return [indentLevel(prefix), trimmed]
+		level := levelFromPrefix(prefix)
+		return [level, str.trim()]
 
 # ---------------------------------------------------------------------------
 

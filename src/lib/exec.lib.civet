@@ -31,7 +31,7 @@ import {
 	getOptions, blockToArray, toBlock,
 	sep, centered, f,
 	} from 'llutils'
-import {flag, debugging, inspecting} from 'cmd-args'
+import {debugging, inspect} from 'cmd-args'
 import {OL} from 'nice'
 import {
 	barf, pathStr, allFilesMatching, normalizePath, barfTempFile,

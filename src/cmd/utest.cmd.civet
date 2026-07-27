@@ -16,39 +16,26 @@ import {doUnitTest} from 'typescript'
 import {doCompileCivet, compileAllLibs} from 'civet'
 import {DUMP} from 'nice'
 import {CTimer} from 'timer'
-import {
-	stdChecks, getFlags, nonOption, allNonOptions, argValue,
-	} from 'cmd-args'
+import {getCmdArgs, inspect} from 'cmd-args'
 
-stdChecks {
-	_: {
-		range: [1,99]
-		desc: "stubs or 'all'"
+[
+	lStubs
+	{force, parallel, noCompile, line: lineNum}
+	] := getCmdArgs 'utest', {
+		_:         {range: [1,99], desc: "stubs to test or 'all'"}
+		force:     {flag: 'f', desc: 'force recompile'}
+		parallel:  {flag: 'p', desc: 'run in parallel'}
+		noCompile: {flag: 'n', desc: 'do not compile all first'}
+		line:      {valType: 'integer', desc: 'line number to test'}
 		}
-	p: {
-		type: 'boolean'
-		desc: 'run in parallel'
-		}
-	line: {
-		type: 'integer'
-		desc: "line to test"
-		}
-	}
 
 # ---------------------------------------------------------------------------
 
 await EXEC () =>
-	assert defined(nonOption(0)), "No unit tests specified"
-	await compileAllLibs()
+	if not noCompile
+		await compileAllLibs()
 
-	{force, inspect, parallel} := getFlags {
-		force: 'f'
-		inspect: 'I'
-		parallel: 'p'
-		}
-	lineNum := argValue('line')
-
-	if (nonOption(0) == 'all')
+	if (lStubs[0] == 'all')
 
 		# --- Define a utility function for display all results
 		dumpResult := (
@@ -122,7 +109,7 @@ await EXEC () =>
 			writeln "Done"
 	else
 		# --- not 'all'
-		for stub of allNonOptions()
+		for stub of lStubs
 			fileName := (
 				  stub.includes('.')
 				? "#{stub}.test.civet"

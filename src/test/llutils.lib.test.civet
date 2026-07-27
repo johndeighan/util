@@ -1,5 +1,6 @@
 # llutils.lib.test.civet
 
+import {initLogLevel} from 'logger'
 import {
 	undef, sleep, deepEqual, colorize, decolorize,
 	} from 'base'
@@ -18,11 +19,13 @@ import {
 	blockWidth, blockHeight, CStringSetMap,
 	isTAML, fromTAML, f, SKIP, EXEC,
 	dashes, sep, centered, abbrevStr,
-	tabify, untabify, cmdTitle, likeNum,
+	tabify, untabify, cmdTitle,
 	} from 'llutils'
 import {
-	equal, truthy, falsy, succeeds, fails,
+	beginUnitTest, equal, truthy, falsy, succeeds, fails, line,
 	} from 'unit-test'
+
+r := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 
@@ -90,7 +93,7 @@ equal t"      asd", "\t\tasd"
 	equal getOptions<opt>(o'debug', hDefs), {
 		debug: true
 		force: false
-		}
+		}, line(90)
 	)()
 
 equal keys({a:1, b:2, c:3}), ['a','b','c']
@@ -99,8 +102,8 @@ truthy hasKey({a:1, b:2}, 'a')
 truthy hasKeys({a:1, b:2}, 'a', 'b')
 falsy  hasKey({a:1, b:2}, 'x')
 falsy  hasKeys({a:1, b:2}, 'a', 'x')
-fails () => hasKey(42, 'a')
-fails () => hasKeys(42, 'a')
+fails (() => hasKey(42, 'a')), line(105)
+fails (() => hasKeys(42, 'a')), line(106)
 
 ms0 := Date.now()
 await sleep(2000)   # 2 seconds
@@ -192,7 +195,7 @@ equal zpad(23, 5), '00023'
 		"
 		///
 	lMatches := Array.from(allMatches(str, re))
-	equal lMatches.map((x) => x[1]), ['type', 'function']
+	equal lMatches.map((x) => x[1]), ['type', 'function'], line(195)
 	equal lMatches.map((x) => x[2]), ['TBlockSpec', 'isBlockSpec']
 	equal lMatches.map((x) => x[3]), [undef, undef]
 	)()
@@ -339,12 +342,6 @@ equal centered('John', {char: '-'}),
 
 equal decolorize(cmdTitle('THIS')),
 	'='.repeat(28) + spaces(2) + 'THIS' + spaces(2) + '='.repeat(28)
-
-truthy likeNum('13')
-truthy likeNum('3.14')
-truthy likeNum('3.14e12')
-truthy likeNum('3.14E12')
-falsy  likeNum('abc')
 
 vfunc: TVoidFunc := (): void =>
 	console.log 'hello'

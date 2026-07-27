@@ -2,7 +2,7 @@
 
 import {LOG} from 'logger'
 import {
-	undef, defined, notdefined, croak, assert,
+	undef, defined, notdefined, croak, assert, deepEqual,
 	} from 'base'
 import {
 	isString, isArray, isNumber,
@@ -97,34 +97,37 @@ export getString := (
 export getNumber := (
 		x: unknown,
 		dspath: string | TPathItem[],
-		value: number? = undef
+		expected: number? = undef
 		): number =>
 
 	pathstr := getPathString(dspath)
-	val := extract x, pathstr
-	if not isNumber(val)
+	value := extract x, pathstr
+	if not isNumber(value)
 		reportExtractError x, pathstr,
-				"getNumber(): number expected, got #{val}"
-	if value
-		assert (val == value), "Expected #{value}, got #{val}"
-	return val as number
+				"getNumber(): number expected, got #{value}"
+	if expected
+		assert (value == expected), "Expected #{expected}, got #{value}"
+	return value as number
 
 # ---------------------------------------------------------------------------
 
 export getArray := (
 		x: unknown,
 		dspath: string | TPathItem[],
-		value: array? = undef
+		expected: array? = undef
 		): unknown[] =>
 
 	pathstr := getPathString(dspath)
-	val := extract x, pathstr
-	if notdefined(val)
+	value := extract x, pathstr
+	if notdefined(value)
 		return []
-	if not isArray(val)
+	if not isArray(value)
 		reportExtractError x, pathstr,
-				"getArray(): array expected, got #{val}"
-	return val as array
+				"getArray(): array expected, got #{value}"
+	if expected
+		assert deepEqual(value, expected),
+			"Expected #{expected}, got #{value}"
+	return value as array
 
 # ---------------------------------------------------------------------------
 

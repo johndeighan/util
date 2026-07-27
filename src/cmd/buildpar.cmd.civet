@@ -3,9 +3,7 @@
 import {LOG, DBG, ERR} from 'logger'
 import {assert, defined} from 'base'
 import {centered, EXEC} from 'llutils'
-import {
-	stdChecks, flag, nonOption, allNonOptions, getFlags,
-	} from 'cmd-args'
+import {getCmdArgs} from 'cmd-args'
 import {
 	withExt, findFile, parsePath,
 	} from 'fsys'
@@ -15,12 +13,17 @@ import {doUnitTest} from 'typescript'
 import {doCompileCivet} from 'civet'
 import {doCompileHera} from 'hera-compile'
 
-stdChecks """
-	buildpar -ftI (all | <stub>*)
-		-f = force
-		-t = run unit test
-		-I = use Chrome debugger
-	"""
+[
+	lStubs
+	{force, doTest, inspect}
+	{traceLib, oneIndent}
+	{maxLineLen}
+	] := getCmdArgs 'build-dot-symbols', {
+		_:       {range: [1,99], desc: 'list of stubs'}
+		force:   {flag: 'f',     desc: 'force build'}
+		doTest:  {flag: 't',     desc: 'run unit test(s)'}
+		inspect: {flag: 'I',     desc: 'run under Chrome debugger'}
+		}
 
 # ---------------------------------------------------------------------------
 # --- install before running unit tests
@@ -28,21 +31,14 @@ stdChecks """
 
 hStyle  := {char: '=', color: 'cyan'}
 await EXEC () =>
-	# --- echoes if flag is set
-	{force, doTest, inspect} := getFlags {
-		force: 'f'
-		doTest: 't'
-		inspect: 'I'
-		}
-
-	if (nonOption(0) == 'all')
+	if (lStubs[0] == 'all')
 		console.log centered("BUILD ALL PARSERS", hStyle)
 		await procFiles [doCompileHera,  ['src/**/*.parse.hera']], {force}
 		if doTest
 			await procFiles [doCompileCivet, ['src/**/*.parse.test.civet']], {force}
 			await procFiles [doUnitTest,     ['src/**/*.parse.test.ts']]
 	else
-		for stub of allNonOptions()
+		for stub of lStubs
 			console.log centered("BUILD PARSER #{stub}", hStyle)
 			heraFileName := "#{stub}.parse.hera"
 			heraPath := findFile heraFileName

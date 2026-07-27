@@ -1,10 +1,15 @@
 # walker.lib.test.civet
 
+import {initLogLevel} from 'logger'
 import {undef} from 'base'
 import {hash} from 'datatypes'
 import {hasKey, hasKeys} from 'llutils'
 import {Walker} from 'walker'
-import {equal, truthy, falsy} from 'unit-test'
+import {
+	beginUnitTest, equal, truthy, falsy,
+	} from 'unit-test'
+
+r := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 

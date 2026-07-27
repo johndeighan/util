@@ -9,31 +9,27 @@ import {findFile, withExt, isFile} from 'fsys'
 import {doRun, TExecResult} from 'exec'
 import {procOneFile} from 'proc-files'
 import {f, EXEC} from 'llutils'
-import {stdChecks, flag, argValue, nonOption, getFlags} from 'cmd-args'
+import {getCmdArgs, inspect} from 'cmd-args'
 import {doCompileCivet, compileAllLibs} from 'civet'
 
-stdChecks """
-	runtemp [-fnI] [ <temp_stub> ]
-		-f = force recompile
-		-n = don't attempt to recompile changed libs
-		-I = invoke Chrome debugger
-   	"""
+[
+	lNonOptions
+	{force, noCompile}
+	] := getCmdArgs 'runtemp', {
+		_: {range: [0, 1]}
+		force:     {flag: 'f', desc: 'force recompile'}
+		noCompile: {flag: 'n', desc: 'do not compile all libs first'}
+		}
 
 # ---------------------------------------------------------------------------
 
 await EXEC () =>
-	{inspect, force, noCompile} := getFlags {
-		inspect: 'I'
-		force: 'f'
-		noCompile: 'n'
-		}
-
 	if not noCompile
 		# --- Compile any changed libraries
 		await compileAllLibs()
 
 	# --- compile temp file
-	stub := nonOption(0) || 'temp'
+	stub := lNonOptions[0] || 'temp'
 	LOG colorize("Running #{stub}", 'cyan')
 	root := 'src/.temp'
 

@@ -1,5 +1,6 @@
 # datatypes.lib.test.civet
 
+import {initLogLevel} from 'logger'
 import {
 	undef, defined, notdefined, anyDefined, anyNotDefined,
 	deepEqual, sleep,
@@ -21,10 +22,13 @@ import {
 	isIterator, isAsyncIterator, jsType,
 	isStringMapper, isIterable, isAsyncIterable, isAsyncFunction,
 	clearHash, setHash, clearArray, setArray,
+	looksLikeNumber, looksLikeInteger,
 	} from 'datatypes'
 import {
-	equal, truthy, falsy, fails, succeeds, sampleVal,
+	beginUnitTest, equal, truthy, falsy, fails, succeeds, sampleVal,
 	} from 'unit-test'
+
+r := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 
@@ -421,4 +425,14 @@ falsy isAsyncFunction((x: string) => return 42)
 	setArray(l, ['a','b'])
 	equal l, ['a','b']
 	)()
+
+truthy looksLikeInteger '0'
+truthy looksLikeInteger '42'
+falsy  looksLikeInteger 'abc'
+falsy  looksLikeInteger '3.14'
+
+truthy looksLikeNumber '0'
+truthy looksLikeNumber '42'
+falsy  looksLikeNumber 'abc'
+truthy looksLikeNumber '3.14'
 

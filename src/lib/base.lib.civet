@@ -30,7 +30,9 @@ export {
 	isFullPath, toFullPath,
 	}
 export deepCopy = structuredClone
-export sleep = delay
+export sleep := (ms: number): void =>
+	await delay(ms)
+	return
 
 mydir := dirname(fromFileUrl(import.meta.url))
 
@@ -135,15 +137,15 @@ export croak: TNeverFunc := (
 		errMsg: string
 		): never =>
 
-	if (curLogLevel() == 'testing')
-		# --- allows the error to be caught and handled or ignored
-		throw new Error(errMsg)
-	else
-		console.error red('CROAK') + ': ' + errMsg
-		console.error "-----  STACK -----"
-		for frame of allStackFrames()
-			LOG frameStr(frame)
-		Deno.exit()
+#	if (curLogLevel() == 'testing')
+#		# --- allows the error to be caught and handled or ignored
+	throw new Error(errMsg)
+#	else
+#		console.error red('CROAK') + ': ' + errMsg
+#		console.error "-----  STACK -----"
+#		for frame of allStackFrames()
+#			LOG frameStr(frame)
+#		Deno.exit()
 
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
@@ -157,27 +159,6 @@ export matches := (
 
 # ---------------------------------------------------------------------------
 #              File System Utils
-# ---------------------------------------------------------------------------
-
-export findFile := (
-		fileName: string
-		root: string = Deno.cwd()
-		): string? =>
-
-	assert not root.endsWith('/'), "Bad root: #{root}"
-
-	let foundPath: string? = undef
-	for {path} of expandGlobSync "#{root}/**/#{fileName}", {
-			root
-			includeDirs: false
-			canonicalize: false
-			}
-		if defined(foundPath)
-			croak "Multiple files named #{fileName} found in #{root}"
-		else
-			foundPath = normalizePath path
-	return foundPath
-
 # ---------------------------------------------------------------------------
 
 export fileExt := (path: string): string =>

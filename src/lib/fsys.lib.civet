@@ -160,16 +160,6 @@ export myself := (url: string): string =>
 	return toRelPath fromFileUrl url
 
 # ---------------------------------------------------------------------------
-# --- Should be called like: myTestDir(import.meta.url)
-
-export myTestDir := (url: string): string =>
-
-	relPath := myself(url)
-	{dir, stub} := parsePath relPath
-	name := stub.split('.')[0]
-	return mkpath(dir, name)
-
-# ---------------------------------------------------------------------------
 
 export barf := (
 		path: string,

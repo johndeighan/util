@@ -4,15 +4,15 @@ import {expandGlobSync} from '@std/fs/expand-glob'
 import {TextLineStream} from "jsr:@std/streams/text-line-stream"
 import {exists, existsSync} from '@std/fs'
 
-import {LOG, clearLog, getLog} from 'logger'
+import {LOG, DBG, ERR, clearLog, getLog} from 'logger'
 import {
 	undef, defined, notdefined, assert, obviously, croak,
 	TAsyncIterator, deepEqual, sleep, getErrStr, colorize,
-	decolorize,
+	decolorize, TIterator,
 	} from 'base'
 import {s, toBlock, EXEC, SKIP, sep, rtrim} from 'llutils'
-import {fromFSM} from 'fsm'
-import {indented} from 'indent'
+import {fromFSM, defaultDoneFunc, TState} from 'fsm'
+import {resetOneIndent, splitLine, indented} from 'indent'
 import {
 	execCmd, doRun, doRemoveFile, doRemoveTsFile,
 	doInstallCmd, doUninstallCmd, isInstalled,
@@ -21,10 +21,9 @@ import {procOneFile, procFiles} from 'proc-files'
 import {
 	withExt, rmFile, allDirsMatching,
 	CReadableFile, CWritableFile,
-	barf, slurp, parsePath,
+	barf, slurp, parsePath, findFile,
 	} from 'fsys'
-import {DUMP, toNice} from 'nice'
-import {nice, OL} from 'nice'
+import {nice, OL, ML, DUMP} from 'nice'
 import {TextTable, splitRows} from 'text-table'
 import {
 	doCompileHera, testHeraCode, preprocHera, preprocHeraFile,
@@ -51,26 +50,41 @@ import {mockPromise} from 'unit-test'
 import {doCompileFile} from 'automate'
 import {
 	stack, setTracing,
-	trEnter, trReturn, trYieldFrom, trResume, tr,
+	trEnter, trReturnFrom, trYieldFrom, trResume, tr,
 	} from 'trace'
 import {CCallStack} from 'trace-stack'
 import {civet2js, civet2ts} from 'llcivet'
+import {generateAsync} from 'iter-utils'
 
 # ---------------------------------------------------------------------------
 
-EXEC () =>
-	try
-		result := OL(['abcdefg','hijklmnop'])
-		console.log result
-	catch err
-		console.log "Doesn't fit"
+EXEC await () =>
+	debugger
+	clearLog()
+	setTracing true
 
-	try
-		result := OL({abcde: 13, fghij: 42})
-		console.log result
-	catch err
-		console.log "Doesn't fit"
+	lItems := [
+		'this is a very long string to display'
+		'and there are more in this hash to return from func'
+		]
+	hItems := {
+		str1: 'this is a very long string to display'
+		str2: 'and there are more in this hash to return from func'
+		}
+	trEnter 'func', [lItems]
+	trReturnFrom 'func', hItems
+	console.log getLog()
 
+# 	equal getLog().replaceAll('\t', '   '), s"""
+# 		enter func
+# 		│   arg[0] =
+# 		│   	0
+# 		│   	1
+# 		└─> return from func
+# 			val =
+# 				0
+# 				1
+# 		""", line(87)
 
 await SKIP () =>
 	clearLog()
@@ -82,8 +96,8 @@ await SKIP () =>
 	trYieldFrom 'func2', 42
 	trResume 'func2'
 	tr 42, 'x'
-	trReturn 'func2'
-	trReturn 'func1'
+	trReturnFrom 'func2'
+	trReturnFrom 'func1'
 
 	str := getLog()
 

@@ -1,10 +1,13 @@
 # symbols.lib.test.civet
 
+import {initLogLevel} from 'logger'
 import {undef} from 'base'
 import {
 	loadSymbols, loadSymbolsFrom, getSymbolLib, getNeededImportStmts,
 	} from 'symbols'
-import {equal, succeeds} from 'unit-test'
+import {beginUnitTest, equal, succeeds} from 'unit-test'
+
+r := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 

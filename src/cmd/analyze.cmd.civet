@@ -6,21 +6,22 @@ import {
 	undef, defined, notdefined,
 	} from 'base'
 import {EXEC} from 'llutils'
-import {stdChecks, flag, nonOption} from 'cmd-args'
+import {getCmdArgs} from 'cmd-args'
 import {DUMP} from 'nice'
 import {findFile, slurp, fileExt} from 'fsys'
 import {analyzeTsCode} from 'typescript'
 import {civet2ts} from 'llcivet'
 
-stdChecks """
-	analyze [-v] <filename>
-		-v - dump analysis data structure
-	"""
+hDesc := {
+	_: {range: [1,1]}
+	verbose: {flag: 'v', desc: 'dump analysis data structure'}
+	}
+
+[[fileName], {verbose}] := getCmdArgs 'analyze', hDesc
 
 # ---------------------------------------------------------------------------
 
 await EXEC () =>
-	fileName := nonOption(0)
 	assert defined(fileName), "No file name provided"
 	path := (
 		  fileName.match(/[\\\/]/)
@@ -40,7 +41,7 @@ await EXEC () =>
 	analysis := analyzeTsCode tsCode, {dumpAST: true, trace: true}
 	DUMP analysis
 
-	if flag('v')
+	if verbose
 		DUMP analysis, 'ANALYSIS'
 	else
 		DUMP analysis.asString(), 'ANALYSIS'

@@ -1,5 +1,7 @@
 # walker.lib.civet
 
+import {yellow, cyan, red, green} from '@std/fmt/colors'
+
 import {LOG, DBG} from 'logger'
 import {
 	undef, defined, notdefined, croak, assert,
@@ -8,7 +10,7 @@ import {
 	integer, hash, array,
 	isArray, isHash, isEmpty,
 	} from 'datatypes'
-import {OL} from 'nice'
+import {nice, OL, ML} from 'nice'
 
 # ---------------------------------------------------------------------------
 
@@ -123,6 +125,18 @@ export class Walker<T extends object = hash>
 		if @isNode(item)
 			# --- type narrowing ensures that item is a T
 			if @filter(item)
+				LOG cyan('-'.repeat(40))
+				hOptions := {
+					lExclude: ['pos','end']
+					descFunc: (key: string, node: unknown) =>
+						if isHash(node) && ('kind' in node)
+							return 'description'
+						else
+							return ''
+						}
+				LOG ML(item, hOptions)
+
+				str := OL(item)
 				DBG "YIELD NODE: #{OL(item)}"
 				yield ['enter', item]
 			# --- item is parent of yielded items

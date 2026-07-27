@@ -36,7 +36,7 @@ import {
 	pathStr, mkpath, newerDestFileExists,
 	} from 'fsys'
 import {
-	OL, nice, TMapFunc, DUMP, LOGVALUE, DBGVALUE,
+	OL, ML, nice, TDescFunc, DUMP, LOGVALUE, DBGVALUE,
 	} from 'nice'
 import {
 	execCmd, CFileHandler, TExecResult,
@@ -87,7 +87,7 @@ export ast2ts := (
 # ---------------------------------------------------------------------------
 # --- passed to nice() to add a description to some nodes
 
-export descFunc: TMapFunc := (
+export descFunc: TDescFunc := (
 		key: string
 		value: unknown
 		hParent: unknown
@@ -102,16 +102,8 @@ export astAsString := (
 		hOptions: hash = {}
 		): string =>
 
-	type opt = {
-		lInclude: string[]?
-		}
-	{lInclude} := getOptions<opt> hOptions, {
-		lInclude: undef
-		}
-
-	return nice hAst, {
+	return ML hAst, {
 		ignoreEmptyKeys: true
-		lInclude
 		lExclude: words("""
 			pos end id flags modifierFlagsCache
 			transformFlags hasExtendedUnicodeEscape
@@ -509,7 +501,10 @@ export analyzeTsCode := (
 	# ..........................................................
 	# vkind is one of 'enter', 'exit', 'ref'
 
-	lTraceKind := [80, 95, 170, 214, 220, 227, 254, 261, 263, 273, 280, 308]
+	lTraceKind := [
+		80, 95, 170, 214, 220, 227,
+		254, 261, 263, 273, 280, 308
+		]
 	for [vkind, node] of walker.walkEx(hAst)
 		{kind} := node
 		if trace && lTraceKind.includes(kind)

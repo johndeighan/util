@@ -1,12 +1,15 @@
 # scope.lib.test.civet
 
+import {initLogLevel} from 'logger'
 import {undef, assert} from 'base'
 import {s} from 'llutils'
 import {nice} from 'nice'
 import {CMainScope, CScope} from 'scope'
 import {
-	equal, truthy, falsy, succeeds, fails,
+	beginUnitTest, equal, truthy, falsy, succeeds, fails, line,
 	} from 'unit-test'
+
+r := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 
@@ -78,7 +81,7 @@ import {
 				sUsed: ｟emptySet｠
 				parent: ｟ref root｠
 				lChildScopes: []
-		"""
+		""", line(65)
 	)()
 
 # --- Test if when a function is entered with parameter s

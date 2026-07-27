@@ -1,13 +1,16 @@
 # hera-compile.lib.test.civet
 
+import {initLogLevel} from 'logger'
 import {esc} from 'unicode'
 import {s2} from 'llutils'
 import {
 	doCompileHera, preprocHera, testHeraCode,
 	} from 'hera-compile'
 import {
-	equal, truthy, falsy, succeeds, fails,
+	beginUnitTest, equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test'
+
+r := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 

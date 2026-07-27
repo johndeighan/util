@@ -3,23 +3,16 @@
 import {LOG, ERR} from 'logger'
 import {croak, getErrStr} from 'base'
 import {EXEC} from 'llutils'
-import {allNonOptions} from 'cmd-args'
+import {getCmdArgs} from 'cmd-args'
 import {parseText} from 'hera-parse'
+
+[[stub, str]] := getCmdArgs 'parsestr', {
+		_: {range: [2,2]}
+		}
 
 # ---------------------------------------------------------------------------
 
 await EXEC () =>
-	lNonOptions := allNonOptions()
-	[stub, str] := switch lNonOptions.length
-			case 0:
-				croak "No args!"
-				['dummy', '']
-			case 1:
-				croak "Only one arg"
-				['dummy', '']
-			default:
-				[lNonOptions[0], lNonOptions.slice(1).join(' ')]
-
 	try
 		result := await parseText(stub, str)
 		LOG result

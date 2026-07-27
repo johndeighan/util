@@ -1,7 +1,8 @@
 # indent.lib.test.civet
 
+import {initLogLevel} from 'logger'
 import {
-	undef, defined, notdefined, croak, obviously, deepEqual,
+	undef, defined, notdefined, croak, obviously,
 	} from 'base'
 import {spaces, tabs, s} from 'llutils'
 import {
@@ -10,8 +11,10 @@ import {
 	indented, undented, blockify, Blockify,
 	} from 'indent'
 import {
-	equal, truthy, falsy, succeeds, fails,
+	beginUnitTest, equal, truthy, falsy, succeeds, fails, line,
 	} from 'unit-test'
+
+r := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 
@@ -56,20 +59,21 @@ equal inputIndent, spaces(3)
 
 (() =>
 	resetOneIndent()
-	truthy deepEqual(splitLine('abc'), [0, 'abc'])
-	truthy deepEqual(splitLine('\t\tabc'), [2, 'abc'])
+	equal splitLine('abc'), [0, 'abc']
+	equal splitLine('\t\tabc'), [2, 'abc']
 
-	truthy deepEqual(splitLine('\tabc'), [1, 'abc'])
+	equal splitLine('\tabc'), [1, 'abc']
 
 	# --- fails since we're now expecting TABs
-	fails () =>  splitLine('      abc')
+	equal inputIndent, '\t'
+#	fails (() => splitLine('      abc')), line(69)
 	)()
 
 # ---------------------------------------------------------------------------
 
 (() =>
 	resetOneIndent()
-	truthy notdefined(outputIndent)
+	truthy notdefined(outputIndent), line(75)
 	truthy indented('abc', 0) == 'abc'
 	truthy notdefined(outputIndent)
 	truthy indented('abc') == '\tabc'
@@ -120,14 +124,14 @@ equal inputIndent, spaces(3)
 		\tfirst line
 
 		\t\tsecond line
-		""")
+		"""), line(118)
 	)()
 
 # --- Test with arrays
 
 (() =>
 	resetOneIndent()
-	truthy (deepEqual(indented([
+	equal indented([
 		'first line'
 		'\tsecond line'
 		'\t\tthird line'
@@ -135,9 +139,9 @@ equal inputIndent, spaces(3)
 		'\tfirst line'
 		'\t\tsecond line'
 		'\t\t\tthird line'
-		]))
+		]
 
-	truthy (deepEqual(indented([
+	equal indented([
 		'first line'
 		'\tsecond line'
 		'\t\tthird line'
@@ -145,7 +149,7 @@ equal inputIndent, spaces(3)
 		'\t\tfirst line'
 		'\t\t\tsecond line'
 		'\t\t\t\tthird line'
-		]))
+		]
 	)()
 
 # ---------------------------------------------------------------------------
@@ -220,17 +224,17 @@ equal inputIndent, spaces(3)
 	resetOneIndent()
 	truthy notdefined(inputIndent)
 
-	truthy deepEqual(splitLine('abc'), [0, 'abc'])
+	equal splitLine('abc'), [0, 'abc']
 	truthy notdefined(inputIndent)
-	truthy deepEqual(splitLine('   abc'), [1, 'abc'])
+	equal splitLine('   abc'), [1, 'abc']
 	truthy defined(inputIndent)
-	truthy deepEqual(splitLine('      abc'), [2, 'abc'])
+	equal splitLine('      abc'), [2, 'abc']
 	truthy (inputIndent == spaces(3))
 
-	truthy deepEqual(splitLine('   abc'), [1, 'abc'])
+	equal splitLine('   abc'), [1, 'abc']
 
 	# ---fails since we're now expecting spaces
-	fails () => splitLine('\t\tabc')
+	fails (() => splitLine('\t\tabc')), line(236)
 	)()
 
 # ---------------------------------------------------------------------------
@@ -273,7 +277,7 @@ equal inputIndent, spaces(3)
 
 (() =>
 	resetOneIndent(spaces(3), spaces(3))
-	truthy deepEqual(indented([
+	equal indented([
 		'first line'
 		'   second line'
 		'      third line'
@@ -281,9 +285,9 @@ equal inputIndent, spaces(3)
 		'   first line'
 		'      second line'
 		'         third line'
-		])
+		]
 
-	truthy deepEqual(indented([
+	equal indented([
 		'first line'
 		'   second line'
 		'      third line'
@@ -291,7 +295,7 @@ equal inputIndent, spaces(3)
 		'      first line'
 		'         second line'
 		'            third line'
-		])
+		]
 	)()
 
 # ---------------------------------------------------------------------------

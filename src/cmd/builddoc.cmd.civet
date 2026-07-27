@@ -5,35 +5,31 @@ import {
 	undef, defined, notdefined, assert, croak, toRelPath,
 	} from 'base'
 import {cmdTitle, EXEC} from 'llutils'
-import {stdChecks, nonOption, allNonOptions, getFlags} from 'cmd-args'
+import {getCmdArgs, inspect} from 'cmd-args'
 import {findFile} from 'fsys'
 import {procFiles, procOneFile} from 'proc-files'
 import {doCompileHera} from 'hera-compile'
 import {doMakeMarkdown} from 'md-macros'
 
-stdChecks """
-	builddoc -fI (all | <stub>*)
-	   -f = force, i.e. always compile
-	   -I = use Chrome debugger for compile
-	"""
+[
+	lStubs,
+	{force}
+	] := getCmdArgs 'builddoc', {
+		_: {range: [1,99]}
+		force:     {flag: 'f', desc: 'force recompile'}
+		}
 
 # ---------------------------------------------------------------------------
 
 await EXEC () =>
-	# --- echoes if flag is set
-	{force, inspect} := getFlags {
-		force: 'f'
-		inspect: 'I'
-		}
-
-	if (nonOption(0) == 'all')
+	if (lStubs[0] == 'all')
 		LOG cmdTitle("BUILD ALL DOCS")
 		await procFiles [doMakeMarkdown, ['**/*.doc.$md']], {force}
 	else
-		for stub of allNonOptions()
+		for stub of lStubs
 			fileName := "#{stub}.doc.$md"
 			path := findFile fileName
 			assert defined(path), "No such file: #{fileName}"
 
 			LOG cmdTitle("BUILD DOC #{toRelPath(path)}")
-			await procOneFile path, doMakeMarkdown, {force, inspect}
+			await procOneFile path, doMakeMarkdown, {force}

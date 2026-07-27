@@ -1,13 +1,16 @@
 # meta-data.lib.test.civet
 
+import {initLogLevel} from 'logger'
 import {
 	addMetaDataType, isMetaDataStart,
 	getMetaData, getMetaDataHash, extractMetaData, mdGet,
 	} from 'meta-data'
 import {parseText} from 'hera-parse'
 import {
-	equal, truthy, falsy, succeeds, fails,
+	beginUnitTest, equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test'
+
+r := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 # --- Create 3 log records for use in testing

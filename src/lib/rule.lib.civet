@@ -13,12 +13,6 @@ import {civet2ts} from 'llcivet'
 
 # ---------------------------------------------------------------------------
 
-export isValidRuleName := (str: string): boolean =>
-
-	return toBool str.match(/^[A-Za-z_][A-Za-z0-9_]*$/)
-
-# ---------------------------------------------------------------------------
-
 export class CRuleBranch
 	private pattern: string
 	private lCode: string[] = []
@@ -87,14 +81,19 @@ export class CRuleBranch
 
 # ---------------------------------------------------------------------------
 
+export isValidRuleName := (str: string): boolean =>
+
+	return toBool str.match(/^[A-Za-z_][A-Za-z0-9_]*$/)
+
+# ---------------------------------------------------------------------------
+
 export class CRule
 	private name: string
 	private lBranches: CRuleBranch[] = []
 
 	constructor(@name: string)
 
-		assert defined(@name.match /^[A-Za-z$_][A-Za-z0-9$_-]*$/),
-			"Bad name: <#{@name}>"
+		assert isValidRuleName(@name), "Bad name: <#{@name}>"
 
 	# ..........................................................
 

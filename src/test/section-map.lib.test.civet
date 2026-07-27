@@ -2,6 +2,7 @@
 
 import {compile} from 'npm-pug'
 
+import {initLogLevel} from 'logger'
 import {undef, defined, notdefined, assert} from 'base'
 import {keys} from 'llutils'
 import {indented} from 'indent'
@@ -9,7 +10,9 @@ import {DUMP} from 'nice'
 import {
 	TSetName, isSectionName, isSetName, CSection, CSet, SectionMap,
 	} from 'section-map'
-import {equal, truthy, falsy} from 'unit-test'
+import {beginUnitTest, equal, truthy, falsy} from 'unit-test'
+
+r := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 

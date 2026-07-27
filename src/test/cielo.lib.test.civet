@@ -1,13 +1,16 @@
 # cielo.lib.test.civet
 
+import {initLogLevel} from 'logger'
 import {defined} from 'base'
 import {isFunction} from 'datatypes'
 import {
 	cielo2civet, cielo2civetFile,
 	} from 'cielo'
 import {
-	equal, succeeds, fails, truthy, falsy, setDirTree,
+	equal, succeeds, fails, truthy, falsy, setDirTree, beginUnitTest,
 	} from 'unit-test'
+
+r := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 # ASYNC

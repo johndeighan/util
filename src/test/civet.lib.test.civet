@@ -4,34 +4,28 @@ import {exists, existsSync} from '@std/fs'
 import {stripAnsiCode} from '@std/fmt/colors'
 import {SourceFile} from 'npm:typescript'
 
+import {initLogLevel} from 'logger'
 import {undef, defined} from 'base'
 import {isHash} from 'datatypes'
 import {s, rtrim} from 'llutils'
-import {slurp, withExt, myTestDir, rmFile} from 'fsys'
+import {slurp, withExt, rmFile} from 'fsys'
 import {procOneFile} from 'proc-files'
 import {ts2ast, astAsString} from 'typescript'
 import {civet2ts, civet2tsFile, TCivetOptions, doCompileCivet,
 	civet2ast, compileAllLibs, a, A,
 	} from 'civet'
 import {
-	equal, succeeds, fails, truthy, falsy, setDirTree,
+	equal, succeeds, fails, truthy, falsy, beginUnitTest, setDirTree,
 	} from 'unit-test'
 
-root := myTestDir(import.meta.url)
-console.log "ROOT: #{root}"
-
-# ---------------------------------------------------------------------------
-
-r := (lStrings: TemplateStringsArray): string =>
-
-	return "#{root}/#{lStrings[0]}"
+r := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 
 setup := (): void ->
 
 	await setDirTree """
-		./#{root} clear
+		./#{r''} clear
 		test.civet
 			x := 42
 		"""

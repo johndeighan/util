@@ -4,7 +4,7 @@ import {minify} from 'npm-uglify-js'
 
 import {
 	deepCopy, undef, defined, notdefined, words,
-	anyDefined, anyNotDefined,
+	anyDefined, anyNotDefined, toBool, matches,
 	croak, assert, obviously, getErrStr,
 	TIterator, TAsyncIterator, TNonFunction,
 	} from 'base'
@@ -21,6 +21,7 @@ export type regexp = RegExp
 export type TIntArray = integer[]
 
 export type TVoidFunc = () => void
+export type TAsyncVoidFunc = () => Promise<void>
 export type TVoidIterator<T=unknown> = () => TIterator<T>
 export type TUnaryFunc<TIn, TOut> = (item: TIn) => TOut
 export type TStringifier = (item: unknown) => string
@@ -536,3 +537,21 @@ export hashToIterator := <T=unknown>(h: hashof<T>) ->
 
 	# --- yield* reads all items from the iterator one by one
 	yield* Object.entries(h)
+
+# ---------------------------------------------------------------------------
+
+export looksLikeInteger := (str: string): boolean =>
+
+	return toBool str.match(/^-?\d+$/);
+
+# ---------------------------------------------------------------------------
+
+export looksLikeNumber := (str: string): boolean =>
+
+	return toBool str.match(/^-?\d+(?:\.\d*)?$/);
+
+# ---------------------------------------------------------------------------
+
+export isIdentifier := (str: string): boolean =>
+
+	return matches str, /^[A-Za-z_][A-Za-z0-9_]*$/

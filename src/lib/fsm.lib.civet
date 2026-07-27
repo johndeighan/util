@@ -46,19 +46,24 @@ export fsmSync := <TIn, TOut>(
 
 	let state: TState = 0
 	try
+		DBG "fsmSync Initial State: #{state}"
+		let numItems = 0
 		for item,i of iter
+			numItems += 1
+			DBG "Got item #{item}"
 			stateFunc := lStates[state]
+			assert defined(stateFunc), "Bad state func (undef)"
 			newState := stateFunc item, i
+			DBG f"#{state}:3 => #{newState}:3 on item #{OL(item)}"
 			assert (0 <= newState < lStates.length),
 				"Bad state: #{newState}"
-			DBG f"#{state}:3 => #{newState}:3 #{OL(item)}"
 			state = newState
-		DBG "Processed all items, state = #{state}"
+		DBG "Processed all #{numItems} items, state = #{state}"
 		return doneFunc(state)
 	catch x
+		DBG "FAILED in STATE #{state}"
 		if (x instanceof Error)
 			throw x
-		DBG "END STATE #{state}"
 		DBG nice(x)
 		return x as TOut
 
@@ -66,26 +71,31 @@ export fsmSync := <TIn, TOut>(
 # ASYNC
 
 export fsmAsync := <TIn, TOut>(
-		iter: ArrayIterator<TIn> | TIterator<TIn> | TAsyncIterator<TIn>
+		iter: TAsyncIterator<TIn>
 		lStates: TStateFunc<TIn>[]
 		doneFunc: TDoneFunc<TOut> = defaultDoneFunc
 		): Promise<TOut> =>
 
 	let state: TState = 0
 	try
+		DBG "fsmAsync Initial State: #{state}"
+		let numItems = 0
 		for await item,i of iter
+			numItems += 1
+			DBG "Got item #{item}"
 			stateFunc := lStates[state]
+			assert defined(stateFunc), "Bad state func (undef)"
 			newState := stateFunc item, i
+			DBG f"#{state}:3 => #{newState}:3 on item #{OL(item)}"
 			assert (0 <= newState < lStates.length),
 				"Bad state: #{newState}"
-			DBG f"#{state}:3 => #{newState}:3 #{OL(item)}"
 			state = newState
-		DBG "Processed all items, state = #{state}"
+		DBG "Processed all #{numItems} items, state = #{state}"
 		return await doneFunc(state)
 	catch x
+		DBG "FAILED in STATE #{state}"
 		if (x instanceof Error)
 			throw x
-		DBG "END STATE #{state}"
 		DBG nice(x)
 		return x as Awaited<TOut>
 
@@ -113,25 +123,31 @@ export function fromFSM<TIn, TOut=unknown>(
 		): TOut | Promise<TOut>
 
 	type opt = {
-		initFunc: TVoidFunc
+		initFunc: TVoidFunc?
 		trace: boolean
 		}
 	{initFunc, trace} := getOptions<opt> hOptions, {
-		initFunc: pass
+		initFunc: undef
 		trace: false
 		}
 
 	if trace
 		pushLogLevel 'debug'
-	initFunc()
+		DBG "===== FSM ====="
+	if defined(initFunc)
+		DBG "Running initFunc"
+		initFunc()
 
 	# --- determine whether to run sync or async version
 	result := (
 		if isAsyncIterator(iter)
+			DBG "exec fsmAsync"
 			fsmAsync iter, lStates, doneFunc
 		else if isArray(iter)
+			DBG "exec fsmSync for array"
 			fsmSync iter.values(), lStates, doneFunc
 		else
+			DBG "exec fsmSync for iterator"
 			fsmSync iter, lStates, doneFunc
 		)
 

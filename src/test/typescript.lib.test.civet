@@ -1,8 +1,8 @@
 # typescript.lib.test.civet
 
-import {stripAnsiCode} from "@std/fmt/colors"
 import {SourceFile} from 'npm:typescript'
 
+import {initLogLevel} from 'logger'
 import {undef} from 'base'
 import {
 	isHash, isEmpty, nonEmpty,
@@ -14,8 +14,11 @@ import {
 	ts2ast, ast2ts, astAsString, analyzeTsCode,
 	} from 'typescript'
 import {
-	equal, succeeds, fails, truthy, falsy, setDirTree,
+	beginUnitTest, equal, succeeds, fails, truthy, falsy,
+	setDirTree, line,
 	} from 'unit-test'
+
+r := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -101,7 +104,7 @@ equal analyzeTsCode("""
 	""").asString(), s"""
 	IMPORTS: willy: func
 	MISSING: x y z
-	"""
+	""", line(101)
 
 # --- Only t is needed, s is a parameter
 
@@ -111,7 +114,7 @@ equal analyzeTsCode("""
 	func('abc');
 	""").asString(), s"""
 	MISSING: t
-	"""
+	""", line(112)
 
 # --- Same, only using 'function' keyword
 
@@ -122,12 +125,12 @@ equal analyzeTsCode("""
 	func('abc');
 	""").asString(), s"""
 	MISSING: t
-	"""
+	""", line(122)
 
 # ---------------------------------------------------------------------------
 # test astAsString()
 
-equal stripAnsiCode(astAsString(ts2ast('const x = 42;'))), s"""
+equal astAsString(ts2ast('const x = 42;')), """
 	kind: 308
 	statements:
 		-
@@ -154,4 +157,4 @@ equal stripAnsiCode(astAsString(ts2ast('const x = 42;'))), s"""
 	symbolCount: 0
 	identifiers:
 		x:: x
-	"""
+	""", line(134)

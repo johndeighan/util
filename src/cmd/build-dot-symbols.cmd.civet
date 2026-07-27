@@ -8,7 +8,7 @@ import {
 	undef, defined, notdefined, encode,
 	} from 'base'
 import {getOptions, EXEC} from 'llutils'
-import {stdChecks, argValue} from 'cmd-args'
+import {getCmdArgs} from 'cmd-args'
 import {hash} from 'datatypes'
 import {indented} from 'indent'
 import {
@@ -17,18 +17,20 @@ import {
 	} from 'fsys'
 import {CAnalysis, analyzeTsCode} from 'typescript'
 
-# --- These may become command line options later
-oneIndent := '\n'
-maxLineLen := 75
+[
+	_
+	{force}
+	{traceLib, oneIndent}
+	{maxLineLen}
+	] := getCmdArgs 'build-dot-symbols', {
+		force:      {flag: 'f',       desc: 'force build'}
+		traceLib:   {valType: 'string',  desc: 'lib to trace'}
+		maxLineLen: {valType: 'integer', desc: 'max line len', defNum: 75}
+		oneIndent:  {valType: 'string',  desc: 'indent by',    defStr: '\t'}
+		}
 
-stdChecks {
-	_: {range: [0, 0]}
-	trace: {type: 'string', desc: 'lib to trace'}
-	}
-
-traceStub := argValue('trace')
-if traceStub
-	LOG "trace '#{traceStub}' lib"
+if traceLib
+	LOG "trace '#{traceLib}' lib"
 
 # ---------------------------------------------------------------------------
 
@@ -45,11 +47,11 @@ await EXEC () =>
 
 			await outfile.writeln(stub)
 			for line of allExportLines lExports
-				if (stub == traceStub)
+				if (stub == traceLib)
 					LOG line
 				await outfile.writeln(indented(line))
 		catch err
-			ERR getErrStr(err)
+			ERR getErrStr(err) + " in #{path}"
 
 # ---------------------------------------------------------------------------
 # --- TIterator

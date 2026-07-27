@@ -1,28 +1,19 @@
 # parsefile.cmd.civet
 
 import {LOG, ERR} from 'logger'
-import {
-	defined, assert, croak, getErrStr,
-	} from 'base'
+import {defined, assert, croak, getErrStr} from 'base'
 import {EXEC} from 'llutils'
-import {allNonOptions} from 'cmd-args'
+import {getCmdArgs} from 'cmd-args'
 import {CReadableFile} from 'fsys'
 import {parseText} from 'hera-parse'
+
+[[stub, inFileName]] := getCmdArgs 'parsefile', {
+		_: {range: [2,2]}
+		}
 
 # ---------------------------------------------------------------------------
 
 await EXEC () =>
-	lNonOptions := allNonOptions()
-	[stub, inFileName] := switch lNonOptions.length
-			case 0:
-				croak "No args!"
-				['dummy', '']
-			case 1:
-				croak "Only one arg"
-				['test', lNonOptions.join(' ')]
-			default:
-				[lNonOptions[0], lNonOptions[1]]
-
 	LOG "inFileName = #{inFileName}"
 
 	file := new CReadableFile(inFileName)

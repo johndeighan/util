@@ -2,6 +2,7 @@
 
 import {cyan, red, green} from '@std/fmt/colors'
 
+import {initLogLevel} from 'logger'
 import {
 	undef, defined, notdefined, sleep, toRelPath,
 	} from 'base'
@@ -19,21 +20,15 @@ import {
 	removeFilesMatching, watchFile, FileEventHandler, TFsEventHandler,
 	TPathType, TPathInfo, patchFirstLine, toFullPath, splitPatterns,
 	fromJsonFile, toJsonFile, addJsonValue, pathStr,
-	CReadableFile, CWritableFile, myTestDir,
+	CReadableFile, CWritableFile,
 	} from 'fsys'
 import {
 	equal, truthy, falsy, unifies, line,
-	succeeds, fails, setDirTree, fileOpsTable,
+	succeeds, fails, beginUnitTest, setDirTree, fileOpsTable,
 	} from 'unit-test'
 
-root := myTestDir(import.meta.url)
-console.log "ROOT: #{root}"
-
-# ---------------------------------------------------------------------------
-
-r := (lStrings: TemplateStringsArray): string =>
-
-	return "#{root}/#{lStrings[0]}"
+r := beginUnitTest(import.meta.url)
+root := r''
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -607,24 +602,24 @@ await (() =>
 	await f.writeln 'def'
 	f.close()
 
-	equal slurp(path), 'abc\ndef\n', line(610)
+	equal slurp(path), 'abc\ndef\n', line(612)
 	)()
 
 await (() =>
 	path := r'file99.txt'
 	fr := new CReadableFile path
 	line1 := await fr.getLine()
-	equal line1, 'abc'
+	equal line1, 'abc', line(619)
 	line2 := await fr.getLine()
-	equal line2, 'def'
+	equal line2, 'def', line(621)
 	line3 := await fr.getLine()
-	equal line3, undef,          line(621)
-	equal await fr.metaData(), {}
+	equal line3, undef,            line(623)
+	equal await fr.metaData(), {}, line(624)
 	)()
 
 # ---------------------------------------------------------------------------
 
-(await () =>
+await (() =>
 	path := r'file999.txt'
 	f := new CWritableFile path
 	await f.writeln '---'
@@ -634,36 +629,36 @@ await (() =>
 	await f.writeln 'def'
 	f.close()
 
-	equal slurp(path), '---\nname: John\n---\nabc\ndef\n', line(637)
+	equal slurp(path), '---\nname: John\n---\nabc\ndef\n', line(639)
 	)()
 
 (await () =>
 	path := r'file999.txt'
 	fr := new CReadableFile path
 	line1 := await fr.getLine()
-	equal line1, 'abc'
+	equal line1, 'abc', line(646)
 	line2 := await fr.getLine()
-	equal line2, 'def'
+	equal line2, 'def', line(648)
 	line3 := await fr.getLine()
-	equal line3, undef
-	equal await fr.metaData(), {name: 'John'}
+	equal line3, undef, line(650)
+	equal await fr.metaData(), {name: 'John'}, line(651)
 	)()
 
 (await () =>
 	path := r'file999.txt'
 	fr := new CReadableFile path
 	line1 := await fr.getLine()
-	equal line1, 'abc'
+	equal line1, 'abc', line(658)
 	line2 := await fr.getLine()
-	equal line2, 'def'
+	equal line2, 'def', line(660)
 	line3 := await fr.getLine()
-	equal line3, undef
+	equal line3, undef, line(662)
 	)()
 
 (await () =>
 	path := r'file999.txt'
 	fr := new CReadableFile path
 	contents := await fr.getContents()
-	equal contents, 'abc\ndef'
-	equal await fr.metaData(), {name: 'John'}
+	equal contents, 'abc\ndef', line(669)
+	equal await fr.metaData(), {name: 'John'}, line(670)
 	)()

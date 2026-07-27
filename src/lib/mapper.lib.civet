@@ -310,12 +310,6 @@ export function accum<TIn, TAccum>(
 
 # --- Variant 3, iterator with accumulator
 #     NOT ASYNC
-# export function MAP<TIn, TOut, TAccum extends TNonFunction>(
-#		lItems:  TIn[] | TIterator<TIn>
-#		acc: TAccum
-#		mapFunc: TBothMapper<TIn, TOut, TAccum>
-#		): TIterator<TOut, TAccum>
-
 
 export function getBoth<TIn, TOut, TAccum>(
 		lItems:  TIn[] | TIterator<TIn>
