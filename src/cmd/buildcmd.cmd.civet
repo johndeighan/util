@@ -5,7 +5,8 @@ import {assert, defined, croak} from 'base'
 import {cmdTitle, EXEC} from 'llutils'
 import {getCmdArgs, inspect} from 'cmd-args'
 import {withExt, findFile, isFile} from 'fsys'
-import {doInstallCmd, doCompileCivet, doUnitTest} from 'exec'
+import {doInstallCmd, doUnitTest} from 'exec'
+import {doCompileCivet} from 'civet'
 import {procFiles, procOneFile} from 'proc-files'
 
 [

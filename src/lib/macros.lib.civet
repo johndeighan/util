@@ -14,6 +14,7 @@ import {mkArray} from 'mapper'
 import {parsePath, CReadableFile} from 'fsys'
 import {CFileHandler, TExecResult} from 'exec'
 import {parseText} from 'hera-parse'
+import {hMdMacroLib} from 'md-macros'
 
 # ---------------------------------------------------------------------------
 # --- a macro with an empty name
@@ -102,3 +103,84 @@ export mapFile := (
 	hMetaData := await file.metaData()
 	text := await file.getContents()
 	return await mapString text, hMacros
+
+# ---------------------------------------------------------------------------
+
+hMacroLibs := {
+	'md': hMdMacroLib
+	}
+
+# ---------------------------------------------------------------------------
+
+export class CMacroFileCompiler extends CFileHandler
+
+	get op()
+		return 'doCompileMacroFile'
+
+	# ..........................................................
+
+	override canHandle(
+			path: string
+			hOptions: hash = {}
+			): boolean
+
+		ext := fileExt(path)
+		if not matches(ext, /^\.\$/)
+			return false
+		kind := ext.substring(2)
+		if not (kind in hMacroLibs)
+			return false
+		return true
+
+	# ..........................................................
+
+	override needed(
+			path: string
+			hOptions: hash = {}
+			): boolean
+
+		if ('force' in hOptions) && hOptions.force
+			return true
+		ext := fileExt(path)
+		assert matches ext, /^\.\$/
+		kind := ext.substring(2)
+		assert (kind in hMacroLibs), "Unknown macro kind #{kind}"
+		destPath := withExt path, ".#{kind}"
+		return not newerDestFileExists(path, destPath)
+
+	# ..........................................................
+	# ASYNC
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): TExecResult
+
+		type opt = {
+			force: boolean
+			trace: boolean
+			}
+		{force, trace} := getOptions<opt> hOptions, {
+			force: false
+			trace: false
+			}
+
+		assert (fileExt(path) == '.$md'), "Not an md macro file"
+		try
+			input := await Deno.readTextFile path
+			output := await mapString(input, hMdMacroLib)
+			await Deno.writeTextFile withExt(path, '.md'), output
+			return {
+				success: true
+				stdout: output
+				}
+
+		catch err
+			errMsg := "MARKDOWN PREPROC FAILED: #{pathStr(path)} - #{getErrStr(err)}"
+			return {
+				success: false
+				stdout: ''
+				stderr: errMsg
+				}
+
+export doCompileMacroFile := new CMacroFileCompiler()

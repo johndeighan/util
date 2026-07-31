@@ -40,6 +40,16 @@ export class CHeraCompiler extends CFileHandler
 	get op()
 		return 'doCompileHera'
 
+	# ..........................................................
+
+	async canHandle(
+			path: string
+			hOptions: hash = {}
+			)
+		return (fileExt(path) == '.hera')
+
+	# ..........................................................
+
 	override needed(
 			path: string
 			hOptions: hash = {}
@@ -51,6 +61,8 @@ export class CHeraCompiler extends CFileHandler
 			&& await exists(destPath)
 			&& newerDestFileExists(path, destPath)
 			)
+
+	# ..........................................................
 
 	override handle(
 			path: string,

@@ -19,7 +19,7 @@ base
 cielo
 	cielo2civet cielo2civetFile cielo2ts cielo2tsFile doCompileCielo
 civet
-	a A civet2ast civet2js civet2ts civet2tsFile TCivetOptions
+	a A civet2ast civet2js civet2ts civet2tsFile doCompileCivet TCivetOptions
 cmd-args
 	debugging doHandleClearScreen doSetLogLevel getCmdArgs helping helpStr
 	inspect parseCmdArgDesc silent TArgDesc TBoolValDesc TNonOptionDesc
@@ -37,9 +37,9 @@ datatypes
 	TIntArray TMapEntry TSequence TStringFilterFunc TStringifier TStringMapper
 	TStringSeq TUnaryFunc TVoidFunc TVoidIterator
 exec
-	CFileHandler doCompileCivet doInstallCmd doRemoveFile doRemoveTsFile doRun
-	doUninstallCmd doUnitTest execCmd getCmdLine getCmdName isInstalled mkstr
-	TExecResult TStreamType
+	CFileHandler doInstallCmd doRemoveFile doRemoveTsFile doRun doUninstallCmd
+	doUnitTest execCmd getCmdLine getCmdName isInstalled mkstr TExecResult
+	TStreamType
 extract
 	extract getArray getDsPath getNumber getPathString getString getTuple
 	reportExtractError TPathItem
@@ -88,12 +88,12 @@ logger
 	openDebugFile popLogLevel pushLogLevel stringFits TLogLevel toJSON UNDENT
 	unknownToString WARN
 macros
-	expand isMacroLib mapFile mapString TBlock TMacroBlock TMacroFunc
-	TMacroLib TTextBlock
+	CMacroFileCompiler doCompileMacroFile expand isMacroLib mapFile mapString
+	TBlock TMacroBlock TMacroFunc TMacroLib TTextBlock
 mapper
 	accum doTrace getBoth MAP MAPv1 MAPv2 MAPv3 MAPv4 MAPv5 MAPv6 mkArray
 md-macros
-	CMarkdownMaker doMakeMarkdown
+	CMarkdownMaker doMakeMarkdown hMdMacroLib
 meta-data
 	addMetaDataType extractMetaData getMetaData getMetaDataHash
 	isMetaDataStart mdGet TConverter

@@ -14,9 +14,10 @@ import {s, toBlock, EXEC, SKIP, sep, rtrim} from 'llutils'
 import {fromFSM, defaultDoneFunc, TState} from 'fsm'
 import {resetOneIndent, splitLine, indented} from 'indent'
 import {
-	execCmd, doRun, doRemoveFile, doRemoveTsFile, doCompileCivet,
+	execCmd, doRun, doRemoveFile, doRemoveTsFile,
 	doInstallCmd, doUninstallCmd, isInstalled, doUnitTest,
 	} from 'exec'
+import {doCompileCivet} from 'civet'
 import {procOneFile, procFiles} from 'proc-files'
 import {
 	withExt, rmFile, allDirsMatching,

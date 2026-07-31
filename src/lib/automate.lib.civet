@@ -148,6 +148,16 @@ class CFileCompiler extends CFileHandler
 		return 'doCompileFile'
 
 	# ..........................................................
+
+	async canHandle(
+			path: string
+			hOptions: hash = {}
+			)
+		ext := fileExt path
+		hCompilerInfo := await getCompilerInfo ext
+		return defined(hCompilerInfo)
+
+	# ..........................................................
 	# ASYNC
 
 	override async needed(

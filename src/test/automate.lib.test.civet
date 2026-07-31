@@ -100,8 +100,8 @@ await (() =>
 	result := await procOneFile(r"hello", doCompileFile)
 	equal result, {
 		infile: r"hello"
-		notNeeded: true
-		success: true
+		stderr: "doCompileFile can't handle 'src/test/automate/hello'"
+		success: false
 		}
 
 	)()

@@ -10,10 +10,14 @@ import {findInDir, loadConfig} from "@danielx/civet/config"
 import {LOG, DBG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, assert, croak,
-	withExt, getErrStr, touch,
+	getErrStr, touch, toBool,
 	} from 'base'
 import {hash} from 'datatypes'
 import {getOptions} from 'llutils'
+import {CFileHandler, TExecResult} from 'exec'
+import {
+	fileExt, withExt, isFullPath, inSameDir, newerDestFileExists, pathStr,
+	} from 'fsys'
 import {typeCheckTsFile, ts2ast, analyzeTsCode} from 'typescript'
 
 let hCivetConfig: CompileOptions? = undef
@@ -138,3 +142,84 @@ export A := (lStrings: TemplateStringsArray): string =>
 	tsCode := await civet2ts lStrings[0], {nocheck: true}
 	result := analyzeTsCode(tsCode, {dump: true}).asString()
 	return result
+
+# ---------------------------------------------------------------------------
+
+class CCivetCompiler extends CFileHandler
+
+	get op()
+		return 'doCompileCivet'
+
+	# ..........................................................
+
+	async canHandle(
+			path: string
+			hOptions: hash = {}
+			)
+		return (fileExt(path) == '.civet')
+
+	# ..........................................................
+
+	override async needed(
+			path: string
+			hOptions: hash = {}
+			): boolean
+
+		return toBool(hOptions.force) || not newerDestFileExists(path, '.ts')
+
+	# ..........................................................
+
+	getOutPath(
+			path: string
+			output: string   # --- '.ts' or actual file name
+			): string
+
+		assert (fileExt(path) == '.civet'), "Not a civet file"
+		if (output == '.ts')
+			return withExt(path, '.ts')
+		else if isFullPath(output)
+			croak "output can't be a full path"
+		else
+			assert (fileExt(output) == '.ts'), "output must have .ts ext"
+			return inSameDir(path, output)
+		return ''
+
+	# ..........................................................
+	# ASYNC
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): TExecResult
+
+		{force, nocheck, output, inlineMap,
+			} := getOptions<TCivetOptions> hOptions, {
+				force: false
+				nocheck: false
+				output: '.ts'
+				inlineMap: true
+				}
+
+		assert (fileExt(path) == '.civet'), "Not a civet file: #{path}"
+		tsPath := withExt path, '.ts'
+		try
+			outPath := await civet2tsFile path, tsPath, {
+				inlineMap
+				force
+				nocheck
+				}
+			assert (outPath == tsPath), "Bad output file: '#{outPath}'"
+			return {
+				success: true
+				infile: path
+				outfile: outPath
+				}
+		catch err
+			errMsg := getErrStr(err)
+			DBG errMsg
+			return {
+				success: false
+				stderr: "COMPILE FAILED: #{pathStr(path)} - #{errMsg}"
+				}
+
+export doCompileCivet := new CCivetCompiler()

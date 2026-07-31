@@ -31,11 +31,6 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
-typescript lib should not use execCmd
-
-fsys should not use civet. It should be the other way around
-	- move what ever function in fsys uses civet
-
 REVIEW all code that compiles civet to ts
 	- prefer use of procOneFile path, doCompileCivet
 	- maybe create a doTypeCheck ???

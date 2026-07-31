@@ -38,7 +38,6 @@ import {
 	fileExt, withExt, slurpAsync, parsePath, CWritableFile,
 	newerDestFileExists, isFullPath, inSameDir, mkpath,
 	} from 'fsys'
-import {civet2tsFile, TCivetOptions} from 'civet'
 
 procColor := 'cyan'
 
@@ -218,6 +217,14 @@ export abstract class CFileHandler
 	# ..........................................................
 	# ASYNC
 
+	abstract canHandle(
+			path: string
+			hOptions: hash
+			): Promise<boolean>
+
+	# ..........................................................
+	# ASYNC
+
 	async needed(
 			path: string
 			hOptions: hash = {}
@@ -242,9 +249,11 @@ export abstract class CFileHandler
 			hOptions: hash = {}
 			): TExecResult
 
+		op := @op
+		assert await @canHandle(path, hOptions), "#{op} can't handle '#{path}'"
 		force := ('force' in hOptions) && hOptions.force
 		isNeeded := await @needed(path, hOptions)
-		if not force && not isNeeded
+		if not isNeeded && not force
 			return {
 				success: true
 				notNeeded: true
@@ -269,16 +278,32 @@ class CFileRemover extends CFileHandler
 	get op()
 		return 'doRemoveFile'
 
+	# ..........................................................
+
+	async canHandle(
+			path: string
+			hOptions: hash = {}
+			)
+		return true   # --- even if it doesn't exist
+
+	# ..........................................................
+
 	override needed(path: string): boolean
 		return await exists(path)
 
-	override handle(
+	# ..........................................................
+
+	handle(
 			path: string,
 			hOptions: hash = {}
 			): TExecResult
 
-		LOG "Removing file #{path}"
-		await Deno.remove path
+		try
+			await Deno.remove path
+			LOG "Removing file #{path}"
+		catch err
+			if not (err instanceof Deno.errors.NotFound)
+				throw err
 		return {success: true}
 
 export doRemoveFile := new CFileRemover()
@@ -290,6 +315,16 @@ class CTsFileRemover extends CFileHandler
 	get op()
 		return 'doRemoveTsFile'
 
+	# ..........................................................
+
+	async canHandle(
+			path: string
+			hOptions: hash = {}
+			)
+		return (fileExt(path) == '.ts')
+
+	# ..........................................................
+
 	override needed(
 			path: string
 			): boolean
@@ -298,12 +333,13 @@ class CTsFileRemover extends CFileHandler
 			return false
 		return await exists withExt(path, '.civet')
 
-	override handle(
+	# ..........................................................
+
+	handle(
 			path: string
 			hOptions: hash = {}
 			): TExecResult
 
-		assert (fileExt(path) == '.ts'), "Not a TypeScript file: #{path}"
 		await Deno.remove path
 		return {
 			success: true
@@ -345,12 +381,17 @@ class CCmdInstaller extends CFileHandler
 	get op()
 		return 'doInstallCmd'
 
-	override handle(
+	async canHandle(
+			path: string
+			hOptions: hash = {}
+			)
+		return path.endsWith('.cmd.ts')
+
+	handle(
 			path: string,
 			hOptions: hash = {}
 			): TExecResult
 
-		assert path.endsWith('.cmd.ts'), "Not a command file"
 		name := getCmdName(path, hOptions)
 
 		return await execCmd 'deno', [
@@ -372,6 +413,16 @@ class CCmdUninstaller extends CFileHandler
 	get op()
 		return 'doUninstallCmd'
 
+	# ..........................................................
+
+	async canHandle(
+			path: string
+			hOptions: hash = {}
+			)
+		return path.endsWith('.cmd.ts')
+
+	# ..........................................................
+
 	override needed(
 			path: string
 			hOptions: hash = {}
@@ -379,7 +430,9 @@ class CCmdUninstaller extends CFileHandler
 		name := getCmdName(path, hOptions)
 		return await isInstalled(name)
 
-	override handle(
+	# ..........................................................
+
+	handle(
 			path: string,
 			hOptions: hash = {}
 			): TExecResult
@@ -400,7 +453,17 @@ class CFileRunner extends CFileHandler
 	get op()
 		return 'doRun'
 
-	override handle(
+	# ..........................................................
+
+	async canHandle(
+			path: string
+			hOptions: hash = {}
+			)
+		return path.endsWith('.ts')
+
+	# ..........................................................
+
+	handle(
 			path: string,
 			hOptions: hash = {}
 			): TExecResult
@@ -414,8 +477,6 @@ class CFileRunner extends CFileHandler
 			label: undef
 			}
 
-		assert (fileExt(path) == '.ts'), "Not a TypeScript file"
-
 		hResult := await execCmd 'deno', [
 			'run'
 			'-A'
@@ -428,80 +489,6 @@ export doRun := new CFileRunner()
 
 # ---------------------------------------------------------------------------
 
-class CCivetCompiler extends CFileHandler
-
-	get op()
-		return 'doCompileCivet'
-
-	# ..........................................................
-
-	override async needed(
-			path: string
-			hOptions: hash = {}
-			): boolean
-
-		return toBool(hOptions.force) || not newerDestFileExists(path, '.ts')
-
-	# ..........................................................
-
-	getOutPath(
-			path: string
-			output: string   # --- '.ts' or actual file name
-			): string
-
-		assert (fileExt(path) == '.civet'), "Not a civet file"
-		if (output == '.ts')
-			return withExt(path, '.ts')
-		else if isFullPath(output)
-			croak "output can't be a full path"
-		else
-			assert (fileExt(output) == '.ts'), "output must have .ts ext"
-			return inSameDir(path, output)
-		return ''
-
-	# ..........................................................
-	# ASYNC
-
-	override handle(
-			path: string,
-			hOptions: hash = {}
-			): TExecResult
-
-		{force, nocheck, output, inlineMap,
-			} := getOptions<TCivetOptions> hOptions, {
-				force: false
-				nocheck: false
-				output: '.ts'
-				inlineMap: true
-				}
-
-		assert (fileExt(path) == '.civet'), "Not a civet file: #{path}"
-		tsPath := withExt path, '.ts'
-		try
-			outPath := await civet2tsFile path, tsPath, {
-				inlineMap
-				force
-				nocheck
-				}
-			assert (outPath == tsPath), "Bad output file: '#{outPath}'"
-			return {
-				success: true
-				infile: path
-				outfile: outPath
-				}
-		catch err
-			errMsg := getErrStr(err)
-			if debugging
-				LOG errMsg
-			return {
-				success: false
-				stderr: "COMPILE FAILED: #{pathStr(path)} - #{errMsg}"
-				}
-
-export doCompileCivet := new CCivetCompiler()
-
-# ---------------------------------------------------------------------------
-
 class CUnitTester extends CFileHandler
 
 	get op()
@@ -509,12 +496,19 @@ class CUnitTester extends CFileHandler
 
 	# ..........................................................
 
-	override handle(
+	async canHandle(
+			path: string
+			hOptions: hash = {}
+			)
+		return path.endsWith('.test.ts')
+
+	# ..........................................................
+
+	handle(
 			path: string,
 			hOptions: hash = {}
 			): TExecResult
 
-		assert path.endsWith('.test.ts'), "Not a unit test file"
 		type opt = {
 			capture: boolean
 			inspect: boolean

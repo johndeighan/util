@@ -14,7 +14,7 @@ import {TMacroLib, mapString} from 'macros'
 
 # ---------------------------------------------------------------------------
 
-hMarkdownLib: TMacroLib := {
+export hMdMacroLib: TMacroLib := {
 	'#preproc': (block) =>
 		return """
 			<style>
@@ -84,7 +84,7 @@ export class CMarkdownMaker extends CFileHandler
 		assert (fileExt(path) == '.$md'), "Not an md macro file"
 		try
 			input := await Deno.readTextFile path
-			output := await mapString(input, hMarkdownLib)
+			output := await mapString(input, hMdMacroLib)
 			await Deno.writeTextFile withExt(path, '.md'), output
 			return {
 				success: true

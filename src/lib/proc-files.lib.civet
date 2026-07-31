@@ -15,7 +15,8 @@ import {hash, nonEmpty} from 'datatypes'
 import {f, getOptions} from 'llutils'
 import {DUMP} from 'nice'
 import {allFilesMatching, isFile, mkpath} from 'fsys'
-import {CFileHandler, TExecResult, doCompileCivet} from 'exec'
+import {CFileHandler, TExecResult} from 'exec'
+import {doCompileCivet} from 'civet'
 
 # ---------------------------------------------------------------------------
 # ASYNC

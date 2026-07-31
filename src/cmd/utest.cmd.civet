@@ -10,7 +10,8 @@ import {cmdTitle, f, dashes, EXEC} from 'llutils'
 import {
 	isFile, rmDir, withExt, findFile, allFilesMatching, parsePath,
 	} from 'fsys'
-import {execCmd, TExecResult, doCompileCivet, doUnitTest} from 'exec'
+import {execCmd, TExecResult, doUnitTest} from 'exec'
+import {doCompileCivet} from 'civet'
 import {TProcSpec, procFiles, procOneFile, compileAllLibs} from 'proc-files'
 import {DUMP} from 'nice'
 import {CTimer} from 'timer'
