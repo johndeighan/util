@@ -7,7 +7,7 @@ import {o} from 'llutils'
 import {withExt, TPathInfo, isFile} from 'fsys'
 import {procOneFile} from 'proc-files'
 import {
-	TCompilerFunc, TPostProcessor, doCompileFile,
+	TCompilerFunc, TPostProcessor, doCompileFile, configFromFile,
 	TCompilerInfo, isCompilerInfo, TCompilerConfig, isCompilerConfig,
 	getCompilerConfig, getCompilerInfo, getPostProcessor,
 	} from 'automate'
@@ -15,7 +15,7 @@ import {
 	equal, succeeds, fails, truthy, falsy, beginUnitTest, setDirTree,
 	} from 'unit-test'
 
-r := beginUnitTest(import.meta.url)
+[root, r] := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -23,7 +23,13 @@ r := beginUnitTest(import.meta.url)
 setup := (): void ->
 
 	await setDirTree """
-		./#{r''} clear
+		./#{root} clear
+		file.config.ts
+			export default new Object({
+				a: 1,
+				b: 'abc',
+				f: () => 'hello'
+				})
 		hello
 			console.log("Hello, World!");
 		hello.cmd.civet
@@ -99,3 +105,15 @@ await (() =>
 		}
 
 	)()
+
+# ---------------------------------------------------------------------------
+
+await (() =>
+	hConfig := await configFromFile r'file.config.ts'
+	truthy defined(hConfig)
+	truthy defined(hConfig.a)
+	falsy  defined(hConfig.x)
+	if isFunction(hConfig.f)
+		equal hConfig.f(), 'hello'
+	)
+

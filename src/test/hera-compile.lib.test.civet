@@ -10,14 +10,14 @@ import {
 	beginUnitTest, equal, truthy, falsy, succeeds, fails, setDirTree,
 	} from 'unit-test'
 
-r := beginUnitTest(import.meta.url)
+[root, r] := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 
 setup := (): void ->
 
 	await setDirTree """
-		./#{r''} clear
+		./#{root} clear
 		counter.parse.hera compile
 			---
 			type: civet

@@ -5,7 +5,7 @@ import {DUMP} from 'nice'
 import {parseText} from 'hera-parse'
 import {beginUnitTest, equal} from 'unit-test'
 
-r := beginUnitTest(import.meta.url)
+[root, r] := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 

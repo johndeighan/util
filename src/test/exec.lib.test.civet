@@ -13,7 +13,7 @@ import {
 	equal, succeeds, fails, truthy, falsy, beginUnitTest, setDirTree, line,
 	} from 'unit-test'
 
-r := beginUnitTest(import.meta.url)
+[root, r] := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 
@@ -62,7 +62,7 @@ str := """
 setup := (): void ->
 
 	await setDirTree """
-		./#{r''} clear
+		./#{root} clear
 		hello.txt
 			Hello
 		temp.txt

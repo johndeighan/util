@@ -1,11 +1,12 @@
 # hera-parse.lib.test.civet
 
-import {parseText, parseFile} from 'hera-parse'
+import {esc} from 'unicode'
+import {parseText, parseFile, str2indents} from 'hera-parse'
 import {
 	beginUnitTest, setDirTree, equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test'
 
-r := beginUnitTest(import.meta.url)
+[root, r] := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -13,7 +14,7 @@ r := beginUnitTest(import.meta.url)
 setup := (): void ->
 
 	await setDirTree """
-		./#{r''} clear
+		./#{root} clear
 		test.parse.hera compile
 			#beginParse(text)
 			Program

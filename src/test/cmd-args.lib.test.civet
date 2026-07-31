@@ -14,7 +14,7 @@ import {
 	beginUnitTest, equal, succeeds, fails, truthy, falsy, line,
 	} from 'unit-test'
 
-r := beginUnitTest(import.meta.url)
+[root, r] := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 

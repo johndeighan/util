@@ -8,7 +8,7 @@ import {
 	} from 'parse-utils'
 import {beginUnitTest, equal} from 'unit-test'
 
-r := beginUnitTest(import.meta.url)
+[root, r] := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 

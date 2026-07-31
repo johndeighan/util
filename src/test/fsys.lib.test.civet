@@ -15,7 +15,7 @@ import {
 	isFile, isDir, getPathType, fileExt, withExt, inSameDir, modTime,
 	parsePath, allFilesMatching, allDirsMatching, allLinesInFile,
 	normalizePath, pathToURL, mkpath, pathSubDirs, myself, touch,
-	rmFile, rmDir, newerDestFileExists, configFromFile, barfTempFile,
+	rmFile, rmDir, newerDestFileExists, barfTempFile,
 	clearDir, mkDir, mkDirsForFile, slurp, slurpAsync, barf, isPathType,
 	removeFilesMatching, watchFile, FileEventHandler, TFsEventHandler,
 	TPathType, TPathInfo, patchFirstLine, toFullPath, splitPatterns,
@@ -27,8 +27,7 @@ import {
 	succeeds, fails, beginUnitTest, setDirTree, fileOpsTable,
 	} from 'unit-test'
 
-r := beginUnitTest(import.meta.url)
-root := r''
+[root, r] := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -37,12 +36,6 @@ setup := (): void ->
 
 	await setDirTree """
 		./#{root} clear
-		file.config.ts
-			export default new Object({
-				a: 1,
-				b: 'abc',
-				f: () => 'hello'
-				})
 		dummy.txt
 			dummy
 		tokens.txt
@@ -414,17 +407,6 @@ await equal await slurpAsync(r'file1.txt'), """
 		'tokens.txt',
 		]
 	)()
-
-# ---------------------------------------------------------------------------
-
-await (() =>
-	hConfig := await configFromFile r'file.config.ts'
-	truthy defined(hConfig)
-	truthy defined(hConfig.a)
-	falsy  defined(hConfig.x)
-	if isFunction(hConfig.f)
-		equal hConfig.f(), 'hello'
-	)
 
 # ---------------------------------------------------------------------------
 

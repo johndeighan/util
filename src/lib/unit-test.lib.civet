@@ -42,16 +42,17 @@ let nextNum = 1
 
 # ---------------------------------------------------------------------------
 
-export beginUnitTest := (url: string): Function =>
+export beginUnitTest := (url: string): [string, Function] =>
 
 	initLogLevel 'testing'
 
 	{dir, stub} := parsePath url
 	name := stub.split('.')[0]
 	root := mkpath(relative(Deno.cwd(), dir), name)
-	return (lStrings: TemplateStringsArray): string =>
+	return [root, (lStrings: TemplateStringsArray): string =>
 		str := lStrings[0]
 		return (str == '') ? root : "#{root}/#{str}"
+		]
 
 # ---------------------------------------------------------------------------
 

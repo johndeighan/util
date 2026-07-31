@@ -10,7 +10,7 @@ import {
 	beginUnitTest, equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test'
 
-r := beginUnitTest(import.meta.url)
+[root, r] := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 # --- Create 3 log records for use in testing

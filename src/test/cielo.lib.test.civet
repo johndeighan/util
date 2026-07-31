@@ -11,7 +11,7 @@ import {
 	equal, succeeds, fails, truthy, falsy, setDirTree, beginUnitTest,
 	} from 'unit-test'
 
-r := beginUnitTest(import.meta.url)
+[root, r] := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -19,7 +19,7 @@ r := beginUnitTest(import.meta.url)
 setup := (): void ->
 
 	await setDirTree """
-		./#{r''} clear
+		./#{root} clear
 		file.config.ts
 			export default new Object({
 				a: 1,

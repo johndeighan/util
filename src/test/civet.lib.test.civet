@@ -8,11 +8,11 @@ import {initLogLevel} from 'logger'
 import {undef, defined} from 'base'
 import {isHash} from 'datatypes'
 import {s, rtrim} from 'llutils'
-import {slurp, withExt, rmFile} from 'fsys'
+import {slurp, withExt, rmFile, isFile} from 'fsys'
 import {procOneFile, compileAllLibs} from 'proc-files'
 import {ts2ast, astAsString} from 'typescript'
 import {
-	civet2ts, civet2tsFile, civet2ast, a, A,
+	civet2ts, civet2js, civet2tsFile, civet2ast, a, A,
 	} from 'civet'
 import {doCompileCivet} from 'exec'
 import {
@@ -20,14 +20,14 @@ import {
 	beginUnitTest, setDirTree,
 	} from 'unit-test'
 
-r := beginUnitTest(import.meta.url)
+[root, r] := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 
 setup := (): void ->
 
 	await setDirTree """
-		./#{r''} clear
+		./#{root} clear
 		test.civet compile
 			x := 42
 			console.log "x = \#{x}"

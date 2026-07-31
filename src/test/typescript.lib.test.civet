@@ -21,7 +21,7 @@ import {
 	setDirTree, line,
 	} from 'unit-test'
 
-r := beginUnitTest(import.meta.url)
+[root, r] := beginUnitTest(import.meta.url)
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -29,7 +29,7 @@ r := beginUnitTest(import.meta.url)
 setup := (): void ->
 
 	await setDirTree """
-		./#{r''} clear
+		./#{root} clear
 		tstest.ts
 			const str: string = 'abc'
 		tstest2.ts
