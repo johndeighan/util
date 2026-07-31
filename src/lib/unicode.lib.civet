@@ -51,8 +51,12 @@ export lit := (str: char): string =>
 
 # ---------------------------------------------------------------------------
 
+export hCtrlChars: hashof<string> := {}
+for i of [0..32]
+	hCtrlChars[String.fromCodePoint(i)] = String.fromCodePoint(0x2400 + i)
+
 hEsc: hashof<string> := {
-	"\r":    cyan('←')
+	...hCtrlChars
 	"\n":    cyan('↓')
 	"\t":    cyan('→')
 	" ":    '˳'

@@ -5,7 +5,6 @@ import {parse: parseJSONC, JsonValue} from '@std/jsonc'
 import {debounce} from '@std/async/debounce'
 import {existsSync, emptyDirSync, ensureDirSync} from '@std/fs'
 import {appendFileSync, openSync, closeSync} from 'node-fs'
-import {pathToFileURL} from 'node-url'
 import {EventEmitter} from 'node-events'
 import {expandGlobSync} from '@std/fs/expand-glob'
 import {TextLineStream} from '@std/streams/text-line-stream'
@@ -19,11 +18,10 @@ import {
 	} from 'logger'
 import {
 	pass, undef, defined, notdefined, toRelPath,
-	normalizePath, toFullPath,
-	allLinesInFile,
-	TIterator, TAsyncIterator,
-	fileExt, withExt, getFileStats, encode,
-	croak, assert, obviously, words,
+	normalizePath, toFullPath, modTime, allLinesInFile,
+	TIterator, TAsyncIterator, newerDestFileExists,
+	fileExt, withExt, getFileStats, encode, isFullPath,
+	croak, assert, obviously, words, touch,
 	getEmptyIterator, getEmptyAsyncIterator,
 	} from 'base'
 import {
@@ -40,12 +38,11 @@ import {
 import {isMetaDataStart, getMetaDataHash} from 'meta-data'
 import {debugging} from 'cmd-args'
 import {OL, DBGVALUE} from 'nice'
-import {civet2tsFile} from 'llcivet'
 
 export {
-	normalizePath, toRelPath, toFullPath,
-	allLinesInFile,
-	fileExt, withExt, getFileStats,
+	normalizePath, toRelPath, toFullPath, touch,
+	allLinesInFile, modTime, newerDestFileExists,
+	fileExt, withExt, getFileStats, isFullPath,
 	}
 
 # --- Create a function capable of synchronously
@@ -92,14 +89,6 @@ export getPathType := (path: string): TPathType =>
 		: h.isDirectory    ? 'dir'
 		:                    'unknown'
 		)
-
-# ---------------------------------------------------------------------------
-
-export touch := (path: string): void =>
-
-	fd := openSync(path, 'a')
-	closeSync(fd)
-	return
 
 # ---------------------------------------------------------------------------
 
@@ -198,33 +187,6 @@ export barfTempFile := (
 	tempFilePath := Deno.makeTempFileSync {suffix: ext}
 	barf tempFilePath, contents
 	return tempFilePath
-
-# ---------------------------------------------------------------------------
-
-export modTime := (path: string): Date =>
-
-	ms := getFileStats(path).mtime
-	assert defined(ms), "ms not defined for #{path}"
-	return ms
-
-# ---------------------------------------------------------------------------
-
-export newerDestFileExists := (
-		srcPath: string,
-		destPath: string    # --- can be a file extension
-		): boolean =>
-
-	# --- source file must exist
-	assert isFile(srcPath), "No such file: #{OL(srcPath)}"
-
-	# --- allow passing a file extension for 2nd argument
-	if destPath.startsWith('.')
-		assert (fileExt(srcPath) != destPath), "Identical extensions"
-		destPath = withExt(srcPath, destPath)
-
-	if not existsSync(destPath)
-		return false
-	return modTime(destPath) > modTime(srcPath)
 
 # ---------------------------------------------------------------------------
 
@@ -723,33 +685,6 @@ export rmDir := (
 		else
 			Deno.removeSync path
 	return
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export configFromFile := (
-		fileName: string
-		): hash =>
-
-	# --- config should be a hash named hConfig
-
-	# --- NOTE: If a defined path is returned, it definitely exists
-	path := findFile fileName
-	assert defined(path), "No such file: #{OL(fileName)}"
-	{purpose, ext} := parsePath path
-	assert defined(ext), "No file ext in #{OL(path)}"
-	assert (purpose == 'config'), "Not a config file: #{OL(path)}"
-	assert ['.civet', '.ts'].includes(ext), "Invalid path: #{OL(path)}"
-	DBG "Import config from #{OL(path)}"
-	url := (
-		if (ext == '.civet')
-			tsPath := await civet2tsFile path
-			pathToFileURL tsPath
-		else
-			pathToFileURL path
-		)
-	h := await import url
-	return h.hConfig
 
 # ---------------------------------------------------------------------------
 

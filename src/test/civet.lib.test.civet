@@ -9,13 +9,15 @@ import {undef, defined} from 'base'
 import {isHash} from 'datatypes'
 import {s, rtrim} from 'llutils'
 import {slurp, withExt, rmFile} from 'fsys'
-import {procOneFile} from 'proc-files'
+import {procOneFile, compileAllLibs} from 'proc-files'
 import {ts2ast, astAsString} from 'typescript'
-import {civet2ts, civet2tsFile, TCivetOptions, doCompileCivet,
-	civet2ast, compileAllLibs, a, A,
-	} from 'civet'
 import {
-	equal, succeeds, fails, truthy, falsy, beginUnitTest, setDirTree,
+	civet2ts, civet2tsFile, civet2ast, a, A,
+	} from 'civet'
+import {doCompileCivet} from 'exec'
+import {
+	equal, succeeds, fails, truthy, falsy,
+	beginUnitTest, setDirTree,
 	} from 'unit-test'
 
 r := beginUnitTest(import.meta.url)
@@ -26,8 +28,13 @@ setup := (): void ->
 
 	await setDirTree """
 		./#{r''} clear
-		test.civet
+		test.civet compile
 			x := 42
+			console.log "x = \#{x}"
+		temp.civet
+			s: string := 'abc'
+		hello.txt
+			Hello
 		"""
 	return
 
@@ -47,12 +54,12 @@ await setup()
 	equal await civet2ts('x := 42', {inlineMap: false}), """
 		"use strict";
 		const x = 42
+		console.log(`x = ${x}`)
 		"""
 	)
 
 (() =>
-#	path := r"test.civet"
-	path := "src/test/civet/test.civet"
+	path := r"test.civet"
 	tsPath := withExt path, '.ts'
 
 	debugger
@@ -72,6 +79,13 @@ await setup()
 
 await (() =>
 	equal await a"""
+		import {defined, notdefined} from 'datatypes'
+		""", s"""
+		IMPORTS: datatypes: defined notdefined
+		EXTRA: defined notdefined
+		"""
+
+	equal await A"""
 		import {defined, notdefined} from 'datatypes'
 		""", s"""
 		IMPORTS: datatypes: defined notdefined
@@ -160,4 +174,26 @@ await (() =>
 		await procOneFile r"test.civet", doCompileCivet
 		truthy await exists r"test.ts"
 		)()
+	)()
+
+# ---------------------------------------------------------------------------
+
+truthy isFile(r'hello.txt')
+
+equal await civet2ts('x: number := 42', {inlineMap: false}), """
+	"use strict";
+	const x: number = 42
+	"""
+
+equal await civet2js('x: number := 42'), """
+	"use strict";
+	const x = 42
+	"""
+
+await (() =>
+	await civet2tsFile(r"temp.civet", r"temp.ts", {inlineMap: false})
+	equal slurp(r"temp.ts"), """
+		"use strict";
+		const s = 'abc'
+		"""
 	)()

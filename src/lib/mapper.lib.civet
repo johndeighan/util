@@ -265,6 +265,7 @@ export function MAP<TIn, TOut, TAccum extends TNonFunction>(
 				return MAPv2 lItems, acc, mapFunc
 
 # ---------------------------------------------------------------------------
+# HYBRID
 
 export function mkArray<TIn, TOut>(
 		lItems: TIn[] | TIterator<TIn>

@@ -177,6 +177,34 @@ export withExt := (path: string, ext: string): string =>
 
 # ---------------------------------------------------------------------------
 
+export modTime := (path: string): Date =>
+
+	ms := getFileStats(path).mtime
+	assert defined(ms), "ms not defined for #{path}"
+	return ms
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export touch := (
+		path: string
+		): void =>
+
+	try
+		# --- If the file exists, update its access
+		#     and modification times to now
+		await Deno.utime path, new Date(), new Date()
+	catch err
+		if (err instanceof Deno.errors.NotFound)
+			# --- If the file does not exist,
+			#     create it without truncating
+			file := await Deno.open path, {create: true, write: true}
+			file.close()
+		else
+			throw err
+
+# ---------------------------------------------------------------------------
+
 export newerDestFileExists := (
 		srcPath: string,
 		destPath: string    # --- can be a file extension
@@ -187,15 +215,12 @@ export newerDestFileExists := (
 
 	# --- allow passing a file extension for 2nd argument
 	if destPath.startsWith('.')
+		assert (fileExt(srcPath) != destPath), "Identical extensions"
 		destPath = withExt(srcPath, destPath)
 
 	if not existsSync(destPath)
 		return false
-	destms := getFileStats(destPath).mtime
-	assert defined(destms), "destms not defined"
-	srcms  := getFileStats(srcPath).mtime
-	assert defined(srcms), "srcms not defined"
-	return (destms > srcms)
+	return modTime(destPath) > modTime(srcPath)
 
 # ---------------------------------------------------------------------------
 
@@ -445,10 +470,11 @@ export isColor := (str: string): str is TColor =>
 # ---------------------------------------------------------------------------
 
 export colorize := (
-		str: string,
+		item: string | number
 		color: string?
 		): string =>
 
+	str := (typeof item == 'number') ? item.toString() : item
 	if notdefined(color) || not isColor(color)
 		return str
 	switch color

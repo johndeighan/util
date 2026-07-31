@@ -5,10 +5,8 @@ import {assert, defined, croak} from 'base'
 import {cmdTitle, EXEC} from 'llutils'
 import {getCmdArgs, inspect} from 'cmd-args'
 import {withExt, findFile, isFile} from 'fsys'
-import {doInstallCmd} from 'exec'
+import {doInstallCmd, doCompileCivet, doUnitTest} from 'exec'
 import {procFiles, procOneFile} from 'proc-files'
-import {doUnitTest} from 'typescript'
-import {doCompileCivet} from 'civet'
 
 [
 	lStubs,

@@ -8,14 +8,14 @@ import {LOG, DBG, ERR, clearLog, getLog} from 'logger'
 import {
 	undef, defined, notdefined, assert, obviously, croak,
 	TAsyncIterator, deepEqual, sleep, getErrStr, colorize,
-	decolorize, TIterator,
+	decolorize, TIterator, range,
 	} from 'base'
 import {s, toBlock, EXEC, SKIP, sep, rtrim} from 'llutils'
 import {fromFSM, defaultDoneFunc, TState} from 'fsm'
 import {resetOneIndent, splitLine, indented} from 'indent'
 import {
-	execCmd, doRun, doRemoveFile, doRemoveTsFile,
-	doInstallCmd, doUninstallCmd, isInstalled,
+	execCmd, doRun, doRemoveFile, doRemoveTsFile, doCompileCivet,
+	doInstallCmd, doUninstallCmd, isInstalled, doUnitTest,
 	} from 'exec'
 import {procOneFile, procFiles} from 'proc-files'
 import {
@@ -28,17 +28,15 @@ import {TextTable, splitRows} from 'text-table'
 import {
 	doCompileHera, testHeraCode, preprocHera, preprocHeraFile,
 	} from 'hera-compile'
-import {parseText, str2indents} from 'hera-parse'
+import {parseText} from 'hera-parse'
 import {compileHera} from 'llhera'
 import {symbolsFromString} from 'symbols'
-import {typeCheckTsCode} from 'lltypescript'
-import {CAnalysis, analyzeTsCode, doUnitTest} from 'typescript'
+import {typeCheckTsCode, CAnalysis, analyzeTsCode} from 'typescript'
 import {
 	TTextBlock, TMacroBlock, TBlock,
 	TMacroFunc, TMacroLib, isMacroLib,
-	mkBlk, expand, mapString, mapFile,
+	expand, mapString, mapFile,
 	} from 'macros'
-import {doCompileCivet, civet2tsFile} from 'civet'
 import {
 	getFileOps, TFileOp,
 	} from 'unit-test'
@@ -46,45 +44,32 @@ import {CRule, CRuleBranch, mkCodeBlock} from 'rule'
 import {
 	awaitAll, TSettleResult,
 	} from 'promise-utils'
-import {mockPromise} from 'unit-test'
+import {mockPromise, checkType} from 'unit-test'
 import {doCompileFile} from 'automate'
 import {
 	stack, setTracing,
 	trEnter, trReturnFrom, trYieldFrom, trResume, tr,
 	} from 'trace'
 import {CCallStack} from 'trace-stack'
-import {civet2js, civet2ts} from 'llcivet'
+import {civet2js, civet2ts, civet2tsFile} from 'civet'
 import {generateAsync} from 'iter-utils'
+import {CTimer} from 'timer'
 
 # ---------------------------------------------------------------------------
 
 EXEC await () =>
 	debugger
-	clearLog()
-	setTracing true
+	path := 'src/lib/fsys.lib.civet'
+	numLoops := 100
 
-	lItems := [
-		'this is a very long string to display'
-		'and there are more in this hash to return from func'
-		]
-	hItems := {
-		str1: 'this is a very long string to display'
-		str2: 'and there are more in this hash to return from func'
-		}
-	trEnter 'func', [lItems]
-	trReturnFrom 'func', hItems
-	console.log getLog()
+	timer := new CTimer()
+	for i of range(numLoops)
+		tsPath := await civet2tsFile path, undef, {force: true, nocheck: true}
+	console.log timer.timeTakenStr(true, 4, numLoops)
 
-# 	equal getLog().replaceAll('\t', '   '), s"""
-# 		enter func
-# 		│   arg[0] =
-# 		│   	0
-# 		│   	1
-# 		└─> return from func
-# 			val =
-# 				0
-# 				1
-# 		""", line(87)
+	for i of range(numLoops)
+		h := await procOneFile path, doCompileCivet, {force: true, nocheck: true}
+	console.log timer.timeTakenStr(true, 4, numLoops)
 
 await SKIP () =>
 	clearLog()
@@ -107,14 +92,6 @@ await SKIP () =>
 		│   └─> return ｟undef｠ from func2\n
 		└─> return ｟undef｠ from func1\n
 		"""
-
-SKIP () =>
-	path := "src/test/civet/test.civet"
-	tsPath := withExt(path, '.ts')
-
-	await civet2tsFile path, tsPath, {inlineMap: false}
-	code := slurp tsPath
-	DUMP rtrim(code), 'CODE'
 
 SKIP () =>
 	path := 'src/test/datatypes.lib.test.civet'

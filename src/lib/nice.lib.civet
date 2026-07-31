@@ -17,7 +17,7 @@ import {
 	} from 'datatypes'
 import {indented} from 'indent'
 import {
-	truncStr, getOptions, arrayToBlock, sep, f,
+	truncStr, getOptions, arrayToBlock, sep, f, rtrim,
 	} from 'llutils'
 
 # ---------------------------------------------------------------------------
@@ -139,11 +139,11 @@ class CCollection extends CBase
 					if str.includes('\n')
 						yield """
 							#{prefix}
-							#{indented(str)}
+							#{indented(rtrim(str))}
 							"""
 					else
 						yield prefix + ' ' + str
-				)
+				) + '\n'
 
 # ---------------------------------------------------------------------------
 
@@ -194,7 +194,7 @@ class CMapping extends CBase
 		lParts := mkArray @lEntries, (entry: CEntry) ->
 			[key, val] := entry
 			yield (key + keyCh)
-			yield val.buildStr(maxWidth)   # right ?
+			yield val.buildStr(maxWidth)
 
 		if fits(maxWidth, lParts, ' ', 2)
 			return openCh + lParts.join(' ') + closeCh
@@ -208,12 +208,12 @@ class CMapping extends CBase
 						if str.includes('\n')
 							yield """
 								#{key}
-								#{indented(str)}
+								#{indented(rtrim(str))}
 								"""
 						else
 							yield "#{key} #{str}"
 					return
-				)
+				) + '\n'
 
 # ---------------------------------------------------------------------------
 

@@ -23,7 +23,7 @@ import {CAnalysis, analyzeTsCode} from 'typescript'
 	{traceLib, oneIndent}
 	{maxLineLen}
 	] := getCmdArgs 'build-dot-symbols', {
-		force:      {flag: 'f',       desc: 'force build'}
+		force:      {flag: 'f',          desc: 'force build'}
 		traceLib:   {valType: 'string',  desc: 'lib to trace'}
 		maxLineLen: {valType: 'integer', desc: 'max line len', defNum: 75}
 		oneIndent:  {valType: 'string',  desc: 'indent by',    defStr: '\t'}

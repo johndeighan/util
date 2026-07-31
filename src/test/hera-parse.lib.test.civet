@@ -1,13 +1,28 @@
 # hera-parse.lib.test.civet
 
-import {initLogLevel} from 'logger'
-import {esc} from 'unicode'
-import {str2indents} from 'hera-parse'
+import {parseText, parseFile} from 'hera-parse'
 import {
-	beginUnitTest, equal, truthy, falsy, succeeds, fails,
+	beginUnitTest, setDirTree, equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test'
 
 r := beginUnitTest(import.meta.url)
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+setup := (): void ->
+
+	await setDirTree """
+		./#{r''} clear
+		test.parse.hera compile
+			#beginParse(text)
+			Program
+				"a"* "b"*
+					return ($1.length - $2.length)
+				return
+		"""
+
+await setup()
 
 # ---------------------------------------------------------------------------
 
@@ -42,4 +57,6 @@ equal esc(str2indents("""
 
 		def
 	""")), './src↓file↓»abc↓↓def↓«↓'
+
+# ---------------------------------------------------------------------------
 

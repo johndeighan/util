@@ -4,7 +4,7 @@ import {
 	undef, defined, notdefined, assert, croak
 	} from 'base'
 import {
-	hashof, isString, isHash, TStringMapper,
+	hashof, isString, isHash, isFunction, TStringMapper,
 	isEmpty, nonEmpty, isArray, isStringMapper,
 	} from 'datatypes'
 import {indented} from 'indent'
@@ -36,46 +36,6 @@ export type TBlock = TTextBlock | TMacroBlock
 
 # ---------------------------------------------------------------------------
 
-export mkBlk := (
-		firstLine: string
-		...lOrgContent: (TTextBlock | TMacroBlock | string)[]
-		): TTextBlock | TMacroBlock =>
-
-
-	lContent := mkArray lOrgContent, (x) ->
-		if isString(x)
-			yield {
-				type: 'text'
-				firstLine: x
-				lContent: []
-				}
-		else
-			yield x
-
-	lMatches := firstLine.match ///^
-		\#
-		([A-Za-z_][A-Za-z0-9_]*)
-		\s*
-		(.*)
-		$///
-
-	if defined(lMatches)
-		return {
-			type: 'macro'
-			name: lMatches[1]
-			args: lMatches[2]
-			lContent
-			} as TMacroBlock
-	else
-		return {
-			type: 'text'
-			firstLine
-			lContent
-			} as TTextBlock
-
-
-# ---------------------------------------------------------------------------
-
 export type TMacroFunc = (
 		block: string
 		args?: string
@@ -90,8 +50,8 @@ export isMacroLib := (x: unknown): x is TMacroLib =>
 
 	if not isHash(x)
 		return false
-	for _,macro of entries(x)
-		if not isStringMapper(macro)
+	for [key,func] of Object.entries(x)
+		if not isFunction(func)
 			return false
 	return true
 

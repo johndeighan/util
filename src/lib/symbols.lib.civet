@@ -7,7 +7,7 @@ import {
 	} from 'base'
 import {hashof, clearHash} from 'datatypes'
 import {keys} from 'llutils'
-import {findFile, isFile} from 'fsys'
+import {findFile, isFile, modTime} from 'fsys'
 import {parseText} from 'hera-parse'
 
 /**
@@ -30,6 +30,11 @@ import {parseText} from 'hera-parse'
 # --- { <symbol> => <lib>, ... }
 hAllSymbols: hashof<string> := {}
 
+# --- Keep track of file from which symbols were loaded
+#     Plus the time stamp of the file when loaded
+let loadFilePath: string = ''
+let loadFileModTime: Date = new Date(0)
+
 # ---------------------------------------------------------------------------
 # ASYNC
 
@@ -37,11 +42,17 @@ export loadSymbols := (
 		fileName: string = '.symbols'
 		): hashof<string> =>
 
-	clearHash(hAllSymbols)
 	path := findFile fileName
 	assert defined(path), "No such file: #{fileName}"
+	pathModTime := modTime(path)
+	if (path == loadFilePath) && (pathModTime == loadFileModTime)
+		return hAllSymbols    # --- not needed
+
 	contents := await Deno.readTextFile path
+	clearHash(hAllSymbols)
 	await loadSymbolsFrom contents, hAllSymbols
+	loadFilePath = path
+	loadFileModTime = pathModTime
 	return hAllSymbols
 
 # ---------------------------------------------------------------------------

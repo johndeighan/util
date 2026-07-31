@@ -79,8 +79,6 @@
 		"hera-parse":    "file:///C:/Users/johnd/util/src/lib/hera-parse.lib.ts",
 		"symbols":       "file:///C:/Users/johnd/util/src/lib/symbols.lib.ts",
 		"typescript":    "file:///C:/Users/johnd/util/src/lib/typescript.lib.ts",
-		"lltypescript":  "file:///C:/Users/johnd/util/src/lib/lltypescript.lib.ts",
-		"llcivet":       "file:///C:/Users/johnd/util/src/lib/llcivet.lib.ts",
 		"llhera":        "file:///C:/Users/johnd/util/src/lib/llhera.lib.ts",
 		"civet":         "file:///C:/Users/johnd/util/src/lib/civet.lib.ts",
 		"cielo":         "file:///C:/Users/johnd/util/src/lib/cielo.lib.ts",
@@ -95,8 +93,6 @@
 		"macros":        "file:///C:/Users/johnd/util/src/lib/macros.lib.ts",
 		"md-macros":     "file:///C:/Users/johnd/util/src/lib/md-macros.lib.ts",
 		"trace":         "file:///C:/Users/johnd/util/src/lib/trace.lib.ts",
-		"trace-stack":   "file:///C:/Users/johnd/util/src/lib/trace-stack.lib.ts",
-
-		"civetconfig":   "file:///C:/Users/johnd/civet.config.json"
+		"trace-stack":   "file:///C:/Users/johnd/util/src/lib/trace-stack.lib.ts"
 	}
 }

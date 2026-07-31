@@ -9,7 +9,7 @@ import {parse: parseYAML} from "@std/yaml"
 import {
 	undef, defined, notdefined, deepEqual, croak, assert, matches,
 	colorize, isColor, toRelPath, obviously, toBool, TIterator,
-	getErrStr, allLinesIn,
+	getErrStr, allLinesIn, decolorize,
 	} from 'base'
 import {esc, uni} from 'unicode'
 import {
@@ -230,26 +230,37 @@ export toBlock := (strOrArray: TBlockSpec): string =>
 
 # ---------------------------------------------------------------------------
 
-getNExtra := (str: string, len: number): number =>
+getNExtra := (
+		str: string
+		len: number
+		): number =>
 
-	extra := len - str.length
-	return if (extra > 0) then extra else 0
-
-# ---------------------------------------------------------------------------
-
-export rpad := (str: string, len: number, ch: string = ' '): string =>
-
-	assert (ch.length == 1), "Not a char"
-	extra := getNExtra str, len
-	return str + ch.repeat(extra)
+	extra := len - decolorize(str).length
+	return (extra > 0) ? extra : 0
 
 # ---------------------------------------------------------------------------
 
-export lpad := (str: string, len: number, ch: string = ' '): string =>
+export rpad := (
+		str: string
+		len: number
+		ch: string = ' '
+		): string =>
 
 	assert (ch.length == 1), "Not a char"
-	extra := getNExtra str, len
-	return ch.repeat(extra) + str
+	nExtra := getNExtra str, len
+	return str + ch.repeat(nExtra)
+
+# ---------------------------------------------------------------------------
+
+export lpad := (
+		str: string
+		len: number
+		ch: string = ' '
+		): string =>
+
+	assert (ch.length == 1), "Not a char"
+	nExtra := getNExtra str, len
+	return ch.repeat(nExtra) + str
 
 # ---------------------------------------------------------------------------
 
@@ -320,7 +331,7 @@ export blockWidth := (block: string): number =>
 
 	let width = 0
 	for line of allLinesIn(block)
-		if (line.length > width)
+		if (decolorize(line).length > width)
 			width = line.length
 	return width
 

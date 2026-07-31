@@ -5,7 +5,7 @@ import {undef} from 'base'
 import {
 	loadSymbols, loadSymbolsFrom, getSymbolLib, getNeededImportStmts,
 	} from 'symbols'
-import {beginUnitTest, equal, succeeds} from 'unit-test'
+import {beginUnitTest, line, equal, succeeds} from 'unit-test'
 
 r := beginUnitTest(import.meta.url)
 
@@ -29,7 +29,7 @@ await (() =>
 	# --- Use the actual .symbols file
 	hSymbols := await loadSymbols()
 
-	equal getSymbolLib('defined'), 'base', 'FAILS'
+	equal getSymbolLib('defined'), 'base', line(32)
 	equal getSymbolLib('isArray'), 'datatypes'
 
 	equal getSymbolLib('array'), 'datatypes'
@@ -38,8 +38,9 @@ await (() =>
 	equal getNeededImportStmts(['defined','array']), [
 		"import {defined} from 'base';"
 		"import {array} from 'datatypes';"
-		], 'FAILS'
+		], line(38)
 	equal getNeededImportStmts(['arrayof','integer']), [
 		"import {arrayof, integer} from 'datatypes';"
 		]
+	equal getNeededImportStmts(['string','number']), []
 	)()

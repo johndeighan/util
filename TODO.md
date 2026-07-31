@@ -13,7 +13,9 @@ on 6/27/2026
 	deno: 14.9.207.2-rusty
 	chrome: V8 14.9.207.35
 
-Font: Segoe UI Symbol
+on 7/27/2026
+	deno: 15.0.245.2-rusty
+	chrome: V8 15.0.245.21
 
 ------------------------------------------
 Test parsing:
@@ -29,9 +31,14 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
-in 'typescript' unit test
-	- last test fails
-	- need to display name of 'kind' value, which is an int
+typescript lib should not use execCmd
+
+fsys should not use civet. It should be the other way around
+	- move what ever function in fsys uses civet
+
+REVIEW all code that compiles civet to ts
+	- prefer use of procOneFile path, doCompileCivet
+	- maybe create a doTypeCheck ???
 
 Unit test for fsm has a test that should fail, but doesn't
 	- it's currently skipped, line 117

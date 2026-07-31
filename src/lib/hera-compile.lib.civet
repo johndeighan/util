@@ -26,7 +26,7 @@ import {
 	CReadableFile, barfTempFile, parsePath,
 	} from 'fsys'
 import {TState, fromFSM} from 'fsm'
-import {civet2ts} from 'llcivet'
+import {civet2ts} from 'civet'
 import {CFileHandler, TExecResult} from 'exec'
 import {extractMetaData, mdGet} from 'meta-data'
 import {THeraType, isHeraType, compileHera} from 'llhera'

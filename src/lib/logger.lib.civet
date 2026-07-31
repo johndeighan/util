@@ -154,10 +154,15 @@ export WARN := (
 # ---------------------------------------------------------------------------
 
 export ERR := (
-		msg: string
+		err: unknown
 		label: string = 'ERR'
 		): void =>
 
+	msg := (
+		  (err instanceof Error)   ? err.message
+		: (typeof err == 'string') ? err
+		:                            'Unknown error'
+		)
 	lLogLines.push msg
 	if (logLevel == 'silent')
 		return
@@ -167,8 +172,13 @@ export ERR := (
 # ---------------------------------------------------------------------------
 # --- Make sure lines have no trailing whitespace
 
-export getLog := (): string =>
+export getLog := (
+		func?: () => void
+		): string =>
 
+	if (func != undefined)
+		clearLog()
+		func()
 	lLines: string[] := []     # --- should contain no NL chars
 	for block of lLogLines
 		for line of block.split('\n')

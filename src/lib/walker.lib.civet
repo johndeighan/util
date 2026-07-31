@@ -10,6 +10,7 @@ import {
 	integer, hash, array,
 	isArray, isHash, isEmpty,
 	} from 'datatypes'
+import {getOptions} from 'llutils'
 import {nice, OL, ML} from 'nice'
 
 # ---------------------------------------------------------------------------
@@ -106,17 +107,30 @@ export class Walker<T extends object = hash>
 	# ..........................................................
 	# GENERATOR
 
-	walkEx(x: unknown): Generator<[TVisitKind, T], void, void>
+	walkEx(
+			x: unknown
+			hOptions: hash = {}
+			): Generator<[TVisitKind, T], void, void>
 
 		if hasChildren(x)
 			@setVisited = new WeakSet<hash | array>()
-			yield *@walkItemEx(x)
+			yield *@walkItemEx(x, hOptions)
 		return
 
 	# ..........................................................
 	# GENERATOR
 
-	walkItemEx(item: hash | array): Generator<[TVisitKind, T], void, void>
+	walkItemEx(
+			item: hash | array
+			hOptions: hash = {}
+			): Generator<[TVisitKind, T], void, void>
+
+		type opt = {
+			trace: boolean
+			}
+		{trace} := getOptions<opt> hOptions, {
+			trace: false
+			}
 
 		if @setVisited.has(item)
 			if @isNode(item)
@@ -125,7 +139,8 @@ export class Walker<T extends object = hash>
 		if @isNode(item)
 			# --- type narrowing ensures that item is a T
 			if @filter(item)
-				LOG cyan('-'.repeat(40))
+				if trace
+					LOG cyan('-'.repeat(40))
 				hOptions := {
 					lExclude: ['pos','end']
 					descFunc: (key: string, node: unknown) =>
@@ -134,7 +149,8 @@ export class Walker<T extends object = hash>
 						else
 							return ''
 						}
-				LOG ML(item, hOptions)
+				if trace
+					LOG ML(item, hOptions)
 
 				str := OL(item)
 				DBG "YIELD NODE: #{OL(item)}"

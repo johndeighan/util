@@ -6,11 +6,10 @@ import {
 	colorize, croak,
 	} from 'base'
 import {findFile, withExt, isFile} from 'fsys'
-import {doRun, TExecResult} from 'exec'
-import {procOneFile} from 'proc-files'
+import {doRun, TExecResult, doCompileCivet} from 'exec'
+import {procOneFile, compileAllLibs} from 'proc-files'
 import {f, EXEC} from 'llutils'
 import {getCmdArgs, inspect} from 'cmd-args'
-import {doCompileCivet, compileAllLibs} from 'civet'
 
 [
 	lNonOptions

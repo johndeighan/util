@@ -269,15 +269,26 @@ export helpStr := (
 			assert ('range' in h), "Bad Desc for _: #{h}"
 			{range, desc} := h
 			[min, max] := range
-			yield "non-options: #{desc}"
+			if nonEmpty(desc)
+				yield "non-options: #{desc}"
+			else
+				yield "non-options:"
 			yield indented("min: #{min}")
 			yield indented("max: #{max}")
-		else if (key.length > 1)
-			assert ('valType' in h), "Bad desc for #{key}: #{h}"
+		else if ('flag' in h)
+			{flag, desc} := h
+			if nonEmpty(desc)
+				yield "-#{flag}: #{desc}"
+			else
+				yield "-#{flag}: #{key}"
+		else if ('valType' in h)
 			{valType, desc} := h
-			yield "#{key}: #{valType} - #{desc}"
-		else
-			assert ('name' in h), "Bad desc for #{key}: #{h}"
-			{name, desc} := h
-			yield "#{key}: #{name} - #{desc}"
-	return ['Usage:', ...indented(lLines)].join('\n')
+			if nonEmpty(desc)
+				yield "-#{key}: #{valType} - #{desc}"
+			else
+				yield "-#{key}: #{valType}"
+	return [
+		'Usage:',
+		indented(cmdName),
+		...indented(lLines)
+		].join('\n')

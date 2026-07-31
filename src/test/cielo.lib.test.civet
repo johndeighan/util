@@ -3,8 +3,9 @@
 import {initLogLevel} from 'logger'
 import {defined} from 'base'
 import {isFunction} from 'datatypes'
+import {procOneFile} from 'proc-files'
 import {
-	cielo2civet, cielo2civetFile,
+	cielo2civet, cielo2ts, cielo2civetFile, cielo2tsFile, doCompileCielo,
 	} from 'cielo'
 import {
 	equal, succeeds, fails, truthy, falsy, setDirTree, beginUnitTest,
@@ -18,13 +19,15 @@ r := beginUnitTest(import.meta.url)
 setup := (): void ->
 
 	await setDirTree """
-		./src/test/cielo clear
+		./#{r''} clear
 		file.config.ts
 			export default new Object({
 				a: 1,
 				b: 'abc',
 				f: () => 'hello'
 				})
+		test.cielo compile
+			x := 42
 		"""
 	return
 
@@ -32,4 +35,8 @@ await setup()
 
 # ---------------------------------------------------------------------------
 
-equal await cielo2civet('abc'), 'abc'
+equal await cielo2civet('x := 42'), 'x := 42'
+equal await cielo2ts('x := 42', {inlineMap: false}), """
+	"use strict";
+	const x = 42
+	"""

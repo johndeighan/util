@@ -1,5 +1,6 @@
 # automate.lib.civet
 
+import {pathToFileURL} from 'node-url'
 import {compile: compileSvelte} from 'npm-svelte/compiler'
 
 import {
@@ -15,13 +16,14 @@ import {
 import {keys, getOptions} from 'llutils'
 import {OL, DBGVALUE} from 'nice'
 import {
-	slurp, barf, patchFirstLine, parsePath, configFromFile,
+	slurp, barf, patchFirstLine, parsePath,
 	isFile, rmFile, findFile, withExt, fileExt,
 	newerDestFileExists, allFilesMatching,
 	} from 'fsys'
 import {
 	execCmd, CFileHandler, TExecResult,
 	} from 'exec'
+import {civet2tsFile} from 'civet'
 import {cielo2civetFile} from 'cielo'
 
 # ---------------------------------------------------------------------------
@@ -109,6 +111,34 @@ export getPostProcessor := (
 	else
 		DBG "No post processor for #{purpose} files"
 		return undef
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export configFromFile := (
+		fileName: string
+		): hash =>
+
+	# --- config should be a hash named hConfig
+
+	# --- NOTE: If a defined path is returned, it definitely exists
+	path := findFile fileName
+	assert defined(path), "No such file: #{OL(fileName)}"
+
+	{purpose, ext} := parsePath path
+	assert defined(ext), "No file ext in #{OL(path)}"
+	assert (purpose == 'config'), "Not a config file: #{OL(path)}"
+	assert ['.civet', '.ts'].includes(ext), "Invalid path: #{OL(path)}"
+	DBG "Import config from #{OL(path)}"
+	url := (
+		if (ext == '.civet')
+			tsPath := await civet2tsFile path
+			pathToFileURL tsPath
+		else
+			pathToFileURL path
+		)
+	h := await import url
+	return h.hConfig
 
 # ---------------------------------------------------------------------------
 

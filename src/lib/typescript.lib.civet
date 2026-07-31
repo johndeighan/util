@@ -1,6 +1,5 @@
 # typescript.lib.civet
 
-import {exists, existsSync} from '@std/fs'
 import {
 	SourceFile, Node, ScriptTarget, SyntaxKind, ModuleKind,
 	NewLineKind, EmitHint, CompilerOptions, ModuleResolutionKind,
@@ -12,56 +11,62 @@ import {
 import {
 	LOG, DBG, ERR, INDENT, UNDENT,
 	} from 'logger'
-import {extractSourceMap} from 'stack'
 import {
 	undef, defined, notdefined, croak, assert, getErrStr,
-	withColors, decolorize, words, allLinesIn,
+	words, mkTempFile,
 	} from 'base'
 import {
-	integer, hash, hashof, array,
+	integer, hash, hashof,
 	isHash, isString, isEmpty, nonEmpty, isNumber,
-	isFunction, functionDef, isClass, classDef,
 	} from 'datatypes'
+import {MAP} from 'mapper'
 import {
-	getOptions, spaces, o, hasKey,
-	CStringSetMap, keys, sep, f,
+	getOptions, hasKey, CStringSetMap, f,
 	} from 'llutils'
-import {debugging} from 'cmd-args'
-import {
-	extract, TPathItem, getString, getNumber, getArray,
-	} from 'extract'
 import {TBlockDesc, Blockify} from 'indent'
-import {
-	isFile, slurp, barf, barfTempFile, fileExt, withExt,
-	pathStr, mkpath, newerDestFileExists,
-	} from 'fsys'
 import {
 	OL, ML, nice, TDescFunc, DUMP, LOGVALUE, DBGVALUE,
 	} from 'nice'
 import {
-	execCmd, CFileHandler, TExecResult,
-	} from 'exec'
-import {TProcSpec, procFiles, procOneFile} from 'proc-files'
+	extract, TPathItem, getString, getNumber, getArray,
+	} from 'extract'
 import {Walker, TVisitKind} from 'walker'
 import {CMainScope, CScope} from 'scope'
-import {getNeededImportStmts} from 'symbols'
-import {MAP} from 'mapper'
-import {typeCheckTsFile} from 'lltypescript'
-
-decoder := new TextDecoder "utf-8"
+import {extractSourceMap} from 'stack'
+import {execCmd} from 'exec'
 
 # ---------------------------------------------------------------------------
+# ASYNC
+# --- returns error msg if any, else ''
 
-export kindStr := (i: number): string =>
+export typeCheckTsFile := (
+		path: string
+		): string =>
 
-	return SyntaxKind[i]
+	{success, stderr} := await execCmd 'deno', ["check", path]
+	if success
+		return ''
+	else
+		return stderr || "Type Check failed for #{path}"
+
+# ---------------------------------------------------------------------------
+# ASYNC
+# --- returns err msg or ''
+
+export typeCheckTsCode := (
+		tsCode: string
+		): string =>
+
+	tsPath := await mkTempFile '.ts'
+	await Deno.writeTextFile tsPath, tsCode
+	return await typeCheckTsFile tsPath
 
 # ---------------------------------------------------------------------------
 
 export ts2ast := (
 		tsCode: string,
 		hOptions: hash = {}
-		): Node =>
+		): SourceFile =>
 
 	type opt = {
 		fileName: string
@@ -71,8 +76,13 @@ export ts2ast := (
 		}
 
 	[code, hSrcMap] := extractSourceMap(tsCode)
-	hAst := createSourceFile fileName, code, ScriptTarget.Latest
-	return hAst
+	return createSourceFile(fileName, code, ScriptTarget.Latest)
+
+# ---------------------------------------------------------------------------
+
+export kindStr := (i: number): string =>
+
+	return SyntaxKind[i]
 
 # ---------------------------------------------------------------------------
 
@@ -115,28 +125,27 @@ export astAsString := (
 
 # ---------------------------------------------------------------------------
 
-export getImportCode := (typeStr: string): string =>
-
-	DBG "CALL getImportCode()"
-	lSymbols := getSymbolsFromType typeStr
-	DBGVALUE lSymbols, 'lSymbols'
-	if nonEmpty(lSymbols)
-		lStmts := getNeededImportStmts lSymbols
-		DBGVALUE lStmts, 'lStmts'
-		return lStmts.join '\n'
-	else
-		return ''
-
-# ---------------------------------------------------------------------------
-
 export getSymbolsFromType := (
 		typeStr: string
 		): string[] =>
 
-	if (lMatches := typeStr.match(/^([A-Za-z][A-Za-z0-9+]*)(?:\<([A-Za-z][A-Za-z0-9+]*)\>)?$/))
+	if (lMatches := typeStr.match(///^
+			(
+				[A-Za-z]
+				[A-Za-z0-9+]*
+				)
+			(?:
+				\<([A-Za-z][A-Za-z0-9+]*)\>
+				)?
+			$///))
 		[_, type, subtype] := lMatches
 		return nonEmpty(subtype) ? [type, subtype] : [type]
-	else if (lMatches := typeStr.match(/^\(\)\s*\=\>\s*([A-Za-z][A-Za-z0-9+]*)$/))
+	else if (lMatches := typeStr.match(///^
+			\( \)
+			\s* \= \>
+			\s*
+			([A-Za-z][A-Za-z0-9+]*)
+			$///))
 		return [lMatches[1]]
 	else
 		return []
@@ -505,7 +514,7 @@ export analyzeTsCode := (
 		80, 95, 170, 214, 220, 227,
 		254, 261, 263, 273, 280, 308
 		]
-	for [vkind, node] of walker.walkEx(hAst)
+	for [vkind, node] of walker.walkEx(hAst, {trace})
 		{kind} := node
 		if trace && lTraceKind.includes(kind)
 			LOG f"#{sym(vkind)} NODE #{kind}:3 (#{kindStr(kind)}:{cyan})"
@@ -599,82 +608,3 @@ export analyzeTsCode := (
 						default:
 							croak "Unexpected subtype of 95: #{parent.kind}"
 	return analysis
-
-# ---------------------------------------------------------------------------
-
-class CUnitTester extends CFileHandler
-
-	get op()
-		return 'doUnitTest'
-
-	# ..........................................................
-
-	override handle(
-			path: string,
-			hOptions: hash = {}
-			): TExecResult
-
-		assert path.endsWith('.test.ts'), "Not a unit test file"
-		type opt = {
-			capture: boolean
-			inspect: boolean
-			lineNum: string?
-			}
-		{capture, inspect, lineNum} := getOptions<opt> hOptions, {
-			capture: false
-			inspect: false
-			lineNum: undef
-			}
-
-		hResult := await execCmd 'deno', [
-				'test'
-				'-A'
-				'--trace-leaks'
-				...(inspect
-					? ['--inspect-brk']
-					: ['--coverage=./coverage', '--coverage-raw-data-only']
-					)
-				...(defined(lineNum)
-					? ['--filter', "/^line #{lineNum}$/"]
-					: []
-					)
-				path
-				], {capture}
-		return hResult
-
-	# ..........................................................
-
-	override getOutput(hResult: TExecResult): string
-
-		{stdout, stderr} := hResult
-		output := [stdout, stderr].join()
-		if not hResult.success || output.match(/croak|error/i)
-			return output
-
-		lLines := Array.from MAP allLinesIn(decolorize(output)), (line) ->
-			if line.startsWith('line')
-				if not line.includes(' ok ')
-					yield withColors line, {
-						failed: 'red'
-						FAILED: 'red'
-						ok: 'green'
-						OK: 'green'
-						}
-			else if line.includes('passed') && line.includes('failed')
-				if line.includes(' 0 failed ')
-					yield withColors line, {
-						ok: 'green'
-						passed: 'green'
-						}
-				else
-					yield withColors line, {
-						ok: 'green'
-						passed: 'green'
-						failed: 'red'
-						FAILED: 'red'
-						}
-			else if line.includes('Lcov coverage')
-				yield 'coverage report generated'
-		return lLines.join('\n')
-
-export doUnitTest := new CUnitTester()

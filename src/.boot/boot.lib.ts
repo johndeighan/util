@@ -62,9 +62,9 @@ export async function execBatch(
 
 // --------------------------------------------------------------------------
 
-export async function compile(path: string): Promise<number> {
+export async function compile(path: string): Promise<void> {
 
-	const code = await execCmd("deno", [
+	await execCmd("deno", [
 		'run',
 		'-A',
 		'@danielx/civet',
@@ -72,44 +72,30 @@ export async function compile(path: string): Promise<number> {
 		'-o', '.ts',
 		'-c', path
 		]);
-
-	if (code === 0) {
-		console.log(`   COMPILE ${green(path)}`);
-		}
-	else {
-		throw new Error(`compile of ${path} failed with code ${code}`);
-		}
-	return code;
+	return;
 	}
 
 // --------------------------------------------------------------------------
 
-export async function typeCheck(path: string): Promise<number> {
+export async function typeCheck(path: string): Promise<void> {
 
-	const code = await execCmd("deno", [
+	await execCmd("deno", [
 		'check',
 		withExt(path, '.ts')
 		]);
-
-	if (code === 0) {
-		console.log(`   TYPE CHECK ${green(path)}`);
-		}
-	else {
-		throw new Error(`type check of ${path} failed with code ${code}`);
-		}
-	return code;
+	return;
 	}
 
 // --------------------------------------------------------------------------
 
 export async function installCmd(
 		path: string
-		): Promise<number> {
+		): Promise<void> {
 
 	const {name} = parse(path);
 	const cmdName = name.replace('.cmd', '');
 
-	const code = await execCmd('deno', [
+	await execCmd('deno', [
 		'install',
 		'--global',
 		'--force',
@@ -118,13 +104,7 @@ export async function installCmd(
 		'--name', cmdName,
 		path
 		]);
-	if (code == 0) {
-		console.log(`   INSTALL ${green(cmdName)}`);
-		}
-	else {
-		throw new Error(`Install of command ${cmdName} failed with code ${code}`);
-		}
-	return code;
+	return;
 	}
 
 // --------------------------------------------------------------------------
@@ -132,9 +112,11 @@ export async function installCmd(
 
 export async function execCmd(
 		cmdName: string,
-		lArgs: string[] = [],
-		): Promise<number> {
+		lArgs: string[] = []
+		): Promise<void> {
 
+	const cmdStr = getCmdStr(cmdName, lArgs);
+	console.log(`EXEC ${cmdStr}`);
 	const cmd = new Deno.Command(cmdName, {
 		args: lArgs,
 		stdout: 'inherit',
@@ -142,12 +124,16 @@ export async function execCmd(
 		});
 
 	const {code} = await cmd.output();
-	return code
+	assert((code == 0), `Command ${cmdName} failed with code ${code}`);
+	console.log(green(`   ${cmdStr} SUCCEEDED`));
+	return;
 	}
 
 // --------------------------------------------------------------------------
 
-export function anyRejected(lResults: PromiseSettledResult<unknown>[]): boolean {
+export function anyRejected(
+		lResults: PromiseSettledResult<unknown>[]
+		): boolean {
 
 	for (const result of lResults) {
 		if (result.status == 'rejected') {
@@ -203,4 +189,28 @@ const decoder = new TextDecoder();
 
 export function decode(str: AllowSharedBufferSource): string {
 	return decoder.decode(str)
+	}
+
+// --------------------------------------------------------------------------
+
+export function assert(cond: boolean, errMsg: string): void {
+	if (!cond) {
+		console.log(red(`ERROR: ${errMsg}`))
+		Deno.exit(99)
+		}
+	return;
+	}
+
+// --------------------------------------------------------------------------
+
+function getCmdStr(
+		cmdName: string,
+		lArgs: string[] = []
+		): string {
+
+	let cmdStr = `${cmdName} ${lArgs.join(' ')}`;
+	if (cmdStr.length > 64) {
+		cmdStr = cmdStr.substring(0, 61) + '...';
+		}
+	return cmdStr;
 	}

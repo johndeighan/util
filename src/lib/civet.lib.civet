@@ -1,36 +1,112 @@
 # civet.lib.civet
 
-import {exists, existsSync} from '@std/fs'
-import {Node, SourceFile} from 'npm-typescript'
+import {Node} from 'npm-typescript'
+
+import {
+	compile, CompileOptions,
+	} from '@danielx/civet'
+import {findInDir, loadConfig} from "@danielx/civet/config"
 
 import {LOG, DBG, ERR} from 'logger'
-import {extractSourceMap} from 'stack'
 import {
-	undef, defined, notdefined, croak, assert, getErrStr, isFullPath,
+	undef, defined, notdefined, assert, croak,
+	withExt, getErrStr, touch,
 	} from 'base'
-import {
-	hash, isString, isHash, isEmpty, nonEmpty,
-	} from 'datatypes'
-import {getOptions, o, rtrim} from 'llutils'
-import {debugging, inspect} from 'cmd-args'
-import {
-	isFile, fileExt, withExt, slurp, slurpAsync, pathStr,
-	touch, mkpath, barf, barfTempFile, parsePath, addJsonValue,
-	normalizePath, inSameDir, newerDestFileExists,
-	} from 'fsys'
-import {execCmd, CFileHandler, TExecResult} from 'exec'
-import {TProcSpec, procFiles, procOneFile} from 'proc-files'
-import {
-	civet2ts, civet2tsFile,
-	} from 'llcivet'
-import {ts2ast, analyzeTsCode} from 'typescript'
+import {hash} from 'datatypes'
+import {getOptions} from 'llutils'
+import {typeCheckTsFile, ts2ast, analyzeTsCode} from 'typescript'
 
-export {
-	civet2ts, civet2tsFile,
-	}
+let hCivetConfig: CompileOptions? = undef
 
-import hCivetConfig from "civetconfig" with {type: "json"};
+# ---------------------------------------------------------------------------
+# ASYNC
 
+getCivetConfig := (
+		hExtra: CompileOptions = {}
+		): CompileOptions =>
+
+	if defined(hCivetConfig)
+		return Object.assign hCivetConfig, hExtra
+	path := await findInDir(process.cwd())
+	assert defined(path), "No civet config file found"
+	hCivetConfig = await loadConfig(path)
+	return Object.assign hCivetConfig, hExtra
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export civet2ts := (
+		civetCode: string,
+		hOptions: hash = {}
+		): string =>
+
+	type opt = {
+		inlineMap: boolean
+		}
+	{inlineMap} := getOptions<opt> hOptions, {
+		inlineMap: true
+		}
+	hConfig := await getCivetConfig {inlineMap}
+	return await compile civetCode, hConfig
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export civet2tsFile := (
+		civetPath: string
+		tsPath: string = withExt(civetPath, '.ts')
+		hOptions: hash = {}
+		): string =>   # --- returns tsPath or '' on error
+
+	type opt = {
+		inlineMap: boolean
+		force: boolean
+		nocheck: boolean
+		}
+	{inlineMap, force, nocheck} := getOptions hOptions, {
+		inlineMap: true
+		force: false
+		nocheck: false
+		}
+
+	civetCode := await Deno.readTextFile civetPath
+	tsCode := await civet2ts civetCode, hOptions
+	await Deno.writeTextFile tsPath, tsCode
+	if not nocheck
+		errMsg := await typeCheckTsFile tsPath
+		if errMsg
+			# --- touch the civet file so it will
+			#     be compiled the next time
+			await touch civetPath
+			return ''
+	return tsPath
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export civet2js := (
+		civetCode: string,
+		hOptions: hash = {}
+		): string =>
+
+	type opt = {
+		inlineMap: boolean
+		}
+	{inlineMap} := getOptions<opt> hOptions, {
+		inlineMap: false
+		}
+	try
+		hConfig := await getCivetConfig {inlineMap}
+		assert defined(hConfig.parseOptions), "Bad config file"
+		hConfig.js = true
+		jsCode := await compile civetCode, hConfig
+		return jsCode
+	catch err
+		ERR getErrStr(err)
+		throw err
+
+# ---------------------------------------------------------------------------
+#    from original civet.lib.civet
 # ---------------------------------------------------------------------------
 
 export type TCivetOptions = {
@@ -38,111 +114,7 @@ export type TCivetOptions = {
 	nocheck?: boolean
 	inlineMap?: boolean
 	output?: string       # --- passed after -o option
-	verbose?: boolean
 	}
-
-# ---------------------------------------------------------------------------
-# --- Due to a bug in either the v8 engine or Deno,
-#     we have to generate, then remove the inline source map,
-#     saving it to use in mapping source lines later
-
-class CCivetCompiler extends CFileHandler
-
-	get op()
-		return 'doCompileCivet'
-
-	# ..........................................................
-
-	getOutPath(
-			path: string
-			output: string   # --- '.ts' or actual file name
-			): string
-
-		assert (fileExt(path) == '.civet'), "Not a civet file"
-		if (output == '.ts')
-			return withExt(path, '.ts')
-		else if isFullPath(output)
-			croak "output can't be a full path"
-		else
-			assert (fileExt(output) == '.ts'), "output must have .ts ext"
-			return inSameDir(path, output)
-		return ''
-
-	# ..........................................................
-	# ASYNC
-
-	override handle(
-			path: string,
-			hOptions: hash = {}
-			): TExecResult
-
-		{force, nocheck, output, verbose} := getOptions<TCivetOptions> hOptions, {
-			force: false
-			nocheck: false
-			output: '.ts'
-			verbose: false
-			}
-
-		assert (fileExt(path) == '.civet'), "Not a civet file: #{path}"
-		tsPath := withExt path, '.ts'
-
-		# --- Check if a newer compiled version already exists
-		if not force && existsSync(tsPath)
-			ex := newerDestFileExists(path, tsPath)
-			if ex
-				return {
-					success: true
-					notNeeded: true
-					infile: path
-					}
-
-		try
-			hResult := await execCmd 'deno', [
-				'run', '-A'
-				'@danielx/civet'
-				'--config', 'C:/Users/johnd/civet.config.json'
-				'--inline-map'
-				'-o', '.ts'
-				'-c', path
-				]
-			if not hResult.success
-				if verbose
-					console.log @getOutput(hResult)
-				return {
-					success: false
-					stderr: "Compile failed"
-					infile: path
-					}
-
-			unless nocheck
-				hCheckResult := await execCmd 'deno', ['check', tsPath]
-				if not hCheckResult.success
-					touch path
-					if verbose
-						console.log hCheckResult.stderr
-					return {
-						success: false
-						stderr: "Type check failed for #{path}"
-						infile: path
-						}
-
-			tsCode := await slurpAsync tsPath
-			[code, hSrcMap] := extractSourceMap(tsCode)
-			if defined(hSrcMap)
-				addJsonValue 'sourcemaps.json', normalizePath(tsPath), hSrcMap
-			await Deno.writeTextFile tsPath, code
-			return hResult
-
-		catch err
-			if debugging
-				LOG getErrStr(err)
-			errMsg := "COMPILE FAILED: #{pathStr(path)} - #{getErrStr(err)}"
-			return {
-				success: false
-				stderr: errMsg
-				}
-
-export doCompileCivet := new CCivetCompiler()
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -151,17 +123,6 @@ export civet2ast := (civetCode: string): Node =>
 
 	tsCode := await civet2ts civetCode
 	return ts2ast tsCode
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export compileAllLibs := (
-		root: string = '.'
-		): void =>
-
-	pat := mkpath(root, '**/*.lib.civet')
-	await procFiles [doCompileCivet, [pat]]
-	return
 
 # ---------------------------------------------------------------------------
 

@@ -158,7 +158,7 @@ export class CParseMatches
 		LOG @matchesTable()
 
 		LOG sep '-', 'debug'
-		LOG colorize("|    .    ".repeat(7), 'yellow')
+		LOG colorize("|    .    ".repeat(7).trim(), 'yellow')
 		LOG @debugStr(@str)
 		LOG sep '-'
 		return

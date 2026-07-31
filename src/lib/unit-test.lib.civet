@@ -22,7 +22,7 @@ import {unify} from 'unify'
 import {
 	TVoidFunc, TAsyncVoidFunc, hash, isString, isEmpty, nonEmpty,
 	isIterator, isAsyncIterator, isIterable,
-	isFunction, functionDef, isClass, classDef,
+	isFunction, functionDef, isClass, classDef, isAsyncFunction,
 	} from 'datatypes'
 import {
 	getOptions, truncStr, blockToArray, f, rtrim, centered,
@@ -35,10 +35,9 @@ import {
 	} from 'fsys'
 import {procOneFile} from 'proc-files'
 import {doCompileFile} from 'automate'
-import {typeCheckTsCode} from 'lltypescript'
-import {getImportCode} from 'typescript'
+import {typeCheckTsCode} from 'typescript'
 import {nice, OL, ML} from 'nice'
-
+import {getNeededImportStmts} from 'symbols'
 let nextNum = 1
 
 # ---------------------------------------------------------------------------
@@ -58,7 +57,7 @@ export beginUnitTest := (url: string): Function =>
 
 export line := (n: number): string =>
 
-	return cyan('line ' + n.toString())
+	return '---> ' + n.toString()
 
 # ---------------------------------------------------------------------------
 
@@ -77,37 +76,12 @@ export equal := (
 		name?: string
 		): void =>
 
-	testName := name || getTestName()
 	if isString(value) && isString(expected)
-		Deno.test {
-			name: testName
-			sanitizeOps: true
-			fn()
-				val1 := rtrim(value)
-				val2 := rtrim(expected)
-				assertEquals val1, val2
-			}
+		Deno.test name || getTestName(), () =>
+			assertEquals rtrim(value), rtrim(expected)
 	else
-		Deno.test {
-			name: testName
-			sanitizeOps: true
-			fn()
-				assertEquals value, expected
-			}
-	return
-
-# ---------------------------------------------------------------------------
-
-export mark := (
-		testName: string
-		): void =>
-
-	Deno.test {
-		name: red(sprintf("%-7s", testName))
-		sanitizeOps: true
-		fn()
-			assertEquals 1, 1
-		}
+		Deno.test name || getTestName(), () =>
+			assertEquals value, expected
 	return
 
 # ---------------------------------------------------------------------------
@@ -117,14 +91,8 @@ export truthy := (
 		name?: string
 		): void =>
 
-	if notdefined(name)
-		name = getTestName()
-	Deno.test {
-		name
-		sanitizeOps: true
-		fn()
-			assert value
-		}
+	Deno.test name || getTestName(), () =>
+		assert value
 	return
 
 # ---------------------------------------------------------------------------
@@ -139,89 +107,59 @@ export falsy := (
 	return
 
 # ---------------------------------------------------------------------------
+# HYBRID
 
 export succeeds := (
 	func: TVoidFunc
 	name?: string
 	): void =>
 
-	Deno.test name || getTestName(), () =>
-		pushLogLevel 'testing'
-		let succeeds = true
-		try
-			func()
-		catch err
-			succeeds = false
-		popLogLevel()
-		if not succeeds
-			croak "in succeeds(), but function failed"
+	testName := name || getTestName()
+	Deno.test testName, () =>
+		func()
+		assert true
 		return
 	return
 
 # ---------------------------------------------------------------------------
+# HYBRID
 
 export fails := (
-	func: TVoidFunc
+	func: TVoidFunc | TAsyncVoidFunc
 	name?: string
 	): void =>
 
-	Deno.test name || getTestName(), () =>
-		assertThrows () =>
-			pushLogLevel 'testing'
-			try
+	testName := name || getTestName()
+	if isAsyncFunction(func)
+		Deno.test testName, () =>
+			await assertRejects () =>
+				await func()
+				return
+	else
+		Deno.test testName, () =>
+			assertThrows () =>
 				result := func()
-			catch err
-				popLogLevel()
-				throw err
-			return
+				return
 	return
 
 # ---------------------------------------------------------------------------
-# ASYNC
-
-export succeedsAsync := (
-	func: TAsyncVoidFunc
-	name?: string
-	): void =>
-
-	Deno.test name || getTestName(), () =>
-		pushLogLevel 'testing'
-		let succeeds = true
-		try
-			await func()
-		catch err
-			succeeds = false
-		popLogLevel()
-		if not succeeds
-			croak "in succeeds(), but function failed"
-		return
-	return
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export failsAsync := (
-	func: TAsyncVoidFunc
-	name?: string
-	): void =>
-
-	Deno.test name || getTestName(), () =>
-		await assertRejects () =>
-			await func()
-			return
-	return
-
-# ---------------------------------------------------------------------------
+# HYBRID
 
 export generates := <TOut>(
-		value: TIterator<TOut>
+		iter: TIterator<TOut> | TAsyncIterator<TOut>
 		expected: unknown
 		name?: string
 		): void =>
 
-	lItems := [...value]
-	Deno.test (name || getTestName()), () =>
-		assertEquals(lItems, expected)
+	testName := name || getTestName()
+	if isAsyncIterator(iter)
+		lItems := Array.fromAsync iter
+		Deno.test testName, () =>
+			assertEquals(lItems, expected)
+	else
+		lItems := [...iter]
+		Deno.test testName, () =>
+			assertEquals(lItems, expected)
 	return
 
 # ---------------------------------------------------------------------------
@@ -280,7 +218,7 @@ export isType := (
 	# --- returns errMsg or '' if no type error
 	result := await checkType typeStr, value
 	Deno.test testName, () =>
-		assert result
+		assert (result == '')
 	return
 
 # ---------------------------------------------------------------------------
@@ -294,17 +232,17 @@ export notType := (
 	testName := getTestName()
 	result := await checkType typeStr, value
 	Deno.test testName, () =>
-		assert not result
+		assert nonEmpty(result)
 	return
 
 # ---------------------------------------------------------------------------
 # ASYNC
 # returns error message or ''
 
-checkType := (
+export checkType := (
 		typeStr: string
 		value: unknown
-		): boolean =>
+		): string =>
 
 	valueStr := (
 		  isFunction(value) ? functionDef(value)
@@ -314,13 +252,8 @@ checkType := (
 	tsCode := await getTsCode typeStr, valueStr
 
 	# --- check if we need to import the type
-	importCode := getImportCode typeStr
-
-	code := """
-		#{importCode}
-		#{tsCode}
-		"""
-
+	[stmt] := getNeededImportStmts [typeStr]
+	code := defined(stmt) ? [stmt, tsCode].join('\n') : tsCode
 	return await typeCheckTsCode(code)
 
 # ---------------------------------------------------------------------------
@@ -354,22 +287,6 @@ export _fails := (
 	_header name
 	try
 		value := func()
-		console.log red("Test successfully returned:")
-		console.log cyan(ML(value))
-	catch err
-		console.log cyan('OK')
-	return
-
-# ---------------------------------------------------------------------------
-
-export _failsAsync := (
-	func: TVoidFunc
-	name?: string
-	): void =>
-
-	_header name
-	try
-		value := await func()
 		console.log red("Test successfully returned:")
 		console.log cyan(ML(value))
 	catch err

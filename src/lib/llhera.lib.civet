@@ -7,7 +7,7 @@ import {isString} from 'datatypes'
 import {parsePath, withExt} from 'fsys'
 import {mdGet} from 'meta-data'
 import {DUMP} from 'nice'
-import {civet2ts} from 'llcivet'
+import {civet2ts} from 'civet'
 
 export type THeraType = 'typescript' | 'civet'
 export isHeraType := (x: unknown): x is THeraType =>

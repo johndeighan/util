@@ -93,4 +93,8 @@ export mdGet := <T>(
 		): T? =>
 
 	result := hMetaData[name]
-	return defined(result) ? result as T : undef
+	return (
+		  defined(result) ? result as T
+		: defined(defVal) ? defVal
+		:                   undef
+		)

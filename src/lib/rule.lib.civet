@@ -9,7 +9,7 @@ import {isEmpty} from 'datatypes'
 import {toBlock} from 'llutils'
 import {indented} from 'indent'
 import {THeraType} from 'llhera'
-import {civet2ts} from 'llcivet'
+import {civet2ts} from 'civet'
 
 # ---------------------------------------------------------------------------
 

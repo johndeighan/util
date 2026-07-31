@@ -17,29 +17,28 @@ equal lit('x'), '｟x｠'
 equal lit('˳'), '｟˳｠'
 
 equal esc('˳'), '｟˳｠'
-equal esc('←'), '｟←｠'
 equal esc('↓'), '｟↓｠'
 equal esc('→'), '｟→｠'
 
 equal esc('cba'), 'cba'
 equal esc('   acb'), '˳˳˳acb'
 equal esc('\t\t\tabc'), '→→→abc'
-equal esc('abc\r\ndef'), 'abc←↓def'
-equal escm('abc\r\ndef'), 'abc←↓\ndef', line(29)
+equal esc('abc\r\ndef'), 'abc␍↓def'
+equal escm('abc\r\ndef'), 'abc␍↓\ndef', line(29)
 equal esc('abcc\n'), 'abcc↓'
-equal esc('abcb\r\n'), 'abcb←↓'
-equal escm('abcb\r\n'), 'abcb←↓\n'
+equal esc('abcb\r\n'), 'abcb␍↓'
+equal escm('abcb\r\n'), 'abcb␍↓\n'
 equal esc('ab cd'), 'ab˳cd'
 equal esc('ab\tcd'), 'ab→cd', line(34)
 
 equal unesc('cba'), 'cba'
 equal unesc('˳˳˳acb'), '   acb'
 equal unesc('→→→abc'), '\t\t\tabc'
-equal unesc('abc←↓def'), 'abc\r\ndef'
-equal unesc('abc←↓\ndef'), 'abc\r\ndef'
+equal unesc('abc␍↓def'), 'abc\r\ndef'
+equal unesc('abc␍↓\ndef'), 'abc\r\ndef'
 equal unesc('abcc↓'), 'abcc\n'
-equal unesc('abcb←↓'), 'abcb\r\n'
-equal unesc('abcb←↓\n'), 'abcb\r\n'
+equal unesc('abcb␍↓'), 'abcb\r\n'
+equal unesc('abcb␍↓\n'), 'abcb\r\n'
 equal unesc('ab˳cd'), 'ab cd'
 equal unesc('ab→cd'), 'ab\tcd'
 

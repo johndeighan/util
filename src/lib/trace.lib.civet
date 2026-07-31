@@ -18,7 +18,6 @@ import {
 	blockToArray, arrayToBlock, getOptions, spaces, tabs,
 	} from 'llutils'
 import {OL, OLS, nice} from 'nice'
-import {parsePath} from 'fsys'
 import {CCallStack} from 'trace-stack'
 
 let internalDebugging = false
@@ -115,6 +114,49 @@ export setTracing := (
 	if internalDebugging
 		dumpFuncList()
 	return
+
+# ---------------------------------------------------------------------------
+
+export isTracingFunc := (
+		funcName: string
+		): boolean =>
+
+	if traceNone
+		return false
+	if traceAll
+		return true
+
+	# --- funcName came from a call to trEnter()
+	#     it might be of form <object>.<method>
+	# --- We KNOW that funcName is active!
+
+	if internalDebugging
+		LOG "isTracingFunc(#{OL(funcName)})"
+		LOG lFuncList
+		stack.dumpStack()
+
+	lParts := funcName.split('.')
+
+	for h of lFuncList
+		if (h.funcName == funcName)
+			if internalDebugging
+				LOG "   - TRUE - #{OL(funcName)} is in lFuncList"
+			return true
+		if h.plus && stack.isActive(h.funcName)
+			if internalDebugging
+				LOG "   - TRUE - #{OL(h.funcName)} is active"
+			return true
+
+	if (lParts.length == 2)   # --- came from trEnter()
+		methodName := lParts[1]
+		for h of lFuncList
+			if (h.funcName == methodName)
+				if internalDebugging
+					LOG "   - TRUE - #{OL(methodName)} is in lFuncList"
+				return true
+	if internalDebugging
+		LOG "   - FALSE"
+	return false
 
 # ---------------------------------------------------------------------------
 
@@ -242,49 +284,6 @@ export tr := (
 		level := stack.logLevel
 		logValue level, val, label
 	return
-
-# ---------------------------------------------------------------------------
-
-export isTracingFunc := (
-		funcName: string
-		): boolean =>
-
-	if traceNone
-		return false
-	if traceAll
-		return true
-
-	# --- funcName came from a call to trEnter()
-	#     it might be of form <object>.<method>
-	# --- We KNOW that funcName is active!
-
-	if internalDebugging
-		LOG "isTracingFunc(#{OL(funcName)})"
-		LOG lFuncList
-		stack.dumpStack()
-
-	lParts := funcName.split('.')
-
-	for h of lFuncList
-		if (h.funcName == funcName)
-			if internalDebugging
-				LOG "   - TRUE - #{OL(funcName)} is in lFuncList"
-			return true
-		if h.plus && stack.isActive(h.funcName)
-			if internalDebugging
-				LOG "   - TRUE - #{OL(h.funcName)} is active"
-			return true
-
-	if (lParts.length == 2)   # --- came from trEnter()
-		methodName := lParts[1]
-		for h of lFuncList
-			if (h.funcName == methodName)
-				if internalDebugging
-					LOG "   - TRUE - #{OL(methodName)} is in lFuncList"
-				return true
-	if internalDebugging
-		LOG "   - FALSE"
-	return false
 
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
@@ -437,7 +436,7 @@ export TRACEVAL = (
 		str3 := OL(prefix)
 		LOG "CALL TRACEVAL(#{str1}, label=#{str2}), prefix=#{str3}"
 
-	labelStr := defined(label) ? "#{label} = " : ''
+	labelStr := nonEmpty(label) ? "#{label} = " : ''
 
 	jsTyp := jsType(value)
 
@@ -453,14 +452,14 @@ export TRACEVAL = (
 		return
 
 	if short
-		if (jsTyp == 'array')
-			LOG "#{prefix}#{labelStr}ARRAY"
-			return
-		if (jsTyp == 'hash')
-			LOG "#{prefix}#{labelStr}HASH"
-			return
-		if (jsTyp == 'function')
-			LOG "#{prefix}#{labelStr}FUNCTION"
+		shortWord := (
+			if ['array','hash','function'].includes(jsTyp)
+				jsTyp.toUpperCase()
+			else
+				''
+			)
+		if nonEmpty(shortWord)
+			LOG "#{prefix}#{labelStr}#{shortWord}"
 			return
 
 	itemPrefix := prefix + oneIndent

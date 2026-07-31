@@ -11,7 +11,7 @@ import {
 	doSetLogLevel, doHandleClearScreen,
 	} from 'cmd-args'
 import {
-	equal, succeeds, fails, truthy, falsy, beginUnitTest,
+	beginUnitTest, equal, succeeds, fails, truthy, falsy, line,
 	} from 'unit-test'
 
 r := beginUnitTest(import.meta.url)
@@ -70,7 +70,7 @@ r := beginUnitTest(import.meta.url)
 		label:      {valType: 'string'}
 		numAllowed: {valType: 'integer'}
 		}
-	h := getCmdArgs 'doit', hDesc, ['-vf', 'file.txt']
+	h := getCmdArgs 'doit', hDesc, ['-vf', '--', 'file.txt', '!']
 	equal h, [
 		['file.txt']
 		{force: true, verbose: true}
@@ -81,6 +81,30 @@ r := beginUnitTest(import.meta.url)
 	falsy debugging
 	falsy inspect
 	falsy silent
+	)()
+
+(() =>
+	hDesc := {
+		_:          {range: [1,3]}
+		force:      {flag: 'f'}
+		verbose:    {flag: 'v'}
+		label:      {valType: 'string'}
+		numAllowed: {valType: 'integer'}
+		}
+	fails () =>
+		getCmdArgs 'doit', hDesc, ['-vf']
+	)()
+
+(() =>
+	hDesc := {
+		_:          {range: [1,3]}
+		force:      {flag: 'f'}
+		verbose:    {flag: 'v'}
+		label:      {valType: 'string'}
+		numAllowed: {valType: 'integer'}
+		}
+	fails () =>
+		getCmdArgs 'doit', hDesc, ['a', 'b', 'c', 'd']
 	)()
 
 (() =>
@@ -153,3 +177,25 @@ r := beginUnitTest(import.meta.url)
 	equal oneIndent, '\t'
 	equal maxLineLen, 75
 	)()
+
+(() =>
+	hDesc := {
+		_:          {range: [1,3]}
+		force:      {flag: 'f'}
+		verbose:    {flag: 'v'}
+		label:      {valType: 'string'}
+		numAllowed: {valType: 'integer'}
+		}
+	equal helpStr('command', hDesc), s"""
+		Usage:
+			command
+			non-options:
+				min: 1
+				max: 3
+			-f: force
+			-v: verbose
+			-label: string
+			-numAllowed: integer
+		""", line(165)
+	)()
+

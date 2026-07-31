@@ -9,11 +9,11 @@ import {
 	fileExt, withExt, rmFile, barf, slurp,
 	parsePath, patchFirstLine,
 	} from 'fsys'
-import {execCmd, doInstallCmd, TExecResult} from 'exec'
+import {execCmd, doInstallCmd, TExecResult, doUnitTest} from 'exec'
 import {procOneFile} from 'proc-files'
 import {civet2tsFile} from 'civet'
 import {cielo2civetFile} from 'cielo'
-import {doUnitTest} from 'typescript'
+import {doCompileHera} from 'hera-compile'
 import {pug2htmlFile} from 'html-window'
 
 # ---------------------------------------------------------------------------
@@ -25,6 +25,21 @@ export hConfig := {
 	hCompilers: {
 
 		# --- keys are file extensions
+		'.hera': {
+			isInstalled: () =>
+				return true
+
+			getOutPaths: (path: string): string[] =>
+				return [withExt(path, '.ts')]
+
+			compiler: (
+					path: string,
+					hOptions: hash = {}
+					): TExecResult =>
+
+				return await procOneFile path, doCompileHera
+			}
+
 		'.svelte': {
 
 			isInstalled: () =>

@@ -94,9 +94,9 @@ await setup()
 #    Run tests that don't change the file system first
 # ---------------------------------------------------------------------------
 
-truthy await isInstalled('analyze'), line(103)
-truthy await isInstalled('builddoc'), line(104)
-falsy  await isInstalled('nosuchcmd'), line(105)
+truthy await isInstalled('analyze'), line(97)
+truthy await isInstalled('builddoc'), line(98)
+falsy  await isInstalled('nosuchcmd'), line(99)
 
 equal getCmdName(r"sample.cmd.ts", {}), 'sample'
 equal getCmdName(r"sample.cmd.ts", {name: 'mycmd'}), 'mycmd'
@@ -109,7 +109,7 @@ falsy  isFile(r"missing.txt")
 
 equal doRemoveFile.op, 'doRemoveFile'
 equal doRemoveTsFile.op, 'doRemoveTsFile'
-equal doInstallCmd.op, 'doInstallCmd', line(118)
+equal doInstallCmd.op, 'doInstallCmd', line(112)
 equal doUninstallCmd.op, 'doUninstallCmd'
 equal doRun.op, 'doRun'
 
@@ -158,7 +158,7 @@ await (() =>
 		input: slurp(r'numbers.txt')
 		outfile
 		}
-	equal slurp(outfile), "123\n1313\n", line(167)
+	equal slurp(outfile), "123\n1313\n", line(161)
 	)()
 
 # ---------------------------------------------------------------------------
@@ -166,7 +166,7 @@ await (() =>
 # ---------------------------------------------------------------------------
 
 await (() =>
-	truthy isFile(r'temp.txt'), line(146)
+	truthy isFile(r'temp.txt'), line(169)
 	await doRemoveFile.handle r'temp.txt'
 	falsy isFile(r'temp.txt')
 
@@ -180,7 +180,7 @@ await (() =>
 	# --- NOTE: Only removes a .ts file if there's a .civet file
 	await doRemoveTsFile.handle r'sample.ts'
 
-	falsy isFile(r'sample.ts'), line(189)
+	falsy isFile(r'sample.ts'), line(183)
 	)()
 
 # ---------------------------------------------------------------------------
@@ -188,7 +188,7 @@ await (() =>
 # ---------------------------------------------------------------------------
 
 await (() =>
-	succeeds (() => await execCmd 'civet', ['--version']), line(197)
+	succeeds (() => await execCmd 'civet', ['--version']), line(191)
 	)()
 
 await (() =>
@@ -208,7 +208,7 @@ await (() =>
 		capture: true
 		}
 	version := h.stdout as string
-	truthy matches(version, /^\d+\.\d+\.\d+\n$/), line(217)
+	truthy matches(version, /^\d+\.\d+\.\d+\n$/), line(211)
 	)()
 
 await (() =>
@@ -230,7 +230,7 @@ await (() =>
 await (() =>
 	succeeds (() => await execCmd 'grep', ['-E', '[0-9]+'], {
 		input: gen()
-		}), line(237)
+		}), line(231)
 	)()
 
 await (() =>
@@ -241,7 +241,7 @@ await (() =>
 			output += s
 			return
 		}
-	equal output, "123\n1313\n42\n", line(250)
+	equal output, "123\n1313\n42\n", line(244)
 	)()
 
 await (() =>
@@ -263,8 +263,8 @@ await (() =>
 			return
 		}
 	output2 := h.stdout as string
-	equal output, "123\n1313\n42\n", line(272)
-	equal output2, "123\n1313\n42\n", line(273)
+	equal output, "123\n1313\n42\n", line(266)
+	equal output2, "123\n1313\n42\n", line(267)     # FAILED 1
 	)()
 
 # ---------------------------------------------------------------------------
@@ -273,7 +273,7 @@ await (() =>
 await (() =>
 	succeeds (() => await execCmd 'grep', ['-E', '[0-9]+'], {
 		input: agen()
-		}), line(282)
+		}), line(274)
 	)()
 
 await (() =>
@@ -284,7 +284,7 @@ await (() =>
 			output += s
 			return
 		}
-	equal output, "123\n1313\n42\n", line(293)
+	equal output, "123\n1313\n42\n", line(287)
 	)()
 
 await (() =>
@@ -293,7 +293,7 @@ await (() =>
 		capture: true
 		}
 	output := h.stdout as string
-	equal output, "123\n1313\n42\n", line(302)
+	equal output, "123\n1313\n42\n", line(296)
 	)()
 
 await (() =>
@@ -306,8 +306,8 @@ await (() =>
 			return
 		}
 	output2 := h.stdout
-	equal output, "123\n1313\n42\n"
-	equal output2, "123\n1313\n42\n"
+	equal output, "123\n1313\n42\n", line(309)
+	equal output2, "123\n1313\n42\n", line(310)
 	)()
 
 # ---------------------------------------------------------------------------
@@ -327,7 +327,7 @@ await (() =>
 			output += s
 			return
 		}
-	equal output, "123\n1313\n42\n", line(336)              # FAILED 1
+	equal output, "123\n1313\n42\n", line(330)              # FAILED 1
 	)()
 
 await (() =>
@@ -336,7 +336,7 @@ await (() =>
 		capture: true
 		}
 	output := h.stdout as string
-	equal output, "123\n1313\n42\n", line(345)
+	equal output, "123\n1313\n42\n", line(339)
 	)()
 
 await (() =>
@@ -370,7 +370,7 @@ await (() =>
 			output += s
 			return
 		}
-	equal output, "123\n1313\n42\n", line(379)
+	equal output, "123\n1313\n42\n", line(373)
 	)()
 
 await (() =>
@@ -379,7 +379,7 @@ await (() =>
 		capture: true
 		}
 	output := h.stdout as string
-	equal output, "123\n1313\n42\n", line(388)     # FAILED 1
+	equal output, "123\n1313\n42\n", line(382)     # FAILED 1
 	)()
 
 await (() =>
@@ -391,9 +391,9 @@ await (() =>
 			output += s
 			return
 		}
-	equal output, "123\n1313\n42\n", line(400)      # FAILED 2
+	equal output, "123\n1313\n42\n", line(394)      # FAILED 2
 	output2 := h.stdout as string
-	equal output2, "123\n1313\n42\n", line(402)
+	equal output2, "123\n1313\n42\n", line(396)
 	)()
 
 # ---------------------------------------------------------------------------
@@ -401,6 +401,6 @@ await (() =>
 await (() =>
 	await doInstallCmd.handle(r"hello.cmd.ts")
 	await sleep(1000)
-	truthy await isInstalled('hello'), line(410)     # FAILED 2
+	await truthy await isInstalled('hello'), line(404)     # FAILED 3
 	await doUninstallCmd.handle('hello')
 	)()

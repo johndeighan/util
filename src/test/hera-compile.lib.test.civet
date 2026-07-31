@@ -7,10 +7,32 @@ import {
 	doCompileHera, preprocHera, testHeraCode,
 	} from 'hera-compile'
 import {
-	beginUnitTest, equal, truthy, falsy, succeeds, fails,
+	beginUnitTest, equal, truthy, falsy, succeeds, fails, setDirTree,
 	} from 'unit-test'
 
 r := beginUnitTest(import.meta.url)
+
+# ---------------------------------------------------------------------------
+
+setup := (): void ->
+
+	await setDirTree """
+		./#{r''} clear
+		counter.parse.hera compile
+			---
+			type: civet
+			---
+			#beginParse(text)
+
+			Program
+				"a"* "b"* ->
+					return ($1.length - $2.length)
+		hello.txt
+			Hello, there
+		"""
+	return
+
+await setup()
 
 # ---------------------------------------------------------------------------
 

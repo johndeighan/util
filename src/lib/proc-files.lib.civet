@@ -14,8 +14,8 @@ import {awaitAll, awaitAllSerially, TSettleResult} from 'promise-utils'
 import {hash, nonEmpty} from 'datatypes'
 import {f, getOptions} from 'llutils'
 import {DUMP} from 'nice'
-import {allFilesMatching} from 'fsys'
-import {CFileHandler, TExecResult} from 'exec'
+import {allFilesMatching, isFile, mkpath} from 'fsys'
+import {CFileHandler, TExecResult, doCompileCivet} from 'exec'
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -115,12 +115,7 @@ export procOneFile := (
 		hOptions: hash = {}
 		): TExecResult =>
 
-	if not await exists(path)
-		return {
-			success: false
-			stderr: "No such file"
-			infile: path
-			}
+	assert isFile(path), "No such file: #{path}"
 	if ('force' not in hOptions) || not hOptions.force
 		if not await handler.needed(path)
 			return {
@@ -262,4 +257,15 @@ showFinalResult := (
 		(nRej == 0) ? sprintf('%3d', nRej) : red(sprintf('%3d', nRej))
 		lPatterns.join(' + ')
 	].join ' '
+	return
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export compileAllLibs := (
+		root: string = '.'
+		): void =>
+
+	pat := mkpath(root, '**/*.lib.civet')
+	await procFiles [doCompileCivet, [pat]]
 	return

@@ -55,35 +55,6 @@ export str2indents := (
 		)
 
 # ---------------------------------------------------------------------------
-
-export toDebugStr := (str: string): string =>
-
-	estr := str2indents(str)
-
-	pre := (level: number): string =>
-		return (level < 1) ? '' : '   '.repeat(level)
-
-	let level = 0
-	lChars := [...estr]
-	lParts := MAP lChars, (ch) ->
-		switch ch
-			when '\n'
-				yield "\n#{pre(level)}#{uni.downarrow}"
-			when uni.shiftin
-				yield "\n#{pre(level)}#{uni.rightshift}  "
-				level += 1
-			when uni.shiftout
-				level -= 1
-				yield "\n#{pre(level-1)}#{uni.leftshift}  "
-			when ' '
-				yield uni.fatdot
-			when '\t'
-				yield uni.rightarrow
-			else
-				yield ch
-	return Array.from(lParts).join('')
-
-# ---------------------------------------------------------------------------
 # ASYNC
 
 export parseText := <T = unknown>(

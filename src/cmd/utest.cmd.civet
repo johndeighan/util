@@ -3,17 +3,15 @@
 import {LOG, DBG, ERR} from 'logger'
 import {
 	toRelPath, undef, defined, notdefined, assert,
-	decolorize, write, writeln, clearScreen,
+	colorize, decolorize, write, writeln, clearScreen,
 	} from 'base'
 import {isString} from 'datatypes'
 import {cmdTitle, f, dashes, EXEC} from 'llutils'
 import {
 	isFile, rmDir, withExt, findFile, allFilesMatching, parsePath,
 	} from 'fsys'
-import {execCmd, TExecResult} from 'exec'
-import {TProcSpec, procFiles, procOneFile} from 'proc-files'
-import {doUnitTest} from 'typescript'
-import {doCompileCivet, compileAllLibs} from 'civet'
+import {execCmd, TExecResult, doCompileCivet, doUnitTest} from 'exec'
+import {TProcSpec, procFiles, procOneFile, compileAllLibs} from 'proc-files'
 import {DUMP} from 'nice'
 import {CTimer} from 'timer'
 import {getCmdArgs, inspect} from 'cmd-args'
@@ -65,9 +63,23 @@ await EXEC () =>
 				\)
 				///
 			if defined(lMatches)
-				[_, nOK, nBad, tm, units] := lMatches
-				timeStr := "#{tm} #{units}"
-				LOG f"#{stub}:-14 #{nOK}:4 #{nBad}:4 #{timeStr}:8"
+				[_, nOk, nBad, tm, units] := lMatches
+				nOkStr  := (
+					  (nOk == '0')
+					? colorize(nOk, 'red')
+					: colorize(nOk, 'green')
+					)
+				nBadStr := (
+					  (nBad == '0')
+					? colorize(nBad, 'green')
+					: colorize(nBad, 'red')
+					)
+				timeStr := (
+					  (units == 's')
+					? "#{tm}  s"
+					: "#{tm} #{units}"
+					)
+				LOG f"#{stub}:-14 #{nOkStr}:4 #{nBadStr}:4 #{timeStr}:8"
 			else
 				LOG hResult.stdout
 

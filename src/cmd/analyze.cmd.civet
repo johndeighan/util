@@ -10,7 +10,7 @@ import {getCmdArgs} from 'cmd-args'
 import {DUMP} from 'nice'
 import {findFile, slurp, fileExt} from 'fsys'
 import {analyzeTsCode} from 'typescript'
-import {civet2ts} from 'llcivet'
+import {civet2ts} from 'civet'
 
 hDesc := {
 	_: {range: [1,1]}

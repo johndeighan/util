@@ -67,21 +67,9 @@ r := beginUnitTest(import.meta.url)
 
 	equal nice(mainScope), s"""
 		name: main
-		sDefined:
-			-- name
-			-- gender
-		sUsed: ｟emptySet｠
-		parent: ｟undef｠
-		lChildScopes:
-			-
-				name: func
-				sDefined:
-					-- age
-					-- temp
-				sUsed: ｟emptySet｠
-				parent: ｟ref root｠
-				lChildScopes: []
-		""", line(65)
+		sDefined: 〚name gender〛
+		lChildScopes: [{name: func sDefined: 〚age temp〛 parent: ｟ref root｠}]
+		""", line(68)
 	)()
 
 # --- Test if when a function is entered with parameter s

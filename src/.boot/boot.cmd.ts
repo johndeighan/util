@@ -4,7 +4,7 @@ import {expandGlob} from 'jsr:@std/fs/expand-glob'
 import {relative} from 'jsr:@std/path'
 
 import {
-	execCmd, compile, typeCheck, execBatch,
+	execCmd, compile, typeCheck, execBatch, assert,
 	newerDestFileExists, installCmd, anyRejected, logTimeTaken,
 	} from './boot.lib.ts'
 const force = (Deno.args[0] == '-f') || (Deno.args[1] == '-f');
@@ -31,9 +31,7 @@ if (lToCheck.length > 0) {
 // --------------------------------------------------------------------------
 
 await execBatch('**/*.cmd.ts', installCmd, 'installed');
-// const code1 = await execCmd('build-dot-symbols');
-const code2 = await execCmd('buildpar', ['all']);
 
-if (true) {
-	const result4 = await execCmd('utest', ['all']);
-	}
+await execCmd('build-dot-symbols');
+await execCmd('buildpar', ['all']);
+await execCmd('utest', ['all']);

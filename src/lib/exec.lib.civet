@@ -16,8 +16,8 @@ import {
 import {
 	pass, undef, defined, anyDefined, notdefined, toRelPath,
 	croak, assert, obviously, getErrStr, allLinesIn,
-	write, writeln, resetLine, TIterator,
-	encode, decode, TAsyncIterator, colorize,
+	write, writeln, resetLine, TIterator, toBool,
+	encode, decode, TAsyncIterator, colorize, decolorize, withColors,
 	} from 'base'
 import {timer} from 'timer'
 import {
@@ -36,7 +36,9 @@ import {OL} from 'nice'
 import {
 	barf, pathStr, allFilesMatching, normalizePath, barfTempFile,
 	fileExt, withExt, slurpAsync, parsePath, CWritableFile,
+	newerDestFileExists, isFullPath, inSameDir, mkpath,
 	} from 'fsys'
+import {civet2tsFile, TCivetOptions} from 'civet'
 
 procColor := 'cyan'
 
@@ -225,6 +227,7 @@ export abstract class CFileHandler
 
 	# ..........................................................
 	# ASYNC
+	# --- if error occurs, throw an Error object
 
 	abstract handle(
 			path: string
@@ -239,19 +242,16 @@ export abstract class CFileHandler
 			hOptions: hash = {}
 			): TExecResult
 
-		if (('force' in hOptions) && hOptions.force)
-			hResult := await @handle(path, hOptions)
-			return Object.assign hResult, {infile: path}
+		force := ('force' in hOptions) && hOptions.force
 		isNeeded := await @needed(path, hOptions)
-		if isNeeded
-			hResult := await @handle(path, hOptions)
-			return Object.assign hResult, {infile: path}
-		else
+		if not force && not isNeeded
 			return {
 				success: true
 				notNeeded: true
 				infile: path
 				}
+		hResult := await @handle path, hOptions
+		return Object.assign hResult, {infile: path}
 
 	# ..........................................................
 	# SYNC
@@ -425,3 +425,156 @@ class CFileRunner extends CFileHandler
 		return hResult
 
 export doRun := new CFileRunner()
+
+# ---------------------------------------------------------------------------
+
+class CCivetCompiler extends CFileHandler
+
+	get op()
+		return 'doCompileCivet'
+
+	# ..........................................................
+
+	override async needed(
+			path: string
+			hOptions: hash = {}
+			): boolean
+
+		return toBool(hOptions.force) || not newerDestFileExists(path, '.ts')
+
+	# ..........................................................
+
+	getOutPath(
+			path: string
+			output: string   # --- '.ts' or actual file name
+			): string
+
+		assert (fileExt(path) == '.civet'), "Not a civet file"
+		if (output == '.ts')
+			return withExt(path, '.ts')
+		else if isFullPath(output)
+			croak "output can't be a full path"
+		else
+			assert (fileExt(output) == '.ts'), "output must have .ts ext"
+			return inSameDir(path, output)
+		return ''
+
+	# ..........................................................
+	# ASYNC
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): TExecResult
+
+		{force, nocheck, output, inlineMap,
+			} := getOptions<TCivetOptions> hOptions, {
+				force: false
+				nocheck: false
+				output: '.ts'
+				inlineMap: true
+				}
+
+		assert (fileExt(path) == '.civet'), "Not a civet file: #{path}"
+		tsPath := withExt path, '.ts'
+		try
+			outPath := await civet2tsFile path, tsPath, {
+				inlineMap
+				force
+				nocheck
+				}
+			assert (outPath == tsPath), "Bad output file: '#{outPath}'"
+			return {
+				success: true
+				infile: path
+				outfile: outPath
+				}
+		catch err
+			errMsg := getErrStr(err)
+			if debugging
+				LOG errMsg
+			return {
+				success: false
+				stderr: "COMPILE FAILED: #{pathStr(path)} - #{errMsg}"
+				}
+
+export doCompileCivet := new CCivetCompiler()
+
+# ---------------------------------------------------------------------------
+
+class CUnitTester extends CFileHandler
+
+	get op()
+		return 'doUnitTest'
+
+	# ..........................................................
+
+	override handle(
+			path: string,
+			hOptions: hash = {}
+			): TExecResult
+
+		assert path.endsWith('.test.ts'), "Not a unit test file"
+		type opt = {
+			capture: boolean
+			inspect: boolean
+			lineNum: string?
+			}
+		{capture, inspect, lineNum} := getOptions<opt> hOptions, {
+			capture: false
+			inspect: false
+			lineNum: undef
+			}
+
+		hResult := await execCmd 'deno', [
+				'test'
+				'-A'
+				'--trace-leaks'
+				...(inspect
+					? ['--inspect-brk']
+					: ['--coverage=./coverage', '--coverage-raw-data-only']
+					)
+				...(defined(lineNum)
+					? ['--filter', "/^line #{lineNum}$/"]
+					: []
+					)
+				path
+				], {capture}
+		return hResult
+
+	# ..........................................................
+
+	override getOutput(hResult: TExecResult): string
+
+		{stdout, stderr} := hResult
+		output := [stdout, stderr].join()
+		if not hResult.success || output.match(/croak|error/i)
+			return output
+
+		lLines := Array.from MAP allLinesIn(decolorize(output)), (line) ->
+			if line.startsWith('line')
+				if not line.includes(' ok ')
+					yield withColors line, {
+						failed: 'red'
+						FAILED: 'red'
+						ok: 'green'
+						OK: 'green'
+						}
+			else if line.includes('passed') && line.includes('failed')
+				if line.includes(' 0 failed ')
+					yield withColors line, {
+						ok: 'green'
+						passed: 'green'
+						}
+				else
+					yield withColors line, {
+						ok: 'green'
+						passed: 'green'
+						failed: 'red'
+						FAILED: 'red'
+						}
+			else if line.includes('Lcov coverage')
+				yield 'coverage report generated'
+		return lLines.join('\n')
+
+export doUnitTest := new CUnitTester()

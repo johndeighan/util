@@ -10,9 +10,12 @@ import {
 import {o, s, t} from 'llutils'
 import {slurp, withExt} from 'fsys'
 import {
-	getSymbolsFromType, getImportCode,
-	ts2ast, ast2ts, astAsString, analyzeTsCode,
+	typeCheckTsFile, typeCheckTsCode, ts2ast,
+	kindStr, ast2ts, descFunc, astAsString,
+	getSymbolsFromType, AstWalker,
+	CAnalysis, getNode, analyzeTsCode,
 	} from 'typescript'
+import {doUnitTest} from 'exec'
 import {
 	beginUnitTest, equal, succeeds, fails, truthy, falsy,
 	setDirTree, line,
@@ -26,12 +29,16 @@ r := beginUnitTest(import.meta.url)
 setup := (): void ->
 
 	await setDirTree """
-		./src/test/typescript clear
+		./#{r''} clear
 		tstest.ts
 			const str: string = 'abc'
 		tstest2.ts
 			const func1 = (str: string): boolean =>
 				return true
+		ok.ts
+			const x: string = 'abc';
+		bad.ts
+			const x: number = 'abc';
 		"""
 	return
 
@@ -39,15 +46,22 @@ await setup()
 
 # ---------------------------------------------------------------------------
 
+equal await typeCheckTsCode("let s: string = 'abc';"), ''
+truthy  await typeCheckTsCode("let s: string = 42;")
+
+equal  await typeCheckTsFile(r'ok.ts'), ''
+truthy await typeCheckTsFile(r'bad.ts')
+
+# ---------------------------------------------------------------------------
+
+equal kindStr(220), 'ArrowFunction'
+equal kindStr(261), 'VariableDeclaration'
+equal kindStr(227), 'BinaryExpression'
+
+# ---------------------------------------------------------------------------
+
 equal getSymbolsFromType('integer'), ['integer']
 equal getSymbolsFromType('hashof<integer>'), ['hashof','integer']
-
-# equal getImportCode('integer'), """
-# 	import {integer} from 'datatypes';
-# 	"""
-# equal getImportCode('hashof<integer>'), """
-# 	import {hashof, integer} from 'datatypes';
-# 	"""
 
 equal analyzeTsCode("""
 	const x = y + z + func(min);
