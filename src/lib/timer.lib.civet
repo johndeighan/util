@@ -8,15 +8,16 @@ import {integer} from 'datatypes'
 loadTime: integer := Date.now()
 
 # ---------------------------------------------------------------------------
+# --- in seconds
 
 export sinceLoad := (
 		datetime: Date | integer = Date.now()
 		): number =>
 
 	if (datetime instanceof Date)
-		return datetime.valueOf() - loadTime
+		return (datetime.valueOf() - loadTime) / 1000
 	else
-		return datetime - loadTime
+		return (datetime - loadTime) / 1000
 
 # ---------------------------------------------------------------------------
 
@@ -24,7 +25,7 @@ export sinceLoadStr := (
 		datetime: (Date | integer)? = undef
 		) =>
 
-	return sprintf "%6d", sinceLoad(datetime)
+	return sprintf "%6d secs.", sinceLoad(datetime)
 
 # ---------------------------------------------------------------------------
 
@@ -32,21 +33,30 @@ export class CTimer
 
 	t0 = Date.now()
 
-	# --- automatically resets the timer
+	# ..........................................................
+
+	reset(): void
+
+		@t0 = Date.now()
+
+	# ..........................................................
+
 	timeTaken(
-			reset: boolean = true,
+			reset: boolean = false,
 			decPlaces: number = 2
 			divideBy: number = 1
-			): string
+			): number
 
 		now := Date.now()
 		secs := (now - @t0) / 1000
 		if reset
 			@t0 = now
-		return sprintf("%.#{decPlaces}d", secs / divideBy)
+		return secs / divideBy
+
+	# ..........................................................
 
 	timeTakenStr(
-			reset: boolean = true,
+			reset: boolean = false,
 			decPlaces: number = 2
 			divideBy: number = 1
 			): string
@@ -56,5 +66,3 @@ export class CTimer
 		if reset
 			@t0 = now
 		return sprintf("%.#{decPlaces}d secs.", secs / divideBy)
-
-export timer := new CTimer()

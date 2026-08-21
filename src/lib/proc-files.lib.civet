@@ -7,14 +7,14 @@ import {cyan, red, green, yellow} from '@std/fmt/colors'
 import {LOG, DBG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, assert, obviously, croak,
-	resetLine, write, writeln, getErrStr, toRelPath,
+	resetLine, write, writeln, getErrStr,
 	} from 'base'
-import {timer} from 'timer'
+import {CTimer} from 'timer'
 import {awaitAll, awaitAllSerially, TSettleResult} from 'promise-utils'
 import {hash, nonEmpty} from 'datatypes'
 import {f, getOptions} from 'llutils'
 import {DUMP} from 'nice'
-import {allFilesMatching, isFile, mkpath} from 'fsys'
+import {allFilesMatching, isFile, mkpath, toRelPath} from 'fsys'
 import {CFileHandler, TExecResult} from 'exec'
 import {doCompileCivet} from 'civet'
 
@@ -26,22 +26,25 @@ import {doCompileCivet} from 'civet'
 
 export type TProcSpec = [CFileHandler, lPatterns: string[]]
 export type TProcResult = [boolean, string]
+export type TCallback = (path: string, hResult: TExecResult) => void
 
 export procFiles := (
 		procSpec: TProcSpec,
 		hOptions: hash = {}
-		): [boolean, TExecResult[]] =>
+		): [boolean, TExecResult[], number] =>  # --- 3rd = secs taken
 
 	type opt = {
 		quiet: boolean
 		verbose: boolean
 		serial: boolean
+		callback: TCallback?
 		}
-	{quiet, verbose, serial
+	{quiet, verbose, serial, callback
 		} := getOptions<opt> hOptions, {
 			quiet: false
 			verbose: false
 			serial: false
+			callback: undef
 			}
 
 	assert not (quiet && verbose), "Can't use both quiet and verbose"
@@ -50,13 +53,13 @@ export procFiles := (
 	if verbose
 		writeln "(#{op})"
 
-	timer.timeTaken()    # --- this resets the timer
+	timer := new CTimer()
 
 	# --- NOTE: We need array lPaths to index into
 	lPaths: string[] := Array.from allFilesMatching(lPatterns)
 	if (lPaths.length == 0)
 		LOG "(#{op}:{cyan} - No files match"
-		return [true, []]
+		return [true, [], timer.timeTaken()]
 
 	lFunctions := for path of lPaths
 		() => await handler.handleFile(path, hOptions)
@@ -76,6 +79,8 @@ export procFiles := (
 		if resolved
 			# --- value is a TExecResult hash
 			hResult := value
+			if defined(callback)
+				callback path, hResult
 			lAllResults.push hResult
 			{success, notNeeded, infile} := hResult
 			if success
@@ -90,10 +95,14 @@ export procFiles := (
 		else
 			# --- value is an error message
 			errMsg := getErrStr(value)
-			lAllResults.push {
+			hResult := {
 				success: false
+				timeTaken: timer.timeTaken()
 				stderr: errMsg
 				}
+			if defined(callback)
+				callback path, hResult
+			lAllResults.push hResult
 			nRej += 1
 			showErrResult handler, path, errMsg, hOptions
 		return
@@ -104,8 +113,11 @@ export procFiles := (
 		await awaitAll lFunctions, onSettle
 
 	if not quiet || (nRej + nErr > 0)
-		showFinalResult op, lPatterns, nNotNeeded, nOk, nErr, nRej, verbose
-	return [(nErr + nRej == 0), lAllResults]
+		showFinalResult
+			op, lPatterns, nNotNeeded,
+			nOk, nErr, nRej,
+			timer.timeTaken(), verbose
+	return [(nErr + nRej == 0), lAllResults, timer.timeTaken()]
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -115,15 +127,6 @@ export procOneFile := (
 		handler: CFileHandler,
 		hOptions: hash = {}
 		): TExecResult =>
-
-	assert isFile(path), "No such file: #{path}"
-	if ('force' not in hOptions) || not hOptions.force
-		if not await handler.needed(path)
-			return {
-				success: true
-				notNeeded: true
-				infile: path
-				}
 
 	type opt = {
 		inspect: boolean
@@ -139,15 +142,13 @@ export procOneFile := (
 		prelog op, path
 
 	try
-		timer.timeTaken()    # --- this resets the timer
 		hResult := await handler.handleFile path, hOptions
 		if quiet
 			# --- handler.handleFile() will have set infile key
 			return hResult
 
-		{success, notNeeded} := hResult
-		postlog success, notNeeded
-		if success
+		postlog hResult
+		if hResult.success
 			showOkResult handler, path, hResult, hOptions
 		else
 			showErrResult handler, path, handler.getOutput(hResult), hOptions
@@ -156,7 +157,7 @@ export procOneFile := (
 	catch err
 		showErrResult handler, path, getErrStr(err), hOptions
 		return {
-			success: false,
+			success: false
 			stderr: getErrStr(err)
 			infile: path
 			}
@@ -173,19 +174,16 @@ prelog := (
 
 # ---------------------------------------------------------------------------
 
-postlog := (
-		success: boolean
-		notNeeded: boolean?
-		): void =>
+postlog := (hResult: TExecResult): void =>
 
-	secs := timer.timeTaken()
+	{success, notNeeded, timeTaken} := hResult
 	if success
 		if notNeeded
-			writeln f"#{' - not needed'}:{yellow} (#{secs} secs)"
+			writeln f"#{' - not needed'}:{yellow} (#{timeTaken} secs.)"
 		else
-			writeln f"#{' - OK'}:{green} (#{secs} secs)"
+			writeln f"#{' - OK'}:{green} (#{timeTaken} secs.)"
 	else
-		writeln f"#{' - FAILED'}:{red} (#{secs} secs)"
+		writeln f"#{' - FAILED'}:{red} (#{timeTaken} secs.)"
 	return
 
 # ---------------------------------------------------------------------------
@@ -224,12 +222,13 @@ showErrResult := (
 let headerPrinted = false
 
 showFinalResult := (
-		op: string,
+		op: string
 		lPatterns: string[]
-		nNotNeeded: number,
-		nOk: number,
-		nErr: number,
-		nRej: number,
+		nNotNeeded: number
+		nOk: number
+		nErr: number
+		nRej: number
+		timeTaken: number        # --- in secs
 		verbose: boolean = false
 		): void =>
 
@@ -250,7 +249,7 @@ showFinalResult := (
 		LOG '-'.repeat 46
 		headerPrinted = true
 	LOG [
-		sprintf('%6.2f', timer.timeTaken())
+		sprintf('%.2f', timeTaken)
 		cyan(sprintf('%-14s', op))
 		sprintf('%3d', nNotNeeded)
 		(nOk == 0)  ? sprintf('%3d', nOk)  : green(sprintf('%3d', nOk))
@@ -264,9 +263,30 @@ showFinalResult := (
 # ASYNC
 
 export compileAllLibs := (
-		root: string = '.'
-		): void =>
+		hOptions: hash = {}
+		): [boolean, TExecResult[], number] =>
 
+	type opt = {
+		root: string
+		}
+	{root} := getOptions<opt> hOptions, {
+		root: '.'
+		}
 	pat := mkpath(root, '**/*.lib.civet')
-	await procFiles [doCompileCivet, [pat]]
-	return
+	return await procFiles [doCompileCivet, [pat]], hOptions
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export compileAllUnitTests := (
+		hOptions: hash = {}
+		): [boolean, TExecResult[], number] =>
+
+	type opt = {
+		root: string
+		}
+	{root} := getOptions<opt> hOptions, {
+		root: '.'
+		}
+	pat := mkpath(root, '**/*.test.civet')
+	return await procFiles [doCompileCivet, [pat]], hOptions

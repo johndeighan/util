@@ -4,10 +4,13 @@ import {LOG, DBG} from 'logger'
 import {cmdTitle, EXEC} from 'llutils'
 import {getCmdArgs} from 'cmd-args'
 import {
-	doRemoveTsFile, doRemoveFile, doInstallCmd, doUninstallCmd,
+	doInstallCmd, doUninstallCmd,
 	} from 'exec'
 import {procFiles, procOneFile} from 'proc-files'
-import {isDir, rmDir, rmFile, allFilesMatching } from 'fsys'
+import {
+	isFile, isDir, rmDir, rmFile, withExt,
+	allFilesMatching, removeFilesMatching,
+	} from 'fsys'
 
 getCmdArgs "clearAll"
 
@@ -17,11 +20,12 @@ await EXEC () =>
 	# 1. remove all *.ts files corresponding to *.civet files
 	#           if purpose is 'lib', 'cmd', 'parse', or 'test'
 	LOG cmdTitle("Remove *.{lib,cmd,parse,text}.ts")
-	await procFiles [doRemoveTsFile, ['src/**/*.{lib,cmd,parse,test}.ts']]
+	await removeFilesMatching 'src/**/*.{lib,cmd,parse,test}.ts', (path) =>
+		return isFile withExt(path, '.civet')
 
 	# 2. remove all temp files
 	LOG cmdTitle("Remove temp files")
-	await procFiles [doRemoveFile, ['src/**/*.temp.*']]
+	await removeFilesMatching 'src/**/*.temp.*'
 
 	# 3. If there is a directory named 'test', remove any subfolders
 	LOG cmdTitle("Remove test subfolders")
@@ -31,7 +35,7 @@ await EXEC () =>
 
 	# 4. remove all log files
 	LOG cmdTitle("Remove log files")
-	await procFiles [doRemoveFile, ['src/**/log/*']]
+	await removeFilesMatching 'src/**/log/*'
 
 	# 5. uninstall all commands installed by this project
 	LOG cmdTitle("Uninstall cmd files")

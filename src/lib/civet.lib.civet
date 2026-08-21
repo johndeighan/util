@@ -10,13 +10,15 @@ import {findInDir, loadConfig} from "@danielx/civet/config"
 import {LOG, DBG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, assert, croak,
-	getErrStr, touch, toBool,
+	getErrStr, toBool,
 	} from 'base'
 import {hash} from 'datatypes'
+import {CTimer} from 'timer'
 import {getOptions} from 'llutils'
 import {CFileHandler, TExecResult} from 'exec'
 import {
-	fileExt, withExt, isFullPath, inSameDir, newerDestFileExists, pathStr,
+	fileExt, withExt, isFullPath, inSameDir,
+	newerDestFileExists, pathStr, touch,
 	} from 'fsys'
 import {typeCheckTsFile, ts2ast, analyzeTsCode} from 'typescript'
 
@@ -160,29 +162,12 @@ class CCivetCompiler extends CFileHandler
 
 	# ..........................................................
 
-	override async needed(
+	override allOutPaths(
 			path: string
 			hOptions: hash = {}
-			): boolean
+			): string[]
 
-		return toBool(hOptions.force) || not newerDestFileExists(path, '.ts')
-
-	# ..........................................................
-
-	getOutPath(
-			path: string
-			output: string   # --- '.ts' or actual file name
-			): string
-
-		assert (fileExt(path) == '.civet'), "Not a civet file"
-		if (output == '.ts')
-			return withExt(path, '.ts')
-		else if isFullPath(output)
-			croak "output can't be a full path"
-		else
-			assert (fileExt(output) == '.ts'), "output must have .ts ext"
-			return inSameDir(path, output)
-		return ''
+		return [withExt(path, '.ts')]
 
 	# ..........................................................
 	# ASYNC
@@ -209,11 +194,7 @@ class CCivetCompiler extends CFileHandler
 				nocheck
 				}
 			assert (outPath == tsPath), "Bad output file: '#{outPath}'"
-			return {
-				success: true
-				infile: path
-				outfile: outPath
-				}
+			return {success: true}
 		catch err
 			errMsg := getErrStr(err)
 			DBG errMsg

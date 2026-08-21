@@ -444,7 +444,7 @@ export needsEscape := (str: string): boolean =>
 
 export DUMPER := (
 		x: unknown,
-		label: string? = undef,
+		label: string = '',
 		hOptions: hash = {}
 		): string =>
 
@@ -466,10 +466,10 @@ export DUMPER := (
 			type: 'nice'
 			}
 
-	lLines: string[] := [sep(char, label, width)]
+	lLines: string[] := [sep(char, cyan(label), width)]
 	if isString(x)
 		for line,i of allLinesIn(x)
-			str := escape ? esc(line + '\n') : line
+			str := escape ? esc(decolorize(line) + '\n') : line
 			lLines.push (lineNumbers ? "#{sprintf('%3d', i+1)} #{str}" : str)
 	else
 		lLines.push (
@@ -488,7 +488,7 @@ export DUMP := (
 		hOptions: hash = {}
 		): void =>
 
-	LOG DUMPER(x, label, hOptions)
+	console.log DUMPER(x, label, hOptions)
 	return
 
 # ---------------------------------------------------------------------------
@@ -511,10 +511,10 @@ export LOGVALUE := (
 
 	str := nice(value, logWidth)
 	if str.includes('\n')
-		LOG f"#{label}:{blue} ="
+		LOG f"#{label}:{cyan} ="
 		LOG indented(str)
 	else
-		LOG f"#{label}:{blue} = #{nice(value)}"
+		LOG f"#{label}:{cyan} = #{nice(value)}"
 	return
 
 # ---------------------------------------------------------------------------
@@ -526,8 +526,8 @@ export DBGVALUE := (
 
 	str := nice(value, logWidth)
 	if str.includes('\n')
-		DBG f"#{label}:{blue} ="
+		DBG f"#{label}:{cyan} ="
 		DBG indented(str)
 	else
-		DBG f"#{label}:{blue} = #{nice(value)}"
+		DBG f"#{label}:{cyan} = #{nice(value)}"
 	return

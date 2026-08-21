@@ -15,7 +15,6 @@ import {
 	getSymbolsFromType, AstWalker,
 	CAnalysis, getNode, analyzeTsCode,
 	} from 'typescript'
-import {doUnitTest} from 'exec'
 import {
 	beginUnitTest, equal, succeeds, fails, truthy, falsy,
 	setDirTree, line,
@@ -118,7 +117,7 @@ equal analyzeTsCode("""
 	""").asString(), s"""
 	IMPORTS: willy: func
 	MISSING: x y z
-	""", line(101)
+	""", line(121)
 
 # --- Only t is needed, s is a parameter
 
@@ -128,7 +127,7 @@ equal analyzeTsCode("""
 	func('abc');
 	""").asString(), s"""
 	MISSING: t
-	""", line(112)
+	""", line(131)
 
 # --- Same, only using 'function' keyword
 
@@ -139,7 +138,7 @@ equal analyzeTsCode("""
 	func('abc');
 	""").asString(), s"""
 	MISSING: t
-	""", line(122)
+	""", line(142)
 
 # ---------------------------------------------------------------------------
 # test astAsString()
@@ -171,4 +170,4 @@ equal astAsString(ts2ast('const x = 42;')), """
 	symbolCount: 0
 	identifiers:
 		x:: x
-	""", line(134)
+	""", line(174)

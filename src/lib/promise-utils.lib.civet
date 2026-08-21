@@ -30,6 +30,11 @@ export evalPromise := <T=unknown>(
 export type TSettleResult<T> =
 	[true, T, number] | [false, unknown, number]
 
+export type TPromiseFunc<T> = () => Promise<T>
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
 export awaitAll := <T>(
 		lFuncs: (() => Promise<T>)[]
 		onSettle: (result: TSettleResult<T>) => void

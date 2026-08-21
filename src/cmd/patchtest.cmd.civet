@@ -1,0 +1,56 @@
+# patchtest.cmd.civet
+
+import {LOG} from 'logger'
+import {
+	undef, defined, assert, obviously, croak, toBool,
+	} from 'base'
+import {allLinesInFile} from 'llfs'
+import {MAP} from 'mapper'
+import {EXEC} from 'llutils'
+import {getCmdArgs} from 'cmd-args'
+import {
+	isFile, withExt, CWritableFile, pathStr, allFilesMatching,
+	} from 'fsys'
+
+[[stub]] := getCmdArgs 'patchtest', {
+	_: {range: [1,1]}
+	}
+
+# ---------------------------------------------------------------------------
+
+patchOneFile := (path: string): void =>
+
+	assert isFile(path), "No such file: #{pathStr(path)}"
+	LOG "patch #{path}"
+
+	lLines: string[] := []
+	for await line,i of allLinesInFile(path)
+		lineNum := i+1
+		lMatches := line.match ///^
+				(.*)
+				, \s* line \( (\d+) \)
+				(.*)
+				$///
+		if defined(lMatches)
+			[_, pre, num, post] := lMatches
+			newline := "#{pre}, line(#{lineNum})#{post}"
+			lLines.push newline
+		else
+			lLines.push line
+
+	# --- overwrite the file directly
+	f := new CWritableFile path
+	for line of lLines
+		f.writeln line
+	return
+
+# ---------------------------------------------------------------------------
+
+await EXEC () =>
+	debugger
+	LOG "stub = #{stub}"
+	if (stub == 'all')
+		for path of allFilesMatching('./**/*.test.civet')
+			patchOneFile path
+	else
+		patchOneFile "src/test/#{stub}.lib.test.civet"

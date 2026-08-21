@@ -4,7 +4,7 @@ import {cyan, red, green} from '@std/fmt/colors'
 
 import {initLogLevel} from 'logger'
 import {
-	undef, defined, notdefined, sleep, toRelPath,
+	undef, defined, notdefined, sleep,
 	} from 'base'
 import {
 	hash, isString, isFunction, isAsyncIterator,
@@ -20,7 +20,7 @@ import {
 	removeFilesMatching, watchFile, FileEventHandler, TFsEventHandler,
 	TPathType, TPathInfo, patchFirstLine, toFullPath, splitPatterns,
 	fromJsonFile, toJsonFile, addJsonValue, pathStr,
-	CReadableFile, CWritableFile,
+	CReadableFile, CWritableFile, toRelPath,
 	} from 'fsys'
 import {
 	equal, truthy, falsy, unifies, line,
@@ -87,6 +87,9 @@ setup := (): void ->
 			new.txt
 				abc
 				def
+		/.save
+			dummy.txt
+				another dummy file
 		"""
 	return
 
@@ -178,7 +181,7 @@ unifies parsePath(import.meta.url), {
 		r'aaa'
 		r'aaa/bbb'
 		r'subdir'
-		]
+		], line(179)
 	)()
 
 (() =>
@@ -194,10 +197,10 @@ unifies parsePath(import.meta.url), {
 		'line1'
 		'line2'
 		'line3'
-		]
+		], line(192)
 	)()
 
-equal normalizePath("C:/temp/file.txt"), "C:/temp/file.txt"
+equal normalizePath("C:/temp/file.txt"), "C:/temp/file.txt", line(203)
 equal normalizePath("C:\\temp/to/file.txt"), "C:/temp/to/file.txt"
 equal normalizePath("C:\\temp/to/file.flag.txt"), "C:/temp/to/file.flag.txt"
 equal normalizePath('C:\\Users\\johnd'), 'C:/Users/johnd'
@@ -245,7 +248,7 @@ equal slurp(r'file1.txt'), """
 	line1
 	line2
 	line3
-	"""
+	""", line(243)
 
 await equal await slurpAsync(r'file1.txt'), """
 	---
@@ -264,30 +267,30 @@ await equal await slurpAsync(r'file1.txt'), """
 		return
 
 	handler := new FileEventHandler(fileChangeFunc)
-	handler.handle {
+	handler.handleEvent {
 		kind: 'modify',
 		paths: ['/usr/lib/temp.txt']
 		}
-	handler.handle {
+	handler.handleEvent {
 		kind: 'modify',
 		paths: ['/usr/lib/temp.txt']
 		}
-	handler.handle {
+	handler.handleEvent {
 		kind: 'modify',
 		paths: ['/usr/lib/temp2.txt']
 		}
-	handler.handle {
+	handler.handleEvent {
 		kind: 'modify',
 		paths: ['/usr/lib/temp.txt']
 		}
 
 	await sleep 2000
 
-	handler.handle {
+	handler.handleEvent {
 		kind: 'modify',
 		paths: ['/usr/lib/temp.txt']
 		}
-	handler.handle {
+	handler.handleEvent {
 		kind: 'modify',
 		paths: ['/usr/lib/temp.txt']
 		}
@@ -300,7 +303,7 @@ await equal await slurpAsync(r'file1.txt'), """
 		{kind: 'modify', paths: ['/usr/lib/temp.txt']}
 		]
 
-	equal lChanges, expected
+	equal lChanges, expected, line(306)
 	)()
 
 (() =>
@@ -309,30 +312,30 @@ await equal await slurpAsync(r'file1.txt'), """
 		lChanges.push {kind, path}
 		return
 		)
-	handler.handle {
+	handler.handleEvent {
 		kind: 'modify',
 		paths: ['/usr/lib/temp.txt']
 		}
-	handler.handle {
+	handler.handleEvent {
 		kind: 'modify',
 		paths: ['/usr/lib/temp.txt']
 		}
-	handler.handle {
+	handler.handleEvent {
 		kind: 'modify',
 		paths: ['/usr/lib/temp2.txt']
 		}
-	handler.handle {
+	handler.handleEvent {
 		kind: 'modify',
 		paths: ['/usr/lib/temp.txt']
 		}
 
 	await sleep 2000
 
-	handler.handle {
+	handler.handleEvent {
 		kind: 'modify',
 		paths: ['/usr/lib/temp.txt']
 		}
-	handler.handle {
+	handler.handleEvent {
 		kind: 'modify',
 		paths: ['/usr/lib/temp.txt']
 		}
@@ -345,7 +348,7 @@ await equal await slurpAsync(r'file1.txt'), """
 		{kind: 'modify', path: '/usr/lib/temp.txt'}
 		]
 
-	equal lChanges, expected, red('MIDDLE')
+	equal lChanges, expected, line(351)
 	)()
 
 # ---------------------------------------------------------------------------
@@ -480,10 +483,10 @@ await equal await slurpAsync(r'file1.txt'), """
 	rmDir 'src/test/fshs/xxx', {clear: true}
 	)()
 
-(() =>
-	removeFilesMatching '**/*file.txt'
+await (() =>
+	await removeFilesMatching '**/*file.txt'
 
-	falsy  isFile(r'aaa/newfile.txt')
+	falsy  isFile(r'aaa/newfile.txt'), line(489)
 	falsy  isFile(r'aaa/bbb/newfile.txt')
 	falsy  isFile(r'aaa/bbb/oldfile.txt')
 	truthy isFile(r'aaa/bbb/temp.txt')
@@ -584,19 +587,19 @@ await (() =>
 	await f.writeln 'def'
 	f.close()
 
-	equal slurp(path), 'abc\ndef\n', line(612)
+	equal slurp(path), 'abc\ndef\n', line(587)
 	)()
 
 await (() =>
 	path := r'file99.txt'
 	fr := new CReadableFile path
 	line1 := await fr.getLine()
-	equal line1, 'abc', line(619)
+	equal line1, 'abc', line(594)
 	line2 := await fr.getLine()
-	equal line2, 'def', line(621)
+	equal line2, 'def', line(596)
 	line3 := await fr.getLine()
-	equal line3, undef,            line(623)
-	equal await fr.metaData(), {}, line(624)
+	equal line3, undef, line(598)
+	equal await fr.metaData(), {}, line(599)
 	)()
 
 # ---------------------------------------------------------------------------
@@ -611,36 +614,36 @@ await (() =>
 	await f.writeln 'def'
 	f.close()
 
-	equal slurp(path), '---\nname: John\n---\nabc\ndef\n', line(639)
+	equal slurp(path), '---\nname: John\n---\nabc\ndef\n', line(614)
 	)()
 
 (await () =>
 	path := r'file999.txt'
 	fr := new CReadableFile path
 	line1 := await fr.getLine()
-	equal line1, 'abc', line(646)
+	equal line1, 'abc', line(621)
 	line2 := await fr.getLine()
-	equal line2, 'def', line(648)
+	equal line2, 'def', line(623)
 	line3 := await fr.getLine()
-	equal line3, undef, line(650)
-	equal await fr.metaData(), {name: 'John'}, line(651)
+	equal line3, undef, line(625)
+	equal await fr.metaData(), {name: 'John'}, line(626)
 	)()
 
 (await () =>
 	path := r'file999.txt'
 	fr := new CReadableFile path
 	line1 := await fr.getLine()
-	equal line1, 'abc', line(658)
+	equal line1, 'abc', line(633)
 	line2 := await fr.getLine()
-	equal line2, 'def', line(660)
+	equal line2, 'def', line(635)
 	line3 := await fr.getLine()
-	equal line3, undef, line(662)
+	equal line3, undef, line(637)
 	)()
 
 (await () =>
 	path := r'file999.txt'
 	fr := new CReadableFile path
 	contents := await fr.getContents()
-	equal contents, 'abc\ndef', line(669)
-	equal await fr.metaData(), {name: 'John'}, line(670)
+	equal contents, 'abc\ndef', line(644)
+	equal await fr.metaData(), {name: 'John'}, line(645)
 	)()

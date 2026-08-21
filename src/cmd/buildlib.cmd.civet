@@ -2,14 +2,15 @@
 
 import {LOG, ERR} from 'logger'
 import {
-	assert, defined, notdefined, toRelPath,
+	assert, defined, notdefined,
 	} from 'base'
 import {o, cmdTitle, EXEC} from 'llutils'
-import {getCmdArgs} from 'cmd-args'
-import {withExt, findFile} from 'fsys'
-import {execCmd, doUnitTest} from 'exec'
+import {getCmdArgs, inspect} from 'cmd-args'
+import {withExt, findFile, toRelPath} from 'fsys'
+import {execCmd} from 'exec'
 import {doCompileCivet} from 'civet'
 import {procFiles, procOneFile} from 'proc-files'
+import {doUnitTest} from 'compile'
 
 # getCmdArgs """
 # 	buildlib -ftI (all | <stub>*)
@@ -21,12 +22,11 @@ import {procFiles, procOneFile} from 'proc-files'
 
 [
 	lStubs
-	{force, doTest, inspect, inspectTest}
+	{force, doTest, inspectTest}
 	] := getCmdArgs 'buildlib', {
 		_: {range: [1,99]}
 		force:       {flag: 'f', desc: 'force build'}
 		doTest:      {flag: 't', desc: 'run unit tests'}
-		inspect:     {flag: 'I', desc: 'inspect compile'}
 		inspectTest: {flag: 'J', desc: 'inspect unit test'}
 		}
 
@@ -35,34 +35,35 @@ import {procFiles, procOneFile} from 'proc-files'
 await EXEC () =>
 	if (lStubs[0] == 'all')
 		LOG cmdTitle("BUILD ALL LIBS serially")
-		await procFiles [doCompileCivet, ['**/*.lib.civet']], {force, serial: true}
+		await procFiles [doCompileCivet, ['**/*.lib.civet']], {
+			force
+			serial: true
+			}
 		if doTest
-			await procFiles [doCompileCivet, ['**/*.lib.test.civet']], {force}
-			await procFiles [doUnitTest, ['**/*.lib.test.ts']], {capture: false}
+			await procFiles [doUnitTest, ['**/*.lib.ts']], {
+				capture: false
+				}
 
 			# --- Create HTML coverage file
 			await execCmd 'deno', ['coverage', '--html']
 	else
 		for stub of lStubs
+			LOG cmdTitle("BUILD LIB #{stub}")
+
 			fileName := "#{stub}.lib.civet"
 			path := findFile fileName
 			assert defined(path), "No such file: #{fileName}"
 
-			LOG cmdTitle("BUILD LIB #{toRelPath(path)}")
-			await procOneFile path, doCompileCivet, {force, inspect}
+			await procOneFile
+				path
+				doCompileCivet
+				{force, inspect}
 
 			if doTest
-				# --- compile and check unit test file
-				testFileName := "#{stub}.lib.test.civet"
-				testPath := findFile testFileName
-				if defined(testPath)
-					LOG cmdTitle("COMPILE TEST #{toRelPath(testPath)}")
-					await procOneFile testPath, doCompileCivet, {force}
-					tsPath := withExt(testPath, '.ts')
-					LOG cmdTitle("RUN TEST #{toRelPath(tsPath)}")
-					hResult := await procOneFile tsPath, doUnitTest, {
-						capture: true
-						inspect: inspectTest
-						}
-				else
-					LOG "No unit test exists for #{stub}.lib"
+				LOG cmdTitle("RUN TEST FOR #{stub}")
+
+				tsPath := withExt(path, '.ts')
+				await procOneFile tsPath, doUnitTest, {
+					capture: true
+					inspect: inspectTest
+					}

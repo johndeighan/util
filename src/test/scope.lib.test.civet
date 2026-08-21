@@ -69,7 +69,7 @@ import {
 		name: main
 		sDefined: 〚name gender〛
 		lChildScopes: [{name: func sDefined: 〚age temp〛 parent: ｟ref root｠}]
-		""", line(68)
+		""", line(72)
 	)()
 
 # --- Test if when a function is entered with parameter s

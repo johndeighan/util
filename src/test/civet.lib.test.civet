@@ -16,8 +16,8 @@ import {
 	doCompileCivet,
 	} from 'civet'
 import {
+	beginUnitTest, setDirTree, line,
 	equal, succeeds, fails, truthy, falsy,
-	beginUnitTest, setDirTree,
 	} from 'unit-test'
 
 [root, r] := beginUnitTest(import.meta.url)
@@ -31,6 +31,8 @@ setup := (): void ->
 		test.civet compile
 			x := 42
 			console.log "x = \#{x}"
+		bad.civet
+			x =: 42
 		temp.civet
 			s: string := 'abc'
 		hello.txt
@@ -197,3 +199,6 @@ await (() =>
 		const s = 'abc'
 		"""
 	)()
+
+fails (() => await civet2ts 'x =: 42'), line(203)
+fails (() -> await civet2tsFile r'bad.civet'), line(204)

@@ -1,5 +1,6 @@
 # exec.lib.civet
 
+import {red, green} from '@std/fmt/colors'
 import {spawnSync} from 'node:child_process';
 import {exists} from '@std/fs'
 import {stripAnsiCode} from '@std/fmt/colors'
@@ -14,12 +15,12 @@ import {
 	LOG, DBG, WARN, ERR, INDENT, UNDENT, curLogLevel,
 	} from 'logger'
 import {
-	pass, undef, defined, anyDefined, notdefined, toRelPath,
+	pass, undef, defined, anyDefined, notdefined, matches,
 	croak, assert, obviously, getErrStr, allLinesIn,
 	write, writeln, resetLine, TIterator, toBool,
 	encode, decode, TAsyncIterator, colorize, decolorize, withColors,
 	} from 'base'
-import {timer} from 'timer'
+import {CTimer} from 'timer'
 import {
 	hash, isEmpty, TStringMapper, isIterator, isAsyncIterator,
 	isString, isArray, isArrayOfStrings, nonEmpty,
@@ -36,7 +37,8 @@ import {OL} from 'nice'
 import {
 	barf, pathStr, allFilesMatching, normalizePath, barfTempFile,
 	fileExt, withExt, slurpAsync, parsePath, CWritableFile,
-	newerDestFileExists, isFullPath, inSameDir, mkpath,
+	newerDestFileExists, isFullPath, inSameDir, mkpath, isFile,
+	toRelPath, findFile, TPathInfo,
 	} from 'fsys'
 
 procColor := 'cyan'
@@ -61,6 +63,8 @@ export type TStreamType = 'piped' | 'inherit'
 export type TExecResult =
 	success: boolean
 	notNeeded?: true
+	timeTaken?: number          # --- in secs
+	cmdLine?: string
 	stdout?: string
 	stderr?: string
 	infile?: string
@@ -119,6 +123,8 @@ export execCmd := (
 		}
 
 	DBG "execCmd: #{getCmdLine(cmdName, lArgs)}"
+	cmdLine := getCmdLine(cmdName, lArgs)
+	timer := new CTimer()
 
 	pipeStdin  := anyDefined(input, infile)
 	pipeStdout := pipeStdin || capture || anyDefined(callback, outfile)
@@ -126,7 +132,11 @@ export execCmd := (
 	if not pipeStdout && not pipeStdin
 		child := Deno.spawn cmdName, lArgs
 		status := await child.status
-		return {success: status.success}
+		return {
+			success: status.success
+			cmdLine
+			timeTaken: timer.timeTaken()
+			}
 
 	cmd: Deno.Command := new Deno.Command(cmdName, {
 		args: lArgs
@@ -202,11 +212,27 @@ export execCmd := (
 
 	return {
 		success: status.success
+		cmdLine
+		timeTaken: timer.timeTaken()
 		stdout
 		stderr
 		...(infile && {infile})
 		...(outfile && {outfile})
 		}
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export execTsFile := (
+		tsPath: string
+		hOptions: hash = {}
+		): TExecResult =>
+
+	return await execCmd('deno', [
+		'run'
+		'-A'
+		tsPath
+		], hOptions)
 
 # ---------------------------------------------------------------------------
 
@@ -223,18 +249,34 @@ export abstract class CFileHandler
 			): Promise<boolean>
 
 	# ..........................................................
-	# ASYNC
 
-	async needed(
+	async isNeeded(
 			path: string
 			hOptions: hash = {}
 			): boolean
 
-		return true
+		lOutPaths := @allOutPaths(path)
+		if (lOutPaths.length == 0)
+			return true
+		else
+			for outPath of lOutPaths
+				if not newerDestFileExists(path, outPath)
+					return true
+			return false
+
+	# ..........................................................
+
+	allOutPaths(
+			path: string
+			hOptions: hash = {}
+			): string[]
+
+		# --- by default, returns an empty array
+		#     so handle() will be called
+		return []
 
 	# ..........................................................
 	# ASYNC
-	# --- if error occurs, throw an Error object
 
 	abstract handle(
 			path: string
@@ -244,23 +286,83 @@ export abstract class CFileHandler
 	# ..........................................................
 	# ASYNC
 
+	async postProcess(
+			path: string
+			hOptions: hash = {}
+			): TExecResult
+
+		return {
+			success: true
+			notNeeded: true   # --- no post processing was done
+			}
+
+	# ..........................................................
+	# ASYNC
+
 	handleFile(
 			path: string
 			hOptions: hash = {}
 			): TExecResult
 
-		op := @op
-		assert await @canHandle(path, hOptions), "#{op} can't handle '#{path}'"
-		force := ('force' in hOptions) && hOptions.force
-		isNeeded := await @needed(path, hOptions)
-		if not isNeeded && not force
+		timer := new CTimer()
+		try
+			assert isFile(path), "No such file: #{path}"
+			canHandle := await @canHandle(path, hOptions)
+			if not canHandle
+				stderr := "#{@op} can't handle '#{path}'"
+				ERR stderr
+				return {
+					success: false
+					timeTaken: timer.timeTaken()
+					infile: pathStr(path)
+					stderr
+					}
+
+			force := ('force' in hOptions) && hOptions.force
+			DBG "force = #{force}"
+			needed := await @isNeeded(path, hOptions)
+			if not needed && not force
+				DBG "#{@op} not needed"
+				return {
+					success: true
+					notNeeded: true
+					timeTaken: timer.timeTaken()
+					infile: pathStr(path)
+					}
+
+			hResult := await @handle path, hOptions
+
+			# --- Add any missing fields
+			unless ('infile' in hResult)
+				Object.assign hResult, {infile: path}
+
+			unless ('timeTaken' in hResult)
+				Object.assign hResult, {timeTaken: timer.timeTaken()}
+
+			unless ('outfile' in hResult)
+				lOutFiles := @allOutPaths(path, hOptions)
+				if (lOutFiles.length == 1)
+					Object.assign hResult, {outfile: lOutFiles[0]}
+				else if (lOutFiles.length > 1)
+					Object.assign hResult, {outfile: lOutFiles}
+
+			if not hOptions.nopp
+				hPostResult := await @postProcess path, hOptions
+				unless ('notNeeded' in hPostResult)
+					Object.assign hPostResult, {timeTaken: timer.timeTaken()}
+					Object.assign hResult, {hPostResult}
+
+			return hResult
+
+		catch err
+			stderr := getErrStr(err)
+			DBG "#{@op}: err = #{stderr}"
 			return {
-				success: true
-				notNeeded: true
-				infile: path
+				success: false
+				timeTaken: timer.timeTaken()
+				infile: pathStr(path)
+				stderr
 				}
-		hResult := await @handle path, hOptions
-		return Object.assign hResult, {infile: path}
 
 	# ..........................................................
 	# SYNC
@@ -272,85 +374,9 @@ export abstract class CFileHandler
 # ---------------------------------------------------------------------------
 #       FileHandlers
 # ---------------------------------------------------------------------------
-
-class CFileRemover extends CFileHandler
-
-	get op()
-		return 'doRemoveFile'
-
-	# ..........................................................
-
-	async canHandle(
-			path: string
-			hOptions: hash = {}
-			)
-		return true   # --- even if it doesn't exist
-
-	# ..........................................................
-
-	override needed(path: string): boolean
-		return await exists(path)
-
-	# ..........................................................
-
-	handle(
-			path: string,
-			hOptions: hash = {}
-			): TExecResult
-
-		try
-			await Deno.remove path
-			LOG "Removing file #{path}"
-		catch err
-			if not (err instanceof Deno.errors.NotFound)
-				throw err
-		return {success: true}
-
-export doRemoveFile := new CFileRemover()
-
-# ---------------------------------------------------------------------------
-
-class CTsFileRemover extends CFileHandler
-
-	get op()
-		return 'doRemoveTsFile'
-
-	# ..........................................................
-
-	async canHandle(
-			path: string
-			hOptions: hash = {}
-			)
-		return (fileExt(path) == '.ts')
-
-	# ..........................................................
-
-	override needed(
-			path: string
-			): boolean
-
-		if not await exists(path)
-			return false
-		return await exists withExt(path, '.civet')
-
-	# ..........................................................
-
-	handle(
-			path: string
-			hOptions: hash = {}
-			): TExecResult
-
-		await Deno.remove path
-		return {
-			success: true
-			}
-
-export doRemoveTsFile := new CTsFileRemover()
-
-# ---------------------------------------------------------------------------
 # ASYNC
 
-export isInstalled := (scriptName: string): boolean =>
+export cmdIsInstalled := (scriptName: string): boolean =>
 
 	homeDir := Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE") ?? ""
 	ext := (Deno.build.os == "windows") ? ".cmd" : ""
@@ -393,7 +419,6 @@ class CCmdInstaller extends CFileHandler
 			): TExecResult
 
 		name := getCmdName(path, hOptions)
-
 		return await execCmd 'deno', [
 			'install'
 			'--global'
@@ -419,16 +444,18 @@ class CCmdUninstaller extends CFileHandler
 			path: string
 			hOptions: hash = {}
 			)
+
 		return path.endsWith('.cmd.ts')
 
 	# ..........................................................
 
-	override needed(
+	override async isNeeded(
 			path: string
 			hOptions: hash = {}
-			)
+			): boolean
+
 		name := getCmdName(path, hOptions)
-		return await isInstalled(name)
+		return await cmdIsInstalled(name)
 
 	# ..........................................................
 
@@ -445,130 +472,3 @@ class CCmdUninstaller extends CFileHandler
 			]
 
 export doUninstallCmd := new CCmdUninstaller()
-
-# ---------------------------------------------------------------------------
-
-class CFileRunner extends CFileHandler
-
-	get op()
-		return 'doRun'
-
-	# ..........................................................
-
-	async canHandle(
-			path: string
-			hOptions: hash = {}
-			)
-		return path.endsWith('.ts')
-
-	# ..........................................................
-
-	handle(
-			path: string,
-			hOptions: hash = {}
-			): TExecResult
-
-		type opt = {
-			inspect: boolean
-			label: string?
-			}
-		{inspect, label} := getOptions<opt> hOptions, {
-			inspect: false
-			label: undef
-			}
-
-		hResult := await execCmd 'deno', [
-			'run'
-			'-A'
-			...(inspect ? ['--inspect-brk'] : [])
-			path
-			], hOptions
-		return hResult
-
-export doRun := new CFileRunner()
-
-# ---------------------------------------------------------------------------
-
-class CUnitTester extends CFileHandler
-
-	get op()
-		return 'doUnitTest'
-
-	# ..........................................................
-
-	async canHandle(
-			path: string
-			hOptions: hash = {}
-			)
-		return path.endsWith('.test.ts')
-
-	# ..........................................................
-
-	handle(
-			path: string,
-			hOptions: hash = {}
-			): TExecResult
-
-		type opt = {
-			capture: boolean
-			inspect: boolean
-			lineNum: string?
-			}
-		{capture, inspect, lineNum} := getOptions<opt> hOptions, {
-			capture: false
-			inspect: false
-			lineNum: undef
-			}
-
-		hResult := await execCmd 'deno', [
-				'test'
-				'-A'
-				'--trace-leaks'
-				...(inspect
-					? ['--inspect-brk']
-					: ['--coverage=./coverage', '--coverage-raw-data-only']
-					)
-				...(defined(lineNum)
-					? ['--filter', "/^line #{lineNum}$/"]
-					: []
-					)
-				path
-				], {capture}
-		return hResult
-
-	# ..........................................................
-
-	override getOutput(hResult: TExecResult): string
-
-		{stdout, stderr} := hResult
-		output := [stdout, stderr].join()
-		if not hResult.success || output.match(/croak|error/i)
-			return output
-
-		lLines := Array.from MAP allLinesIn(decolorize(output)), (line) ->
-			if line.startsWith('line')
-				if not line.includes(' ok ')
-					yield withColors line, {
-						failed: 'red'
-						FAILED: 'red'
-						ok: 'green'
-						OK: 'green'
-						}
-			else if line.includes('passed') && line.includes('failed')
-				if line.includes(' 0 failed ')
-					yield withColors line, {
-						ok: 'green'
-						passed: 'green'
-						}
-				else
-					yield withColors line, {
-						ok: 'green'
-						passed: 'green'
-						failed: 'red'
-						FAILED: 'red'
-						}
-			else if line.includes('Lcov coverage')
-				yield 'coverage report generated'
-		return lLines.join('\n')
-
-export doUnitTest := new CUnitTester()

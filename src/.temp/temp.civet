@@ -14,15 +14,14 @@ import {s, toBlock, EXEC, SKIP, sep, rtrim} from 'llutils'
 import {fromFSM, defaultDoneFunc, TState} from 'fsm'
 import {resetOneIndent, splitLine, indented} from 'indent'
 import {
-	execCmd, doRun, doRemoveFile, doRemoveTsFile,
-	doInstallCmd, doUninstallCmd, isInstalled, doUnitTest,
+	execCmd, doInstallCmd, doUninstallCmd,
 	} from 'exec'
 import {doCompileCivet} from 'civet'
 import {procOneFile, procFiles} from 'proc-files'
 import {
-	withExt, rmFile, allDirsMatching,
+	withExt, rmFile, allFilesMatching, allDirsMatching,
 	CReadableFile, CWritableFile,
-	barf, slurp, parsePath, findFile,
+	barf, slurp, parsePath, findFile, isFile,
 	} from 'fsys'
 import {nice, OL, ML, DUMP} from 'nice'
 import {TextTable, splitRows} from 'text-table'
@@ -46,7 +45,7 @@ import {
 	awaitAll, TSettleResult,
 	} from 'promise-utils'
 import {mockPromise, checkType} from 'unit-test'
-import {doCompileFile} from 'automate'
+import {doCompileFile, doUnitTest} from 'compile'
 import {
 	stack, setTracing,
 	trEnter, trReturnFrom, trYieldFrom, trResume, tr,
@@ -55,22 +54,16 @@ import {CCallStack} from 'trace-stack'
 import {civet2js, civet2ts, civet2tsFile} from 'civet'
 import {generateAsync} from 'iter-utils'
 import {CTimer} from 'timer'
+import {doMakeMarkdown} from 'md-macros'
+import {doCompileCielo} from 'cielo'
 
 # ---------------------------------------------------------------------------
 
 EXEC await () =>
 	debugger
-	path := 'src/lib/fsys.lib.civet'
-	numLoops := 100
-
-	timer := new CTimer()
-	for i of range(numLoops)
-		tsPath := await civet2tsFile path, undef, {force: true, nocheck: true}
-	console.log timer.timeTakenStr(true, 4, numLoops)
-
-	for i of range(numLoops)
-		h := await procOneFile path, doCompileCivet, {force: true, nocheck: true}
-	console.log timer.timeTakenStr(true, 4, numLoops)
+	path := 'src/parse/macros.parse.hera'
+	hResult := await procOneFile path, doCompileHera, {force: true}
+	console.log hResult.success
 
 await SKIP () =>
 	clearLog()
@@ -98,9 +91,8 @@ SKIP () =>
 	path := 'src/test/datatypes.lib.test.civet'
 	h := parsePath(path)
 	stub := h.stub.endsWith('.lib') ? h.stub.replace('.lib', '') : h.stub
-	tsPath := withExt(path, '.ts')
 	await procOneFile path, doCompileCivet, {force: true, quiet: true}
-	hResult := await procOneFile tsPath, doUnitTest, {
+	hResult := await procOneFile withExt(path, '.ts'), doUnitTest, {
 		capture: true
 		quiet: true
 		}

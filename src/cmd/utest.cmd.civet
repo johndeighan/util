@@ -2,140 +2,155 @@
 
 import {LOG, DBG, ERR} from 'logger'
 import {
-	toRelPath, undef, defined, notdefined, assert,
+	undef, defined, notdefined, assert,
 	colorize, decolorize, write, writeln, clearScreen,
 	} from 'base'
 import {isString} from 'datatypes'
 import {cmdTitle, f, dashes, EXEC} from 'llutils'
 import {
-	isFile, rmDir, withExt, findFile, allFilesMatching, parsePath,
+	isFile, rmDir, withExt, findFile, allFilesMatching,
+	parsePath, toRelPath,
 	} from 'fsys'
-import {execCmd, TExecResult, doUnitTest} from 'exec'
+import {execCmd, TExecResult} from 'exec'
 import {doCompileCivet} from 'civet'
-import {TProcSpec, procFiles, procOneFile, compileAllLibs} from 'proc-files'
-import {DUMP} from 'nice'
+import {
+	TProcSpec, procFiles, procOneFile, compileAllLibs, compileAllUnitTests,
+	} from 'proc-files'
+import {DUMP, OL} from 'nice'
 import {CTimer} from 'timer'
 import {getCmdArgs, inspect} from 'cmd-args'
+import {doUnitTest} from 'compile'
 
 [
 	lStubs
-	{force, parallel, noCompile, line: lineNum}
+	{force, serial, line: lineNum}
 	] := getCmdArgs 'utest', {
-		_:         {range: [1,99], desc: "stubs to test or 'all'"}
-		force:     {flag: 'f', desc: 'force recompile'}
-		parallel:  {flag: 'p', desc: 'run in parallel'}
-		noCompile: {flag: 'n', desc: 'do not compile all first'}
-		line:      {valType: 'integer', desc: 'line number to test'}
+		_:       {range: [1,99], desc: "stubs to test or 'all'"}
+		force:   {flag: 'f', desc: 'force recompile of libs and tests'}
+		serial:  {flag: 's', desc: 'run serially'}
+		line:    {valType: 'integer', desc: 'line number to test'}
 		}
 
 # ---------------------------------------------------------------------------
 
 await EXEC () =>
-	if not noCompile
-		await compileAllLibs()
+	debugger
+	[compileOK, lCompileResults] := await compileAllLibs({force})
+	if not compileOK
+		ERR "Some libs failed compile"
+		console.log lCompileResults
+		Deno.exit(-1)
 
 	if (lStubs[0] == 'all')
 
-		# --- Define a utility function for display all results
-		dumpResult := (
-				hResult: TExecResult
-				): void =>
+		[compileUTOK, lCompileUTResults] := await compileAllUnitTests({force})
+		if not compileUTOK
+			ERR "Some unit tests failed compile"
+			console.log lCompileUTResults
+			Deno.exit(-1)
 
-			path := hResult.infile
-			if notdefined(path)
-				ERR "MISSING infile"
-				return
-
-			h := parsePath(path)
-			stub := h.stub.endsWith('.lib') ? h.stub.replace('.lib', '') : h.stub
-
-			stdout := hResult.stdout || 'BAD'
-			lMatches := decolorize(stdout).match ///
-				ok \s*
-				\| \s*
-				(\d+) \s*
-				passed \s*
-				\| \s*
-				(\d+) \s*
-				failed \s*
-				\(
-				(\d+)
-				(s | ms)
-				\)
-				///
-			if defined(lMatches)
-				[_, nOk, nBad, tm, units] := lMatches
-				nOkStr  := (
-					  (nOk == '0')
-					? colorize(nOk, 'red')
-					: colorize(nOk, 'green')
-					)
-				nBadStr := (
-					  (nBad == '0')
-					? colorize(nBad, 'green')
-					: colorize(nBad, 'red')
-					)
-				timeStr := (
-					  (units == 's')
-					? "#{tm}  s"
-					: "#{tm} #{units}"
-					)
-				LOG f"#{stub}:-14 #{nOkStr}:4 #{nBadStr}:4 #{timeStr}:8"
-			else
-				LOG hResult.stdout
+		# --- At this point, all libs and unit tests have been compiled
 
 		assert notdefined(lineNum), "Can't use -line with 'all'"
 		assert not inspect, "Can't use -I with 'all'"
-		rmDir './coverage', {clear: true}
-		LOG cmdTitle("UNIT TEST ALL")
+		if not inspect
+			rmDir './coverage', {clear: true}
 
+		LOG cmdTitle("UNIT TEST ALL")
 		timer := new CTimer()
 
-		# --- 1st way doesn't work yet
-		if parallel
-			# --- This craps out, so we'll do one at a time
-			await procFiles [doCompileCivet, ['**/*.lib.test.civet']], {force}
+		# --- Print the header
+		LOG f"#{'Lib'}:-14 #{'OK'}:4 #{'Fail'}:4 #{'Time'}:8"
+		LOG [dashes(14), dashes(4), dashes(4), dashes(8)].join(' ')
 
-			# --- Print the header
-			LOG f"#{'Lib'}:-14 #{'OK'}:4 #{'Fail'}:4 #{'Time'}:8"
-			LOG [dashes(14), dashes(4), dashes(4), dashes(8)].join(' ')
-
-			await procFiles [doUnitTest, ['**/*.lib.test.ts']]
-		else
-			# --- Print the header
-			LOG f"#{'Lib'}:-14 #{'OK'}:4 #{'Fail'}:4 #{'Time'}:8"
-			LOG [dashes(14), dashes(4), dashes(4), dashes(8)].join(' ')
-
-			for path of allFilesMatching('./**/*.test.civet')
-				await procOneFile path, doCompileCivet, {force, quiet: true}
-				hResult := await procOneFile withExt(path, '.ts'), doUnitTest, {
+		if serial
+			for path of allFilesMatching('**/*.{lib,cmd,parse}.ts')
+				hResult := await procOneFile path, doUnitTest, {
 					capture: true
 					quiet: true
 					}
-				dumpResult hResult
+				showResult path, hResult
+		else
+			await procFiles [doUnitTest, ['**/*.test.ts']], {
+				callback: showResult
+				quiet: true
+				}
 
-		console.log "TIME TAKEN: #{timer.timeTaken()}"
+		console.log "TIME TAKEN: #{timer.timeTakenStr()}"
 		if not inspect
 			# --- Create HTML coverage file
 			write "Building coverage report..."
 			hResult := await execCmd 'deno', ['coverage', '--html']
 			writeln "Done"
 	else
-		# --- not 'all'
 		for stub of lStubs
+			LOG cmdTitle("RUN UNIT TEST #{stub}")
+
 			fileName := (
 				  stub.includes('.')
 				? "#{stub}.test.civet"
-				: "#{stub}.lib.test.civet"   # default is a 'lib' unit test
+				: "#{stub}.lib.test.civet"   # --- default is a 'lib' unit test
 				)
 			path := findFile fileName
 			if notdefined(path)
 				ERR "No such file: #{fileName}"
 				continue
+
+			# --- compile the test file
 			await procOneFile path, doCompileCivet, {force, quiet: true}
+
 			tsPath := withExt(path, '.ts')
-			LOG cmdTitle("RUN UNIT TEST #{toRelPath(path)}")
 			hResult := await procOneFile tsPath, doUnitTest, {
 				lineNum
 				inspect
 				}
+
+# ---------------------------------------------------------------------------
+
+showResult := (
+		path: string
+		hResult: TExecResult
+		): void =>
+
+	if not hResult.success
+		ERR "Unit Test of #{path} failed"
+		DUMP hResult.stderr, 'STDERR'
+
+	h := parsePath(path)
+	stub := h.stub.endsWith('.lib') ? h.stub.replace('.lib', '') : h.stub
+
+	stdout := hResult.stdout || 'BAD'
+	lMatches := decolorize(stdout).match ///
+		ok \s*
+		\| \s*
+		(\d+) \s*
+		passed \s*
+		\| \s*
+		(\d+) \s*
+		failed \s*
+		\(
+		(\d+)
+		(s | ms)
+		\)
+		///
+	if defined(lMatches)
+		[_, nOk, nBad, tm, units] := lMatches
+		nOkStr  := (
+			  (nOk == '0')
+			? colorize(nOk, 'red')
+			: colorize(nOk, 'green')
+			)
+		nBadStr := (
+			  (nBad == '0')
+			? colorize(nBad, 'green')
+			: colorize(nBad, 'red')
+			)
+		timeStr := (
+			  (units == 's')
+			? "#{tm}  s"
+			: "#{tm} #{units}"
+			)
+		LOG f"#{stub}:-14 #{nOkStr}:4 #{nBadStr}:4 #{timeStr}:8"
+	else
+		LOG hResult.stdout
+

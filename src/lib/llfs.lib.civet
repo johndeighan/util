@@ -1,0 +1,203 @@
+# llfs.lib.civet
+
+import {existsSync, emptyDirSync, ensureDirSync} from '@std/fs'
+import {parse: parseFilePath} from 'node-path'
+import {
+	parse, resolve, relative, isAbsolute, fromFileUrl, dirname,
+	} from '@std/path'
+import {TextLineStream} from '@std/streams'
+
+import {
+	undef, defined, notdefined, assert, obviously, croak,
+	TAsyncIterator, matches,
+	} from 'base'
+
+# --- NOT USED (I think)
+mydir := dirname(fromFileUrl(import.meta.url))
+
+# ---------------------------------------------------------------------------
+
+export normalizePath := (
+		path: string
+		): string =>
+
+	newpath := path.replaceAll '\\', '/'
+	if (newpath.charAt(1) == ':')
+		return newpath.charAt(0).toUpperCase() + newpath.substring(1)
+	else
+		return newpath
+
+# ---------------------------------------------------------------------------
+
+export fileExt := (path: string): string =>
+
+	lMatches := path.match(/\.[^\.]+$/)
+	return lMatches ? lMatches[0] : ''
+
+# ---------------------------------------------------------------------------
+
+export withExt := (path: string, ext: string): string =>
+
+	assert ext.startsWith('.'), "Bad file extension: #{ext}"
+	pos := path.lastIndexOf '.'
+	assert (pos >= 0), "path contains no period: #{path}"
+	return normalizePath path.substring(0, pos) + ext
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export touch := (
+		path: string
+		): void =>
+
+	try
+		# --- If the file exists, update its access
+		#     and modification times to now
+		await Deno.utime path, new Date(), new Date()
+	catch err
+		if (err instanceof Deno.errors.NotFound)
+			# --- If the file does not exist,
+			#     create it without truncating
+			file := await Deno.open path, {create: true, write: true}
+			file.close()
+		else
+			throw err
+
+# ---------------------------------------------------------------------------
+
+export newerDestFileExists := (
+		srcPath: string,
+		destPath: string    # --- can be a file extension
+		): boolean =>
+
+	# --- source file must exist
+	assert existsSync(srcPath), "No such file: #{srcPath}"
+
+	# --- allow passing a file extension for 2nd argument
+	if destPath.startsWith('.')
+		assert (fileExt(srcPath) != destPath), "Identical extensions"
+		destPath = withExt(srcPath, destPath)
+
+	if not existsSync(destPath)
+		return false
+	return modTime(destPath) > modTime(srcPath)
+
+# ---------------------------------------------------------------------------
+
+export type TFileStats = {
+	isFile: boolean
+	isDirectory: boolean
+	mtime: Date?
+	}
+
+export getFileStats := (
+		path: string
+		): TFileStats =>
+
+	hStats := Deno.statSync path
+	return {
+		isFile:      hStats.isFile
+		isDirectory: hStats.isDirectory
+		mtime:       hStats.mtime || undef
+		}
+
+# ---------------------------------------------------------------------------
+
+export modTime := (path: string): Date =>
+
+	ms := getFileStats(path).mtime
+	assert defined(ms), "ms not defined for #{path}"
+	return ms
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export allLinesInFile := (
+		path: string
+		): TAsyncIterator<string> ->
+
+	file := await Deno.open path
+	stream := (file.readable
+			.pipeThrough(new TextDecoderStream())
+			.pipeThrough(new TextLineStream())
+			)
+	for await line of stream
+		yield line
+	return
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export mkTempFile := (
+		suffix: string
+		): string =>
+
+	return await Deno.makeTempFile {suffix}
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export mkTempFileSync := (
+		suffix: string
+		): string =>
+
+	return Deno.makeTempFileSync {suffix}
+
+# ---------------------------------------------------------------------------
+
+export toRelPath := (
+		path: string,
+		root: string = Deno.cwd()
+		): string =>
+
+	return normalizePath relative(root, path)
+
+# ---------------------------------------------------------------------------
+
+export isFullPath := (
+		path: string
+		): boolean =>
+
+	return isAbsolute(path)
+
+# ---------------------------------------------------------------------------
+
+export toFullPath := (
+		path: string
+		): string =>
+
+	return normalizePath resolve('.', path)
+
+# ---------------------------------------------------------------------------
+
+export type TPathInfo =
+	root: string
+	dir: string
+	fileName: string
+	stub: string
+	purpose: string?
+	ext: string?
+
+export parsePath := (path: string): TPathInfo =>
+
+	if matches(path, /^file\:\/\//)
+		path = fromFileUrl(path)
+	{root, dir, base} := parseFilePath path
+	lParts := base.split '.'
+	nParts := lParts.length
+	assert (nParts > 0), "Bad path: #{path}"
+	stub := switch nParts
+		when 1
+			base
+		when 2
+			lParts[0]
+		default:
+			lParts.slice(0, -2).join('.')
+	return {
+		root: normalizePath(root)
+		dir: normalizePath(dir)
+		fileName: base
+		stub
+		purpose: (nParts > 2) ? lParts.at(-2) : undef
+		ext: (nParts > 1) ? ".#{lParts.at(-1)}" : undef
+	}

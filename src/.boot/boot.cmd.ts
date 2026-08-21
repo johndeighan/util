@@ -34,4 +34,7 @@ await execBatch('**/*.cmd.ts', installCmd, 'installed');
 
 await execCmd('build-dot-symbols');
 await execCmd('buildpar', ['all']);
-await execCmd('utest', ['all']);
+
+console.time('Unit Tests');
+await execCmd('utest', ['-s', 'all']);
+console.timeEnd('Unit Tests');

@@ -5,12 +5,12 @@ import {sprintf} from '@std/fmt/printf'
 import {relative} from '@std/path'
 import {
 	assert, assertEquals, assertThrows, assertRejects,
-	assertStrictEquals, AssertionError,
+	assertStrictEquals, AssertionError, assertMatch,
 	} from '@std/assert'
 import {doesNotThrow} from "node:assert"
 
 import {
-	LOG, DBG, initLogLevel, pushLogLevel, popLogLevel,
+	LOG, DBG, ERR, initLogLevel, pushLogLevel, popLogLevel,
 	} from 'logger'
 import {allStackFrames, TStackFrame, frameStr,} from 'stack'
 import {
@@ -18,10 +18,10 @@ import {
 	croak, TIterator, TAsyncIterator, getErrStr, deepEqual,
 	} from 'base'
 import {esc} from 'unicode'
-import {unify} from 'unify'
+import {unify, isStrongerThan} from 'unify'
 import {
 	TVoidFunc, TAsyncVoidFunc, hash, isString, isEmpty, nonEmpty,
-	isIterator, isAsyncIterator, isIterable,
+	isIterator, isAsyncIterator, isIterable, regexp, TStringMapper,
 	isFunction, functionDef, isClass, classDef, isAsyncFunction,
 	} from 'datatypes'
 import {
@@ -34,16 +34,19 @@ import {
 	mkDir, clearDir, barf, myself, parsePath, mkpath,
 	} from 'fsys'
 import {procOneFile} from 'proc-files'
-import {doCompileFile} from 'automate'
+import {doCompileFile} from 'compile'
 import {typeCheckTsCode} from 'typescript'
-import {nice, OL, ML} from 'nice'
+import {nice, OL, ML, DUMP} from 'nice'
 import {getNeededImportStmts} from 'symbols'
 let nextNum = 1
 
 # ---------------------------------------------------------------------------
 
-export beginUnitTest := (url: string): [string, Function] =>
+export beginUnitTest := (
+		url: string
+		): [string, (lStrings: TemplateStringsArray) => string] =>
 
+	debugger
 	initLogLevel 'testing'
 
 	{dir, stub} := parsePath url
@@ -62,7 +65,7 @@ export line := (n: number): string =>
 
 # ---------------------------------------------------------------------------
 
-getTestName := (): string =>
+export getTestName := (): string =>
 
 	n := nextNum
 	nextNum += 1
@@ -83,6 +86,18 @@ export equal := (
 	else
 		Deno.test name || getTestName(), () =>
 			assertEquals value, expected
+	return
+
+# ---------------------------------------------------------------------------
+
+export matches := (
+		value: string,
+		expected: regexp
+		name?: string
+		): void =>
+
+	Deno.test name || getTestName(), () =>
+		assertMatch rtrim(value), expected
 	return
 
 # ---------------------------------------------------------------------------
@@ -147,20 +162,15 @@ export fails := (
 # HYBRID
 
 export generates := <TOut>(
-		iter: TIterator<TOut> | TAsyncIterator<TOut>
+		iter: TIterator<TOut>
 		expected: unknown
 		name?: string
 		): void =>
 
 	testName := name || getTestName()
-	if isAsyncIterator(iter)
-		lItems := Array.fromAsync iter
-		Deno.test testName, () =>
-			assertEquals(lItems, expected)
-	else
-		lItems := [...iter]
-		Deno.test testName, () =>
-			assertEquals(lItems, expected)
+	lItems := [...iter]
+	Deno.test testName, () =>
+		assertEquals(lItems, expected)
 	return
 
 # ---------------------------------------------------------------------------
@@ -185,8 +195,9 @@ export same := (
 		name?: string
 		): void =>
 
-	Deno.test name || getTestName(), () =>
+	Deno.test name || getTestName(), (): void =>
 		assertStrictEquals value, expected
+		return
 	return
 
 # ---------------------------------------------------------------------------
@@ -205,6 +216,30 @@ export unifies := (
 		expected = Array.from(expected)
 	Deno.test name || getTestName(), (): void =>
 		unify value, expected
+	return
+
+# ---------------------------------------------------------------------------
+
+export strongerThan := (
+		value: unknown
+		expected: unknown
+		name?: string
+		): void =>
+
+	# --- if either value or expected is an iterator
+	#     get an array from it
+	if isIterable(value)
+		value = Array.from(value)
+	if isIterable(expected)
+		expected = Array.from(expected)
+
+	if not isStrongerThan(value, expected)
+		ERR "strongerThan test fails"
+		DUMP value, 'VALUE'
+		DUMP expected, 'EXPECTED'
+
+	Deno.test name || getTestName(), (): void =>
+		assert isStrongerThan(value, expected)
 	return
 
 # ---------------------------------------------------------------------------
@@ -256,43 +291,6 @@ export checkType := (
 	[stmt] := getNeededImportStmts [typeStr]
 	code := defined(stmt) ? [stmt, tsCode].join('\n') : tsCode
 	return await typeCheckTsCode(code)
-
-# ---------------------------------------------------------------------------
-
-export _header := (name?: string): void =>
-
-	console.log centered yellow(name || getTestName()), {width: 64, char: '-'}
-	return
-
-# ---------------------------------------------------------------------------
-
-export _equal := (
-		value: unknown,
-		expected: unknown = undef
-		name?: string
-		): void =>
-
-	_header name
-	console.log cyan(ML(value))
-	if defined(expected) && not deepEqual(value, expected)
-		console.log red('Not same as expected')
-	return
-
-# ---------------------------------------------------------------------------
-
-export _fails := (
-	func: TVoidFunc
-	name?: string
-	): void =>
-
-	_header name
-	try
-		value := func()
-		console.log red("Test successfully returned:")
-		console.log cyan(ML(value))
-	catch err
-		console.log cyan('OK')
-	return
 
 # ---------------------------------------------------------------------------
 # --- We need to add ':unknown' to any function parameters

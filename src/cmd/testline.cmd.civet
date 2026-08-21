@@ -1,7 +1,8 @@
 # testline.cmd.civet
 
 import {LOG} from 'logger'
-import {undef, toBool, allLinesInFile} from 'base'
+import {undef, toBool} from 'base'
+import {allLinesInFile} from 'llfs'
 import {MAP} from 'mapper'
 import {getCmdArgs} from 'cmd-args'
 

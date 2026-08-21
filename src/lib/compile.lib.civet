@@ -1,0 +1,382 @@
+# compile.lib.civet
+
+import {red, green} from '@std/fmt/colors'
+import {pathToFileURL} from 'node-url'
+import {compile: compileSvelte} from 'npm-svelte/compiler'
+
+import {
+	LOG, DBG, WARN, ERR, INDENT, UNDENT,
+	} from 'logger'
+import {CTimer} from 'timer'
+import {
+	undef, defined, notdefined, allDefined, matches,
+	croak, assert, obviously, getErrStr, allOf, allLinesIn,
+	decolorize, withColors,
+	} from 'base'
+import {MAP} from 'mapper'
+import {
+	nonEmptyString, hash, hashof, isArray, isEmpty,
+	} from 'datatypes'
+import {keys, getOptions} from 'llutils'
+import {OL, DBGVALUE} from 'nice'
+import {
+	slurp, barf, patchFirstLine, TPathInfo, parsePath, toRelPath,
+	isFile, rmFile, findFile, withExt, fileExt,
+	newerDestFileExists, allFilesMatching,
+	} from 'fsys'
+import {
+	execCmd, CFileHandler, TExecResult,
+	} from 'exec'
+import {procOneFile} from 'proc-files'
+import {civet2tsFile, doCompileCivet} from 'civet'
+import {cielo2civetFile} from 'cielo'
+
+# ---------------------------------------------------------------------------
+
+export type TCompilerFunc = (path: string, hOptions: hash) => TExecResult
+export type TPostProcessor = (path: string, hOptions: hash) => TExecResult
+
+export type TCompilerInfo = {
+	isInstalled: () => boolean
+	compiler: TCompilerFunc
+	getOutPaths: (path: string) => string[]
+	}
+
+export isCompilerInfo := (x: unknown): x is TCompilerInfo =>
+	if (typeof x == 'object') && (x != null)
+		return ('isInstalled' in x) && ('compiler' in x) && ('getOutPaths' in x)
+	else
+		return false
+
+export type TCompilerConfig =
+	hCompilers: hashof<TCompilerInfo> # <string>: <TCompilerInfo>
+	hPostProcessors: hashof<TPostProcessor> # <string>: <TPostProcessor>
+
+export isCompilerConfig := (x: unknown): x is TCompilerConfig =>
+	if (typeof x == 'object') && (x != null)
+		return ('hCompilers' in x) && ('hPostProcessors' in x)
+	else
+		return false
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export getCompilerInfo := (
+		ext: string
+		fileName: string? = undef
+		): TCompilerInfo? =>
+
+	hConfig := await getCompilerConfig(fileName)
+	return hConfig.hCompilers[ext]
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export getPostProcessor := (
+		purpose: string
+		fileName: string? = undef
+		): TPostProcessor? =>
+
+	hConfig := await getCompilerConfig(fileName)
+	pp := hConfig.hPostProcessors[purpose]
+	if defined(pp)
+		return pp
+	else
+		DBG "No post processor for #{purpose} files"
+		return undef
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+let cachedFileName: string? = undef
+let hCachedConfig: TCompilerConfig? = undef
+
+export getCompilerConfig := (
+		fileName: string = 'compile.config.civet'
+		): TCompilerConfig =>
+
+	# --- if cached, return cached config
+	if defined(hCachedConfig) && (fileName == cachedFileName)
+		DBG "Returning cached compiler config from #{cachedFileName}"
+		return hCachedConfig
+
+	let hConfig = await configFromFile fileName
+
+	DBGVALUE hConfig, 'hConfig'
+	assert isCompilerConfig(hConfig), "Bad compiler config: #{hConfig}"
+
+	# --- Remove any compilers for which the
+	#     compiler software has not been installed
+	{hCompilers} := hConfig
+	for ext of keys(hCompilers)
+		{isInstalled} := hCompilers[ext]
+		if not await isInstalled()
+			DBG "Deleting compiler for ext #{OL(ext)}"
+			delete hCompilers[ext]
+
+	hCachedConfig = hConfig
+	cachedFileName = fileName
+	return hConfig
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export configFromFile := (
+		fileName: string
+		): hash =>
+
+	# --- config should be a hash named hConfig
+
+	path := findFile fileName
+	assert defined(path), "No such file: #{OL(fileName)}"
+
+	{purpose, ext} := parsePath path
+	assert defined(ext), "No file ext in #{OL(path)}"
+	assert ['.ts', '.civet'].includes(ext), "Invalid path: #{path}"
+	assert (purpose == 'config'), "Not a config file: #{OL(path)}"
+	DBG "Import config from #{OL(path)}"
+	tsPath := (ext == '.civet') ? await civet2tsFile(path) : path
+	href := pathToFileURL(tsPath).href
+	{hConfig} := await import(href)
+	return hConfig
+
+# ---------------------------------------------------------------------------
+
+type TCompileOptions = {
+	configFileName: string?
+	hCompilerInfo: TCompilerInfo?
+	}
+
+class CFileCompiler extends CFileHandler
+
+	hCompilerInfo: TCompilerInfo? = undef
+
+	get op()
+		return 'doCompileFile'
+
+	# ..........................................................
+
+	async canHandle(
+			path: string
+			hOptions: hash = {}
+			): boolean
+
+		{configFileName, hCompilerInfo} := getOptions<TCompileOptions> hOptions, {
+			configFileName: undef,
+			hCompilerInfo: undef
+			}
+
+		ext := fileExt path
+		if notdefined(ext)
+			return false
+
+		assert not allDefined(configFileName, hCompilerInfo),
+			"Options configFileName and hCompilerInfo both set"
+		@hCompilerInfo := (
+			if defined(hCompilerInfo)
+				hCompilerInfo
+			else
+				await getCompilerInfo ext, configFileName
+			)
+		if notdefined(@hCompilerInfo)
+			DBG "no compiler info for ext #{OL(ext)}", UNDENT
+			return false
+		return true
+
+	# ..........................................................
+	# ASYNC
+
+	override allOutPaths(
+			path: string
+			hOptions: hash = {}
+			): string[]
+
+		obviously defined(@hCompilerInfo)
+		{getOutPaths} := @hCompilerInfo
+		return getOutPaths path
+
+	# ..........................................................
+
+	override postProcess(
+			path: string
+			hOptions: hash = {}
+			): TExecResult
+
+		{purpose} := parsePath path
+		if isEmpty(purpose)
+			return {
+				success: true
+				notNeeded: true
+				}
+		obviously defined(purpose)
+		postProc := await getPostProcessor purpose
+		if notdefined(postProc)
+			return {
+				success: true
+				notNeeded: true
+				}
+		DBG "post-processing file"
+		try
+			return await postProc(path, hOptions)
+		catch err
+			return {
+				success: false
+				stderr: getErrStr(err)
+				}
+
+	# ..........................................................
+	# --- file existence has already been checked.
+
+	override async handle(
+			path: string
+			hOptions: hash = {}
+			): TExecResult
+
+		DBG "COMPILE: #{OL(path)}", INDENT
+		{stub, purpose, ext} := parsePath path
+		obviously defined(@hCompilerInfo)
+		{compiler} := @hCompilerInfo
+
+		DBG "compiling #{OL(path)}"
+		hResult := await compiler(path, hOptions)
+		{success} := hResult
+
+		DBG UNDENT
+		return hResult
+
+export doCompileFile := new CFileCompiler()
+
+# ---------------------------------------------------------------------------
+# --- path will be the file being tested, e.g.
+#        path = src/lib/datatypes.lib.civet
+#        the file to execute is named datatypes.lib.test.civet
+# --- If the test file doesn't exist, we want to report 0 passed and 0 failed
+
+class CUnitTester extends CFileHandler
+
+	hPathInfo: TPathInfo?
+
+	get op()
+		return 'doUnitTest'
+
+	# ..........................................................
+
+	async canHandle(
+			path: string
+			hOptions: hash = {}
+			)
+
+		@hPathInfo = parsePath(path)
+		{stub, purpose, ext} := @hPathInfo
+		return (ext == '.ts') || (purpose != 'test')
+
+	# ..........................................................
+
+	handle(
+			path: string,
+			hOptions: hash = {}
+			): TExecResult
+
+		type opt = {
+			capture: boolean
+			inspect: boolean
+			lineNum: string?
+			}
+		{capture, inspect, lineNum} := getOptions<opt> hOptions, {
+			capture: true
+			inspect: false
+			lineNum: undef
+			}
+
+		obviously defined(@hPathInfo)
+		{stub, purpose} := @hPathInfo
+		testPath := findFile "#{stub}.#{purpose}.test.civet"
+		if notdefined(testPath)
+			return {
+				success: true
+				stdout: ' 0 passed | 0 failed'
+				stderr: ''
+				}
+		tsPath := withExt(testPath, '.ts')
+		hResult := await procOneFile testPath, doCompileCivet
+		assert hResult.success && isFile(tsPath),
+			"Compile of #{testPath} failed"
+		return @runTest tsPath, hOptions
+
+	# ..........................................................
+
+	runTest(
+			tsPath: string
+			hOptions: hash = {}
+			): TExecResult
+
+		type opt = {
+			capture: boolean
+			inspect: boolean
+			lineNum: string?
+			}
+		{capture, inspect, lineNum} := getOptions<opt> hOptions, {
+			capture: true
+			inspect: false
+			lineNum: undef
+			}
+
+		return await execCmd 'deno', [
+				'test'
+				'-A'
+				'--trace-leaks'
+				...(inspect
+					? ['--inspect-brk']
+					: ['--coverage=./coverage', '--coverage-raw-data-only']
+					)
+				...(defined(lineNum)
+					? ['--filter', "/^line #{lineNum}$/"]
+					: []
+					)
+				tsPath
+				], {capture}
+
+	# ..........................................................
+
+	override getOutput(
+			hResult: TExecResult
+			): string
+
+		{stdout, stderr} := hResult
+		output := [stdout, stderr].join()
+		if not hResult.success || matches(output, /\b(croak|error)\b/i)
+			return output
+
+		lLines := Array.from MAP allLinesIn(decolorize(output)), (line) ->
+			if line.startsWith('line') || line.startsWith('--->')
+				if not line.includes(' ok ')
+					yield withColors line, {
+						failed: 'red'
+						FAILED: 'red'
+						ok: 'green'
+						OK: 'green'
+						}
+			else if line.includes('Lcov coverage')
+				yield 'coverage report generated'
+			else
+				lMatches := line.match ///
+					\s+
+					(\d+)
+					\s+
+					passed
+					\s+ \| \s+
+					(\d+)
+					\s+
+					failed
+					\b
+					///
+				if defined(lMatches)
+					[_, numPassed, numFailed] := lMatches
+					lParts := [
+						(numPassed == '0') ? red("0 passed")   : green("#{numPassed} passed")
+						(numFailed == '0') ? green("0 failed") : red("#{numFailed} failed")
+						]
+					yield lParts.join(' | ')
+		return lLines.join('\n')
+
+export doUnitTest := new CUnitTester()

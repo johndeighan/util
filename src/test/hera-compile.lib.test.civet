@@ -18,7 +18,7 @@ setup := (): void ->
 
 	await setDirTree """
 		./#{root} clear
-		counter.parse.hera compile
+		mycounter.parse.hera compile
 			---
 			type: civet
 			---

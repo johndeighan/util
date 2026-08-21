@@ -6,11 +6,13 @@ import {relative} from '@std/path'
 import {existsSync} from '@std/fs'
 import {parse: parseYAML} from "@std/yaml"
 
+import {LOG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, deepEqual, croak, assert, matches,
-	colorize, isColor, toRelPath, obviously, toBool, TIterator,
+	colorize, isColor, obviously, toBool, TIterator,
 	getErrStr, allLinesIn, decolorize,
 	} from 'base'
+import {toRelPath} from 'llfs'
 import {esc, uni} from 'unicode'
 import {
 	isHash, isArray, isNonEmptyString, char,
@@ -408,7 +410,11 @@ export centered := (
 		color: undef
 		}
 
-	totSpaces := (width >= label.length) ? width - label.length : 0
+	labelLen := decolorize(label).length
+	if (labelLen >= width)
+		return label
+
+	totSpaces := (width >= label.length) ? width - labelLen : 0
 	numLeft := Math.floor totSpaces / 2
 	numRight := totSpaces - numLeft
 	text := (
@@ -508,7 +514,7 @@ export fromTAML := (block: string): unknown =>
 #    f"name = #{'John'}:-10"    => "name = John      "
 #    f"name = #{'John'}:10"     => "name =       John"
 #    f"name = #{'a\tb'}!"       => "name = a→b"
-#    f"name = #{'John'}:{blue}" => "name = John" ('John' in blue color)
+#    f"name = #{'John'}:{cyan}" => "name = John" ('John' in cyan color)
 # ---------------------------------------------------------------------------
 # --- Number of strings is always 1 greater than the number of values
 
@@ -619,7 +625,7 @@ export EXEC := (
 		else
 			func()
 	catch err
-		croak "in EXEC(): #{getErrStr(err)}"
+		ERR "in EXEC(): #{getErrStr(err)}"
 	return
 
 # ---------------------------------------------------------------------------

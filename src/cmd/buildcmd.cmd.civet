@@ -5,18 +5,20 @@ import {assert, defined, croak} from 'base'
 import {cmdTitle, EXEC} from 'llutils'
 import {getCmdArgs, inspect} from 'cmd-args'
 import {withExt, findFile, isFile} from 'fsys'
-import {doInstallCmd, doUnitTest} from 'exec'
+import {doInstallCmd} from 'exec'
 import {doCompileCivet} from 'civet'
 import {procFiles, procOneFile} from 'proc-files'
+import {doUnitTest} from 'compile'
 
 [
 	lStubs,
-	{force, noInstall, doTest}
+	{force, noInstall, doTest, inspectTest}
 	] := getCmdArgs 'buildcmd', {
-		_: {range: [1,99]}
-		force:     {flag: 'f', desc: 'force recompile'}
-		noInstall: {flag: 'n', desc: 'do not install'}
-		doTest:    {flag: 't', desc: 'run unit test if it exists'}
+		_:           {range: [1,99]}
+		force:       {flag: 'f', desc: 'force recompile'}
+		noInstall:   {flag: 'n', desc: 'do not install'}
+		doTest:      {flag: 't', desc: 'run unit test if it exists'}
+		inspectTest: {flag: 'J', desc: 'inspect unit test'}
 		}
 
 # ---------------------------------------------------------------------------
@@ -24,39 +26,40 @@ import {procFiles, procOneFile} from 'proc-files'
 await EXEC () =>
 	if (lStubs[0] == 'all')
 		LOG cmdTitle("BUILD ALL CMDS")
-		[ok, lResults] := await procFiles
+		await procFiles
 			[doCompileCivet, ['src/**/*.cmd.civet']],
 			{force}
-		if not ok
-			croak "Failed to compile all commands"
 		if doTest
-			await procFiles [doCompileCivet, ['src/**/*.cmd.test.civet']]
-			await procFiles [doUnitTest,     ['src/**/*.cmd.test.ts']]
+			await procFiles [doUnitTest, ['src/**/*.cmd.ts']], {
+				capture: false
+				}
 		if not noInstall
 			await procFiles [doInstallCmd, ['src/**/*.cmd.ts']]
 	else
 		for stub of lStubs
 			LOG cmdTitle("BUILD CMD #{stub}")
+
 			fileName := "#{stub}.cmd.civet"
 			path := findFile fileName
-			assert defined(path), "Unable to find file: #{fileName}"
-			hResult := await procOneFile
+			assert defined(path), "No such file: #{fileName}"
+
+			await procOneFile
 				path
 				doCompileCivet
-				{force}
-			if not hResult.success
-				ERR "Failed to compile #{fileName}"
-				continue
+				{force, inspect}
+
 			tsPath := withExt path, '.ts'
 			assert isFile(tsPath), "File #{tsPath} not created"
 
 			if doTest
-				testPath := withExt path, '.test.civet'
-				if findFile testPath
-					await procOneFile testPath, doCompileCivet
-					await procOneFile withExt(path, '.test.ts'), doUnitTest
-				else
-					LOG "No unit test named #{testPath}"
+				LOG cmdTitle("RUN TEST FOR #{stub}")
+
+				tsPath := withExt(path, '.ts')
+				await procOneFile tsPath, doUnitTest, {
+					capture: true
+					inspect: inspectTest
+					}
+
 			if not noInstall
 				await procOneFile tsPath, doInstallCmd
 			else

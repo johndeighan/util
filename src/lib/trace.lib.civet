@@ -3,7 +3,7 @@
 # --- REFERENCE base-utils repo
 
 import {
-	LOG, DBG, ERR, stringFits, clearLog, getLog, logWidth,
+	LOG, DBG, ERR, clearLog, getLog, logWidth, stringFits,
 	} from 'logger'
 import {uni} from 'unicode'
 import {

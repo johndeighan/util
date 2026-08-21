@@ -8,6 +8,7 @@ import {
 	croak, assert, getErrStr, allLinesIn,
 	TIterator, TAsyncIterator, toBool,
 	} from 'base'
+import {CTimer} from 'timer'
 import {uni, esc} from 'unicode'
 import {
 	hash, isEmpty, nonEmpty, isString, isIterator, isHash,
@@ -35,7 +36,7 @@ import {mkArray} from 'mapper'
 
 # ---------------------------------------------------------------------------
 
-export class CHeraCompiler extends CFileHandler
+class CHeraCompiler extends CFileHandler
 
 	get op()
 		return 'doCompileHera'
@@ -50,17 +51,12 @@ export class CHeraCompiler extends CFileHandler
 
 	# ..........................................................
 
-	override needed(
+	override allOutPaths(
 			path: string
 			hOptions: hash = {}
-			): boolean
+			): string[]
 
-		destPath := withExt path, '.ts'
-		return not (
-			   not hOptions.force
-			&& await exists(destPath)
-			&& newerDestFileExists(path, destPath)
-			)
+		return [withExt(path, '.ts')]
 
 	# ..........................................................
 
@@ -78,7 +74,6 @@ export class CHeraCompiler extends CFileHandler
 			trace: false
 			}
 
-		assert (fileExt(path) == '.hera'), "Not a hera file"
 		destPath := withExt path, '.ts'
 		try
 			# --- preprocess, save to a temp file
@@ -101,6 +96,12 @@ export class CHeraCompiler extends CFileHandler
 				stdout: ''
 				stderr: errMsg
 				}
+
+	# ..........................................................
+
+	override getOutput(hResult: TExecResult): string
+
+		return ''
 
 export doCompileHera := new CHeraCompiler()
 

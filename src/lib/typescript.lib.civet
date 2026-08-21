@@ -12,8 +12,7 @@ import {
 	LOG, DBG, ERR, INDENT, UNDENT,
 	} from 'logger'
 import {
-	undef, defined, notdefined, croak, assert, getErrStr,
-	words, mkTempFile,
+	undef, defined, notdefined, croak, assert, getErrStr, words,
 	} from 'base'
 import {
 	integer, hash, hashof,
@@ -30,6 +29,7 @@ import {
 import {
 	extract, TPathItem, getString, getNumber, getArray,
 	} from 'extract'
+import {mkTempFile} from 'fsys'
 import {Walker, TVisitKind} from 'walker'
 import {CMainScope, CScope} from 'scope'
 import {extractSourceMap} from 'stack'
@@ -602,6 +602,10 @@ export analyzeTsCode := (
 							analysis.addExport name, 'class'
 
 						when 266   # TypeAliasDeclaration
+							name := getString parent, '.name.escapedText'
+							analysis.addExport name, 'type'
+
+						when 267   # EnumDeclaration
 							name := getString parent, '.name.escapedText'
 							analysis.addExport name, 'type'
 

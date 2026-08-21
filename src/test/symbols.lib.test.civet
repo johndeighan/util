@@ -38,7 +38,7 @@ await (() =>
 	equal getNeededImportStmts(['defined','array']), [
 		"import {defined} from 'base';"
 		"import {array} from 'datatypes';"
-		], line(38)
+		], line(41)
 	equal getNeededImportStmts(['arrayof','integer']), [
 		"import {arrayof, integer} from 'datatypes';"
 		]

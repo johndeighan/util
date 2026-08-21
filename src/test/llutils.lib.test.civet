@@ -93,7 +93,7 @@ equal t"      asd", "\t\tasd"
 	equal getOptions<opt>(o'debug', hDefs), {
 		debug: true
 		force: false
-		}, line(90)
+		}, line(96)
 	)()
 
 equal keys({a:1, b:2, c:3}), ['a','b','c']
@@ -195,7 +195,7 @@ equal zpad(23, 5), '00023'
 		"
 		///
 	lMatches := Array.from(allMatches(str, re))
-	equal lMatches.map((x) => x[1]), ['type', 'function'], line(195)
+	equal lMatches.map((x) => x[1]), ['type', 'function'], line(198)
 	equal lMatches.map((x) => x[2]), ['TBlockSpec', 'isBlockSpec']
 	equal lMatches.map((x) => x[3]), [undef, undef]
 	)()

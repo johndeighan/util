@@ -1,13 +1,14 @@
 # exec.lib.test.civet
 
-import {initLogLevel} from 'logger'
-import {undef, sleep, matches} from 'base'
-import {isFile, slurp} from 'fsys'
+import {initLogLevel, pushLogLevel, popLogLevel} from 'logger'
+import {undef, sleep, matches, decolorize} from 'base'
+import {hash} from 'datatypes'
+import {isFile, slurp, withExt} from 'fsys'
 import {
 	getCmdLine, TStreamType, TExecResult,
-	mkstr, execCmd, CFileHandler,
-	doRemoveFile, doRemoveTsFile, isInstalled, getCmdName,
-	doInstallCmd, doUninstallCmd, doRun,
+	mkstr, execCmd, execTsFile, CFileHandler,
+	cmdIsInstalled, getCmdName,
+	doInstallCmd, doUninstallCmd, doUnitTest,
 	} from 'exec'
 import {
 	equal, succeeds, fails, truthy, falsy, beginUnitTest, setDirTree, line,
@@ -94,9 +95,9 @@ await setup()
 #    Run tests that don't change the file system first
 # ---------------------------------------------------------------------------
 
-truthy await isInstalled('analyze'), line(97)
-truthy await isInstalled('builddoc'), line(98)
-falsy  await isInstalled('nosuchcmd'), line(99)
+truthy await cmdIsInstalled('analyze'), line(98)
+truthy await cmdIsInstalled('builddoc'), line(99)
+falsy  await cmdIsInstalled('nosuchcmd'), line(100)
 
 equal getCmdName(r"sample.cmd.ts", {}), 'sample'
 equal getCmdName(r"sample.cmd.ts", {name: 'mycmd'}), 'mycmd'
@@ -107,17 +108,8 @@ truthy isFile(r"temp1.ts")
 truthy isFile(r"temp2.ts")
 falsy  isFile(r"missing.txt")
 
-equal doRemoveFile.op, 'doRemoveFile'
-equal doRemoveTsFile.op, 'doRemoveTsFile'
-equal doInstallCmd.op, 'doInstallCmd', line(112)
+equal doInstallCmd.op, 'doInstallCmd', line(111)
 equal doUninstallCmd.op, 'doUninstallCmd'
-equal doRun.op, 'doRun'
-
-truthy await doRemoveFile.needed(r"hello.txt")
-falsy  await doRemoveFile.needed(r"dummy.txt")
-truthy await doRemoveTsFile.needed(r"temp1.ts")
-falsy  await doRemoveTsFile.needed(r"dummy.ts")
-falsy  await doRemoveTsFile.needed(r"nocivet.ts")
 
 (() =>
 	buffer := new ArrayBuffer(3)
@@ -158,29 +150,7 @@ await (() =>
 		input: slurp(r'numbers.txt')
 		outfile
 		}
-	equal slurp(outfile), "123\n1313\n", line(161)
-	)()
-
-# ---------------------------------------------------------------------------
-#    Next run commands that add or remove files
-# ---------------------------------------------------------------------------
-
-await (() =>
-	truthy isFile(r'temp.txt'), line(169)
-	await doRemoveFile.handle r'temp.txt'
-	falsy isFile(r'temp.txt')
-
-	# --- this time it should not be needed
-	falsy await doRemoveFile.needed(r'temp.txt')
-	)()
-
-await (() =>
-	truthy isFile(r'sample.ts')
-
-	# --- NOTE: Only removes a .ts file if there's a .civet file
-	await doRemoveTsFile.handle r'sample.ts'
-
-	falsy isFile(r'sample.ts'), line(183)
+	equal slurp(outfile), "123\n1313\n", line(153)
 	)()
 
 # ---------------------------------------------------------------------------
@@ -188,7 +158,7 @@ await (() =>
 # ---------------------------------------------------------------------------
 
 await (() =>
-	succeeds (() => await execCmd 'civet', ['--version']), line(191)
+	succeeds (() => await execCmd 'civet', ['--version']), line(161)
 	)()
 
 await (() =>
@@ -208,7 +178,7 @@ await (() =>
 		capture: true
 		}
 	version := h.stdout as string
-	truthy matches(version, /^\d+\.\d+\.\d+\n$/), line(211)
+	truthy matches(version, /^\d+\.\d+\.\d+\n$/), line(181)
 	)()
 
 await (() =>
@@ -230,7 +200,7 @@ await (() =>
 await (() =>
 	succeeds (() => await execCmd 'grep', ['-E', '[0-9]+'], {
 		input: gen()
-		}), line(231)
+		}), line(203)
 	)()
 
 await (() =>
@@ -241,7 +211,7 @@ await (() =>
 			output += s
 			return
 		}
-	equal output, "123\n1313\n42\n", line(244)
+	equal output, "123\n1313\n42\n", line(214)
 	)()
 
 await (() =>
@@ -263,8 +233,8 @@ await (() =>
 			return
 		}
 	output2 := h.stdout as string
-	equal output, "123\n1313\n42\n", line(266)
-	equal output2, "123\n1313\n42\n", line(267)     # FAILED 1
+	equal output, "123\n1313\n42\n", line(236)
+	equal output2, "123\n1313\n42\n", line(237)     # FAILED 1
 	)()
 
 # ---------------------------------------------------------------------------
@@ -273,7 +243,7 @@ await (() =>
 await (() =>
 	succeeds (() => await execCmd 'grep', ['-E', '[0-9]+'], {
 		input: agen()
-		}), line(274)
+		}), line(246)
 	)()
 
 await (() =>
@@ -284,7 +254,7 @@ await (() =>
 			output += s
 			return
 		}
-	equal output, "123\n1313\n42\n", line(287)
+	equal output, "123\n1313\n42\n", line(257)
 	)()
 
 await (() =>
@@ -293,7 +263,7 @@ await (() =>
 		capture: true
 		}
 	output := h.stdout as string
-	equal output, "123\n1313\n42\n", line(296)
+	equal output, "123\n1313\n42\n", line(266)
 	)()
 
 await (() =>
@@ -306,8 +276,8 @@ await (() =>
 			return
 		}
 	output2 := h.stdout
-	equal output, "123\n1313\n42\n", line(309)
-	equal output2, "123\n1313\n42\n", line(310)
+	equal output, "123\n1313\n42\n", line(279)
+	equal output2, "123\n1313\n42\n", line(280)
 	)()
 
 # ---------------------------------------------------------------------------
@@ -327,7 +297,7 @@ await (() =>
 			output += s
 			return
 		}
-	equal output, "123\n1313\n42\n", line(330)              # FAILED 1
+	equal output, "123\n1313\n42\n", line(300)          # FAILED 1
 	)()
 
 await (() =>
@@ -336,7 +306,7 @@ await (() =>
 		capture: true
 		}
 	output := h.stdout as string
-	equal output, "123\n1313\n42\n", line(339)
+	equal output, "123\n1313\n42\n", line(309)
 	)()
 
 await (() =>
@@ -370,7 +340,7 @@ await (() =>
 			output += s
 			return
 		}
-	equal output, "123\n1313\n42\n", line(373)
+	equal output, "123\n1313\n42\n", line(343)
 	)()
 
 await (() =>
@@ -379,7 +349,7 @@ await (() =>
 		capture: true
 		}
 	output := h.stdout as string
-	equal output, "123\n1313\n42\n", line(382)     # FAILED 1
+	equal output, "123\n1313\n42\n", line(352)     # FAILED 1
 	)()
 
 await (() =>
@@ -391,16 +361,132 @@ await (() =>
 			output += s
 			return
 		}
-	equal output, "123\n1313\n42\n", line(394)      # FAILED 2
+	equal output, "123\n1313\n42\n", line(364)      # FAILED 2
 	output2 := h.stdout as string
-	equal output2, "123\n1313\n42\n", line(396)
+	equal output2, "123\n1313\n42\n", line(366)
 	)()
 
 # ---------------------------------------------------------------------------
 
 await (() =>
-	await doInstallCmd.handle(r"hello.cmd.ts")
-	await sleep(1000)
-	await truthy await isInstalled('hello'), line(404)     # FAILED 3
-	await doUninstallCmd.handle('hello')
+	await doInstallCmd.handle(r"hello.cmd.ts"), line(373)
+	truthy await cmdIsInstalled('hello'), line(374)       # FAILED 3
+	await doUninstallCmd.handleFile(r'hello.cmd.ts')
+	falsy await cmdIsInstalled('hello'), line(376)
+	debugger
+	await doUninstallCmd.handleFile(r'hello.cmd.ts')
+	)()
+
+await (() =>
+	hResult := await execTsFile r'hello.cmd.ts', {capture: true}
+	equal hResult.stdout, 'Hello, World!\n'
+	)()
+
+# ---------------------------------------------------------------------------
+# Create a CFileHandler that handles .txt files by
+# converting contents to all upper-case and saving the
+# result as a .utxt file
+
+class CFileUpperCaser extends CFileHandler
+
+	get op()
+		return 'doUpperCase'
+
+	async canHandle(path: string, hOptions: hash = {})
+		return path.endsWith('.txt')
+
+	override allOutPaths(path: string, hOptions: hash = {})
+		return [withExt(path, '.utxt')]
+
+	handle(path: string, hOptions: hash = {})
+		contents := await Deno.readTextFile path
+		await Deno.writeTextFile withExt(path, '.utxt'), contents.toUpperCase()
+		return {success: true}
+
+doUpperCase := new CFileUpperCaser()
+
+await (() =>
+	hResult := await doUpperCase.handleFile(r'nosuchfile.txt')
+	falsy hResult.success
+	)()
+
+await (() =>
+	falsy isFile(r'hello.utxt')
+	hResult := await doUpperCase.handleFile(r'hello.txt')
+	truthy hResult.success
+	truthy isFile(r'hello.utxt')
+	)()
+
+# ---------------------------------------------------------------------------
+# --- test summarizing output from a unit test
+
+(() =>
+	output := """
+		running 53 tests from ./src/test/exec.lib.test.ts
+		---> 98 ... ok (14ms)
+		---> 99 ... ok (739µs)
+		---> 100 ... ok (128µs)
+		line ? ... ok (691µs)
+		line ? ... ok (105µs)
+		line ? ... ok (119µs)
+		line ? ... ok (91µs)
+		line ? ... ok (85µs)
+		line ? ... ok (74µs)
+		line ? ... ok (65µs)
+		---> 111 ... ok (73µs)
+		line ? ... ok (112µs)
+		line ? ... ok (104µs)
+		line ? ... ok (86µs)
+		line ? ... ok (70µs)
+		line ? ... ok (110µs)
+		line ? ... ok (85µs)
+		line ? ... ok (84µs)
+		---> 153 ... ok (113µs)
+		---> 161 ... ok (18ms)
+		line ? ... ok (105µs)
+		line ? ... ok (96µs)
+		line ? ... ok (109µs)
+		---> 181 ... ok (92µs)
+		line ? ... ok (105µs)
+		line ? ... ok (91µs)
+		---> 203 ... ok (12ms)
+		---> 214 ... ok (119µs)
+		line ? ... ok (100µs)
+		---> 236 ... ok (117µs)
+		---> 237 ... ok (87µs)
+		---> 246 ... ok (14ms)
+		---> 257 ... ok (140µs)
+		---> 266 ... ok (115µs)
+		---> 279 ... ok (88µs)
+		---> 280 ... ok (213µs)
+		line ? ... ok (23ms)
+		---> 300 ... ok (254µs)
+		---> 309 ... ok (551µs)
+		line ? ... ok (130µs)
+		line ? ... ok (136µs)
+		line ? ... ok (15ms)
+		---> 343 ... ok (252µs)
+		---> 352 ... ok (465µs)
+		---> 364 ... ok (269µs)
+		---> 366 ... ok (106µs)
+		---> 374 ... ok (168µs)
+		---> 376 ... ok (164µs)
+		line ? ... ok (218µs)
+		line ? ... ok (398µs)
+		line ? ... ok (94µs)
+		line ? ... ok (93µs)
+		line ? ... ok (107µs)
+		------- post-test output -------
+		0.11.7
+		----- post-test output end -----
+
+		ok | 53 passed | 0 failed (1s)
+		"""
+	summary := doUnitTest.getOutput {
+		success: true
+		stdout: output
+		}
+	equal decolorize(summary), """
+		53 passed | 0 failed
+		"""
 	)()

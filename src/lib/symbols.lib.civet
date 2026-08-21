@@ -24,7 +24,7 @@ import {parseText} from 'hera-parse'
  *       sourceLib := (symbol: string): string?
  */
 # --- holds symbols in symbolsPath,
-#     but only loaded when needed
+#     but only loaded when isNeeded
 #     and only if file exists
 
 # --- { <symbol> => <lib>, ... }
@@ -46,7 +46,7 @@ export loadSymbols := (
 	assert defined(path), "No such file: #{fileName}"
 	pathModTime := modTime(path)
 	if (path == loadFilePath) && (pathModTime == loadFileModTime)
-		return hAllSymbols    # --- not needed
+		return hAllSymbols    # --- not isNeeded
 
 	contents := await Deno.readTextFile path
 	clearHash(hAllSymbols)

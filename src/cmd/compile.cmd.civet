@@ -9,7 +9,7 @@ import {getCmdArgs} from 'cmd-args'
 import {watchFiles, allFilesMatching} from 'fsys'
 import {TExecResult} from 'exec'
 import {procOneFile} from 'proc-files'
-import {doCompileFile} from 'automate'
+import {doCompileFile} from 'compile'
 
 [
 	lFiles

@@ -31,6 +31,28 @@ Use:
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
 
+utest is not working
+	- try both with -s option and without
+	to recompile utest.cmd.civet
+		cfile src/cmd.utest.cmd
+	to execute in debugger
+		deno run -A --inspect-brk src/cmd/utest.cmd.ts -s all
+	NOTE: some cmds are found and return '0 passed | 0 failed'
+		but the string is written directly instead of in the
+		table's format
+
+Work on script allUnitTests.civet
+	- should run unit tests in parallel
+
+Replace isNeeded() with allOutPaths()
+	- if all out paths exist and are newer than path
+		assume it's not needed
+	- if allOutPaths() returns an empty arrey
+		assume it's needed
+
+Unit test for 'proc-files' lib fails !!!
+	- trying procOneFile('doesnotexist.ts', doRemoveTsFile)
+
 REVIEW all code that compiles civet to ts
 	- prefer use of procOneFile path, doCompileCivet
 	- maybe create a doTypeCheck ???

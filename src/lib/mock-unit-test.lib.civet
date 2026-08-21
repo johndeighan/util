@@ -1,0 +1,57 @@
+# mock-unit-test.lib.civet
+
+import {yellow, cyan, red, green} from '@std/fmt/colors'
+
+import {LOG, clearLog, getLog, logWidth} from 'logger'
+import {undef, defined, deepEqual} from 'base'
+import {TVoidFunc} from 'datatypes'
+import {ML} from 'nice'
+import {centered} from 'llutils'
+import {getTestName} from 'unit-test'
+
+# ---------------------------------------------------------------------------
+
+export line := (n: number): string =>
+
+	return 'line ' + n.toString()
+
+# ---------------------------------------------------------------------------
+
+export _header := (name?: string): void =>
+
+	name = name || getTestName()
+	LOG centered yellow(name), {width: logWidth, char: '-'}
+	return
+
+# ---------------------------------------------------------------------------
+
+export equal := (
+		value: unknown,
+		expected: unknown = undef
+		name?: string
+		): void =>
+
+	_header name
+	LOG cyan(ML(value))
+	if defined(expected) && not deepEqual(value, expected)
+		LOG red('Not same as expected')
+	return
+
+# ---------------------------------------------------------------------------
+
+export fails := (
+	func: TVoidFunc
+	name?: string
+	): void =>
+
+	_header name
+	try
+		value := func()
+		LOG red("Test returned:")
+		LOG cyan(ML(value))
+		LOG red("Should have failed")
+	catch err
+		LOG cyan('OK')
+	return
+
+# ---------------------------------------------------------------------------

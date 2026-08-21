@@ -2,11 +2,11 @@
 
 import {LOG} from 'logger'
 import {
-	undef, defined, notdefined, assert, croak, toRelPath,
+	undef, defined, notdefined, assert, croak,
 	} from 'base'
 import {cmdTitle, EXEC} from 'llutils'
 import {getCmdArgs, inspect} from 'cmd-args'
-import {findFile} from 'fsys'
+import {findFile, toRelPath} from 'fsys'
 import {procFiles, procOneFile} from 'proc-files'
 import {doMakeMarkdown} from 'md-macros'
 

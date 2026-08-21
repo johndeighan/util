@@ -2,17 +2,12 @@
 
 import process from "node:process"
 import {
-	cyan, blue, black, red, green, magenta, yellow,
+	cyan, black, red, green, magenta, yellow,
 	stripAnsiCode,
 	} from '@std/fmt/colors'
 import {AssertionError} from '@std/assert'
 import {SourceMapConsumer} from '@mozilla/source-map'
-import {
-	resolve, relative, isAbsolute, fromFileUrl, dirname,
-	} from '@std/path'
-import {TextLineStream} from '@std/streams'
 import deepEqual from 'npm-fast-deep-equal'
-import {existsSync, emptyDirSync, ensureDirSync} from '@std/fs'
 import {sprintf} from '@std/fmt/printf'
 import {expandGlobSync} from '@std/fs/expand-glob'
 import {delay} from "@std/async/delay"
@@ -20,21 +15,13 @@ import {delay} from "@std/async/delay"
 import {
 	curLogLevel, LOG, DBG, openDebugFile, closeDebugFile,
 	} from 'logger'
-import {
-	allStackFrames, getErrStr, normalizePath, toRelPath,
-	isFullPath, toFullPath, frameStr,
-	} from 'stack'
 
-export {
-	deepEqual, getErrStr, normalizePath, toRelPath,
-	isFullPath, toFullPath,
-	}
+export {deepEqual}
+
 export deepCopy = structuredClone
 export sleep := (ms: number): void =>
 	await delay(ms)
 	return
-
-mydir := dirname(fromFileUrl(import.meta.url))
 
 # ---------------------------------------------------------------------------
 
@@ -83,6 +70,15 @@ export defined := (x: unknown): x is TDefined =>
 
 # ---------------------------------------------------------------------------
 
+export allDefined := (...lItems: unknown[]): boolean =>
+
+	for item of lItems
+		if notdefined(item)
+			return false
+	return true
+
+# ---------------------------------------------------------------------------
+
 export anyDefined := (...lItems: unknown[]): boolean =>
 
 	for item of lItems
@@ -128,8 +124,6 @@ export allChars := (str: string): TIterator<string> ->
 	return
 
 # ---------------------------------------------------------------------------
-#             LOGGING
-# ---------------------------------------------------------------------------
 
 type TNeverFunc = (err: string) => never
 
@@ -137,17 +131,8 @@ export croak: TNeverFunc := (
 		errMsg: string
 		): never =>
 
-#	if (curLogLevel() == 'testing')
-#		# --- allows the error to be caught and handled or ignored
 	throw new Error(errMsg)
-#	else
-#		console.error red('CROAK') + ': ' + errMsg
-#		console.error "-----  STACK -----"
-#		for frame of allStackFrames()
-#			LOG frameStr(frame)
-#		Deno.exit()
 
-# ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 
 export matches := (
@@ -156,90 +141,6 @@ export matches := (
 		): boolean =>
 
 	return regexp.test(str)
-
-# ---------------------------------------------------------------------------
-#              File System Utils
-# ---------------------------------------------------------------------------
-
-export fileExt := (path: string): string =>
-
-	lMatches := path.match(/\.[^\.]+$/)
-	return lMatches ? lMatches[0] : ''
-
-# ---------------------------------------------------------------------------
-
-export withExt := (path: string, ext: string): string =>
-
-	assert ext.startsWith('.'), "Bad file extension: #{ext}"
-	pos := path.lastIndexOf '.'
-	assert (pos >= 0), "path contains no period: #{path}"
-	return normalizePath path.substring(0, pos) + ext
-
-# ---------------------------------------------------------------------------
-
-export modTime := (path: string): Date =>
-
-	ms := getFileStats(path).mtime
-	assert defined(ms), "ms not defined for #{path}"
-	return ms
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export touch := (
-		path: string
-		): void =>
-
-	try
-		# --- If the file exists, update its access
-		#     and modification times to now
-		await Deno.utime path, new Date(), new Date()
-	catch err
-		if (err instanceof Deno.errors.NotFound)
-			# --- If the file does not exist,
-			#     create it without truncating
-			file := await Deno.open path, {create: true, write: true}
-			file.close()
-		else
-			throw err
-
-# ---------------------------------------------------------------------------
-
-export newerDestFileExists := (
-		srcPath: string,
-		destPath: string    # --- can be a file extension
-		): boolean =>
-
-	# --- source file must exist
-	assert existsSync(srcPath), "No such file: #{srcPath}"
-
-	# --- allow passing a file extension for 2nd argument
-	if destPath.startsWith('.')
-		assert (fileExt(srcPath) != destPath), "Identical extensions"
-		destPath = withExt(srcPath, destPath)
-
-	if not existsSync(destPath)
-		return false
-	return modTime(destPath) > modTime(srcPath)
-
-# ---------------------------------------------------------------------------
-
-export type TFileStats = {
-	isFile: boolean
-	isDirectory: boolean
-	mtime: Date?
-	}
-
-export getFileStats := (
-		path: string
-		): TFileStats =>
-
-	hStats := Deno.statSync path
-	return {
-		isFile:      hStats.isFile
-		isDirectory: hStats.isDirectory
-		mtime:       hStats.mtime || undef
-		}
 
 # ---------------------------------------------------------------------------
 
@@ -260,40 +161,6 @@ export allLinesIn := (
 	if (start < block.length)
 		yield block.substring(start)
 	return
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export allLinesInFile := (
-		path: string
-		): TAsyncIterator<string> ->
-
-	file := await Deno.open path
-	stream := (file.readable
-			.pipeThrough(new TextDecoderStream())
-			.pipeThrough(new TextLineStream())
-			)
-	for await line of stream
-		yield line
-	return
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export mkTempFile := (
-		suffix: string
-		): string =>
-
-	return await Deno.makeTempFile {suffix}
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export mkTempFileSync := (
-		suffix: string
-		): string =>
-
-	return Deno.makeTempFileSync {suffix}
 
 # ---------------------------------------------------------------------------
 
@@ -461,11 +328,11 @@ export clearPreviousLines := (numLines: number): void =>
 
 # ---------------------------------------------------------------------------
 
-export type TColor = 'cyan'|'blue'|'black'|'red'|'green'|'magenta'|'yellow'
+export type TColor = 'cyan'|'black'|'red'|'green'|'magenta'|'yellow'
 
 export isColor := (str: string): str is TColor =>
 
-	return ['cyan','blue','black','red','green','magenta','yellow'].includes str
+	return ['cyan','black','red','green','magenta','yellow'].includes str
 
 # ---------------------------------------------------------------------------
 
@@ -479,7 +346,6 @@ export colorize := (
 		return str
 	switch color
 		when 'cyan'    then return cyan(str)
-		when 'blue'    then return blue(str)
 		when 'black'   then return black(str)
 		when 'red'     then return red(str)
 		when 'green'   then return green(str)
@@ -534,3 +400,17 @@ export words := (...lStrings: string[]): string[] =>
 		for word of wsSplit(str)
 			lWords.push word
 	return lWords
+
+# ---------------------------------------------------------------------------
+
+export getErrStr := (err: unknown): string =>
+
+	if (typeof err == 'string')
+		return err
+	else if (err instanceof AssertionError)
+		errmsg := err.message || '<No message in Error object>'
+		return "#{red('AssertionError:')} #{errmsg}"
+	else if (err instanceof Error)
+		return err.message || '<No message in Error object>'
+	else
+		return "SERIOUS ERROR"

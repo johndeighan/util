@@ -4,8 +4,7 @@ import {existsSync} from '@std/fs'
 
 import {LOG, DBG, ERR} from 'logger'
 import {
-	toRelPath, assert, TIterator, getErrStr,
-	undef, defined, notdefined, encode,
+	assert, TIterator, getErrStr, undef, defined, notdefined, encode,
 	} from 'base'
 import {getOptions, EXEC} from 'llutils'
 import {getCmdArgs} from 'cmd-args'
@@ -13,7 +12,7 @@ import {hash} from 'datatypes'
 import {indented} from 'indent'
 import {
 	barf, allFilesMatching, withExt, parsePath,
-	CReadableFile, CWritableFile,
+	CReadableFile, CWritableFile, toRelPath,
 	} from 'fsys'
 import {CAnalysis, analyzeTsCode} from 'typescript'
 

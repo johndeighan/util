@@ -1,27 +1,50 @@
 # logger.lib.civet
 
-import {cyan, red, yellow} from '@std/fmt/colors'
+import {cyan, red, yellow, stripAnsiCode} from '@std/fmt/colors'
 import {existsSync} from '@std/fs'
 
 export let logWidth = 78
 
-export type TLogLevel = 'testing' | 'silent' | 'info' | 'debug'
-export let lLogLevels: TLogLevel[] = ['info']
-export let logLevel: TLogLevel = 'info'
-export getLogLevels := () => return lLogLevels
+export enum TLogLevel {
+	SILENT,    # 0
+	TESTING,   # 1
+	INFO,      # 2
+	DEBUG      # 3
+	}
+
+let lLogLevels: TLogLevel[] = [TLogLevel.INFO]
+let logLevel: TLogLevel = TLogLevel.INFO
 
 # ---------------------------------------------------------------------------
 
-export stringFits := (
-		str: string
-		width: number = logWidth
-		): boolean =>
+curLevelLowerThan := (level: TLogLevel): boolean =>
 
-	return (str.length <= width)
+	return (logLevel < level)
 
 # ---------------------------------------------------------------------------
 
-setDebugFiles := new Set<string>()
+export logLevelStr := (level: TLogLevel): string =>
+
+	switch level
+		when TLogLevel.SILENT then return 'silent'
+		when TLogLevel.TESTING then return 'testing'
+		when TLogLevel.INFO    then return 'info'
+		when TLogLevel.DEBUG   then return 'debug'
+	return 'unknown'
+
+# ---------------------------------------------------------------------------
+
+export logLevelFromStr := (level: string): TLogLevel =>
+
+	switch level
+		when 'silent'  then return TLogLevel.SILENT
+		when 'testing' then return TLogLevel.TESTING
+		when 'info'    then return TLogLevel.INFO
+		when 'debug'   then return TLogLevel.DEBUG
+		else
+			throw new Error("No such log level: #{level}")
+
+# ---------------------------------------------------------------------------
 
 let indentLevel = 0
 let lLogLines: string[] = []
@@ -30,15 +53,33 @@ export INDENT := Symbol 'indent'
 export UNDENT := Symbol 'undent'
 
 # ---------------------------------------------------------------------------
+#   debug files
+# ---------------------------------------------------------------------------
+
+setDebugFiles := new Set<string>()
+
+# ---------------------------------------------------------------------------
+
+debugFilePath := (stub: string): string =>
+
+	return "./logs/#{stub}.log"
+
+# ---------------------------------------------------------------------------
 
 export openDebugFile := (
 		stub: string
-		clear: boolean = false
 		): void =>
 
-	path := "./logs/#{stub}.log"
+	path := debugFilePath stub
 	setDebugFiles.add path
-	if clear && existsSync(path)
+	return
+
+# ---------------------------------------------------------------------------
+
+export removeDebugFile := (stub: string): void =>
+
+	path := debugFilePath stub
+	if existsSync(path)
 		Deno.removeSync path
 	return
 
@@ -49,7 +90,11 @@ export appendDebugFile := (
 		): void =>
 
 	for item of lItems
-		block := (typeof item == 'string') ? item : toJSON(item)
+		block := (
+			  (typeof item == 'string')
+			? stripAnsiCode(item)
+			: toJSON(item)
+			)
 		for path of setDebugFiles
 			Deno.writeTextFileSync path, block + "\n", {append: true}
 	return
@@ -63,28 +108,33 @@ export closeDebugFile := (stub: string): void =>
 	return
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
-export curLogLevel := (): TLogLevel =>
+export curLogLevel := (): string =>
 
-	return logLevel
+	return logLevelStr(logLevel)
 
 # ---------------------------------------------------------------------------
 
 export initLogLevel := (
-		level: TLogLevel
+		level: TLogLevel | string
 		): void =>
 
+	if (typeof level == 'string')
+		level = logLevelFromStr level
 	lLogLevels = [level]
 	logLevel = level
-	console.log "INITIAL LOG LEVEL set to #{level}"
+	console.log "INITIAL LOG LEVEL set to #{logLevelStr(level)}"
 	return
 
 # ---------------------------------------------------------------------------
 
 export pushLogLevel := (
-		level: TLogLevel
+		level: TLogLevel | string
 		): void =>
 
+	if (typeof level == 'string')
+		level = logLevelFromStr level
 	lLogLevels.push level
 	logLevel = level
 	return
@@ -95,16 +145,25 @@ export popLogLevel := (): void =>
 
 	if (lLogLevels.length == 0)
 		throw new Error("Empty lLogLevels in pop()")
-	logLevel = lLogLevels.pop() || 'info'
+	logLevel = lLogLevels.pop() || TLogLevel.INFO
 	if (logLevel == undefined)
 		throw new Error("Empty lLogLevels in pop()")
 	return
 
 # ---------------------------------------------------------------------------
 
-export toJSON := (item: unknown): string =>
+toJSON := (item: unknown): string =>
 
 	return JSON.stringify(item, null, 3)
+
+# ---------------------------------------------------------------------------
+
+export stringFits := (
+		str: string
+		width: number = logWidth
+		): boolean =>
+
+	return (str.length <= width)
 
 # ---------------------------------------------------------------------------
 
@@ -112,16 +171,22 @@ export LOG := (
 		...lItems: unknown[]
 		): void =>
 
-	if (logLevel == 'silent')
+	if (logLevel == TLogLevel.SILENT)
 		return
 	for item of lItems
-		if (item == INDENT)
-			indentLevel += 1
-		else if (item == UNDENT)
-			if (indentLevel > 0)
-				indentLevel -= 1
-		else
-			logLine item
+		logItem item
+	return
+
+# ---------------------------------------------------------------------------
+
+export WARN := (
+		msg: string
+		label: string = 'WARNING'
+		): void =>
+
+	if curLevelLowerThan TLogLevel.TESTING
+		return
+	logItem yellow(label) + ': ' + msg
 	return
 
 # ---------------------------------------------------------------------------
@@ -130,32 +195,21 @@ export DBG := (
 		...lItems: unknown[]
 		): void =>
 
-	# --- if an append file is defined, output even if
+	# --- if a debug file is defined, output even if
 	#     current log level is not 'debug'
 	appendDebugFile ...lItems
 
-	if (curLogLevel() == 'debug')
-		LOG ...lItems
-	return
-
-# ---------------------------------------------------------------------------
-
-export WARN := (
-		msg: string
-		label: string = 'WARN'
-		): void =>
-
-	lLogLines.push msg
-	if (logLevel == 'silent')
+	if curLevelLowerThan TLogLevel.DEBUG
 		return
-	console.error yellow(label) + ': ' + msg
+	for item of lItems
+		logItem item
 	return
 
 # ---------------------------------------------------------------------------
 
 export ERR := (
 		err: unknown
-		label: string = 'ERR'
+		label: string = 'ERROR'
 		): void =>
 
 	msg := (
@@ -163,18 +217,20 @@ export ERR := (
 		: (typeof err == 'string') ? err
 		:                            'Unknown error'
 		)
-	lLogLines.push msg
-	if (logLevel == 'silent')
-		return
-	console.error red(label) + ': ' + msg
+
+	# --- if a debug file is defined, output even if
+	#     current log level is not 'debug'
+	appendDebugFile msg
+
+	logItem red(label) + ': ' + msg
 	return
 
 # ---------------------------------------------------------------------------
 # --- Make sure lines have no trailing whitespace
 
 export getLog := (
-		func?: () => void
-		): string =>
+	func?: () => void
+	): string =>
 
 	if (func != undefined)
 		clearLog()
@@ -187,27 +243,41 @@ export getLog := (
 
 # ---------------------------------------------------------------------------
 
-logLine := (
-		x: unknown,
+logItem := (
+		item: unknown,
 		): void =>
 
-	line := '\t'.repeat(indentLevel) + unknownToString(x)
-	if (logLevel != 'testing')
+	if (item == INDENT)
+		indentLevel += 1
+	else if (item == UNDENT)
+		if (indentLevel > 0)
+			indentLevel -= 1
+	else
+		line := '\t'.repeat(indentLevel) + unknownToString(item)
+
 		# --- Anything going to the console has TABs replaced
-		console.log line.replaceAll('\t', '   ')
-	lLogLines.push line
-	return
+		# --- In TESTING level, no output to console
+		if (logLevel != TLogLevel.TESTING)
+			console.log line.replaceAll('\t', '   ')
+
+		# --- Anything going to internal log has ANSI codes stripped
+		#     Add to lLogLines in TESTING level
+		lLogLines.push stripAnsiCode(line)
+		return
 
 # ---------------------------------------------------------------------------
 
-export clearLog := (): void =>
+export clearLog := (width: number = 78): void =>
 
+	if (width < 1)
+		throw new Error("Bad width: #{width}")
+	logWidth = width
 	lLogLines.length = 0
 	return
 
 # ---------------------------------------------------------------------------
 
-export unknownToString := (x: unknown): string =>
+unknownToString := (x: unknown): string =>
 
 	return (
 		  (typeof x == 'string') ? x

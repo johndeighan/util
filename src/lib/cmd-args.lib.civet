@@ -161,7 +161,7 @@ export getCmdArgs := (
 
 	# ..........................................................
 
-	# --- clear screen first if needed, so user sees any errors
+	# --- clear screen first if isNeeded, so user sees any errors
 	if (lArgs.at(-1) == '!') && doHandleClearScreen
 		clearScreen()
 

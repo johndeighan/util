@@ -66,7 +66,6 @@ equal inputIndent, spaces(3)
 
 	# --- fails since we're now expecting TABs
 	equal inputIndent, '\t'
-#	fails (() => splitLine('      abc')), line(69)
 	)()
 
 # ---------------------------------------------------------------------------
@@ -124,7 +123,7 @@ equal inputIndent, spaces(3)
 		\tfirst line
 
 		\t\tsecond line
-		"""), line(118)
+		"""), line(126)
 	)()
 
 # --- Test with arrays

@@ -68,6 +68,7 @@
 		"cmd-args":      "file:///C:/Users/johnd/util/src/lib/cmd-args.lib.ts",
 		"heredoc":       "file:///C:/Users/johnd/util/src/lib/heredoc.lib.ts",
 		"text-table":    "file:///C:/Users/johnd/util/src/lib/text-table.lib.ts",
+		"llfs":          "file:///C:/Users/johnd/util/src/lib/llfs.lib.ts",
 		"fsys":          "file:///C:/Users/johnd/util/src/lib/fsys.lib.ts",
 		"walker":        "file:///C:/Users/johnd/util/src/lib/walker.lib.ts",
 		"scope":         "file:///C:/Users/johnd/util/src/lib/scope.lib.ts",
@@ -82,8 +83,8 @@
 		"llhera":        "file:///C:/Users/johnd/util/src/lib/llhera.lib.ts",
 		"civet":         "file:///C:/Users/johnd/util/src/lib/civet.lib.ts",
 		"cielo":         "file:///C:/Users/johnd/util/src/lib/cielo.lib.ts",
-		"automate":      "file:///C:/Users/johnd/util/src/lib/automate.lib.ts",
-		"old-unit-test": "file:///C:/Users/johnd/util/src/lib/old-unit-test.lib.ts",
+		"compile":       "file:///C:/Users/johnd/util/src/lib/compile.lib.ts",
+		"mock-unit-test":"file:///C:/Users/johnd/util/src/lib/mock-unit-test.lib.ts",
 		"unit-test":     "file:///C:/Users/johnd/util/src/lib/unit-test.lib.ts",
 		"iter-utils":    "file:///C:/Users/johnd/util/src/lib/iter-utils.lib.ts",
 		"mapper":        "file:///C:/Users/johnd/util/src/lib/mapper.lib.ts",
@@ -92,6 +93,7 @@
 		"html-window":   "file:///C:/Users/johnd/util/src/lib/html-window.lib.ts",
 		"macros":        "file:///C:/Users/johnd/util/src/lib/macros.lib.ts",
 		"md-macros":     "file:///C:/Users/johnd/util/src/lib/md-macros.lib.ts",
+		"ut-macros":     "file:///C:/Users/johnd/util/src/lib/ut-macros.lib.ts",
 		"trace":         "file:///C:/Users/johnd/util/src/lib/trace.lib.ts",
 		"trace-stack":   "file:///C:/Users/johnd/util/src/lib/trace-stack.lib.ts"
 	}

@@ -6,7 +6,7 @@ import {
 	colorize, croak,
 	} from 'base'
 import {findFile, withExt, isFile} from 'fsys'
-import {doRun, TExecResult} from 'exec'
+import {execCmd, execTsFile, TExecResult} from 'exec'
 import {doCompileCivet} from 'civet'
 import {procOneFile, compileAllLibs} from 'proc-files'
 import {f, EXEC} from 'llutils'
@@ -43,13 +43,15 @@ await EXEC () =>
 	obviously defined(path)
 
 	# --- compile the temp file
-	await procOneFile path, doCompileCivet, {inspect, force}
-
-	# --- Run the temp file
-	tsPath := withExt path, '.ts'
-	assert isFile(tsPath), "No such file: #{tsPath}"
-	await procOneFile tsPath, doRun, {
-		inspect
-		capture: false
-		label: "#{stub} OUTPUT"
-		}
+	hResult := await procOneFile path, doCompileCivet, {inspect, force}
+	if hResult.success
+		# --- Run the temp file
+		tsPath := withExt path, '.ts'
+		assert isFile(tsPath), "No such file: #{tsPath}"
+		result := await execTsFile tsPath, {
+			inspect
+			capture: false
+			}
+	else
+		console.log "Compile of #{path} failed"
+		console.log hResult.stderr

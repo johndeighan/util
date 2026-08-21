@@ -1,20 +1,24 @@
 # macros.lib.civet
 
+import {DBG} from 'logger'
+import {CTimer} from 'timer'
 import {
-	undef, defined, notdefined, assert, croak
+	undef, defined, notdefined, assert, obviously,
+	croak, matches, getErrStr,
 	} from 'base'
 import {
-	hashof, isString, isHash, isFunction, TStringMapper,
+	hash, hashof, isString, isHash, isFunction, TStringMapper,
 	isEmpty, nonEmpty, isArray, isStringMapper,
 	} from 'datatypes'
 import {indented} from 'indent'
 import {OL} from 'nice'
-import {entries, toBlock} from 'llutils'
+import {entries, toBlock, keys, getOptions} from 'llutils'
 import {mkArray} from 'mapper'
-import {parsePath, CReadableFile} from 'fsys'
+import {
+	withExt, parsePath, CReadableFile, pathStr,
+	} from 'fsys'
 import {CFileHandler, TExecResult} from 'exec'
 import {parseText} from 'hera-parse'
-import {hMdMacroLib} from 'md-macros'
 
 # ---------------------------------------------------------------------------
 # --- a macro with an empty name
@@ -43,7 +47,7 @@ export type TMacroFunc = (
 		) => string
 
 # --- In a TMacroLib, the key '#preproc'
-#     is a function to preprocess the output
+#     is a function to preprocess the entire output
 
 export type TMacroLib = hashof<TMacroFunc>
 
@@ -106,47 +110,51 @@ export mapFile := (
 
 # ---------------------------------------------------------------------------
 
-hMacroLibs := {
-	'md': hMdMacroLib
-	}
+export class CMacroCompiler extends CFileHandler
 
-# ---------------------------------------------------------------------------
+	ext: string
+	outext: string
+	hLib: TMacroLib
 
-export class CMacroFileCompiler extends CFileHandler
+	constructor(
+			@ext: string
+			@hLib: TMacroLib
+			)
+
+		super()
+		lMatches := @ext.match ///^
+			\.
+			\$
+			([A-Za-z][A-Za-z0-9]*)
+			$///
+		if defined(lMatches)
+			@outext = '.' + lMatches[1]
+		else
+			croak "Bad ext: #{@ext}"
+
+	# ..........................................................
 
 	get op()
+
 		return 'doCompileMacroFile'
 
 	# ..........................................................
 
-	override canHandle(
+	async canHandle(
 			path: string
 			hOptions: hash = {}
-			): boolean
+			)
 
-		ext := fileExt(path)
-		if not matches(ext, /^\.\$/)
-			return false
-		kind := ext.substring(2)
-		if not (kind in hMacroLibs)
-			return false
-		return true
+		return path.endsWith(@ext)
 
 	# ..........................................................
 
-	override needed(
+	override allOutPaths(
 			path: string
 			hOptions: hash = {}
-			): boolean
+			): string[]
 
-		if ('force' in hOptions) && hOptions.force
-			return true
-		ext := fileExt(path)
-		assert matches ext, /^\.\$/
-		kind := ext.substring(2)
-		assert (kind in hMacroLibs), "Unknown macro kind #{kind}"
-		destPath := withExt path, ".#{kind}"
-		return not newerDestFileExists(path, destPath)
+		return [withExt(path, @outext)]
 
 	# ..........................................................
 	# ASYNC
@@ -165,22 +173,20 @@ export class CMacroFileCompiler extends CFileHandler
 			trace: false
 			}
 
-		assert (fileExt(path) == '.$md'), "Not an md macro file"
+		destPath := @allOutPaths(path, hOptions)[0]
 		try
 			input := await Deno.readTextFile path
-			output := await mapString(input, hMdMacroLib)
-			await Deno.writeTextFile withExt(path, '.md'), output
+			output := await mapString(input, @hLib)
+			await Deno.writeTextFile destPath, output
 			return {
 				success: true
 				stdout: output
 				}
 
 		catch err
-			errMsg := "MARKDOWN PREPROC FAILED: #{pathStr(path)} - #{getErrStr(err)}"
+			errMsg := "MACRO FAILED: #{pathStr(path)} - #{getErrStr(err)}"
+			DBG errMsg
 			return {
 				success: false
-				stdout: ''
 				stderr: errMsg
 				}
-
-export doCompileMacroFile := new CMacroFileCompiler()

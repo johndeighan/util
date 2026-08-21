@@ -2,31 +2,29 @@
 
 import {LOG, DBG, ERR} from 'logger'
 import {assert, defined} from 'base'
-import {centered, EXEC} from 'llutils'
-import {getCmdArgs} from 'cmd-args'
+import {centered, EXEC, cmdTitle} from 'llutils'
+import {getCmdArgs, inspect} from 'cmd-args'
 import {
 	withExt, findFile, parsePath,
 	} from 'fsys'
-import {doInstallCmd, doUnitTest} from 'exec'
+import {doInstallCmd} from 'exec'
 import {doCompileCivet} from 'civet'
 import {procFiles, procOneFile} from 'proc-files'
 import {doCompileHera} from 'hera-compile'
+import {doUnitTest} from 'compile'
 
 [
 	lStubs
-	{force, doTest, inspect}
-	{traceLib, oneIndent}
-	{maxLineLen}
-	] := getCmdArgs 'build-dot-symbols', {
-		_:       {range: [1,99], desc: 'list of stubs'}
-		force:   {flag: 'f',     desc: 'force build'}
-		doTest:  {flag: 't',     desc: 'run unit test(s)'}
-		inspect: {flag: 'I',     desc: 'run under Chrome debugger'}
+	{force, doTest, inspectTest}  # --- flags
+	{traceLib, oneIndent}                  #     string options
+	] := getCmdArgs 'buildpar', {
+		_:           {range: [1,99], desc: 'list of stubs'}
+		force:       {flag: 'f',     desc: 'force build'}
+		doTest:      {flag: 't',     desc: 'run unit test(s)'}
+		inspectTest: {flag: 'J', desc: 'inspect unit test'}
 		}
 
 # ---------------------------------------------------------------------------
-# --- install before running unit tests
-#     since unit test may require command to be installed
 
 hStyle  := {char: '=', color: 'cyan'}
 await EXEC () =>
@@ -34,20 +32,20 @@ await EXEC () =>
 		console.log centered("BUILD ALL PARSERS", hStyle)
 		await procFiles [doCompileHera,  ['src/**/*.parse.hera']], {force}
 		if doTest
-			await procFiles [doCompileCivet, ['src/**/*.parse.test.civet']], {force}
-			await procFiles [doUnitTest,     ['src/**/*.parse.test.ts']]
+			await procFiles [doUnitTest, ['src/**/*.parse.ts']]
 	else
 		for stub of lStubs
-			console.log centered("BUILD PARSER #{stub}", hStyle)
-			heraFileName := "#{stub}.parse.hera"
-			heraPath := findFile heraFileName
-			assert defined(heraPath), "Can't find file: #{heraFileName}"
-			await procOneFile heraPath, doCompileHera, {force, inspect}
+			LOG cmdTitle("BUILD PARSER #{stub}")
+
+			fileName := "#{stub}.parse.hera"
+			path := findFile fileName
+			assert defined(path), "No such file: #{fileName}"
+			await procOneFile path, doCompileHera, {force, inspect}
 			if doTest
-				testFileName := withExt heraFileName, '.test.civet'
-				testPath := findFile testFileName
-				if defined(testPath)
-					await procOneFile testPath, doCompileCivet, {force}
-					await procOneFile withExt(heraPath, '.ts'), doUnitTest
-				else
-					console.log "No unit test named #{testPath}"
+				LOG cmdTitle("RUN TEST FOR #{stub}")
+
+				tsPath := withExt(path, '.ts')
+				await procOneFile tsPath, doUnitTest, {
+					capture: true
+					inspect: inspectTest
+					}

@@ -1,8 +1,10 @@
 # cielo.lib.civet
 
 import {pathToFileURL} from 'node-url'
+import {exists, existsSync} from '@std/fs'
 
 import {LOG, DBG} from 'logger'
+import {CTimer} from 'timer'
 import {
 	pass, undef, defined, notdefined, croak, assert, sleep,
 	} from 'base'
@@ -12,18 +14,15 @@ import {
 	isFile, fileExt, withExt, slurp, barf, barfTempFile, parsePath,
 	} from 'fsys'
 import {CFileHandler, TExecResult} from 'exec'
-import {doCompileCivet} from 'civet'
-import {civet2ts} from 'civet'
 
 # ---------------------------------------------------------------------------
 # ASYNC
 
-export cielo2civet := (
+export cielo2civet := async (
 		code: string
 		hOptions: hash = {}
 		): string =>
 
-	sleep(1)
 	return code
 
 # ---------------------------------------------------------------------------
@@ -35,43 +34,14 @@ export cielo2civetFile := (
 		hOptions: hash = {}
 		): string =>
 
-	assert isFile(path), "No such file: #{OL(path)} (cielo2civet)"
+	assert isFile(path), "No such file: #{OL(path)} (cielo2civetFile)"
 	assert (fileExt(path) == '.cielo'), "Not a cielo file: #{OL(path)}"
 	assert (fileExt(civetPath) == '.civet'), "Not a civet file: #{OL(civetPath)}"
 	code := await Deno.readTextFile(path)
 	civetCode := await cielo2civet(code, hOptions)
-	await Deno.writeTextFile civetPath, civetCode
-	assert isFile(civetPath), "File not created: #{OL(civetPath)}"
+	Deno.writeTextFileSync civetPath, civetCode
+	assert existsSync(civetPath), "Missing file #{civetPath}"
 	return civetPath
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export cielo2ts := (
-		code: string
-		hOptions: hash = {}
-		): string =>
-
-	civetCode := await cielo2civet code, hOptions
-	return await civet2ts civetCode, hOptions
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export cielo2tsFile := (
-		path: string,
-		tsPath: string = withExt(path, '.ts')
-		hOptions: hash = {}
-		): string =>
-
-	assert isFile(path), "No such file: #{OL(path)} (cielo2ts)"
-	assert (fileExt(path) == '.cielo'), "Not a cielo file: #{OL(path)}"
-	assert (fileExt(tsPath) == '.ts'), "Not a ts file: #{OL(tsPath)}"
-	code := await Deno.readTextFile path
-	tsCode := await cielo2ts(code)
-	await Deno.writeTextFile tsPath, tsCode
-	assert isFile(tsPath), "File not created: #{OL(tsPath)}"
-	return tsPath
 
 # ---------------------------------------------------------------------------
 
@@ -89,6 +59,14 @@ class CCieloCompiler extends CFileHandler
 		return (fileExt(path) == '.cielo')
 
 	# ..........................................................
+
+	override allOutPaths(
+			path: string
+			hOptions: hash = {}
+			)
+		return [withExt(path, '.civet')]
+
+	# ..........................................................
 	# ASYNC
 
 	override handle(
@@ -96,10 +74,8 @@ class CCieloCompiler extends CFileHandler
 			hOptions: hash = {}
 			): TExecResult
 
-		assert (fileExt(path) == '.cielo'), "Not a cielo file: #{path}"
-		civetPath := withExt(path, '.temp.civet')
-		await cielo2civetFile(path, civetPath)
-		return await doCompileCivet.handle(civetPath, hOptions)
+		civetPath := await cielo2civetFile(path)
+		return {success: true}
 
 export doCompileCielo := new CCieloCompiler()
 

@@ -58,3 +58,39 @@ export function unify(
 				return x
 			else
 				croak "#{x} != #{y}"
+
+# ---------------------------------------------------------------------------
+
+export function isStrongerThan(
+		x: unknown
+		y: unknown
+		): boolean
+
+	if notdefined(x)
+		return notdefined(y)
+	else if notdefined(y)
+		return true
+
+	xtype := jsType x
+	ytype := jsType y
+
+	if (xtype != ytype)
+		return false
+
+	switch xtype
+		when 'hash'
+			obviously isHash(x)
+			obviously isHash(y)
+			for key of Object.keys(y)
+				if not isStrongerThan(x[key], y[key])
+					return false
+			return true
+		when 'array'
+			obviously isArray(x)
+			obviously isArray(y)
+			for item,i of y
+				if not isStrongerThan(x[i], item)
+					return false
+			return true
+		else
+			return (x == y)

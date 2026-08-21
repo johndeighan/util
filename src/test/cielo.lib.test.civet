@@ -1,14 +1,16 @@
 # cielo.lib.test.civet
 
 import {initLogLevel} from 'logger'
-import {defined} from 'base'
+import {defined, sleep} from 'base'
 import {isFunction} from 'datatypes'
 import {procOneFile} from 'proc-files'
+import {isFile, rmFile} from 'fsys'
 import {
-	cielo2civet, cielo2ts, cielo2civetFile, cielo2tsFile, doCompileCielo,
+	cielo2civet, cielo2civetFile, doCompileCielo,
 	} from 'cielo'
 import {
-	equal, succeeds, fails, truthy, falsy, setDirTree, beginUnitTest,
+	beginUnitTest, setDirTree, line,
+	equal, succeeds, fails, truthy, falsy, strongerThan,
 	} from 'unit-test'
 
 [root, r] := beginUnitTest(import.meta.url)
@@ -26,7 +28,7 @@ setup := (): void ->
 				b: 'abc',
 				f: () => 'hello'
 				})
-		test.cielo compile
+		test.cielo
 			x := 42
 		"""
 	return
@@ -36,7 +38,32 @@ await setup()
 # ---------------------------------------------------------------------------
 
 equal await cielo2civet('x := 42'), 'x := 42'
-equal await cielo2ts('x := 42', {inlineMap: false}), """
-	"use strict";
-	const x = 42
-	"""
+(() =>
+	equal await cielo2civetFile(r'test.cielo'), r'test.civet', line(42)
+	truthy isFile(r'test.civet'), line(43)
+	rmFile r'test.civet'
+	falsy isFile(r'test.civet'), line(45)
+	)()
+
+await (() =>
+	if rmFile r'test.civet'
+		console.log 'File test.civet was removed'
+	else
+		console.log 'File test.civet did not exist'
+
+	hResult := await procOneFile(r'test.cielo', doCompileCielo)
+	strongerThan hResult, {
+		success: true
+		infile: r'test.cielo'
+		outfile: r'test.civet'
+		}, line(55)
+
+	truthy isFile(r'test.civet'), line(61)
+
+	hResult2 := await procOneFile(r'test.cielo', doCompileCielo)
+	strongerThan hResult2, {
+		success: true
+		notNeeded: true
+		infile: r'test.cielo'
+		}, line(64)
+	)()

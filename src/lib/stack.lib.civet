@@ -1,20 +1,24 @@
 # stack.lib.civet
 
+import {exists, existsSync} from '@std/fs'
 import {sprintf} from '@std/fmt/printf'
 import process from "node:process"
 import {SourceMapConsumer} from '@mozilla/source-map'
-import {
-	cyan, blue, black, red, green, magenta, yellow,
-	stripAnsiCode,
-	} from '@std/fmt/colors'
+import {red, stripAnsiCode} from '@std/fmt/colors'
 import {AssertionError} from '@std/assert'
 import {
 	resolve, relative, isAbsolute, fromFileUrl, dirname,
 	} from '@std/path'
 
-import {openDebugFile, closeDebugFile, LOG, DBG} from 'logger'
+import {
+	openDebugFile, removeDebugFile, closeDebugFile, LOG, DBG, ERR,
+	} from 'logger'
+import {getErrStr} from 'base'
+import {normalizePath, toRelPath, isFullPath, toFullPath} from 'llfs'
 
 type TIterator<TIn, TOut=void, TAcc=void> = Generator<TIn, TOut, TAcc>
+
+removeDebugFile 'stack'
 
 # ---------------------------------------------------------------------------
 
@@ -60,47 +64,11 @@ export type TFilePosition = {
 
 # ---------------------------------------------------------------------------
 
-export normalizePath := (
-		path: string
-		): string =>
-
-	newpath := path.replaceAll '\\', '/'
-	if (newpath.charAt(1) == ':')
-		return newpath.charAt(0).toUpperCase() + newpath.substring(1)
-	else
-		return newpath
-
-# ---------------------------------------------------------------------------
-
-export toRelPath := (
-		path: string,
-		root: string = Deno.cwd()
-		): string =>
-
-	return normalizePath relative(root, path)
-
-# ---------------------------------------------------------------------------
-
-export isFullPath := (
-		path: string
-		): boolean =>
-
-	return isAbsolute(path)
-
-# ---------------------------------------------------------------------------
-
-export toFullPath := (
-		path: string
-		): string =>
-
-	return normalizePath resolve('.', path)
-
-# ---------------------------------------------------------------------------
-
 export allStackFrames := (
 		trace = false
 		): TIterator<TStackFrame> ->
 
+	debugger
 	process.setSourceMapsEnabled(false)   # --- doesn't work
 	openDebugFile 'stack'
 	fmt := (
@@ -131,11 +99,11 @@ export allStackFrames := (
 				if (
 						   (src == null)
 						|| (src == undefined)
+						|| not existsSync(src)
 						|| src.match(///ext \: cli \/ \d+_test\.js///)
 						)
 					continue
 
-				# --- These are constants
 				orgSource := normalizePath src
 				orgLine   := orgFrame.getLineNumber() || 0
 				orgCol    := orgFrame.getColumnNumber() || 0
@@ -213,7 +181,7 @@ export allStackFrames := (
 		return
 
 	catch err
-		console.error "#{red('ERROR in allStackFrames:')} #{getErrStr(err)}"
+		ERR "#{red('ERROR in allStackFrames:')} #{getErrStr(err)}"
 		return
 	finally
 		closeDebugFile 'stack'
@@ -244,55 +212,17 @@ export mapPosSync := (
 	{source, line, col} := filePos
 	contents := Deno.readTextFileSync source
 	[code, hSrcMap] := extractSourceMap contents
-	if (hSrcMap != undefined)
-		[fileNum, srcLine, srcCol] := getOrgPos hSrcMap, line, col
-		fileName := hSrcMap.sources[fileNum]
-		return {
-			source: normalizePath "#{dirname(source)}/#{fileName}"
-			line: srcLine
-			col: srcCol
-			}
-	else
+	if (hSrcMap == undefined)
 		return undefined
-
-# ---------------------------------------------------------------------------
-
-export frameStr := (
-		frame: TStackFrame,
-		label: string = 'FRAME'
-		): string =>
-
-	{i, type, source, line, col, name} := frame
-	typeStr := sprintf('%-8s', type)
-	nameStr := sprintf('%-16s', name)
-	if source
-		return "#{label}[#{i}]: #{typeStr} #{nameStr} #{source}:#{line}:#{col}"
-	else
-		return "#{label}[#{i}]: #{typeStr} #{nameStr} <none>"
-
-# ---------------------------------------------------------------------------
-
-export extractSourceMap := (
-		contents: string
-		): [string, RawSourceMap?] =>
-
-	lMatches := contents.match ///^
-			(.*)
-			\/ \/ \# \s+
-			sourceMappingURL=data:application\/json;
-			(?:charset=utf-8;)?
-			base64,
-			(.+)
-			$///s
-	if (lMatches == null)
-		return [contents, undefined]
-	[_, code, hSrcMapStr] := lMatches
-	hSrcMap := JSON.parse(atob(hSrcMapStr)) as RawSourceMap
-	{file} := hSrcMap
-	hSrcMap.file = toRelPath(file)
-	hSrcMap.sources = for path of hSrcMap.sources
-		toRelPath(path)
-	return [code, hSrcMap]
+	[fileNum, srcLine, srcCol] := getOrgPos hSrcMap, line, col
+	fileName := hSrcMap.sources[fileNum]
+	if (fileName == 'unknown')
+		return undefined
+	return {
+		source: normalizePath "#{dirname(source)}/#{fileName}"
+		line: srcLine
+		col: srcCol
+		}
 
 # ---------------------------------------------------------------------------
 
@@ -366,6 +296,45 @@ export getMappings := (
 
 # ---------------------------------------------------------------------------
 
+export frameStr := (
+		frame: TStackFrame,
+		label: string = 'FRAME'
+		): string =>
+
+	{i, type, source, line, col, name} := frame
+	typeStr := sprintf('%-8s', type)
+	nameStr := sprintf('%-16s', name)
+	if source
+		return "#{label}[#{i}]: #{typeStr} #{nameStr} #{source}:#{line}:#{col}"
+	else
+		return "#{label}[#{i}]: #{typeStr} #{nameStr} <none>"
+
+# ---------------------------------------------------------------------------
+
+export extractSourceMap := (
+		contents: string
+		): [string, RawSourceMap?] =>
+
+	lMatches := contents.match ///^
+			(.*)
+			\/ \/ \# \s+
+			sourceMappingURL=data:application\/json;
+			(?:charset=utf-8;)?
+			base64,
+			(.+)
+			$///s
+	if (lMatches == null)
+		return [contents, undefined]
+	[_, code, hSrcMapStr] := lMatches
+	hSrcMap := JSON.parse(atob(hSrcMapStr)) as RawSourceMap
+	{file} := hSrcMap
+	hSrcMap.file = toRelPath(file)
+	hSrcMap.sources = for path of hSrcMap.sources
+		toRelPath(path)
+	return [code, hSrcMap]
+
+# ---------------------------------------------------------------------------
+
 export decodeLine := (line: string): number[][] =>
 
 	if (line == '')
@@ -386,18 +355,4 @@ export decodeLine := (line: string): number[][] =>
 				shift += 5
 			lOutput.push(v & 1 ? -(v >> 1) : v >> 1) # low bit is sign
 		lOutput
-
-# ---------------------------------------------------------------------------
-
-export getErrStr := (err: unknown): string =>
-
-	if (typeof err == 'string')
-		return err
-	else if (err instanceof AssertionError)
-		errmsg := err.message || '<No message in Error object>'
-		return "#{red('AssertionError:')} #{errmsg}"
-	else if (err instanceof Error)
-		return err.message || '<No message in Error object>'
-	else
-		return "SERIOUS ERROR"
 
