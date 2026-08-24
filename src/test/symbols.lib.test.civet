@@ -2,6 +2,7 @@
 
 import {initLogLevel} from 'logger'
 import {undef} from 'base'
+import {OL, ML} from 'nice'
 import {
 	loadSymbols, loadSymbolsFrom, getSymbolLib, getNeededImportStmts,
 	} from 'symbols'
@@ -18,7 +19,6 @@ await (() =>
 		indent
 			splitLine
 		"""
-
 	equal getSymbolLib('undef',     hSymbols), 'datatypes'
 	equal getSymbolLib('defined',   hSymbols), 'datatypes'
 	equal getSymbolLib('splitLine', hSymbols), 'indent'
@@ -27,13 +27,13 @@ await (() =>
 
 await (() =>
 	# --- Use the actual .symbols file
-	hSymbols := await loadSymbols()
+	hSyms := await loadSymbols()
 
 	equal getSymbolLib('defined'), 'base', line(32)
-	equal getSymbolLib('isArray'), 'datatypes'
+	equal getSymbolLib('isArray'), 'datatypes', line(33)
 
-	equal getSymbolLib('array'), 'datatypes'
-	equal getSymbolLib('hash'), 'datatypes'
+	equal getSymbolLib('array'), 'datatypes', line(35)
+	equal getSymbolLib('hash'), 'datatypes', line(36)
 
 	equal getNeededImportStmts(['defined','array']), [
 		"import {defined} from 'base';"

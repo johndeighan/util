@@ -8,8 +8,9 @@ import {
 	getCmdLine, TStreamType, TExecResult,
 	mkstr, execCmd, execTsFile, CFileHandler,
 	cmdIsInstalled, getCmdName,
-	doInstallCmd, doUninstallCmd, doUnitTest,
+	doInstallCmd, doUninstallCmd,
 	} from 'exec'
+import {doUnitTest} from 'compile'
 import {
 	equal, succeeds, fails, truthy, falsy, beginUnitTest, setDirTree, line,
 	} from 'unit-test'

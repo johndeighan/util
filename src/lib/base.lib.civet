@@ -144,6 +144,27 @@ export matches := (
 
 # ---------------------------------------------------------------------------
 
+export reMatch := (
+		str: string
+		regexp: RegExp
+		): boolean =>
+
+	return regexp.test(str)
+
+# ---------------------------------------------------------------------------
+
+export anyMatches := (
+		lStrings: string[]
+		regexp: RegExp
+		): boolean =>
+
+	for s of lStrings
+		if matches(s, regexp)
+			return true
+	return false
+
+# ---------------------------------------------------------------------------
+
 export allLinesIn := (
 		block: string
 		includeNL: boolean = false

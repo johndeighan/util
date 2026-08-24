@@ -1,8 +1,8 @@
 # compile.lib.civet
 
 import {red, green} from '@std/fmt/colors'
-import {pathToFileURL} from 'node-url'
 import {compile: compileSvelte} from 'npm-svelte/compiler'
+import {toFileUrl} from '@std/path'
 
 import {
 	LOG, DBG, WARN, ERR, INDENT, UNDENT,
@@ -21,7 +21,7 @@ import {keys, getOptions} from 'llutils'
 import {OL, DBGVALUE} from 'nice'
 import {
 	slurp, barf, patchFirstLine, TPathInfo, parsePath, toRelPath,
-	isFile, rmFile, findFile, withExt, fileExt,
+	isFile, rmFile, findFile, withExt, fileExt, mkpath,
 	newerDestFileExists, allFilesMatching,
 	} from 'fsys'
 import {
@@ -95,8 +95,11 @@ export getCompilerConfig := (
 		fileName: string = 'compile.config.civet'
 		): TCompilerConfig =>
 
+	debugger
+
 	# --- if cached, return cached config
-	if defined(hCachedConfig) && (fileName == cachedFileName)
+	if (fileName == cachedFileName)
+		assert defined(hCachedConfig), "#{fileName} not cached"
 		DBG "Returning cached compiler config from #{cachedFileName}"
 		return hCachedConfig
 
@@ -125,6 +128,7 @@ export configFromFile := (
 		fileName: string
 		): hash =>
 
+	debugger
 	# --- config should be a hash named hConfig
 
 	path := findFile fileName
@@ -135,9 +139,17 @@ export configFromFile := (
 	assert ['.ts', '.civet'].includes(ext), "Invalid path: #{path}"
 	assert (purpose == 'config'), "Not a config file: #{OL(path)}"
 	DBG "Import config from #{OL(path)}"
-	tsPath := (ext == '.civet') ? await civet2tsFile(path) : path
-	href := pathToFileURL(tsPath).href
-	{hConfig} := await import(href)
+	tsPath := (
+		if (ext == '.civet')
+			if newerDestFileExists(path, '.ts')
+				withExt(path, '.ts')
+			else
+				await civet2tsFile(path)
+		else
+			path
+		)
+	fileUrl := toFileUrl(tsPath).href
+	{hConfig} := await import(fileUrl)
 	return hConfig
 
 # ---------------------------------------------------------------------------
@@ -247,6 +259,15 @@ class CFileCompiler extends CFileHandler
 export doCompileFile := new CFileCompiler()
 
 # ---------------------------------------------------------------------------
+
+export unitTestsFor := (path: string): string[]? =>
+
+	{dir, stub, purpose, ext} := parsePath(path)
+	assert (ext == '.ts'), "Bad path in unitTestsFor: #{path}"
+	fileName := "#{stub}.#{purpose}.test.ts"
+	return [mkpath(dir, fileName)]
+
+# ---------------------------------------------------------------------------
 # --- path will be the file being tested, e.g.
 #        path = src/lib/datatypes.lib.civet
 #        the file to execute is named datatypes.lib.test.civet
@@ -288,38 +309,17 @@ class CUnitTester extends CFileHandler
 			lineNum: undef
 			}
 
-		obviously defined(@hPathInfo)
-		{stub, purpose} := @hPathInfo
-		testPath := findFile "#{stub}.#{purpose}.test.civet"
-		if notdefined(testPath)
-			return {
-				success: true
-				stdout: ' 0 passed | 0 failed'
-				stderr: ''
-				}
-		tsPath := withExt(testPath, '.ts')
-		hResult := await procOneFile testPath, doCompileCivet
-		assert hResult.success && isFile(tsPath),
-			"Compile of #{testPath} failed"
-		return @runTest tsPath, hOptions
+		# --- We already know that the file exists
+		#     and that ext is '.ts' and purpose is 'test'
 
-	# ..........................................................
+		# --- ensure that it's a recently compiled version
+		#     of any corresponding '.civet' file if it exists
 
-	runTest(
-			tsPath: string
-			hOptions: hash = {}
-			): TExecResult
-
-		type opt = {
-			capture: boolean
-			inspect: boolean
-			lineNum: string?
-			}
-		{capture, inspect, lineNum} := getOptions<opt> hOptions, {
-			capture: true
-			inspect: false
-			lineNum: undef
-			}
+		civetPath := withExt path, '.civet'
+		if isFile(civetPath)
+			hResult := await procOneFile civetPath, doCompileCivet
+			assert hResult.success && isFile(path),
+				"Compile of #{civetPath} failed"
 
 		return await execCmd 'deno', [
 				'test'
@@ -333,7 +333,7 @@ class CUnitTester extends CFileHandler
 					? ['--filter', "/^line #{lineNum}$/"]
 					: []
 					)
-				tsPath
+				path
 				], {capture}
 
 	# ..........................................................

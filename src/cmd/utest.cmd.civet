@@ -53,11 +53,15 @@ await EXEC () =>
 
 		assert notdefined(lineNum), "Can't use -line with 'all'"
 		assert not inspect, "Can't use -I with 'all'"
-		if not inspect
-			rmDir './coverage', {clear: true}
+		rmDir './coverage', {clear: true}
 
 		LOG cmdTitle("UNIT TEST ALL")
 		timer := new CTimer()
+
+		if serial
+			LOG "Running tests serially"
+		else
+			LOG "Running tests in parallel"
 
 		# --- Print the header
 		LOG f"#{'Lib'}:-14 #{'OK'}:4 #{'Fail'}:4 #{'Time'}:8"
@@ -84,7 +88,7 @@ await EXEC () =>
 			writeln "Done"
 	else
 		for stub of lStubs
-			LOG cmdTitle("RUN UNIT TEST #{stub}")
+			LOG cmdTitle("UNIT TEST #{stub}")
 
 			fileName := (
 				  stub.includes('.')

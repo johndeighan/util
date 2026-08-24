@@ -5,14 +5,16 @@ import {existsSync} from '@std/fs'
 import {
 	undef, defined, notdefined, assert, croak,
 	} from 'base'
-import {hashof, clearHash} from 'datatypes'
+import {hash, hashof, isHash, clearHash} from 'datatypes'
 import {keys} from 'llutils'
+import {OL} from 'nice'
 import {findFile, isFile, modTime} from 'fsys'
 import {parseText} from 'hera-parse'
 
 /**
  * @module symbols - locate common symbols
- *    parses a file (default name: .symbols) that looks like:
+ *    loadSymbols() parses a file (default name: .symbols)
+ *    that looks like:
  *       indent
  *          oneIndent resetOneIndent indentLevel
  *          TLineDesc splitLine indented
@@ -21,8 +23,9 @@ import {parseText} from 'hera-parse'
  *          fileExt withExt
  *
  *    and implements function:
- *       sourceLib := (symbol: string): string?
+ *       getSymbolLib := (symbol: string): string?
  */
+
 # --- holds symbols in symbolsPath,
 #     but only loaded when isNeeded
 #     and only if file exists
@@ -46,11 +49,11 @@ export loadSymbols := (
 	assert defined(path), "No such file: #{fileName}"
 	pathModTime := modTime(path)
 	if (path == loadFilePath) && (pathModTime == loadFileModTime)
-		return hAllSymbols    # --- not isNeeded
+		return hAllSymbols    # --- return cached symbols
 
 	contents := await Deno.readTextFile path
 	clearHash(hAllSymbols)
-	await loadSymbolsFrom contents, hAllSymbols
+	Object.assign hAllSymbols, await loadSymbolsFrom contents, hAllSymbols
 	loadFilePath = path
 	loadFileModTime = pathModTime
 	return hAllSymbols
@@ -64,7 +67,8 @@ export loadSymbolsFrom := (
 		): hashof<string> =>
 
 	hFound := await parseText 'symbols', str
-	return Object.assign h, hFound
+	assert isHash<string>(hFound), "Not a hash of strings: #{OL(hFound)}"
+	return {...h, ...hFound}
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -101,8 +105,10 @@ export getNeededImportStmts := (
 
 export getSymbolLib := (
 		symbol: string
-		hSymbols: hashof<string> = hAllSymbols
+		hSymbols: hash = hAllSymbols
 		): string? =>
 
-	return hSymbols[symbol]
-
+	if (symbol in hSymbols)
+		return hSymbols[symbol] as string
+	else
+		return undef

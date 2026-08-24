@@ -30,7 +30,7 @@ import {
 	} from 'hera-compile'
 import {parseText} from 'hera-parse'
 import {compileHera} from 'llhera'
-import {symbolsFromString} from 'symbols'
+import {loadSymbols, symbolsFromString} from 'symbols'
 import {typeCheckTsCode, CAnalysis, analyzeTsCode} from 'typescript'
 import {
 	TTextBlock, TMacroBlock, TBlock,
@@ -38,14 +38,14 @@ import {
 	expand, mapString, mapFile,
 	} from 'macros'
 import {
-	getFileOps, TFileOp,
+	getFileOps, TFileOp, setDirTree,
 	} from 'unit-test'
 import {CRule, CRuleBranch, mkCodeBlock} from 'rule'
 import {
 	awaitAll, TSettleResult,
 	} from 'promise-utils'
 import {mockPromise, checkType} from 'unit-test'
-import {doCompileFile, doUnitTest} from 'compile'
+import {doCompileFile, doUnitTest, configFromFile} from 'compile'
 import {
 	stack, setTracing,
 	trEnter, trReturnFrom, trYieldFrom, trResume, tr,
@@ -61,9 +61,8 @@ import {doCompileCielo} from 'cielo'
 
 EXEC await () =>
 	debugger
-	path := 'src/parse/macros.parse.hera'
-	hResult := await procOneFile path, doCompileHera, {force: true}
-	console.log hResult.success
+	hSymbols := await loadSymbols()
+	console.log hSymbols
 
 await SKIP () =>
 	clearLog()

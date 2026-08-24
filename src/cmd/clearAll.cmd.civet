@@ -1,5 +1,7 @@
 # clearAll.cmd.civet
 
+import {existsSync} from '@std/fs'
+
 import {LOG, DBG} from 'logger'
 import {cmdTitle, EXEC} from 'llutils'
 import {getCmdArgs} from 'cmd-args'
@@ -8,8 +10,8 @@ import {
 	} from 'exec'
 import {procFiles, procOneFile} from 'proc-files'
 import {
-	isFile, isDir, rmDir, rmFile, withExt,
-	allFilesMatching, removeFilesMatching,
+	isFile, isDir, rmDir, rmFile, withExt, WalkEntry,
+	allFilesMatching, allDirsMatching, removeFilesMatching,
 	} from 'fsys'
 
 getCmdArgs "clearAll"
@@ -20,8 +22,10 @@ await EXEC () =>
 	# 1. remove all *.ts files corresponding to *.civet files
 	#           if purpose is 'lib', 'cmd', 'parse', or 'test'
 	LOG cmdTitle("Remove *.{lib,cmd,parse,text}.ts")
-	await removeFilesMatching 'src/**/*.{lib,cmd,parse,test}.ts', (path) =>
-		return isFile withExt(path, '.civet')
+	await removeFilesMatching 'src/**/*.{lib,cmd,parse,test}.ts', {
+		filter: (path: string) =>
+			return existsSync withExt(path, '.civet')
+		}
 
 	# 2. remove all temp files
 	LOG cmdTitle("Remove temp files")
@@ -29,9 +33,8 @@ await EXEC () =>
 
 	# 3. If there is a directory named 'test', remove any subfolders
 	LOG cmdTitle("Remove test subfolders")
-	for path of allFilesMatching("src/**/test/*", includeDirs: true)
-		if isDir(path)
-			rmDir path, {clear: true}
+	for path of allDirsMatching("src/**/test/*")
+		rmDir path, {clear: true}
 
 	# 4. remove all log files
 	LOG cmdTitle("Remove log files")

@@ -1,12 +1,12 @@
 base
 	allChars allDefined allLinesIn allOf allValuesFrom allValuesFromAsync
-	anyDefined anyNotDefined anyOf assert clearPreviousLines clearScreen
-	colorize croak decode decolorize deepCopy deepEqual defined encode
-	getEmptyAsyncIterator getEmptyIterator getErrStr isAsyncGeneratorFunction
-	isChineseChar isColor matches max notdefined obviously pass range
-	RawSourceMap resetLine sleep TAssertFunc TAsyncIterator TColor TDefined
-	TFilePosition TIterator TNonFunction TNotDefined toBool TPredicate undef
-	withColors words write writeln
+	anyDefined anyMatches anyNotDefined anyOf assert clearPreviousLines
+	clearScreen colorize croak decode decolorize deepCopy deepEqual defined
+	encode getEmptyAsyncIterator getEmptyIterator getErrStr
+	isAsyncGeneratorFunction isChineseChar isColor matches max notdefined
+	obviously pass range RawSourceMap reMatch resetLine sleep TAssertFunc
+	TAsyncIterator TColor TDefined TFilePosition TIterator TNonFunction
+	TNotDefined toBool TPredicate undef withColors words write writeln
 cielo
 	cielo2civet cielo2civetFile doCompileCielo
 civet
@@ -18,7 +18,7 @@ cmd-args
 compile
 	configFromFile doCompileFile doUnitTest getCompilerConfig getCompilerInfo
 	getPostProcessor isCompilerConfig isCompilerInfo TCompilerConfig
-	TCompilerFunc TCompilerInfo TPostProcessor
+	TCompilerFunc TCompilerInfo TPostProcessor unitTestsFor
 datatypes
 	array arrayof char classDef className clearArray clearHash functionDef
 	functionName hash hashof hashToIterator integer isArray isArrayOfIntegers
@@ -45,12 +45,13 @@ fsm
 fsys
 	addJsonValue allDirsMatching allFilesMatching allLinesInFile barf
 	barfTempFile clearDir CReadableFile CWritableFile FileEventHandler fileExt
-	findFile fromJsonFile getFileStats getPathType inSameDir isDir isFile
-	isFullPath isPathType mkDir mkDirsForFile mkpath mkTempFile mkTempFileSync
-	modTime myself newerDestFileExists normalizePath parsePath patchFirstLine
-	pathStr pathSubDirs pathToURL removeCR removeFilesMatching rmDir rmFile
-	slurp slurpAsync splitPatterns TFsEventHandler toFullPath toJsonFile
-	toRelPath touch TPathDesc TPathInfo TPathType watchFile watchFiles withExt
+	findDir findFile fromJsonFile getFileStats getPathType inHiddenFolder
+	inSameDir isDir isFile isFullPath isPathType mkDir mkDirsForFile mkpath
+	mkTempFile mkTempFileSync modTime myself newerDestFileExists normalizePath
+	parsePath patchFirstLine pathStr pathSubDirs pathToURL removeCR
+	removeFilesMatching rmDir rmFile slurp slurpAsync splitPatterns
+	TFsEventHandler toFullPath toJsonFile toRelPath touch TPathDesc TPathFilter
+	TPathInfo TPathType WalkEntry watchFile watchFiles withExt
 hera-compile
 	doCompileHera preprocHera preprocHeraFile testHeraCode unbalanced
 hera-parse
@@ -67,9 +68,9 @@ iter-utils
 	accumFrom accumFromAsync allValuesFrom allValuesFromAsync
 	arrayAndAccumFrom asyncArrayAndAccumFrom generateAsync
 llfs
-	allLinesInFile fileExt getFileStats isFullPath mkTempFile mkTempFileSync
-	modTime newerDestFileExists normalizePath TFileStats toFullPath toRelPath
-	touch withExt
+	allLinesInFile fileExt getFileStats isDir isFile isFullPath mkTempFile
+	mkTempFileSync modTime newerDestFileExists normalizePath parsePath
+	TFileStats toFullPath toRelPath touch TPathInfo withExt
 llhera
 	compileHera isHeraType THeraType
 llutils

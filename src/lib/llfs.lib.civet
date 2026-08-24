@@ -12,8 +12,31 @@ import {
 	TAsyncIterator, matches,
 	} from 'base'
 
-# --- NOT USED (I think)
-mydir := dirname(fromFileUrl(import.meta.url))
+# ---------------------------------------------------------------------------
+
+export isFile := (path: string): boolean =>
+
+	try
+		stats := getFileStats path
+		return stats.isFile
+	catch err
+		if (err instanceof Deno.errors.NotFound)
+			return false
+		else
+			throw err
+
+# ---------------------------------------------------------------------------
+
+export isDir := (path: string): boolean =>
+
+	try
+		stats := getFileStats path
+		return stats.isDirectory
+	catch err
+		if (err instanceof Deno.errors.NotFound)
+			return false
+		else
+			throw err
 
 # ---------------------------------------------------------------------------
 
@@ -182,6 +205,8 @@ export parsePath := (path: string): TPathInfo =>
 
 	if matches(path, /^file\:\/\//)
 		path = fromFileUrl(path)
+
+#	assert isFile(path), "No such file: #{path}"
 	{root, dir, base} := parseFilePath path
 	lParts := base.split '.'
 	nParts := lParts.length

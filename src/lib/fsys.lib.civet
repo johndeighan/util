@@ -3,7 +3,7 @@
 import {parse: parseFilePath} from 'node-path'
 import {parse: parseJSONC, JsonValue} from '@std/jsonc'
 import {debounce} from '@std/async/debounce'
-import {existsSync, emptyDirSync, ensureDirSync} from '@std/fs'
+import {existsSync, emptyDirSync, ensureDirSync, WalkEntry} from '@std/fs'
 import {appendFileSync, openSync, closeSync} from 'node-fs'
 import {EventEmitter} from 'node-events'
 import {expandGlobSync} from '@std/fs/expand-glob'
@@ -17,7 +17,7 @@ import {
 	pushLogLevel, popLogLevel,
 	} from 'logger'
 import {
-	pass, undef, defined, notdefined, matches,
+	pass, undef, defined, notdefined, reMatch,
 	TIterator, TAsyncIterator, encode,
 	croak, assert, obviously, words,
 	getEmptyIterator, getEmptyAsyncIterator,
@@ -26,7 +26,7 @@ import {
 	normalizePath, fileExt, withExt, touch, newerDestFileExists,
 	TFileStats, getFileStats, modTime, allLinesInFile,
 	mkTempFile, mkTempFileSync, toRelPath, isFullPath, toFullPath,
-	TPathInfo, parsePath,
+	TPathInfo, parsePath, isFile, isDir,
 	} from 'llfs'
 import {
 	isEmpty, nonEmpty, isString, isNonEmptyString, regexp,
@@ -47,9 +47,10 @@ export {
 	normalizePath, toRelPath, toFullPath, touch,
 	allLinesInFile, modTime, newerDestFileExists,
 	fileExt, withExt, getFileStats, isFullPath,
-	mkTempFile, mkTempFileSync, parsePath,
+	mkTempFile, mkTempFileSync, parsePath, isFile, isDir,
 	}
 export type TPathInfo
+export type WalkEntry
 
 # --- Create a function capable of synchronously
 #     importing ESM modules
@@ -432,6 +433,17 @@ export splitPatterns := (
 	return accum
 
 # ---------------------------------------------------------------------------
+
+export type TPathFilter = (path: string) => boolean
+
+# ---------------------------------------------------------------------------
+
+export inHiddenFolder := (path: string): boolean =>
+
+	h := parsePath(path)
+	return reMatch(h.dir, /\/\./)
+
+# ---------------------------------------------------------------------------
 # TIterator
 #
 #    Use like:
@@ -440,25 +452,28 @@ export splitPatterns := (
 #       lPaths := Array.from(allFilesMatching(lPats))
 #
 #    NOTE: By default, searches from Deno.cwd()
-#          By default, ignores any paths containing /.
+#          By default, ignores any directories starting with '.'
 
 export allFilesMatching := (
 		lPatterns: string | string[],
 		hOptions: hash = {}
 		): TIterator<string> ->
 
+	defaultFilter := (path: string): boolean =>
+		return not inHiddenFolder(path)
+
 	type opt = {
 		root: string
 		hMoreGlobOptions: hash
-		ignorePat: regexp
+		filter: TPathFilter
 		includeDirs: boolean
 		}
 
-	{root, hMoreGlobOptions, ignorePat, includeDirs
+	{root, hMoreGlobOptions, filter, includeDirs
 		} := getOptions<opt> hOptions, {
 			root: '.'
 			hMoreGlobOptions: {}
-			ignorePat: /\/\./
+			filter: defaultFilter
 			includeDirs: false
 			}
 
@@ -489,7 +504,7 @@ export allFilesMatching := (
 			path := normalizePath(entry.path)
 			if (
 					   not setSkip.has(path)
-					&& not matches(path, ignorePat)
+					&& filter(path)
 					)
 				if debugging
 					LOG "PATH: #{path}"
@@ -502,15 +517,13 @@ export allFilesMatching := (
 
 export removeFilesMatching := (
 		pattern: string,
-		filterFunc: (path: string) => boolean = (path) => true
 		hOptions: hash = {}
 		): void =>
 
 	assert (pattern != '*') && (pattern != '**'),
 			"Can't delete files matching #{OL(pattern)}"
 	for path of allFilesMatching(pattern, hOptions)
-		if filterFunc(path)
-			await Deno.remove path
+		await Deno.remove path
 	return
 
 # ---------------------------------------------------------------------------
@@ -532,10 +545,31 @@ export findFile := (
 		case 0:
 			return undef
 		default:
-			LOG "Multiple files with name #{fileName}:"
+			lLines := ["Multiple files with name #{fileName}:"]
 			for path of lPaths
-				LOG path
-			croak "Multiple files with name #{fileName}:"
+				lLines.push path
+			croak lLines.join('\n')
+			return undef
+
+# ---------------------------------------------------------------------------
+
+export findDir := (
+		fileName: string
+		hOptions: hash = {}
+		): string? =>
+
+	lPaths := Array.from allDirsMatching "**/#{fileName}", hOptions
+	DBGVALUE lPaths, 'lPaths'
+	switch lPaths.length
+		case 1:
+			return lPaths[0]
+		case 0:
+			return undef
+		default:
+			lLines := ["Multiple dirs with name #{fileName}:"]
+			for path of lPaths
+				lLines.push path
+			croak lLines.join('\n')
 			return undef
 
 # ---------------------------------------------------------------------------
@@ -545,29 +579,30 @@ export findFile := (
 #       for path of allDirsMatching(lPats)
 #          OR
 #       lDirs := Array.from(allDirsMatching(lPats))
-#
-#    NOTE: By default, searches from ./src
 
 export allDirsMatching := (
 		lPatterns: string | string[],
 		hOptions: hash = {}
 		): TIterator<string> ->
 
+	defaultFilter := (path: string): boolean =>
+		return not inHiddenFolder(path)
+
 	type opt = {
 		root: string
 		hMoreGlobOptions: hash
-		ignorePat: regexp
+		filter: TPathFilter
 		}
 
-	{root, hMoreGlobOptions, ignorePat,
+	{root, hMoreGlobOptions, filter,
 		} := getOptions<opt> hOptions, {
 			root: '.'
 			hMoreGlobOptions: {}
-			ignorePat: /\/\./
+			filter: defaultFilter
 			}
 
 	hGlobOptions: hash := {
-		root: '.'
+		root
 		includeDirs: true
 		followSymlinks: false
 		canonicalize: false
@@ -593,7 +628,7 @@ export allDirsMatching := (
 			path := normalizePath(entry.path)
 			if (
 					   not setSkip.has(path)
-					&& not matches(path, ignorePat)
+					&& filter(path)
 					&& isDir(path)
 					)
 				if debugging
@@ -601,32 +636,6 @@ export allDirsMatching := (
 				yield path
 				setSkip.add path
 	return
-
-# ---------------------------------------------------------------------------
-
-export isFile := (path: string): boolean =>
-
-	try
-		stats := getFileStats path
-		return stats.isFile
-	catch err
-		if (err instanceof Deno.errors.NotFound)
-			return false
-		else
-			throw err
-
-# ---------------------------------------------------------------------------
-
-export isDir := (path: string): boolean =>
-
-	try
-		stats := getFileStats path
-		return stats.isDirectory
-	catch err
-		if (err instanceof Deno.errors.NotFound)
-			return false
-		else
-			throw err
 
 # ---------------------------------------------------------------------------
 # --- returns false if file doesn't exist

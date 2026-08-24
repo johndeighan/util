@@ -1,6 +1,5 @@
 # cielo.lib.civet
 
-import {pathToFileURL} from 'node-url'
 import {exists, existsSync} from '@std/fs'
 
 import {LOG, DBG} from 'logger'

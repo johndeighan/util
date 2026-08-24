@@ -17,6 +17,9 @@ on 7/27/2026
 	deno: 15.0.245.2-rusty
 	chrome: V8 15.0.245.21
 
+
+running 'utest base' works, but 'utest -s all' fails
+
 ------------------------------------------
 Test parsing:
 	counter - OK
@@ -30,16 +33,6 @@ Use:
 	parstr <stub> <string> - to parse a string
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
-
-utest is not working
-	- try both with -s option and without
-	to recompile utest.cmd.civet
-		cfile src/cmd.utest.cmd
-	to execute in debugger
-		deno run -A --inspect-brk src/cmd/utest.cmd.ts -s all
-	NOTE: some cmds are found and return '0 passed | 0 failed'
-		but the string is written directly instead of in the
-		table's format
 
 Work on script allUnitTests.civet
 	- should run unit tests in parallel
