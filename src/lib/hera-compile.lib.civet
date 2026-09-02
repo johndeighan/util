@@ -13,6 +13,7 @@ import {uni, esc} from 'unicode'
 import {
 	hash, isEmpty, nonEmpty, isString, isIterator, isHash,
 	} from 'datatypes'
+import {mkArray} from 'mapper'
 import {
 	arrayToBlock, getOptions,
 	sep, untabify, f, hasKey, spaces, countChars,
@@ -21,18 +22,17 @@ import {
 	resetOneIndent, splitLine, indented, undented,
 	} from 'indent'
 import {debugging} from 'cmd-args'
-import {DUMP, DDUMP} from 'nice'
+import {LOGVALUE, DBGVALUE} from 'nice'
+import {TState, fromFSM} from 'fsm'
+import {mdGet} from 'meta-data'
 import {
 	fileExt, withExt, pathStr, newerDestFileExists,
 	CReadableFile, barfTempFile, parsePath,
 	} from 'fsys'
-import {TState, fromFSM} from 'fsm'
-import {civet2ts} from 'civet'
 import {CFileHandler, TExecResult} from 'exec'
-import {extractMetaData, mdGet} from 'meta-data'
+
 import {THeraType, isHeraType, compileHera} from 'llhera'
-import {CRuleBranch, CRule, CRuleSet, mkCodeBlock} from 'rule'
-import {mkArray} from 'mapper'
+import {CRuleSet, mkCodeBlock} from 'rule'
 
 # ---------------------------------------------------------------------------
 
@@ -74,6 +74,7 @@ class CHeraCompiler extends CFileHandler
 			trace: false
 			}
 
+		debugger
 		destPath := withExt path, '.ts'
 		try
 			# --- preprocess, save to a temp file
@@ -87,14 +88,17 @@ class CHeraCompiler extends CFileHandler
 			return {
 				success: true
 				stdout: tsCode
+				timeTaken: -1
 				}
 
 		catch err
 			errMsg := "HERA COMPILE FAILED: #{pathStr(path)} - #{getErrStr(err)}"
+			ERR errMsg
 			return {
 				success: false
 				stdout: ''
 				stderr: errMsg
+				timeTaken: -1
 				}
 
 	# ..........................................................
@@ -128,16 +132,16 @@ buildHeraFile := (
 		pushLogLevel 'debug'
 
 	mainCode := await mkCodeBlock lMainCode, type
-	DDUMP mainCode, 'mainCode'
+	DBGVALUE mainCode, 'mainCode'
 
 	resetCode := await mkCodeBlock lResetCode, type
-	DDUMP resetCode, 'resetCode'
+	DBGVALUE resetCode, 'resetCode'
 
 	lRuleBlocks := for rule of ruleSet.allRules()
 		await rule.asString(type)
 
 	for block,i of lRuleBlocks
-		DDUMP block, "Rule[#{i}]"
+		DBGVALUE block, "Rule[#{i}]"
 
 	let lParts: string[] = []
 	lParts.push
@@ -162,7 +166,7 @@ buildHeraFile := (
 
 	result := lParts.join('\n').replaceAll('\t', spaces(2))
 
-	DDUMP result, 'Result'
+	DBGVALUE result, 'Result'
 	if trace
 		popLogLevel()
 	return result
@@ -339,7 +343,7 @@ export testHeraCode := (
 	try
 		await compileHera heraCode, type
 	catch err
-		DUMP heraCode, 'Hera Code', {lineNumbers: true}
+		LOGVALUE heraCode, 'Hera Code', {lineNumbers: true}
 		croak "FAILED TO PARSE: #{getErrStr(err)}"
 
 	return heraCode

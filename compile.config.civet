@@ -16,19 +16,19 @@ import {civet2tsFile} from 'civet'
 import {cielo2civetFile} from 'cielo'
 import {doCompileHera} from 'hera-compile'
 import {pug2htmlFile} from 'html-window'
-import {doUnitTest} from 'compile'
+import {TCompilerConfig, doUnitTest} from 'compile'
 
 # ---------------------------------------------------------------------------
 # --- NOTE:
-#        isInstalled and compiler should be ASYNC
+#        isInstalled, compiler and post processors should be ASYNC
 
-export hConfig := {
+export hConfig: TCompilerConfig := {
 
 	hCompilers: {
 
 		# --- keys are file extensions
 		'.hera': {
-			isInstalled: () =>
+			isInstalled: async () =>
 				return true
 
 			getOutPaths: (path: string): string[] =>
@@ -44,7 +44,7 @@ export hConfig := {
 
 		'.svelte': {
 
-			isInstalled: () =>
+			isInstalled: async () =>
 				return true
 
 			getOutPaths: (path: string): string[] =>
@@ -75,7 +75,7 @@ export hConfig := {
 			getOutPaths: (path: string): string[] =>
 				return [withExt(path, '.svg')]
 
-			isInstalled: =>
+			isInstalled: async () =>
 				try
 					hResult := await execCmd('dot', ['--version'])
 					return hResult.success
@@ -106,7 +106,7 @@ export hConfig := {
 			getOutPaths: (path: string): string[] =>
 				return [withExt(path, '.ts')]
 
-			isInstalled: =>
+			isInstalled: async () =>
 				# --- we need civet to be installed
 				hResult := await execCmd('civet', ['--version'])
 				return hResult.success
@@ -143,7 +143,7 @@ export hConfig := {
 			getOutPaths: (path: string): string[] =>
 				return [withExt(path, '.ts')]
 
-			isInstalled: =>
+			isInstalled: async () =>
 				hResult := await execCmd('civet', ['--version'])
 				return hResult.success
 
@@ -176,7 +176,7 @@ export hConfig := {
 			getOutPaths: (path: string): string[] =>
 				return [withExt(path, '.html')]
 
-			isInstalled: =>
+			isInstalled: async () =>
 				return true
 
 			compiler: (
@@ -207,14 +207,14 @@ export hConfig := {
 		# --- Keys are a purpose
 		#     path is path of original, processed file
 
-		'test': (
+		'test': async (
 				path: string
 				hOptions: hash = {}
 				): TExecResult =>
 
 			return {success: true, timeTaken: 0}
 
-		'lib': (
+		'lib': async (
 				path: string
 				hOptions: hash = {}
 				): TExecResult =>
@@ -224,7 +224,7 @@ export hConfig := {
 				LOG "Unit test #{path} failed"
 			return hResult
 
-		'parse': (
+		'parse': async (
 				path: string
 				hOptions: hash = {}
 				): TExecResult =>
@@ -234,7 +234,7 @@ export hConfig := {
 				LOG "Unit test #{path} failed"
 			return hResult
 
-		'cmd': (
+		'cmd': async (
 				path: string
 				hOptions: hash = {}
 				): TExecResult =>

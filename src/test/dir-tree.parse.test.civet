@@ -1,7 +1,6 @@
 # dir-tree.parse.test.civet
 
 import {initLogLevel} from 'logger'
-import {DUMP} from 'nice'
 import {parseText} from 'hera-parse'
 import {beginUnitTest, equal} from 'unit-test'
 

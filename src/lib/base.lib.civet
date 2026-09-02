@@ -1,15 +1,12 @@
 # base.lib.civet
 
-import process from "node:process"
 import {
 	cyan, black, red, green, magenta, yellow,
 	stripAnsiCode,
 	} from '@std/fmt/colors'
 import {AssertionError} from '@std/assert'
-import {SourceMapConsumer} from '@mozilla/source-map'
 import deepEqual from 'npm-fast-deep-equal'
 import {sprintf} from '@std/fmt/printf'
-import {expandGlobSync} from '@std/fs/expand-glob'
 import {delay} from "@std/async/delay"
 
 import {
@@ -435,3 +432,31 @@ export getErrStr := (err: unknown): string =>
 		return err.message || '<No message in Error object>'
 	else
 		return "SERIOUS ERROR"
+
+# ---------------------------------------------------------------------------
+
+type DeepReadonly<T> = T extends Function | Date | RegExp | Map<any, any> | Set<any>
+	? T
+	: T extends object
+	? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+	: T
+
+export deepFreeze := <T extends object>(obj: T): DeepReadonly<T> =>
+
+	for key,value in obj
+		if defined(value) && (typeof value == 'object') && not Object.isFrozen(value)
+			deepFreeze(value)
+
+	return Object.freeze(obj) as DeepReadonly<T>
+
+# ---------------------------------------------------------------------------
+
+export working_deepFreeze := <T extends object>(obj: T): DeepReadonly<T> =>
+
+	Object.keys(obj).forEach((prop) =>
+		value := (obj as any)[prop]
+		if value && (typeof value == 'object') && not Object.isFrozen(value)
+			deepFreeze(value)
+		)
+
+	return Object.freeze(obj) as DeepReadonly<T>

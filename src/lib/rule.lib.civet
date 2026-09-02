@@ -4,10 +4,10 @@ import {LOG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, assert, croak, TIterator, toBool,
 	} from 'base'
-import {DUMP} from 'nice'
 import {isEmpty} from 'datatypes'
 import {toBlock} from 'llutils'
 import {indented} from 'indent'
+import {LOGVALUE} from 'nice'
 import {THeraType} from 'llhera'
 import {civet2ts} from 'civet'
 
@@ -199,5 +199,5 @@ export mkCodeBlock := (
 		return code.replace('"use strict";\n', '')
 	catch err
 		ERR "civet compile failed"
-		DUMP block
+		LOGVALUE block, 'code block'
 		throw err

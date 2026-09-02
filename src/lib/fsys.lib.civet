@@ -39,9 +39,9 @@ import {
 	getOptions, spaces,
 	arrayToBlock, f,
 	} from 'llutils'
+import {OL, DBGVALUE} from 'nice'
 import {isMetaDataStart, getMetaDataHash} from 'meta-data'
 import {debugging} from 'cmd-args'
-import {OL, DBGVALUE} from 'nice'
 
 export {
 	normalizePath, toRelPath, toFullPath, touch,
@@ -305,7 +305,7 @@ export watchFiles := (
 	watcher := Deno.watchFs path
 	let doStop: boolean = false
 	fsCallback: TFsEventHandler := (kind, path): void =>
-		result := watcherCB kind, path
+		result := watcherCB kind, normalizePath(path)
 		DBG "FCB: result = #{result}"
 		if result
 			watcher.close()

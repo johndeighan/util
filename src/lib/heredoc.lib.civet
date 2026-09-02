@@ -7,11 +7,11 @@ import {
 import {
 	isString, isClassInstance, integer, hash, hashof,
 	} from 'datatypes'
-import {OL, OLS} from 'nice'
 import {arrayToBlock, fromTAML, CWS} from 'llutils'
 import {
 	indented, undented, splitLine,
 	} from 'indent'
+import {OL, OLS} from 'nice'
 
 # --- checked in this order - list of type names
 lHereDocs: string[] := []

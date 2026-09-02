@@ -6,15 +6,53 @@ import {
 	} from 'base'
 import {spaces, tabs, s} from 'llutils'
 import {
-	inputIndent, outputIndent, resetOneIndent,
+	getOneIndent, inputIndent, outputIndent, resetOneIndent,
 	indentLevel, splitLine,
 	indented, undented, blockify, Blockify,
 	} from 'indent'
 import {
-	beginUnitTest, equal, truthy, falsy, succeeds, fails, line,
+	beginUnitTest, equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test'
 
 [root, r] := beginUnitTest(import.meta.url)
+
+# ---------------------------------------------------------------------------
+
+equal getOneIndent("""
+	abc
+		def
+			ghi
+	"""), '\t'
+
+equal getOneIndent("""
+	abc
+	#{tabs(1)}def
+	#{tabs(2)}ghi
+	"""), '\t'
+
+equal getOneIndent("""
+	abc
+	#{spaces(2)}def
+	#{spaces(4)}ghi
+	"""), spaces(2)
+
+equal getOneIndent("""
+	abc
+	#{spaces(3)}def
+	#{spaces(6)}ghi
+	"""), spaces(3)
+
+equal getOneIndent("""
+	abc
+	#{spaces(4)}ghi
+	#{spaces(2)}def
+	"""), spaces(2)
+
+equal getOneIndent("""
+	abc
+	#{spaces(6)}ghi
+	#{spaces(3)}def
+	"""), spaces(3)
 
 # ---------------------------------------------------------------------------
 
@@ -72,7 +110,7 @@ equal inputIndent, spaces(3)
 
 (() =>
 	resetOneIndent()
-	truthy notdefined(outputIndent), line(75)
+	truthy notdefined(outputIndent)
 	truthy indented('abc', 0) == 'abc'
 	truthy notdefined(outputIndent)
 	truthy indented('abc') == '\tabc'
@@ -123,7 +161,7 @@ equal inputIndent, spaces(3)
 		\tfirst line
 
 		\t\tsecond line
-		"""), line(126)
+		""")
 	)()
 
 # --- Test with arrays
@@ -233,7 +271,7 @@ equal inputIndent, spaces(3)
 	equal splitLine('   abc'), [1, 'abc']
 
 	# ---fails since we're now expecting spaces
-	fails (() => splitLine('\t\tabc')), line(236)
+	fails (() => splitLine('\t\tabc'))
 	)()
 
 # ---------------------------------------------------------------------------

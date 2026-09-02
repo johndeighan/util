@@ -3,7 +3,7 @@
 # --- REFERENCE base-utils repo
 
 import {
-	LOG, DBG, ERR, clearLog, getLog, logWidth, stringFits,
+	LOG, DBG, ERR, clearLog, logWidth, stringFits,
 	} from 'logger'
 import {uni} from 'unicode'
 import {
@@ -553,9 +553,9 @@ pre := {
 	fourSpaces: uni.space    + uni.space     + uni.space     + uni.space
 	oneIndent:  uni.vbar     + uni.space     + uni.space     + uni.space
 	arrow:      uni.blcorner + uni.hbar      + uni.arrowhead + uni.space
-	flat:       uni.tee      + uni.hbar      + uni.hbar      + uni.space
-	resume:     uni.tee      + uni.hbar      + uni.arrowhead + uni.space
-	yieldSym:   uni.tee      + uni.backarrow + uni.hbar      + uni.space
+	flat:       uni.rtee     + uni.hbar      + uni.hbar      + uni.space
+	resume:     uni.rtee     + uni.hbar      + uni.arrowhead + uni.space
+	yieldSym:   uni.rtee     + uni.backarrow + uni.hbar      + uni.space
 	}
 
 # ---------------------------------------------------------------------------

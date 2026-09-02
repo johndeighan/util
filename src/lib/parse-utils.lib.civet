@@ -9,7 +9,7 @@ import {
 import {uni, esc} from 'unicode'
 import {hash, hashof, isArray} from 'datatypes'
 import {centered, sep, f} from 'llutils'
-import {OL, DUMP} from 'nice'
+import {OL, LOGVALUE} from 'nice'
 import {TextTable} from 'text-table'
 
 # ---------------------------------------------------------------------------
@@ -114,7 +114,7 @@ export class CParseMatches
 			return table.asString()
 		catch err
 			ERR "Can't build matches table"
-			DUMP @lParseMatches, 'lParseMatches'
+			LOGVALUE @lParseMatches, 'lParseMatches'
 			throw err
 
 	# ..........................................................

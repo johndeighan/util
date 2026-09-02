@@ -7,7 +7,8 @@ import {
 	doCompileHera, preprocHera, testHeraCode,
 	} from 'hera-compile'
 import {
-	beginUnitTest, equal, truthy, falsy, succeeds, fails, setDirTree,
+	beginUnitTest, setDirTree,
+	equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test'
 
 [root, r] := beginUnitTest(import.meta.url)
@@ -25,7 +26,7 @@ setup := (): void ->
 			#beginParse(text)
 
 			Program
-				"a"* "b"* ->
+				"a"* "b"*
 					return ($1.length - $2.length)
 		hello.txt
 			Hello, there
@@ -43,9 +44,9 @@ equal await testHeraCode("""
 	#beginParse
 		lItems.length = 0
 
-	Main
+	Main1
 		/abc/
-	"""), s2"""
+	""", 'civet'), s2"""
 	```
 	import {CParseMatches} from 'parse-utils';
 	export let pm = new CParseMatches();
@@ -62,9 +63,9 @@ equal await testHeraCode("""
 		}
 	```
 
-	Main
+	Main1
 		/abc/ ->
-			pm.match('Main', $loc);
+			pm.match('Main1', $loc);
 
 	"""
 
@@ -75,14 +76,14 @@ equal await testHeraCode("""
 	#beginParse
 		lItems.length = 0
 
-	Main
+	Main2
 		/abc/ Next
 			lItems.push 'main'
 
 	Next
 		"xyz"
 			lItems.push 'done'
-	"""), s2"""
+	""", 'civet'), s2"""
 	```
 	import {CParseMatches} from 'parse-utils';
 	export let pm = new CParseMatches();
@@ -99,9 +100,9 @@ equal await testHeraCode("""
 		}
 	```
 
-	Main
+	Main2
 		/abc/ Next ->
-			pm.match('Main', $loc);
+			pm.match('Main2', $loc);
 			lItems.push('main')
 
 	Next

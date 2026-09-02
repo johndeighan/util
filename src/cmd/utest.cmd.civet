@@ -12,41 +12,58 @@ import {
 	parsePath, toRelPath,
 	} from 'fsys'
 import {execCmd, TExecResult} from 'exec'
-import {doCompileCivet} from 'civet'
 import {
-	TProcSpec, procFiles, procOneFile, compileAllLibs, compileAllUnitTests,
+	doCompileCivet, compileAllLibs, compileAllUnitTests,
+	} from 'civet'
+import {
+	TProcSpec, procFiles, procOneFile,
 	} from 'proc-files'
-import {DUMP, OL} from 'nice'
+import {LOGVALUE, OL} from 'nice'
 import {CTimer} from 'timer'
 import {getCmdArgs, inspect} from 'cmd-args'
 import {doUnitTest} from 'compile'
 
 [
 	lStubs
-	{force, serial, line: lineNum}
+	{force, parallel, line: lineNum, box}
 	] := getCmdArgs 'utest', {
-		_:       {range: [1,99], desc: "stubs to test or 'all'"}
-		force:   {flag: 'f', desc: 'force recompile of libs and tests'}
-		serial:  {flag: 's', desc: 'run serially'}
-		line:    {valType: 'integer', desc: 'line number to test'}
+		_:        {range: [1,99], desc: "stubs to test or 'all'"}
+		force:    {flag: 'f', desc: 'force recompile of libs and tests'}
+		parallel: {flag: 'p', desc: 'run tests in parallel'}
+		line:     {valType: 'integer', desc: 'line number to test'}
+		box:      {flag: 'b', desc: 'box in procFiles output'}
 		}
 
 # ---------------------------------------------------------------------------
 
 await EXEC () =>
 	debugger
-	[compileOK, lCompileResults] := await compileAllLibs({force})
-	if not compileOK
+	[hCounts, secs, lCompileResults] := await compileAllLibs {
+		force
+		box
+		quiet: true
+		}
+	if (hCounts.err == 0)
+		if (hCounts.processed > 0)
+			LOG "#{hCounts.processed} libs compiled in #{secs} secs"
+	else
 		ERR "Some libs failed compile"
 		console.log lCompileResults
 		Deno.exit(-1)
 
 	if (lStubs[0] == 'all')
 
-		[compileUTOK, lCompileUTResults] := await compileAllUnitTests({force})
-		if not compileUTOK
+		[hUTCounts, utSecs, lUTResults] := await compileAllUnitTests {
+			force
+			box
+			quiet: true
+			}
+		if (hUTCounts.err == 0)
+			if (hUTCounts.processed > 0)
+				LOG "#{hUTCounts.processed} libs compiled in #{utSecs} secs"
+		else
 			ERR "Some unit tests failed compile"
-			console.log lCompileUTResults
+			console.log lUTResults
 			Deno.exit(-1)
 
 		# --- At this point, all libs and unit tests have been compiled
@@ -58,27 +75,27 @@ await EXEC () =>
 		LOG cmdTitle("UNIT TEST ALL")
 		timer := new CTimer()
 
-		if serial
-			LOG "Running tests serially"
-		else
+		if parallel
 			LOG "Running tests in parallel"
+		else
+			LOG "Running tests serially"
 
 		# --- Print the header
 		LOG f"#{'Lib'}:-14 #{'OK'}:4 #{'Fail'}:4 #{'Time'}:8"
 		LOG [dashes(14), dashes(4), dashes(4), dashes(8)].join(' ')
 
-		if serial
+		if parallel
+			await procFiles [doUnitTest, ['**/*.test.ts']], {
+				callback: showResult
+				quiet: true
+				}
+		else
 			for path of allFilesMatching('**/*.{lib,cmd,parse}.ts')
 				hResult := await procOneFile path, doUnitTest, {
 					capture: true
 					quiet: true
 					}
 				showResult path, hResult
-		else
-			await procFiles [doUnitTest, ['**/*.test.ts']], {
-				callback: showResult
-				quiet: true
-				}
 
 		console.log "TIME TAKEN: #{timer.timeTakenStr()}"
 		if not inspect
@@ -118,7 +135,7 @@ showResult := (
 
 	if not hResult.success
 		ERR "Unit Test of #{path} failed"
-		DUMP hResult.stderr, 'STDERR'
+		LOGVALUE hResult.stderr, 'STDERR'
 
 	h := parsePath(path)
 	stub := h.stub.endsWith('.lib') ? h.stub.replace('.lib', '') : h.stub

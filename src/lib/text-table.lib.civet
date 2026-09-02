@@ -16,9 +16,8 @@ import {
 	getOptions, rtrim, alignString, toBlock, TAlignment,
 	blockWidth, blockHeight, likeNum, blockToArray,
 	} from 'llutils'
-import {OL, LOGVALUE} from 'nice'
 import {mkArray, accum, getBoth} from 'mapper'
-import {nice, DUMP, DDUMP} from 'nice'
+import {OL, nice, LOGVALUE, DBGVALUE} from 'nice'
 
 # ---------------------------------------------------------------------------
 
@@ -319,10 +318,10 @@ export class TextTable
 			pushLogLevel 'debug'
 
 		lHide := isArray(hide) ? hide : [hide]
-		DDUMP lHide, 'lHide'
+		DBGVALUE lHide, 'lHide'
 
 		totalWidth := @getTotalWidth lHide
-		DBG 'totalWidth', totalWidth
+		DBGVALUE totalWidth, 'totalWidth'
 
 		# --- Create lColDesc and lRowDesc
 		#     where hidden columns have been removed
@@ -330,7 +329,7 @@ export class TextTable
 		lColDesc := mkArray @lCols, (h, i) ->
 			if not lHide.includes(i)
 				yield h
-		DDUMP lColDesc, 'lColDesc'
+		DBGVALUE lColDesc, 'lColDesc'
 
 		lRowDesc := mkArray @lRows, (h, i) ->
 			{opcode} := h
@@ -344,7 +343,7 @@ export class TextTable
 							if not lHide.includes(i)
 								yield str
 						}
-		DDUMP lRowDesc, 'lRowDesc'
+		DBGVALUE lRowDesc, 'lRowDesc'
 
 		# --- Map each item in @lRows to one or more strings
 		lLines := mkArray lRowDesc, (hRowDesc) ->
@@ -369,10 +368,10 @@ export class TextTable
 					DBG "opcode: data"
 
 					{lRow} := hRowDesc
-					DDUMP lRow, 'lRow'
+					DBGVALUE lRow, 'lRow'
 
 					lSplitRows := splitRows lRow
-					DDUMP lSplitRows, 'lSplitRows (in asString())'
+					DBGVALUE lSplitRows, 'lSplitRows (in asString())'
 
 					for lSubRow,level of lSplitRows
 						yield mkRow(lSubRow, (str, i) =>

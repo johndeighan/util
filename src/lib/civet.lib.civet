@@ -15,11 +15,12 @@ import {
 import {hash} from 'datatypes'
 import {CTimer} from 'timer'
 import {getOptions} from 'llutils'
-import {CFileHandler, TExecResult} from 'exec'
 import {
-	fileExt, withExt, isFullPath, inSameDir,
-	newerDestFileExists, pathStr, touch,
+	fileExt, withExt, isFullPath, inSameDir, barf,
+	newerDestFileExists, pathStr, touch, mkpath,
 	} from 'fsys'
+import {CFileHandler, TExecResult} from 'exec'
+import {procFiles, TCounts} from 'proc-files'
 import {typeCheckTsFile, ts2ast, analyzeTsCode} from 'typescript'
 
 let hCivetConfig: CompileOptions? = undef
@@ -77,7 +78,8 @@ export civet2tsFile := (
 
 	civetCode := await Deno.readTextFile civetPath
 	tsCode := await civet2ts civetCode, hOptions
-	await Deno.writeTextFile tsPath, tsCode
+#	await Deno.writeTextFile tsPath, tsCode
+	barf tsPath, tsCode
 	if not nocheck
 		errMsg := await typeCheckTsFile tsPath
 		if errMsg
@@ -194,13 +196,46 @@ class CCivetCompiler extends CFileHandler
 				nocheck
 				}
 			assert (outPath == tsPath), "Bad output file: '#{outPath}'"
-			return {success: true}
+			return {success: true, timeTaken: -1}
 		catch err
 			errMsg := getErrStr(err)
 			DBG errMsg
 			return {
 				success: false
+				timeTaken: -1
 				stderr: "COMPILE FAILED: #{pathStr(path)} - #{errMsg}"
 				}
 
 export doCompileCivet := new CCivetCompiler()
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export compileAllLibs := (
+		hOptions: hash = {}
+		): [TCounts, number, TExecResult[]] =>
+
+	type opt = {
+		root: string
+		}
+	{root} := getOptions<opt> hOptions, {
+		root: '.'
+		}
+	pat := mkpath(root, '**/*.lib.civet')
+	return await procFiles [doCompileCivet, [pat]], hOptions
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export compileAllUnitTests := (
+		hOptions: hash = {}
+		): [TCounts, number, TExecResult[]] =>
+
+	type opt = {
+		root: string
+		}
+	{root} := getOptions<opt> hOptions, {
+		root: '.'
+		}
+	pat := mkpath(root, '**/*.test.civet')
+	return await procFiles [doCompileCivet, [pat]], hOptions

@@ -17,8 +17,19 @@ on 7/27/2026
 	deno: 15.0.245.2-rusty
 	chrome: V8 15.0.245.21
 
+on 8/25/2026
+	deno: 15.0.245.2-rusty
+	chrome: V8 15.1.206.23
 
-running 'utest base' works, but 'utest -s all' fails
+promise-utils unit test fails !!!
+rename stack.lib to v8-stack.lib
+get 'utest all' to work
+	- use unitTestsFor() in compile.lib
+	- should return [] for commands for now
+
+how to test if all unit tests were run
+how to test if any test using await is awaited
+use actual v8-stack instead of enter() and returnFrom()
 
 ------------------------------------------
 Test parsing:

@@ -6,7 +6,7 @@ import {OL, ML} from 'nice'
 import {
 	loadSymbols, loadSymbolsFrom, getSymbolLib, getNeededImportStmts,
 	} from 'symbols'
-import {beginUnitTest, line, equal, succeeds} from 'unit-test'
+import {beginUnitTest, equal, succeeds} from 'unit-test'
 
 [root, r] := beginUnitTest(import.meta.url)
 
@@ -19,6 +19,7 @@ await (() =>
 		indent
 			splitLine
 		"""
+
 	equal getSymbolLib('undef',     hSymbols), 'datatypes'
 	equal getSymbolLib('defined',   hSymbols), 'datatypes'
 	equal getSymbolLib('splitLine', hSymbols), 'indent'
@@ -29,16 +30,16 @@ await (() =>
 	# --- Use the actual .symbols file
 	hSyms := await loadSymbols()
 
-	equal getSymbolLib('defined'), 'base', line(32)
-	equal getSymbolLib('isArray'), 'datatypes', line(33)
+	equal getSymbolLib('defined'), 'base'
+	equal getSymbolLib('isArray'), 'datatypes'
 
-	equal getSymbolLib('array'), 'datatypes', line(35)
-	equal getSymbolLib('hash'), 'datatypes', line(36)
+	equal getSymbolLib('array'), 'datatypes'
+	equal getSymbolLib('hash'), 'datatypes'
 
 	equal getNeededImportStmts(['defined','array']), [
 		"import {defined} from 'base';"
 		"import {array} from 'datatypes';"
-		], line(41)
+		]
 	equal getNeededImportStmts(['arrayof','integer']), [
 		"import {arrayof, integer} from 'datatypes';"
 		]

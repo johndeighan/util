@@ -1,24 +1,25 @@
 base
 	allChars allDefined allLinesIn allOf allValuesFrom allValuesFromAsync
 	anyDefined anyMatches anyNotDefined anyOf assert clearPreviousLines
-	clearScreen colorize croak decode decolorize deepCopy deepEqual defined
-	encode getEmptyAsyncIterator getEmptyIterator getErrStr
+	clearScreen colorize croak decode decolorize deepCopy deepEqual deepFreeze
+	defined encode getEmptyAsyncIterator getEmptyIterator getErrStr
 	isAsyncGeneratorFunction isChineseChar isColor matches max notdefined
 	obviously pass range RawSourceMap reMatch resetLine sleep TAssertFunc
 	TAsyncIterator TColor TDefined TFilePosition TIterator TNonFunction
-	TNotDefined toBool TPredicate undef withColors words write writeln
+	TNotDefined toBool TPredicate undef withColors words working_deepFreeze write
+	writeln
 cielo
 	cielo2civet cielo2civetFile doCompileCielo
 civet
-	a A civet2ast civet2js civet2ts civet2tsFile doCompileCivet TCivetOptions
+	a A civet2ast civet2js civet2ts civet2tsFile compileAllLibs
+	compileAllUnitTests doCompileCivet TCivetOptions
 cmd-args
 	debugging doHandleClearScreen doSetLogLevel getCmdArgs helping helpStr
-	inspect parseCmdArgDesc silent TArgDesc TBoolValDesc TNonOptionDesc
-	TValueDesc
+	inspect parseCmdArgDesc silent TArgDesc TBoolValDesc TNonOptionDesc TValueDesc
 compile
-	configFromFile doCompileFile doUnitTest getCompilerConfig getCompilerInfo
-	getPostProcessor isCompilerConfig isCompilerInfo TCompilerConfig
-	TCompilerFunc TCompilerInfo TPostProcessor unitTestsFor
+	doCompileFile doUnitTest getCompilerInfo getPostProcessor isCompilerConfig
+	isCompilerInfo TCompilerConfig TCompilerFunc TCompilerInfo TPostProcessor
+	unitTestsFor
 datatypes
 	array arrayof char classDef className clearArray clearHash functionDef
 	functionName hash hashof hashToIterator integer isArray isArrayOfIntegers
@@ -62,48 +63,48 @@ heredoc
 html-window
 	CHtmlWindow isHTML isPug pug2html pug2htmlFile
 indent
-	blockify Blockify indented indentLevel inputIndent levelFromPrefix
-	outputIndent resetOneIndent splitLine TBlockDesc undented
+	blockify Blockify getOneIndent indented indentLevel inputIndent
+	levelFromPrefix outputIndent resetOneIndent splitLine TBlockDesc undented
 iter-utils
-	accumFrom accumFromAsync allValuesFrom allValuesFromAsync
-	arrayAndAccumFrom asyncArrayAndAccumFrom generateAsync
+	accumFrom accumFromAsync allValuesFrom allValuesFromAsync arrayAndAccumFrom
+	asyncArrayAndAccumFrom generateAsync
 llfs
 	allLinesInFile fileExt getFileStats isDir isFile isFullPath mkTempFile
-	mkTempFileSync modTime newerDestFileExists normalizePath parsePath
-	TFileStats toFullPath toRelPath touch TPathInfo withExt
+	mkTempFileSync modTime newerDestFileExists normalizePath parsePath TFileStats
+	toFullPath toRelPath touch TPathInfo withExt
 llhera
 	compileHera isHeraType THeraType
 llutils
 	abbrevStr alignString allMatches arrayToBlock blockHeight blockToArray
-	blockWidth centered cmdTitle countChars CStringSetMap CWS dashes entries
-	EXEC f formatVal fromTAML fsplit getLineAndColumn getOptions hasKey hasKeys
-	isAlignment isBlockSpec isTAML keys likeNum lpad ltrim o require rpad rtrim
-	s s2 s4 sep SKIP spaces strToHash t tabify tabs TAlignment TBlockSpec
-	toArray toBlock truncStr untabify zpad
+	blockWidth centered cmdTitle countChars CStringSetMap CWS dashes entries EXEC
+	f formatVal fromTAML fsplit getLineAndColumn getOptions hasKey hasKeys
+	isAlignment isBlockSpec isTAML keys likeNum lpad ltrim o require rpad rtrim s
+	s2 s4 sep SKIP spaces strToHash t tabify tabs TAlignment TBlockSpec toArray
+	toBlock truncStr untabify zpad
 logger
-	appendDebugFile clearLog closeDebugFile curLogLevel DBG ERR getLog INDENT
-	initLogLevel LOG logLevelFromStr logLevelStr logWidth openDebugFile
-	popLogLevel pushLogLevel removeDebugFile stringFits TLogLevel UNDENT WARN
+	appendDebugFile beginBox clearLog closeDebugFile curLogLevel DBG endBox ERR
+	getLog INDENT initLogLevel inUnitTest LOG logLevelFromStr logLevelStr logWidth
+	openDebugFile popLogLevel pushLogLevel removeDebugFile stringFits TLogLevel
+	toConsole toInternalLog UNDENT WARN
 macros
-	CMacroCompiler expand isMacroLib mapFile mapString TBlock TMacroBlock
-	TMacroFunc TMacroLib TTextBlock
+	CMacroCompiler expand fileApplyMacros isMacroLib strApplyMacros TBlock
+	TMacroBlock TMacroFunc TMacroLib TTextBlock
 mapper
 	accum doTrace getBoth MAP MAPv1 MAPv2 MAPv3 MAPv4 MAPv5 MAPv6 mkArray
 md-macros
 	doMakeMarkdown hMdMacroLib
 meta-data
-	addMetaDataType extractMetaData getMetaData getMetaDataHash
-	isMetaDataStart mdGet TConverter
+	addMetaDataType extractMetaData getMetaData getMetaDataHash isMetaDataStart
+	mdGet TConverter
 mock-unit-test
 	_header equal fails line
 nice
-	buildPath DBGVALUE DDUMP DUMP DUMPER fits hNiceDefaults hNiceDefaultsNC
-	LOGVALUE mark ML needsEscape nice OL OLS parse TDescFunc
+	buildPath DBGVALUE DUMPER fits hNiceDefaults hNiceDefaultsNC LOGVALUE mark ML
+	needsEscape nice OL OLS parse TDescFunc
 parse-utils
 	CParseMatches slot TParseMatch TStrLoc
 proc-files
-	compileAllLibs compileAllUnitTests procFiles procOneFile TCallback
-	TProcResult TProcSpec
+	procFiles procOneFile TCallback TCounts TProcResult TProcSpec
 promise-utils
 	awaitAll awaitAllSerially evalPromise TPromiseFunc TSettleResult
 rule
@@ -117,7 +118,7 @@ stack
 	allStackFrames decodeLine extractSourceMap frameStr getMappings getOrgPos
 	mapPos mapPosSync RawSourceMap TFilePosition TFrameType TStackFrame
 symbols
-	getNeededImportStmts getSymbolLib loadSymbols loadSymbolsFrom
+	buildDotSymbols getNeededImportStmts getSymbolLib loadSymbols loadSymbolsFrom
 	symbolsFromString
 text-table
 	mkRow splitRows TextTable
@@ -127,9 +128,9 @@ trace-stack
 	CCallNode CCallStack mainName
 trace
 	dumpFuncList getFuncList getPrefix isTracingFunc logEnter logResume
-	logReturnFrom logValue logYield parseFuncStr resetTracing setTracing
-	shortStr stack tr traceInternalDebugging TRACEVAL trEnter trResume
-	trReturnFrom trYieldFrom
+	logReturnFrom logValue logYield parseFuncStr resetTracing setTracing shortStr
+	stack tr traceInternalDebugging TRACEVAL trEnter trResume trReturnFrom
+	trYieldFrom
 typescript
 	analyzeTsCode ast2ts astAsString AstWalker CAnalysis descFunc getNode
 	getSymbolsFromType kindStr ts2ast typeCheckTsCode typeCheckTsFile
@@ -138,11 +139,10 @@ unicode
 unify
 	isStrongerThan unify
 unit-test
-	beginUnitTest checkType equal execFileOps fails falsy fileOpsTable
-	generates generatesAsync getFileOps getMyOutsideCaller getTestName
-	getTsCode isType line matches mockAsyncTask mockPromise notType same
-	sampleVal setDirTree splitFuncStr strongerThan succeeds TFileOp truthy
-	unifies
+	beginUnitTest checkType equal execFileOps fails falsy fileOpsTable generates
+	generatesAsync getFileOps getMyOutsideCaller getTestName getTsCode isType line
+	matches mockAsyncTask mockPromise notType same sampleVal setDirTree
+	splitFuncStr strongerThan succeeds TFileOp truthy unifies
 ut-macros
 	doMakeUnitTest hUTMacroLib
 walker

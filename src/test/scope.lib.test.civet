@@ -6,7 +6,7 @@ import {s} from 'llutils'
 import {nice} from 'nice'
 import {CMainScope, CScope} from 'scope'
 import {
-	beginUnitTest, equal, truthy, falsy, succeeds, fails, line,
+	beginUnitTest, equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test'
 
 [root, r] := beginUnitTest(import.meta.url)
@@ -69,7 +69,7 @@ import {
 		name: main
 		sDefined: 〚name gender〛
 		lChildScopes: [{name: func sDefined: 〚age temp〛 parent: ｟ref root｠}]
-		""", line(72)
+		"""
 	)()
 
 # --- Test if when a function is entered with parameter s

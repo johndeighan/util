@@ -16,8 +16,8 @@ import {
 	CAnalysis, getNode, analyzeTsCode,
 	} from 'typescript'
 import {
-	beginUnitTest, equal, succeeds, fails, truthy, falsy,
-	setDirTree, line,
+	beginUnitTest, setDirTree,
+	equal, succeeds, fails, truthy, falsy,
 	} from 'unit-test'
 
 [root, r] := beginUnitTest(import.meta.url)
@@ -117,7 +117,7 @@ equal analyzeTsCode("""
 	""").asString(), s"""
 	IMPORTS: willy: func
 	MISSING: x y z
-	""", line(121)
+	"""
 
 # --- Only t is needed, s is a parameter
 
@@ -127,7 +127,7 @@ equal analyzeTsCode("""
 	func('abc');
 	""").asString(), s"""
 	MISSING: t
-	""", line(131)
+	"""
 
 # --- Same, only using 'function' keyword
 
@@ -138,7 +138,7 @@ equal analyzeTsCode("""
 	func('abc');
 	""").asString(), s"""
 	MISSING: t
-	""", line(142)
+	"""
 
 # ---------------------------------------------------------------------------
 # test astAsString()
@@ -170,4 +170,4 @@ equal astAsString(ts2ast('const x = 42;')), """
 	symbolCount: 0
 	identifiers:
 		x:: x
-	""", line(174)
+	"""

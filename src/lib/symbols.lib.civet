@@ -2,14 +2,22 @@
 
 import {existsSync} from '@std/fs'
 
+import {LOG, DBG, ERR} from 'logger'
 import {
-	undef, defined, notdefined, assert, croak,
+	undef, defined, notdefined, assert, croak, getErrStr,
+	TIterator, words,
 	} from 'base'
 import {hash, hashof, isHash, clearHash} from 'datatypes'
-import {keys} from 'llutils'
+import {keys, f} from 'llutils'
+import {indented} from 'indent'
 import {OL} from 'nice'
-import {findFile, isFile, modTime} from 'fsys'
+import {
+	findFile, isFile, modTime,
+	barf, allFilesMatching, withExt, parsePath,
+	CReadableFile, CWritableFile, toRelPath,
+	} from 'fsys'
 import {parseText} from 'hera-parse'
+import {CAnalysis, analyzeTsCode} from 'typescript'
 
 /**
  * @module symbols - locate common symbols
@@ -37,6 +45,8 @@ hAllSymbols: hashof<string> := {}
 #     Plus the time stamp of the file when loaded
 let loadFilePath: string = ''
 let loadFileModTime: Date = new Date(0)
+
+maxLineLen := 78
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -105,10 +115,60 @@ export getNeededImportStmts := (
 
 export getSymbolLib := (
 		symbol: string
-		hSymbols: hash = hAllSymbols
+		hSymbols: hashof<string> = hAllSymbols
 		): string? =>
 
-	if (symbol in hSymbols)
-		return hSymbols[symbol] as string
-	else
-		return undef
+	return hSymbols[symbol]
+
+# ---------------------------------------------------------------------------
+
+export buildDotSymbols := (
+		outPath: string = 'src/.symbols'
+		trace: boolean = false
+		): void =>
+
+	outfile := new CWritableFile(outPath)
+	for path of allFilesMatching('**/*.lib.ts')
+		try
+			infile := new CReadableFile(path)
+			contents := await infile.getContents()
+			analysis := analyzeTsCode(contents)
+			lExports := analysis.getExports()
+			{stub} := parsePath(path)
+
+			await outfile.writeln(stub)
+			let numSymbols = 0
+			for line of allExportLines lExports
+				await outfile.writeln(indented(line))
+				if trace
+					numSymbols += words(line).length
+			if trace
+				LOG f"#{numSymbols}:3 #{toRelPath(path)}"
+		catch err
+			ERR getErrStr(err) + " in #{path}"
+
+# ---------------------------------------------------------------------------
+# --- TIterator
+
+allExportLines := (
+		lExports: string[]
+		): TIterator<string> ->
+
+	lSymbols: string[] := []
+	let lineLen = 0     # --- always <= maxLineLen
+	for name of lExports.sort((a, b) => a.localeCompare(b))
+		pos := name.indexOf '<'
+		sym := (pos == -1) ? name : name.substring(0, pos)
+		if (lineLen + sym.length + 1 > maxLineLen)
+			yield lSymbols.join(' ')
+
+			# --- Initialize next line with current symbol
+			lSymbols.length = 0
+			lSymbols.push sym
+			lineLen = sym.length
+		else
+			lSymbols.push sym
+			lineLen += sym.length + 1
+	if (lSymbols.length > 0)
+		yield lSymbols.join(' ')
+	return

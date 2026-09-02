@@ -8,9 +8,10 @@ import {
 import {findFile, withExt, isFile} from 'fsys'
 import {execCmd, execTsFile, TExecResult} from 'exec'
 import {doCompileCivet} from 'civet'
-import {procOneFile, compileAllLibs} from 'proc-files'
+import {procOneFile} from 'proc-files'
 import {f, EXEC} from 'llutils'
 import {getCmdArgs, inspect} from 'cmd-args'
+import {compileAllLibs} from 'civet'
 
 [
 	lNonOptions

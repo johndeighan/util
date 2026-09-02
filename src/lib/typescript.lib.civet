@@ -19,21 +19,21 @@ import {
 	isHash, isString, isEmpty, nonEmpty, isNumber,
 	} from 'datatypes'
 import {MAP} from 'mapper'
+import {extractSourceMap} from 'stack'
 import {
 	getOptions, hasKey, CStringSetMap, f,
 	} from 'llutils'
 import {TBlockDesc, Blockify} from 'indent'
 import {
-	OL, ML, nice, TDescFunc, DUMP, LOGVALUE, DBGVALUE,
+	OL, ML, nice, TDescFunc, LOGVALUE, DBGVALUE,
 	} from 'nice'
 import {
 	extract, TPathItem, getString, getNumber, getArray,
 	} from 'extract'
 import {mkTempFile} from 'fsys'
+import {execCmd} from 'exec'
 import {Walker, TVisitKind} from 'walker'
 import {CMainScope, CScope} from 'scope'
-import {extractSourceMap} from 'stack'
-import {execCmd} from 'exec'
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -483,7 +483,7 @@ export analyzeTsCode := (
 	hAst := ts2ast tsCode
 
 	if dumpAST
-		DUMP astAsString(hAst), 'AST'
+		LOGVALUE astAsString(hAst), 'AST'
 
 	# ..........................................................
 

@@ -74,7 +74,7 @@ class CCieloCompiler extends CFileHandler
 			): TExecResult
 
 		civetPath := await cielo2civetFile(path)
-		return {success: true}
+		return {success: true, timeTaken: -1}
 
 export doCompileCielo := new CCieloCompiler()
 

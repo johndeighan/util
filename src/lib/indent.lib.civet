@@ -2,7 +2,7 @@
 
 import {LOG, ERR} from 'logger'
 import {
-	undef, defined, notdefined, croak, assert, matches,
+	undef, defined, notdefined, croak, assert, matches, allLinesIn,
 	} from 'base'
 import {esc, escm} from 'unicode'
 import {
@@ -30,6 +30,29 @@ export resetOneIndent := (
 	inputIndent = inStr
 	outputIndent = outStr
 	return
+
+# ---------------------------------------------------------------------------
+# Returns indentation of 1st indented line
+# or undef if none
+
+export getOneIndent := (block: string): string? =>
+
+	let nSpaces = 0
+	for line of allLinesIn(block)
+		lMatches := line.match /^\s+/
+		if defined(lMatches)
+			pre := lMatches[0]
+			if matches(pre, /^\t+$/)
+				return '\t'
+			else if matches(pre, /^\x20+$/)
+				if (nSpaces == 0)
+					nSpaces = pre.length
+				else if (pre.length < nSpaces)
+					assert (nSpaces % pre.length == 0), "Bad indent"
+					nSpaces = pre.length
+			else
+				croak "Bad indent: #{pre}"
+	return (nSpaces == 0) ? undef : ' '.repeat(nSpaces)
 
 # ---------------------------------------------------------------------------
 

@@ -25,7 +25,7 @@ export sinceLoadStr := (
 		datetime: (Date | integer)? = undef
 		) =>
 
-	return sprintf "%6d secs.", sinceLoad(datetime)
+	return sprintf("%8.3f sec", sinceLoad(datetime))
 
 # ---------------------------------------------------------------------------
 

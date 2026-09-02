@@ -1,6 +1,6 @@
 # extract.lib.civet
 
-import {LOG} from 'logger'
+import {LOG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, croak, assert, deepEqual,
 	} from 'base'
@@ -9,7 +9,7 @@ import {
 	isEmpty, nonEmpty, integer, array,
 	} from 'datatypes'
 import {sep} from 'llutils'
-import {nice} from 'nice'
+import {nice, LOGVALUE} from 'nice'
 
 # ---------------------------------------------------------------------------
 
@@ -62,16 +62,9 @@ export reportExtractError := (
 		errMsg: string? = undef
 		): void =>
 
-	LOG sep '=', "ERROR EXTRACTING #{pathstr}"
-	LOG sep '=', 'FROM'
-	try
-		LOG nice(x), {ignoreEmptyKeys: true}
-	catch err
-		LOG JSON.stringify(x, null, 3)
-	LOG sep '='
+	LOGVALUE x, "ERROR EXTRACTING #{pathstr} FROM", {ignoreEmptyKeys: true}
 	if defined(errMsg)
-		LOG errMsg
-	LOG sep '='
+		ERR errMsg
 	return
 
 # ---------------------------------------------------------------------------

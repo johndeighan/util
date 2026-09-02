@@ -2,7 +2,7 @@
 
 import {yellow, cyan, red, green} from '@std/fmt/colors'
 
-import {LOG, clearLog, getLog, logWidth} from 'logger'
+import {LOG, logWidth} from 'logger'
 import {undef, defined, deepEqual} from 'base'
 import {TVoidFunc} from 'datatypes'
 import {ML} from 'nice'

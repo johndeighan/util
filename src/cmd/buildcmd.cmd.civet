@@ -26,15 +26,27 @@ import {doUnitTest} from 'compile'
 await EXEC () =>
 	if (lStubs[0] == 'all')
 		LOG cmdTitle("BUILD ALL CMDS")
-		await procFiles
+		[hCounts] := await procFiles
 			[doCompileCivet, ['src/**/*.cmd.civet']],
-			{force}
-		if doTest
-			await procFiles [doUnitTest, ['src/**/*.cmd.ts']], {
-				capture: false
-				}
+			{force, quiet: true}
+		if (hCounts.err > 0)
+			ERR "#{hCounts.err} cmds didn't compile"
+		else
+			if (hCounts.processed > 0)
+				LOG "#{hCounts.processed} cmd files compiled"
+			if doTest
+				[hTestCounts] := await procFiles [doUnitTest, ['src/**/*.cmd.ts']], {
+					capture: false
+					}
+				if (hTestCounts.err > 0)
+					ERR "#{hTestCounts.err} unit tests didn't compile"
+				else if (hTestCounts.processed > 0)
+					LOG "#{hTestCounts.processed} cmd unit tests run"
 		if not noInstall
-			await procFiles [doInstallCmd, ['src/**/*.cmd.ts']]
+			[hInstallCounts] := await procFiles
+				[doInstallCmd, ['src/**/*.cmd.ts']]
+			if (hInstallCounts.processed > 0)
+				LOG "#{hInstallCounts.processed] commands installed"
 	else
 		for stub of lStubs
 			LOG cmdTitle("BUILD CMD #{stub}")

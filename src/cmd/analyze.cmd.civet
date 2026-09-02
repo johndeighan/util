@@ -4,7 +4,7 @@ import {LOG, DBG, ERR} from 'logger'
 import {assert, croak, undef, defined, notdefined} from 'base'
 import {EXEC} from 'llutils'
 import {getCmdArgs} from 'cmd-args'
-import {DUMP} from 'nice'
+import {LOGVALUE} from 'nice'
 import {findFile, slurp, fileExt, toRelPath} from 'fsys'
 import {analyzeTsCode} from 'typescript'
 import {civet2ts} from 'civet'
@@ -36,10 +36,10 @@ await EXEC () =>
 			croak "Bad path: #{path}"
 
 	analysis := analyzeTsCode tsCode, {dumpAST: true, trace: true}
-	DUMP analysis
+	LOGVALUE analysis, 'ANALYSIS'
 
 	if verbose
-		DUMP analysis, 'ANALYSIS'
+		LOGVALUE analysis, 'ANALYSIS'
 	else
-		DUMP analysis.asString(), 'ANALYSIS'
+		LOGVALUE analysis.asString(), 'ANALYSIS'
 

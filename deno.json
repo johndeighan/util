@@ -31,6 +31,7 @@
 		"@danielx/hera": "npm:@danielx/hera@0.9.6",
 		"@mozilla/source-map": "npm:source-map",
 
+		"node-types": "npm:@types/node"
 		"node-module": "node:module",
 		"node-fs": "node:fs",
 		"node-path": "node:path",
@@ -45,6 +46,8 @@
 		"npm-console-gui-tools": "npm:console-gui-tools",
 		"npm-blessed": "npm:@unblessed/node",
 		"npm-pug": "npm:pug",
+
+		"compile-config": "file:///C:/Users/johnd/util/compile.config.ts",
 
 		"logger":        "file:///C:/Users/johnd/util/src/lib/logger.lib.ts",
 		"stack":         "file:///C:/Users/johnd/util/src/lib/stack.lib.ts",

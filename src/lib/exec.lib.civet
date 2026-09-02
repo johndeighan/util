@@ -25,7 +25,6 @@ import {
 	hash, isEmpty, TStringMapper, isIterator, isAsyncIterator,
 	isString, isArray, isArrayOfStrings, nonEmpty,
 	} from 'datatypes'
-import {awaitAll, TSettleResult} from 'promise-utils'
 import {arrayAndAccumFrom} from 'iter-utils'
 import {MAP, accum} from 'mapper'
 import {
@@ -63,7 +62,7 @@ export type TStreamType = 'piped' | 'inherit'
 export type TExecResult =
 	success: boolean
 	notNeeded?: true
-	timeTaken?: number          # --- in secs
+	timeTaken: number          # --- in secs
 	cmdLine?: string
 	stdout?: string
 	stderr?: string
@@ -294,6 +293,7 @@ export abstract class CFileHandler
 		return {
 			success: true
 			notNeeded: true   # --- no post processing was done
+			timeTaken: 0
 			}
 
 	# ..........................................................
@@ -332,13 +332,6 @@ export abstract class CFileHandler
 
 			hResult := await @handle path, hOptions
 
-			# --- Add any missing fields
-			unless ('infile' in hResult)
-				Object.assign hResult, {infile: path}
-
-			unless ('timeTaken' in hResult)
-				Object.assign hResult, {timeTaken: timer.timeTaken()}
-
 			unless ('outfile' in hResult)
 				lOutFiles := @allOutPaths(path, hOptions)
 				if (lOutFiles.length == 1)
@@ -352,7 +345,10 @@ export abstract class CFileHandler
 					Object.assign hPostResult, {timeTaken: timer.timeTaken()}
 					Object.assign hResult, {hPostResult}
 
-			return hResult
+			return Object.assign hResult, {
+				infile: path
+				timeTaken: timer.timeTaken()
+				}
 
 		catch err
 			stderr := getErrStr(err)

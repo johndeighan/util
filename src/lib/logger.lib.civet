@@ -15,6 +15,39 @@ export enum TLogLevel {
 let lLogLevels: TLogLevel[] = [TLogLevel.INFO]
 let logLevel: TLogLevel = TLogLevel.INFO
 
+let boxLevel: number = 0
+
+# ---------------------------------------------------------------------------
+
+export inUnitTest := () =>
+
+	return lLogLevels[0] == TLogLevel.TESTING
+
+# ---------------------------------------------------------------------------
+
+export beginBox := (title: string?): void =>
+
+	width := logWidth - 2*boxLevel
+	if (title == undefined)
+		LOG yellow('┌' + '─'.repeat(width-1))
+	else
+		LOG yellow('┌' + '─'.repeat(width-1))
+		LOG yellow('│') + ' ' + cyan(title)
+		LOG yellow('├' + '─'.repeat(width-1))
+	boxLevel += 1
+	return
+
+# ---------------------------------------------------------------------------
+
+export endBox := (): void =>
+
+	if (boxLevel == 0)
+		throw new Error("boxLevel = 0 in endBox()")
+	boxLevel -= 1
+	width := logWidth - 2*boxLevel
+	LOG yellow('└' + '─'.repeat(width-1))
+	return
+
 # ---------------------------------------------------------------------------
 
 curLevelLowerThan := (level: TLogLevel): boolean =>
@@ -47,7 +80,7 @@ export logLevelFromStr := (level: string): TLogLevel =>
 # ---------------------------------------------------------------------------
 
 let indentLevel = 0
-let lLogLines: string[] = []
+let lLogLines: string[] = []   # none should include \n
 
 export INDENT := Symbol 'indent'
 export UNDENT := Symbol 'undent'
@@ -168,12 +201,10 @@ export stringFits := (
 # ---------------------------------------------------------------------------
 
 export LOG := (
-		...lItems: unknown[]
+		item: unknown
 		): void =>
 
-	if (logLevel == TLogLevel.SILENT)
-		return
-	for item of lItems
+	if (logLevel != TLogLevel.SILENT)
 		logItem item
 	return
 
@@ -192,17 +223,16 @@ export WARN := (
 # ---------------------------------------------------------------------------
 
 export DBG := (
-		...lItems: unknown[]
+		item: unknown
 		): void =>
 
 	# --- if a debug file is defined, output even if
 	#     current log level is not 'debug'
-	appendDebugFile ...lItems
+	appendDebugFile item
 
 	if curLevelLowerThan TLogLevel.DEBUG
 		return
-	for item of lItems
-		logItem item
+	logItem item
 	return
 
 # ---------------------------------------------------------------------------
@@ -226,44 +256,85 @@ export ERR := (
 	return
 
 # ---------------------------------------------------------------------------
-# --- Make sure lines have no trailing whitespace
 
-export getLog := (
-	func?: () => void
-	): string =>
+export toConsole := (
+		block: string,
+		label: string = ''
+		): void =>
 
-	if (func != undefined)
-		clearLog()
-		func()
-	lLines: string[] := []     # --- should contain no NL chars
-	for block of lLogLines
-		for line of block.split('\n')
-			lLines.push line.replace(/\s+$/, '')
-	return lLines.join '\n'
+	if label
+		ch := '='
+		str20 := ch.repeat(20)
+		str40 := ch.repeat(40)
+		console.log str20 + ' ' + label + ' ' + str20
+		console.log block.replaceAll('\t', '   ')
+		console.log str40
+	else
+		console.log block.replaceAll('\t', '   ')
+	return
+
+# ---------------------------------------------------------------------------
+
+export toInternalLog := (
+		block: string,
+		label: string = ''
+		): void =>
+
+	if label
+		ch := '='
+		str20 := ch.repeat(20)
+		str40 := ch.repeat(40)
+		lLogLines.push str20 + ' ' + label + ' ' + str20
+		lLogLines.push stripAnsiCode(block)
+		lLogLines.push str40
+	else
+		lLogLines.push stripAnsiCode(block)
+	return
 
 # ---------------------------------------------------------------------------
 
 logItem := (
-		item: unknown,
+		item: unknown
+		color: string? = undefined
+		label: string? = undefined
 		): void =>
 
 	if (item == INDENT)
 		indentLevel += 1
-	else if (item == UNDENT)
+		return
+	if (item == UNDENT)
 		if (indentLevel > 0)
 			indentLevel -= 1
-	else
-		line := '\t'.repeat(indentLevel) + unknownToString(item)
+		return
+
+	block := unknownToString(item)
+	for str of block.split('\n')
+		line := (
+			  yellow('│ ').repeat(boxLevel)
+			+ '\t'.repeat(indentLevel)
+			+ str.replace(/\s+$/, '')
+			)
 
 		# --- Anything going to the console has TABs replaced
 		# --- In TESTING level, no output to console
-		if (logLevel != TLogLevel.TESTING)
-			console.log line.replaceAll('\t', '   ')
+		if not inUnitTest()
+			toConsole line
 
 		# --- Anything going to internal log has ANSI codes stripped
-		#     Add to lLogLines in TESTING level
-		lLogLines.push stripAnsiCode(line)
-		return
+		toInternalLog line
+
+	return
+
+# ---------------------------------------------------------------------------
+# --- Make sure lines have no trailing whitespace
+#     decolorize if in a unit test
+
+export getLog := (): string =>
+
+	if inUnitTest()
+		return stripAnsiCode(lLogLines.join('\n'))
+	else
+		return lLogLines.join('\n')
 
 # ---------------------------------------------------------------------------
 
@@ -273,6 +344,7 @@ export clearLog := (width: number = 78): void =>
 		throw new Error("Bad width: #{width}")
 	logWidth = width
 	lLogLines.length = 0
+	boxLevel = 0
 	return
 
 # ---------------------------------------------------------------------------

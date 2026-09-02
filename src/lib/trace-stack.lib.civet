@@ -1,18 +1,18 @@
 # trace-stack.lib.civet
 
-import {LOG, DBG, getLog} from 'logger'
+import {LOG, DBG} from 'logger'
 import {
 	undef, defined, notdefined, assert, obviously, croak,
 	deepCopy, TIterator, colorize,
 	} from 'base'
 import {esc} from 'unicode'
-import {indented} from 'indent'
 import {
 	hash, isInteger, isString, isArray, isNonEmptyString, isEmpty,
 	} from 'datatypes'
 import {
 	spaces, getOptions, centered, sep, arrayToBlock, rtrim,
 	} from 'llutils'
+import {indented} from 'indent'
 import {OL} from 'nice'
 
 export mainName := '_MAIN_'
@@ -266,17 +266,10 @@ export class CCallStack
 
 		if @doDebugStack
 			LOG centered 'CALL STACK', {char: '-'}
-			LOG @dumpStr()
+			for node,i of @allNodes()
+				LOG indented @callStr(node), i, {oneIndent: @oneIndent}
 			LOG sep()
 		return
-
-	# ........................................................................
-
-	dumpStr(): string
-
-		lLines := for node,i of @allNodes()
-			indented @callStr(node), i, {oneIndent: @oneIndent}
-		return arrayToBlock lLines
 
 	# ........................................................................
 

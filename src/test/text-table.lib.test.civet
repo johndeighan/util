@@ -5,7 +5,7 @@ import {undef} from 'base'
 import {o, s} from 'llutils'
 import {TextTable} from 'text-table'
 import {
-	beginUnitTest, equal, unifies, line,
+	beginUnitTest, equal, unifies,
 	} from 'unit-test'
 
 [root, r] := beginUnitTest(import.meta.url)
@@ -343,7 +343,7 @@ import {
 		{align: 'l', format: undef,  width: 6, total: undef, subtotal: undef}
 		{align: 'r', format: '%.2f', width: 7, total: 1170, subtotal: 1010}
 		{align: 'r', format: '%.2f', width: 6, total: 140, subtotal: 60}
-		], line(346)
+		]
 	)()
 
 # -------------------------------------------------------------
@@ -553,7 +553,7 @@ import {
 		Main   0   3 abc
 		Main   0   3 [abc def]
 		----------------------
-		""", line(556)
+		"""
 	)()
 
 # -------------------------------------------------------------
@@ -580,5 +580,5 @@ import {
 		Main   0   3 abc
 		Main   0   3 {a: 1 b: 2}
 		------------------------
-		""", line(583)
+		"""
 	)()

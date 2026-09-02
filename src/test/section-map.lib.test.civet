@@ -6,7 +6,7 @@ import {initLogLevel} from 'logger'
 import {undef, defined, notdefined, assert} from 'base'
 import {keys} from 'llutils'
 import {indented} from 'indent'
-import {DUMP} from 'nice'
+import {LOGVALUE} from 'nice'
 import {
 	TSetName, isSectionName, isSetName, CSection, CSet, SectionMap,
 	} from 'section-map'
@@ -120,7 +120,7 @@ falsy  isSetName 'aBCE'
 	sm.add 'body', 'h1 "Hello, World!"'
 	sm.add 'script', 'x := 42'
 
-	DUMP sm.asString(), 'HTML Text'
+	LOGVALUE sm.asString(), 'HTML Text'
 	equal sm.asString(), """
 		<h1>"Hello, World!"</h1>
 		x := 42

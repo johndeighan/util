@@ -36,7 +36,7 @@ import {
 import {procOneFile} from 'proc-files'
 import {doCompileFile} from 'compile'
 import {typeCheckTsCode} from 'typescript'
-import {nice, OL, ML, DUMP} from 'nice'
+import {nice, OL, ML, LOGVALUE} from 'nice'
 import {getNeededImportStmts} from 'symbols'
 let nextNum = 1
 
@@ -70,6 +70,7 @@ export getTestName := (): string =>
 	n := nextNum
 	nextNum += 1
 	frame := getMyOutsideCaller()
+#	console.log frame
 	return (defined(frame) ? "line #{frame.line}" : "line ?")
 
 # ---------------------------------------------------------------------------
@@ -235,8 +236,8 @@ export strongerThan := (
 
 	if not isStrongerThan(value, expected)
 		ERR "strongerThan test fails"
-		DUMP value, 'VALUE'
-		DUMP expected, 'EXPECTED'
+		LOGVALUE value, 'VALUE'
+		LOGVALUE expected, 'EXPECTED'
 
 	Deno.test name || getTestName(), (): void =>
 		assert isStrongerThan(value, expected)
@@ -494,15 +495,15 @@ export mockAsyncTask := <T=unknown>(
 export mockPromise := <T=unknown>(
 		value: T
 		ms: number = 10
-		doFail: boolean = false
+		errMsg: string? = undef
 		): Promise<T> =>
 
 	return new Promise<T> (resolve, reject) =>
 		DBG "START TASK #{value}"
 		await sleep(ms)
 		DBG "END TASK #{value}"
-		if doFail
-			reject(new Error("Task #{value} failed"))
+		if defined(errMsg)
+			reject(new Error(errMsg))
 		else
 			resolve(value)
 

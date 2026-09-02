@@ -12,7 +12,6 @@ import {
 	TVoidFunc, hash, hashof, TStringMapper, TAsyncStringMapper,
 	} from 'datatypes'
 import {getOptions, abbrevStr} from 'llutils'
-import {DUMP} from 'nice'
 import {mkpath, withExt, slurp, barf, isFile, isDir} from 'fsys'
 import {civet2js} from 'civet'
 

@@ -1,7 +1,7 @@
 # parse-utils.lib.test.civet
 
 import {initLogLevel, clearLog, getLog} from 'logger'
-import {decolorize} from 'base'
+import {decolorize, deepFreeze} from 'base'
 import {s} from 'llutils'
 import {
 	slot, TStrLoc, TParseMatch, CParseMatches,
@@ -18,14 +18,6 @@ equal slot('name', 2), ['└┘', 'na']
 equal slot('name', 3), ['└─┘', 'nam']
 equal slot('name', 4), ['└──┘', 'name']
 equal slot('name', 6), ['└────┘', ' name ']
-
-str := """
-	./x
-	test
-		im
-		ex
-			ret
-	"""
 
 pm := new CParseMatches()
 pm.match 'EOL',      [ 3, 1]
@@ -46,31 +38,34 @@ pm.match 'Line',     [17, 4]
 pm.match 'Block',    [17, 4]
 pm.match 'UNDENT',   [21, 1]
 pm.match 'Block',    [10, 6]
+deepFreeze(pm)
 
-equal pm.matchesTable(), s"""
-	------------------------
-			  matches
-	------------------------
-		Op    Pos Len  data
-	-------- --- --- -------
-	EOL        3   1 42.00
-	Root       0   4 abc
-	Name       4   4 ｟undef｠
-	EOL        8   1 ｟undef｠
-	FileName   4   5 ｟undef｠
-	INDENT     9   1 ｟undef｠
-	EOL       12   1 ｟undef｠
-	Line      10   3 ｟undef｠
-	EOL       15   1 ｟undef｠
-	Line      13   3 ｟undef｠
-	INDENT    16   1 ｟undef｠
-	EOL       20   1 ｟undef｠
-	Line      17   4 ｟undef｠
-	Block     17   4 ｟undef｠
-	UNDENT    21   1 ｟undef｠
-	Block     10   6 ｟undef｠
-	------------------------
-	"""
+(() =>
+	equal pm.matchesTable(), s"""
+		------------------------
+				  matches
+		------------------------
+			Op    Pos Len  data
+		-------- --- --- -------
+		EOL        3   1 42.00
+		Root       0   4 abc
+		Name       4   4 ｟undef｠
+		EOL        8   1 ｟undef｠
+		FileName   4   5 ｟undef｠
+		INDENT     9   1 ｟undef｠
+		EOL       12   1 ｟undef｠
+		Line      10   3 ｟undef｠
+		EOL       15   1 ｟undef｠
+		Line      13   3 ｟undef｠
+		INDENT    16   1 ｟undef｠
+		EOL       20   1 ｟undef｠
+		Line      17   4 ｟undef｠
+		Block     17   4 ｟undef｠
+		UNDENT    21   1 ｟undef｠
+		Block     10   6 ｟undef｠
+		------------------------
+		"""
+	)()
 
 (() =>
 	clearLog()

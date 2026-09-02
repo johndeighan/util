@@ -1,19 +1,18 @@
 # stack.lib.civet
 
-import {exists, existsSync} from '@std/fs'
+import {existsSync} from '@std/fs'
 import {sprintf} from '@std/fmt/printf'
-import process from "node:process"
 import {SourceMapConsumer} from '@mozilla/source-map'
-import {red, stripAnsiCode} from '@std/fmt/colors'
-import {AssertionError} from '@std/assert'
-import {
-	resolve, relative, isAbsolute, fromFileUrl, dirname,
-	} from '@std/path'
+import {red, green, stripAnsiCode} from '@std/fmt/colors'
+import {dirname} from '@std/path'
+import {CallSite} from "node-types";
 
 import {
-	openDebugFile, removeDebugFile, closeDebugFile, LOG, DBG, ERR,
+	openDebugFile, removeDebugFile, closeDebugFile, inUnitTest,
+	LOG, DBG, ERR,
 	} from 'logger'
-import {getErrStr} from 'base'
+import {undef, defined, getErrStr} from 'base'
+import {integer} from 'datatypes'
 import {normalizePath, toRelPath, isFullPath, toFullPath} from 'llfs'
 
 type TIterator<TIn, TOut=void, TAcc=void> = Generator<TIn, TOut, TAcc>
@@ -33,15 +32,15 @@ export type TFrameType = (
 	)
 
 export type TStackFrame = {
-	i: number
+	i: integer
 	type: string
 	source: string        # relative file path or 'unknown'
 	line: number
 	col: number
 	name: string          # name of function or method
-	orgSource?: string
-	orgLine?: number
-	orgCol?: number
+	orgSource: string
+	orgLine: number
+	orgCol: number
 	}
 
 # ---------------------------------------------------------------------------
@@ -64,12 +63,24 @@ export type TFilePosition = {
 
 # ---------------------------------------------------------------------------
 
+getFrameType := (site: CallSite): string =>
+
+	return (
+		site.getFunctionName() ? 'function'
+		: site.getMethodName() ? 'method'
+		: site.isTopLevel      ? 'script'
+		: site.isEval()        ? 'eval'
+		: site.isNative()      ? 'native'
+		: site.isConstructor() ? 'constructor'
+		:                        'unknown'
+		)
+
+# ---------------------------------------------------------------------------
+
 export allStackFrames := (
 		trace = false
 		): TIterator<TStackFrame> ->
 
-	debugger
-	process.setSourceMapsEnabled(false)   # --- doesn't work
 	openDebugFile 'stack'
 	fmt := (
 			line: number,
@@ -89,67 +100,55 @@ export allStackFrames := (
 		let prevFrame: TStackFrame? = undefined
 
 		# @ts-ignore
-		Error.prepareStackTrace = (error, lOrgFrames) =>
+		Error.prepareStackTrace = (error, lOrgFrames: CallSite[]) =>
 
-			let lFrames: TStackFrame[] = []
+			let lFrames: TStackFrame[] = []    # return value
 
 			for orgFrame,i of lOrgFrames
 
-				src := orgFrame.getFileName()    # --- a full path
-				if (
-						   (src == null)
-						|| (src == undefined)
-						|| not existsSync(src)
-						|| src.match(///ext \: cli \/ \d+_test\.js///)
-						)
+				let source: string = orgFrame.getFileName() || ''
+				if source
+					source = toRelPath source
+				let line: number   = orgFrame.getLineNumber() || -1
+				let col: number    = orgFrame.getColumnNumber() || -1
+				name: string   := orgFrame.getFunctionName() || orgFrame.getMethodName() || ''
+
+				# --- Get an initial frame object
+				frame: TStackFrame := {
+					i
+					type: getFrameType(orgFrame)
+					orgSource: source
+					orgLine:   line
+					orgCol:    col
+					source:    source
+					line:      line
+					col:       col
+					name
+					}
+
+				if trace
+					console.log frameStr(frame)
+
+				if not source
 					continue
-
-				orgSource := normalizePath src
-				orgLine   := orgFrame.getLineNumber() || 0
-				orgCol    := orgFrame.getColumnNumber() || 0
-
-				DBG '-'.repeat 64
-				DBG fmt(orgLine, orgCol, orgSource)
-
-				# --- These can be overwritten when using source maps
-				let source = orgSource
-				let line   = orgLine
-				let col    = orgCol
-
-				functionName := orgFrame.getFunctionName()
-				methodName   := orgFrame.getMethodName()
 
 				# --- follow source maps recursively
 				let newFilePos = mapPosSync({source, line, col})
 				while (newFilePos != undefined)
-					source = newFilePos.source   # --- already normalized
+					source = newFilePos.source
+					if source
+						source = toRelPath source
 					line   = newFilePos.line
 					col    = newFilePos.col
-					DBG fmt(line, col, source)
+					if trace
+						console.log "   => #{source}:#{line}:#{col}"
 					newFilePos = mapPosSync(newFilePos)
 
-				frame: TStackFrame := {
-					i
-					type: (
-						  functionName             ? 'function'
-						: methodName               ? 'method'
-						: orgFrame.isToplevel()    ? 'script'
-						: orgFrame.isEval()        ? 'eval'
-						: orgFrame.isNative()      ? 'native'
-						: orgFrame.isConstructor() ? 'constructor'
-						:                            'unknown'
-						)
-					source
-					line
-					col
-					name: functionName || methodName || ''
-					}
-
-				# --- Add original source, line & col if mapped
-				if (source != orgSource)
-					frame.orgSource = orgSource
-					frame.orgLine = orgLine
-					frame.orgCol = orgCol
+				# --- Add new line & col if mapped
+				if (source != frame.orgSource)
+					frame.source = source
+					frame.line = line
+					frame.col = col
 
 				# --- fix a bug in the V8 engine where calls inside a
 				#     top level anonymous function is reported as
@@ -159,8 +158,6 @@ export allStackFrames := (
 					prevFrame.type = 'function'
 					prevFrame.name = '<anon>'
 
-				if trace
-					LOG frameStr(frame, 'ORG FRAME')
 				prevFrame = frame
 				lFrames.push frame
 
@@ -298,16 +295,20 @@ export getMappings := (
 
 export frameStr := (
 		frame: TStackFrame,
-		label: string = 'FRAME'
 		): string =>
 
-	{i, type, source, line, col, name} := frame
+	posStr := (line: number, col: number): string =>
+		return inUnitTest() ? "#{line}:#{col}" : green("#{line}:#{col}")
+
+	{i, type, orgSource, orgLine, orgCol, source, line, col, name} := frame
 	typeStr := sprintf('%-8s', type)
 	nameStr := sprintf('%-16s', name)
-	if source
-		return "#{label}[#{i}]: #{typeStr} #{nameStr} #{source}:#{line}:#{col}"
+	prefix := "#{i}: #{typeStr} #{nameStr}"
+	if orgSource
+		mapped := (source == orgSource) ? '' : " => #{source} #{posStr(line, col)}"
+		return "#{prefix} #{orgSource} #{posStr(orgLine, orgCol)}" + mapped
 	else
-		return "#{label}[#{i}]: #{typeStr} #{nameStr} <none>"
+		return "#{prefix} <none>"
 
 # ---------------------------------------------------------------------------
 
@@ -317,7 +318,7 @@ export extractSourceMap := (
 
 	lMatches := contents.match ///^
 			(.*)
-			\/ \/ \# \s+
+			\/ \/ \#? \s+
 			sourceMappingURL=data:application\/json;
 			(?:charset=utf-8;)?
 			base64,
@@ -355,4 +356,3 @@ export decodeLine := (line: string): number[][] =>
 				shift += 5
 			lOutput.push(v & 1 ? -(v >> 1) : v >> 1) # low bit is sign
 		lOutput
-

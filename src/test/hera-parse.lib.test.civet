@@ -1,9 +1,11 @@
 # hera-parse.lib.test.civet
 
 import {esc} from 'unicode'
+import {isFile} from 'fsys'
 import {parseText, parseFile, str2indents} from 'hera-parse'
 import {
-	beginUnitTest, setDirTree, equal, truthy, falsy, succeeds, fails,
+	beginUnitTest, setDirTree,
+	equal, truthy, falsy, succeeds, fails,
 	} from 'unit-test'
 
 [root, r] := beginUnitTest(import.meta.url)
@@ -20,12 +22,14 @@ setup := (): void ->
 			Program
 				"a"* "b"*
 					return ($1.length - $2.length)
-				return
 		"""
 
 await setup()
 
 # ---------------------------------------------------------------------------
+
+truthy isFile(r'test.parse.temp.hera')
+truthy isFile(r'test.parse.ts')
 
 equal esc(str2indents("""
 	file

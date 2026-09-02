@@ -2,11 +2,12 @@
 
 import {compile} from "@danielx/hera"
 
-import {undef, assert, croak, getErrStr} from 'base'
+import {undef, defined, assert, croak, getErrStr} from 'base'
 import {isString} from 'datatypes'
-import {parsePath, withExt} from 'fsys'
+import {spaces, tabs} from 'llutils'
+import {getOneIndent} from 'indent'
 import {mdGet} from 'meta-data'
-import {DUMP} from 'nice'
+import {parsePath, withExt} from 'fsys'
 import {civet2ts} from 'civet'
 
 export type THeraType = 'typescript' | 'civet'
@@ -18,11 +19,23 @@ export isHeraType := (x: unknown): x is THeraType =>
 
 export compileHera := (
 		heraCode: string
-		type: THeraType
+		type: THeraType = 'typescript'
 		filename: string? = undef
 		): string =>
 
-	assert not heraCode.includes('\t'), "code has TABs"
+	# --- NOTE: getOneIndent() always returns one of:
+	#           one or more TABs
+	#           one or more space chars
+	#           undef
+	oneIndent := getOneIndent(heraCode)
+	if defined(oneIndent)
+		if (oneIndent == '\t')
+			heraCode = heraCode.replaceAll('\t', '  ')
+		else
+			len := oneIndent.length
+			if (len != 2)
+				heraCode = heraCode.replaceAll(spaces(len), spaces(2))
+
 	code := compile heraCode, {
 		language: type
 		module: true

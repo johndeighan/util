@@ -9,16 +9,16 @@ import {
 	pass, toBool, allLinesIn, decolorize,
 	} from 'base'
 import {uni, esc} from 'unicode'
-import {MAP, mkArray, accum} from 'mapper'
 import {
 	hash, isHash, isEmpty, nonEmpty,
 	jsType, regexpDef,  symbolName, functionName, className,
-	isString, isNumber, isFunction, isClass, isArray,
+	isString, isNumber, isFunction, isClass, isArray, isPrimitive,
 	} from 'datatypes'
-import {indented} from 'indent'
+import {MAP, mkArray, accum} from 'mapper'
 import {
 	truncStr, getOptions, arrayToBlock, sep, f, rtrim,
 	} from 'llutils'
+import {indented} from 'indent'
 
 # ---------------------------------------------------------------------------
 
@@ -442,6 +442,12 @@ export needsEscape := (str: string): boolean =>
 
 # ---------------------------------------------------------------------------
 
+isMultiLine := (x: unknown): boolean =>
+
+	return isPrimitive(x)
+
+# ---------------------------------------------------------------------------
+
 export DUMPER := (
 		x: unknown,
 		label: string = '',
@@ -482,52 +488,38 @@ export DUMPER := (
 
 # ---------------------------------------------------------------------------
 
-export DUMP := (
-		x: unknown,
-		label: string? = undef,
-		hOptions: hash = {}
-		): void =>
-
-	console.log DUMPER(x, label, hOptions)
-	return
-
-# ---------------------------------------------------------------------------
-
-export DDUMP := (
-		x: unknown,
-		label: string? = undef,
-		hOptions: hash = {}
-		): void =>
-
-	DBG DUMPER(x, label, hOptions)
-	return
-
-# ---------------------------------------------------------------------------
-
 export LOGVALUE := (
-		value: unknown
-		label: string = 'VALUE'
+		x: unknown
+		label: string
+		hOptions: hash = {}
 		): void =>
 
-	str := nice(value, logWidth)
+	if isMultiLine(x)
+		LOG DUMPER(x, label, hOptions)
+		return
+	str := nice(x, logWidth)
 	if str.includes('\n')
 		LOG f"#{label}:{cyan} ="
 		LOG indented(str)
 	else
-		LOG f"#{label}:{cyan} = #{nice(value)}"
+		LOG f"#{label}:{cyan} = #{nice(x)}"
 	return
 
 # ---------------------------------------------------------------------------
 
 export DBGVALUE := (
-		value: unknown
-		label: string = 'VALUE'
+		x: unknown
+		label: string
+		hOptions: hash = {}
 		): void =>
 
-	str := nice(value, logWidth)
+	if isMultiLine(x)
+		DBG DUMPER(x, label, hOptions)
+		return
+	str := nice(x, logWidth)
 	if str.includes('\n')
 		DBG f"#{label}:{cyan} ="
 		DBG indented(str)
 	else
-		DBG f"#{label}:{cyan} = #{nice(value)}"
+		DBG f"#{label}:{cyan} = #{nice(x)}"
 	return

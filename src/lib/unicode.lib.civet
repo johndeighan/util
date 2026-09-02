@@ -11,13 +11,14 @@ import {hash, hashof, char} from 'datatypes'
 export uni := {
 	lsmartq: '“'      # U+201C
 	rsmartq: '”'      # U+201D
-	vbar: '│'
-	hbar: '─'
+	hbar: '─'         # U+2500
+	vbar: '│'         # U+2502
 	tlcorner: '┌'
 	trcorner: '┐'
 	blcorner: '└'
 	brcorner: '┘'
-	tee: '├'
+	rtee: '├'         # U+251C
+	ltee: '┤'         # U+2524
 	arrowhead: '>'
 	backarrow: '<'
 	space: ' '

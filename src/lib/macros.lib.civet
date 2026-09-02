@@ -82,7 +82,7 @@ export expand := (
 # ---------------------------------------------------------------------------
 # ASYNC
 
-export mapString := (
+export strApplyMacros := (
 		text: string
 		hMacros: TMacroLib
 		): string =>
@@ -95,7 +95,7 @@ export mapString := (
 # ---------------------------------------------------------------------------
 # ASYNC
 
-export mapFile := (
+export fileApplyMacros := (
 		path: string
 		hMacros: TMacroLib
 		): string =>
@@ -106,7 +106,7 @@ export mapFile := (
 	file := new CReadableFile path
 	hMetaData := await file.metaData()
 	text := await file.getContents()
-	return await mapString text, hMacros
+	return await strApplyMacros text, hMacros
 
 # ---------------------------------------------------------------------------
 
@@ -176,11 +176,12 @@ export class CMacroCompiler extends CFileHandler
 		destPath := @allOutPaths(path, hOptions)[0]
 		try
 			input := await Deno.readTextFile path
-			output := await mapString(input, @hLib)
+			output := await strApplyMacros(input, @hLib)
 			await Deno.writeTextFile destPath, output
 			return {
 				success: true
 				stdout: output
+				timeTaken: -1
 				}
 
 		catch err
@@ -189,4 +190,5 @@ export class CMacroCompiler extends CFileHandler
 			return {
 				success: false
 				stderr: errMsg
+				timeTaken: -1
 				}

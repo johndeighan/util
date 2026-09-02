@@ -17,7 +17,7 @@ import {
 	keys, getOptions, o, spaces,
 	} from 'llutils'
 import {resetOneIndent, indented} from 'indent'
-import {OL, DUMP} from 'nice'
+import {OL, LOGVALUE} from 'nice'
 
 export doSetLogLevel := true
 	# --- interprets:
@@ -205,7 +205,7 @@ export getCmdArgs := (
 		lErrors.push "#{n} non-options but max is #{maxNonOpt}"
 
 	if nonEmpty(lErrors)
-		DUMP lErrors, "Command Arg Errors"
+		LOGVALUE lErrors, "Command Arg Errors"
 		croak "Errors in Command Args"
 
 	if helping && (curLogLevel() != 'testing')

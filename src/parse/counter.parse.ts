@@ -75,10 +75,8 @@ function Program($$ctx: ParserContext, $$state: ParseState) {
   const $$value = $$r.value;
   const $$m = (function($loc: Loc, $1: typeof $$value[0], $2: typeof $$value[1]) {
     void $loc, $1, $2;
-    return function() {
-        pm.match('Program', $loc);
-        return pm.returnVal(($1.length - $2.length));
-    }
+    pm.match('Program', $loc);
+    return pm.returnVal(($1.length - $2.length));
   })($$r.loc, $$value[0], $$value[1]);
   ($$r as any).value = $$m;
   $$ctx.exit?.("Program", $$state, $$r, $$eventData);

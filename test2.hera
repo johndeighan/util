@@ -2,16 +2,18 @@
 import {CParseMatches} from 'parse-utils';
 export let pm = new CParseMatches();
 
+const name = 'John Deighan'
+const lItems: string[] = []
+
 export const beginParse = (
     text: string,
     hOptions: {[key: string|symbol]: unknown} = {}
     ): string|undefined => {
   pm.reset(text);
-
+  lItems.length = 0
   }
 ```
 
-Program
-  "a"* "b"* ->
-    pm.match('Program', $loc);
-    return pm.returnVal(($1.length - $2.length));
+Main1
+  /abc/ ->
+    pm.match('Main1', $loc);

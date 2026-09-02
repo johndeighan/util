@@ -1,10 +1,7 @@
 # promise-utils.lib.civet
 
 import {assert, getErrStr, sleep} from 'base'
-import {MAP, accum} from 'mapper'
 import {hash, isArray, isPromise, isFunction} from 'datatypes'
-import {getOptions} from 'llutils'
-import {OL} from 'nice'
 
 # ---------------------------------------------------------------------------
 
@@ -28,7 +25,7 @@ export evalPromise := <T=unknown>(
 # ---------------------------------------------------------------------------
 
 export type TSettleResult<T> =
-	[true, T, number] | [false, unknown, number]
+	[true, T, number] | [false, string, number]
 
 export type TPromiseFunc<T> = () => Promise<T>
 
@@ -36,28 +33,32 @@ export type TPromiseFunc<T> = () => Promise<T>
 # ASYNC
 
 export awaitAll := <T>(
-		lFuncs: (() => Promise<T>)[]
+		lPromises: Promise<T>[]
 		onSettle: (result: TSettleResult<T>) => void
 		): void =>
 
-	await lFuncs.map (func, i) =>
-		[isOk, value] := await evalPromise func()
-		if isOk
-			onSettle [true, value, i]
-		else
-			onSettle [false, value, i]
+	lMonitoredPromises := lPromises.map (promise, i) =>
+		try
+			result: T := await promise
+			onSettle [true, result, i]
+			return result
+		catch err
+			onSettle [false, getErrStr(err), i]
+			throw err
+
+	await Promise.allSettled(lMonitoredPromises)
 	return
 
 # ---------------------------------------------------------------------------
 
 export awaitAllSerially := <T>(
-		lFuncs: (() => Promise<T>)[]
+		lPromises: Promise<T>[]
 		onSettle: (result: TSettleResult<T>) => void
 		): void =>
 
-	for func,i of lFuncs
+	for promise,i of lPromises
 		try
-			value := await func()
-			onSettle [true, value, i]
+			result := await promise
+			onSettle [true, result, i]
 		catch err
 			onSettle [false, getErrStr(err), i]

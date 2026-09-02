@@ -25,7 +25,8 @@ import {
 	looksLikeNumber, looksLikeInteger,
 	} from 'datatypes'
 import {
-	beginUnitTest, equal, truthy, falsy, fails, succeeds, sampleVal,
+	beginUnitTest, sampleVal,
+	equal, truthy, falsy, fails, succeeds,
 	} from 'unit-test'
 
 [root, r] := beginUnitTest(import.meta.url)
@@ -435,4 +436,3 @@ truthy looksLikeNumber '0'
 truthy looksLikeNumber '42'
 falsy  looksLikeNumber 'abc'
 truthy looksLikeNumber '3.14'
-

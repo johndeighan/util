@@ -9,7 +9,7 @@ import {
 	cielo2civet, cielo2civetFile, doCompileCielo,
 	} from 'cielo'
 import {
-	beginUnitTest, setDirTree, line,
+	beginUnitTest, setDirTree,
 	equal, succeeds, fails, truthy, falsy, strongerThan,
 	} from 'unit-test'
 
@@ -39,10 +39,10 @@ await setup()
 
 equal await cielo2civet('x := 42'), 'x := 42'
 (() =>
-	equal await cielo2civetFile(r'test.cielo'), r'test.civet', line(42)
-	truthy isFile(r'test.civet'), line(43)
+	equal await cielo2civetFile(r'test.cielo'), r'test.civet'
+	truthy isFile(r'test.civet')
 	rmFile r'test.civet'
-	falsy isFile(r'test.civet'), line(45)
+	falsy isFile(r'test.civet')
 	)()
 
 await (() =>
@@ -56,14 +56,14 @@ await (() =>
 		success: true
 		infile: r'test.cielo'
 		outfile: r'test.civet'
-		}, line(55)
+		}
 
-	truthy isFile(r'test.civet'), line(61)
+	truthy isFile(r'test.civet')
 
 	hResult2 := await procOneFile(r'test.cielo', doCompileCielo)
 	strongerThan hResult2, {
 		success: true
 		notNeeded: true
 		infile: r'test.cielo'
-		}, line(64)
+		}
 	)()

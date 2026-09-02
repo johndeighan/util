@@ -4,13 +4,16 @@ import {expandGlobSync} from '@std/fs/expand-glob'
 import {TextLineStream} from "jsr:@std/streams/text-line-stream"
 import {exists, existsSync} from '@std/fs'
 
-import {LOG, DBG, ERR, clearLog, getLog} from 'logger'
+import {
+	LOG, DBG, ERR, clearLog, getLog, toConsole,
+	beginBox, endBox,
+	} from 'logger'
 import {
 	undef, defined, notdefined, assert, obviously, croak,
 	TAsyncIterator, deepEqual, sleep, getErrStr, colorize,
-	decolorize, TIterator, range,
+	decolorize, TIterator, range, deepFreeze,
 	} from 'base'
-import {s, toBlock, EXEC, SKIP, sep, rtrim} from 'llutils'
+import {f, s, toBlock, EXEC, SKIP, sep, rtrim} from 'llutils'
 import {fromFSM, defaultDoneFunc, TState} from 'fsm'
 import {resetOneIndent, splitLine, indented} from 'indent'
 import {
@@ -23,29 +26,29 @@ import {
 	CReadableFile, CWritableFile,
 	barf, slurp, parsePath, findFile, isFile,
 	} from 'fsys'
-import {nice, OL, ML, DUMP} from 'nice'
+import {nice, OL, ML, LOGVALUE} from 'nice'
 import {TextTable, splitRows} from 'text-table'
 import {
 	doCompileHera, testHeraCode, preprocHera, preprocHeraFile,
 	} from 'hera-compile'
 import {parseText} from 'hera-parse'
 import {compileHera} from 'llhera'
-import {loadSymbols, symbolsFromString} from 'symbols'
+import {buildDotSymbols, loadSymbols, symbolsFromString} from 'symbols'
 import {typeCheckTsCode, CAnalysis, analyzeTsCode} from 'typescript'
 import {
 	TTextBlock, TMacroBlock, TBlock,
 	TMacroFunc, TMacroLib, isMacroLib,
-	expand, mapString, mapFile,
+	expand, strApplyMacros, fileApplyMacros,
 	} from 'macros'
 import {
 	getFileOps, TFileOp, setDirTree,
 	} from 'unit-test'
 import {CRule, CRuleBranch, mkCodeBlock} from 'rule'
 import {
-	awaitAll, TSettleResult,
+	awaitAll, awaitAllSerially, TSettleResult,
 	} from 'promise-utils'
 import {mockPromise, checkType} from 'unit-test'
-import {doCompileFile, doUnitTest, configFromFile} from 'compile'
+import {doCompileFile, doUnitTest} from 'compile'
 import {
 	stack, setTracing,
 	trEnter, trReturnFrom, trYieldFrom, trResume, tr,
@@ -53,167 +56,62 @@ import {
 import {CCallStack} from 'trace-stack'
 import {civet2js, civet2ts, civet2tsFile} from 'civet'
 import {generateAsync} from 'iter-utils'
-import {CTimer} from 'timer'
+import {CTimer, sinceLoadStr} from 'timer'
 import {doMakeMarkdown} from 'md-macros'
 import {doCompileCielo} from 'cielo'
+import {
+	slot, TStrLoc, TParseMatch, CParseMatches,
+	} from 'parse-utils'
+import {doMakeUnitTest} from 'ut-macros'
 
 # ---------------------------------------------------------------------------
 
-EXEC await () =>
+await EXEC () =>
 	debugger
-	hSymbols := await loadSymbols()
-	console.log hSymbols
+	lPromises := [
+		mockPromise(42, 3000)
+		mockPromise(23, 1000)
+		mockPromise(300, 2000, 'bad')
+		]
 
-await SKIP () =>
-	clearLog()
-	setTracing true
-
-	trEnter 'func1', [42, undef]
-	trEnter 'func2', ['abc', []]
-	tr undef, 'x'
-	trYieldFrom 'func2', 42
-	trResume 'func2'
-	tr 42, 'x'
-	trReturnFrom 'func2'
-	trReturnFrom 'func1'
-
-	str := getLog()
-
-	expected := """
-		enter func1
-		│   enter func2
-		│   └─> return ｟undef｠ from func2\n
-		└─> return ｟undef｠ from func1\n
-		"""
-
-SKIP () =>
-	path := 'src/test/datatypes.lib.test.civet'
-	h := parsePath(path)
-	stub := h.stub.endsWith('.lib') ? h.stub.replace('.lib', '') : h.stub
-	await procOneFile path, doCompileCivet, {force: true, quiet: true}
-	hResult := await procOneFile withExt(path, '.ts'), doUnitTest, {
-		capture: true
-		quiet: true
-		}
-	DUMP hResult, "hResult for #{stub}"
-
-SKIP () =>
-	desc := ''
-	lFileOps := await parseText<TFileOp[]> 'dir-tree', desc, {trace: true}
-
-	console.log lFileOps
-
-SKIP () =>
-	{stdout, stderr} := await execCmd 'echo', ["Hello"]
-	console.log stdout
-	console.log stderr
-
-SKIP () =>
-	# --- Write out an invalid civet file
-	path := 'src/test/exec/bad.civet'
-	barf path, """
-		let  :== 92
-		"""
-	debugger
-	hResult := await procFiles [doCompileCivet, ['src/test/exec/*.civet']], {serial: true}
-	DUMP hResult, 'hResult'
-
-SKIP () =>
-	result := await parseText 'dir-tree', """
-		./src
-		file
-			abc
-
-			def
-		"""
-	DUMP result, 'result'
-
-SKIP () =>
-	result := await parseText('macros', """
-		abc
-			#h1
-				def
-		""")
-
-	DUMP result, 'result'
+	lAllResults: TSettleResult<number>[] := []
+	await awaitAllSerially lPromises, (result) =>
+		lAllResults.push result
+	console.log lAllResults
 
 	expected := [
-		{
-			type: "text",
-			firstLine: "abc",
-			lContent: [
-				{
-					type: "macro",
-					name: "h1",
-					args: ""
-					lContent: [
-						{
-							type: 'text'
-							firstLine: 'def'
-							lContent: []
-							}
-						],
-					}
-				],
-			}
+		[true, 42, 0]
+		[true, 23, 1]
+		[false, "bad", 2]
 		]
 
 SKIP () =>
-	table := new TextTable('l r%.2f r%.2f')
-	table.fullsep '-'
-	table.title   'My Expenses'
-	table.fullsep '-'
-	table.labels  ['', 'Jan', 'Feb']
-	table.sep()
-	table.data    ['coffee', 30, 40]
-	table.fullsep '='
-	LOG table.asString({trace: true})
-
-	expected := """
-		-----------------------
-		      My Expenses
-		-----------------------
-		           Jan    Feb
-		-------- ------- ------
-		coffee     30.00  40.00
-		=======================
+	root := 'src/test/llfs'
+	await setDirTree """
+		./#{root} clear
+		file.txt
+			abc
+		file.civet compile
+			console.log "Hello"
+		/temp
+			file.txt
+				xyz
 		"""
 
 SKIP () =>
-	result := await parseText('nice', """
-		abc: 1
-		def: 2
-		""")
-	LOG result
-
-
-	expected := {abc:1, def:2}
-
-SKIP () =>
 	debugger
-	path := 'src/parse/nice.parse.hera'
-
-	# --- preprocess file
-	[heraCode, type] := await preprocHeraFile path, withExt(path, '.temp.hera')
-	DUMP heraCode, type
-
-	# --- hera compile to get TypeScript file
-	tsCode := await compileHera heraCode, type, 'nice.parse.hera'
-	Deno.writeTextFileSync withExt(path, '.ts'), tsCode
-	DUMP tsCode, 'RESULT'
-
-	console.log 'DONE'
-
-SKIP () =>
-	path := 'src/parse/macro.parse.hera'
-	procOneFile path, doCompileHera
-	result := parseText 'macro', """
-		abc
-		def
-			ghi
-				jkl
-				mno
-			pqr
-		stu
-		""", {debug: true}
-	DUMP result, 'RESULT'
+	awaitAllSerially<string>
+		[
+			mockPromise('abc', 500)
+			mockPromise('def', 300, 'bad input')
+			mockPromise('ghi', 800)
+			mockPromise('jkl', 100, 'bad input 2')
+			mockPromise('mno', 200)
+			]
+		(result) =>
+			[ok, val, i] := result
+			pre := "#{sinceLoadStr()} [#{i}]"
+			if ok
+				console.log f"#{pre} #{OL(val)}:{green}"
+			else
+				console.log f"#{pre} #{getErrStr(val)}:{red}"

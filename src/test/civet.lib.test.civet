@@ -9,14 +9,14 @@ import {undef, defined} from 'base'
 import {isHash} from 'datatypes'
 import {s, rtrim} from 'llutils'
 import {slurp, withExt, rmFile, isFile} from 'fsys'
-import {procOneFile, compileAllLibs} from 'proc-files'
+import {procOneFile} from 'proc-files'
 import {ts2ast, astAsString} from 'typescript'
 import {
 	civet2ts, civet2js, civet2tsFile, civet2ast, a, A,
-	doCompileCivet,
+	doCompileCivet, compileAllLibs, compileAllUnitTests,
 	} from 'civet'
 import {
-	beginUnitTest, setDirTree, line,
+	beginUnitTest, setDirTree,
 	equal, succeeds, fails, truthy, falsy,
 	} from 'unit-test'
 
@@ -28,7 +28,7 @@ setup := (): void ->
 
 	await setDirTree """
 		./#{root} clear
-		test.civet compile
+		test.civet
 			x := 42
 			console.log "x = \#{x}"
 		bad.civet
@@ -56,26 +56,28 @@ await setup()
 	equal await civet2ts('x := 42', {inlineMap: false}), """
 		"use strict";
 		const x = 42
-		console.log(`x = ${x}`)
 		"""
-	)
+	)()
 
-(() =>
+await (() =>
 	path := r"test.civet"
 	tsPath := withExt path, '.ts'
 
-	debugger
 	await civet2tsFile path, tsPath, {inlineMap: false}
-	code := rtrim(slurp tsPath)
+
+	truthy isFile(tsPath)
+
+	code := rtrim(slurp(tsPath))
 	equal code, """
 		"use strict";
 		const x = 42
-		""", "THIS FAILS"
-	)
+		console.log(`x = ${x}`)
+		"""
+	)()
 
 (() =>
 	await succeeds () => await civet2ast('x := 42')
-	)
+	)()
 
 # ---------------------------------------------------------------------------
 
@@ -200,5 +202,5 @@ await (() =>
 		"""
 	)()
 
-fails (() => await civet2ts 'x =: 42'), line(203)
-fails (() -> await civet2tsFile r'bad.civet'), line(204)
+fails (() => await civet2ts 'x =: 42')
+fails (() -> await civet2tsFile r'bad.civet')

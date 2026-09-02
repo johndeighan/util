@@ -31,13 +31,16 @@ import {procOneFile} from 'proc-files'
 import {civet2tsFile, doCompileCivet} from 'civet'
 import {cielo2civetFile} from 'cielo'
 
+# --- import compiler configuration
+import {hConfig} from 'compile-config'
+
 # ---------------------------------------------------------------------------
 
-export type TCompilerFunc = (path: string, hOptions: hash) => TExecResult
-export type TPostProcessor = (path: string, hOptions: hash) => TExecResult
+export type TCompilerFunc = (path: string, hOptions: hash) => Promise<TExecResult>
+export type TPostProcessor = (path: string, hOptions: hash) => Promise<TExecResult>
 
 export type TCompilerInfo = {
-	isInstalled: () => boolean
+	isInstalled: () => Promise<boolean>
 	compiler: TCompilerFunc
 	getOutPaths: (path: string) => string[]
 	}
@@ -49,8 +52,8 @@ export isCompilerInfo := (x: unknown): x is TCompilerInfo =>
 		return false
 
 export type TCompilerConfig =
-	hCompilers: hashof<TCompilerInfo> # <string>: <TCompilerInfo>
-	hPostProcessors: hashof<TPostProcessor> # <string>: <TPostProcessor>
+	hCompilers: hashof<TCompilerInfo>
+	hPostProcessors: hashof<TPostProcessor>
 
 export isCompilerConfig := (x: unknown): x is TCompilerConfig =>
 	if (typeof x == 'object') && (x != null)
@@ -66,7 +69,6 @@ export getCompilerInfo := (
 		fileName: string? = undef
 		): TCompilerInfo? =>
 
-	hConfig := await getCompilerConfig(fileName)
 	return hConfig.hCompilers[ext]
 
 # ---------------------------------------------------------------------------
@@ -77,80 +79,12 @@ export getPostProcessor := (
 		fileName: string? = undef
 		): TPostProcessor? =>
 
-	hConfig := await getCompilerConfig(fileName)
 	pp := hConfig.hPostProcessors[purpose]
 	if defined(pp)
 		return pp
 	else
 		DBG "No post processor for #{purpose} files"
 		return undef
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-let cachedFileName: string? = undef
-let hCachedConfig: TCompilerConfig? = undef
-
-export getCompilerConfig := (
-		fileName: string = 'compile.config.civet'
-		): TCompilerConfig =>
-
-	debugger
-
-	# --- if cached, return cached config
-	if (fileName == cachedFileName)
-		assert defined(hCachedConfig), "#{fileName} not cached"
-		DBG "Returning cached compiler config from #{cachedFileName}"
-		return hCachedConfig
-
-	let hConfig = await configFromFile fileName
-
-	DBGVALUE hConfig, 'hConfig'
-	assert isCompilerConfig(hConfig), "Bad compiler config: #{hConfig}"
-
-	# --- Remove any compilers for which the
-	#     compiler software has not been installed
-	{hCompilers} := hConfig
-	for ext of keys(hCompilers)
-		{isInstalled} := hCompilers[ext]
-		if not await isInstalled()
-			DBG "Deleting compiler for ext #{OL(ext)}"
-			delete hCompilers[ext]
-
-	hCachedConfig = hConfig
-	cachedFileName = fileName
-	return hConfig
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export configFromFile := (
-		fileName: string
-		): hash =>
-
-	debugger
-	# --- config should be a hash named hConfig
-
-	path := findFile fileName
-	assert defined(path), "No such file: #{OL(fileName)}"
-
-	{purpose, ext} := parsePath path
-	assert defined(ext), "No file ext in #{OL(path)}"
-	assert ['.ts', '.civet'].includes(ext), "Invalid path: #{path}"
-	assert (purpose == 'config'), "Not a config file: #{OL(path)}"
-	DBG "Import config from #{OL(path)}"
-	tsPath := (
-		if (ext == '.civet')
-			if newerDestFileExists(path, '.ts')
-				withExt(path, '.ts')
-			else
-				await civet2tsFile(path)
-		else
-			path
-		)
-	fileUrl := toFileUrl(tsPath).href
-	{hConfig} := await import(fileUrl)
-	return hConfig
 
 # ---------------------------------------------------------------------------
 
@@ -191,7 +125,8 @@ class CFileCompiler extends CFileHandler
 				await getCompilerInfo ext, configFileName
 			)
 		if notdefined(@hCompilerInfo)
-			DBG "no compiler info for ext #{OL(ext)}", UNDENT
+			DBG "no compiler info for ext #{OL(ext)}"
+			DBG UNDENT
 			return false
 		return true
 
@@ -219,6 +154,7 @@ class CFileCompiler extends CFileHandler
 			return {
 				success: true
 				notNeeded: true
+				timeTaken: -1
 				}
 		obviously defined(purpose)
 		postProc := await getPostProcessor purpose
@@ -226,6 +162,7 @@ class CFileCompiler extends CFileHandler
 			return {
 				success: true
 				notNeeded: true
+				timeTaken: -1
 				}
 		DBG "post-processing file"
 		try
@@ -234,6 +171,7 @@ class CFileCompiler extends CFileHandler
 			return {
 				success: false
 				stderr: getErrStr(err)
+				timeTaken: -1
 				}
 
 	# ..........................................................
@@ -244,7 +182,8 @@ class CFileCompiler extends CFileHandler
 			hOptions: hash = {}
 			): TExecResult
 
-		DBG "COMPILE: #{OL(path)}", INDENT
+		DBG "COMPILE: #{OL(path)}"
+		DBG INDENT
 		{stub, purpose, ext} := parsePath path
 		obviously defined(@hCompilerInfo)
 		{compiler} := @hCompilerInfo

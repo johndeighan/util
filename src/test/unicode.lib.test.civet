@@ -6,7 +6,7 @@ import {
 	uni, lit, esc, escm, unesc,
 	} from 'unicode'
 import {
-	beginUnitTest, equal, succeeds, fails, truthy, falsy, line,
+	beginUnitTest, equal, succeeds, fails, truthy, falsy,
 	} from 'unit-test'
 
 [root, r] := beginUnitTest(import.meta.url)
@@ -24,12 +24,12 @@ equal esc('cba'), 'cba'
 equal esc('   acb'), '˳˳˳acb'
 equal esc('\t\t\tabc'), '→→→abc'
 equal esc('abc\r\ndef'), 'abc␍↓def'
-equal escm('abc\r\ndef'), 'abc␍↓\ndef', line(27)
+equal escm('abc\r\ndef'), 'abc␍↓\ndef'
 equal esc('abcc\n'), 'abcc↓'
 equal esc('abcb\r\n'), 'abcb␍↓'
 equal escm('abcb\r\n'), 'abcb␍↓\n'
 equal esc('ab cd'), 'ab˳cd'
-equal esc('ab\tcd'), 'ab→cd', line(32)
+equal esc('ab\tcd'), 'ab→cd'
 
 equal unesc('cba'), 'cba'
 equal unesc('˳˳˳acb'), '   acb'
@@ -42,4 +42,4 @@ equal unesc('abcb␍↓\n'), 'abcb\r\n'
 equal unesc('ab˳cd'), 'ab cd'
 equal unesc('ab→cd'), 'ab\tcd'
 
-equal escm('abc\ndef'), 'abc↓\ndef', line(45)
+equal escm('abc\ndef'), 'abc↓\ndef'
