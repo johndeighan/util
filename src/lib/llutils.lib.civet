@@ -600,13 +600,12 @@ export likeNum := (str: string): boolean =>
 	return toBool matches(str, /^\d+(\.\d*)?([Ee]\d+)?$/)
 
 # ---------------------------------------------------------------------------
-# ASYNC
 
-execAsync := (
-		asyncFunc: () => void
-		): Promise<unknown> =>
+export sortAnyArray := <T>(
+		lItems: T[]
+		): T[] =>
 
-	return await asyncFunc()
+	return lItems.toSorted()
 
 # ---------------------------------------------------------------------------
 # --- if passed an async function, will return a promise
@@ -618,7 +617,7 @@ export EXEC := (
 
 	try
 		if isAsyncFunction func
-			execAsync func
+			await func()
 		else
 			func()
 	catch err

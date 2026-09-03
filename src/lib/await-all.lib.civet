@@ -1,0 +1,41 @@
+# await-all.lib.civet
+
+import {getErrStr} from 'base'
+import {integer, TThunk} from 'datatypes'
+
+# ---------------------------------------------------------------------------
+
+export type TResult<T> = [true, T, integer] | [false, string, integer]
+export type TCallback<T> = (result: TResult<T>) => void
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export awaitAll := <T>(
+		lThunks: (TThunk<T>)[]
+		callback: TCallback<T>
+		limit: integer = 5
+		): (TResult<T>)[] =>
+
+	lResults: (TResult<T>)[] := new Array(lThunks.length)
+
+	iter := lThunks.entries()
+
+	# --- Worker function to consume tasks
+	worker := () =>
+		for [i, thunk] of iter
+			try
+				value := await thunk()
+				callback [true, value, i]
+				lResults[i] = [true, value, i]
+			catch err
+				callback [false, getErrStr(err), i]
+				lResults[i] = [false, getErrStr(err), i]
+
+	# --- Create and start the maximum allowed parallel workers
+	size := Math.min(limit, lThunks.length)
+	lWorkers := Array.from({length: size}, () => worker())
+
+	# --- Wait for all worker streams to drain completely
+	await Promise.all(lWorkers)
+	return lResults

@@ -402,7 +402,7 @@ class CFileUpperCaser extends CFileHandler
 	handle(path: string, hOptions: hash = {})
 		contents := await Deno.readTextFile path
 		await Deno.writeTextFile withExt(path, '.utxt'), contents.toUpperCase()
-		return {success: true}
+		return {success: true, timeTaken: -1}
 
 doUpperCase := new CFileUpperCaser()
 
@@ -486,6 +486,7 @@ await (() =>
 	summary := doUnitTest.getOutput {
 		success: true
 		stdout: output
+		timeTaken: -1
 		}
 	equal decolorize(summary), """
 		53 passed | 0 failed

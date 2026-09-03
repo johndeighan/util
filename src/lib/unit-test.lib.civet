@@ -20,8 +20,9 @@ import {
 import {esc} from 'unicode'
 import {unify, isStrongerThan} from 'unify'
 import {
-	TVoidFunc, TAsyncVoidFunc, hash, isString, isEmpty, nonEmpty,
-	isIterator, isAsyncIterator, isIterable, regexp, TStringMapper,
+	TVoidFunc, TAsyncVoidFunc, hash, regexp, isString, isArray,
+	isEmpty, nonEmpty, isIterator, isAsyncIterator, isIterable,
+	TStringMapper,
 	isFunction, functionDef, isClass, classDef, isAsyncFunction,
 	} from 'datatypes'
 import {
@@ -198,6 +199,21 @@ export same := (
 
 	Deno.test name || getTestName(), (): void =>
 		assertStrictEquals value, expected
+		return
+	return
+
+# ---------------------------------------------------------------------------
+
+export sameItemsInArray := (
+		value: unknown
+		expected: unknown
+		name?: string
+		): void =>
+
+	assert isArray(value), "value is not an array"
+	assert isArray(expected), "expected is not an array"
+	Deno.test name || getTestName(), (): void =>
+		assertEquals value.toSorted(), expected.toSorted()
 		return
 	return
 

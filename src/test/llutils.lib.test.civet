@@ -19,7 +19,7 @@ import {
 	blockWidth, blockHeight, CStringSetMap,
 	isTAML, fromTAML, f, SKIP, EXEC,
 	dashes, sep, centered, abbrevStr,
-	tabify, untabify, cmdTitle,
+	tabify, untabify, cmdTitle, sortAnyArray,
 	} from 'llutils'
 import {
 	beginUnitTest, equal, truthy, falsy, succeeds, fails,
@@ -363,4 +363,22 @@ succeeds () => SKIP(vfunc)
 		"""
 
 	equal abbrevStr(longStr), "<html˳lang=\"en\"…</body>↓</html>"
+	)()
+
+equal sortAnyArray([1,2,3]), sortAnyArray([3,2,1])
+
+(() =>
+	lItems1 := [
+		[3,2,1]
+		'abc'
+		{a: 1, b: 2}
+		42
+		]
+	lItems2 := [
+		42
+		{a: 1, b: 2}
+		[3,2,1]
+		'abc'
+		]
+	equal sortAnyArray(lItems1), sortAnyArray(lItems2)
 	)()

@@ -55,6 +55,7 @@
 		"timer":         "file:///C:/Users/johnd/util/src/lib/timer.lib.ts",
 		"llfs":          "file:///C:/Users/johnd/util/src/lib/llfs.lib.ts",
 		"fsm":           "file:///C:/Users/johnd/util/src/lib/fsm.lib.ts",
+		"await-all":     "file:///C:/Users/johnd/util/src/lib/await-all.lib.ts",
 		"promise-utils": "file:///C:/Users/johnd/util/src/lib/promise-utils.lib.ts",
 		"datatypes":     "file:///C:/Users/johnd/util/src/lib/datatypes.lib.ts",
 		"unify":         "file:///C:/Users/johnd/util/src/lib/unify.lib.ts",

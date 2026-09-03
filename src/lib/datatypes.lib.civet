@@ -21,6 +21,7 @@ export type regexp = RegExp
 export type TIntArray = integer[]
 
 export type TVoidFunc = () => void
+export type TThunk<T> = () => Promise<T>
 export type TAsyncVoidFunc = () => Promise<void>
 export type TVoidIterator<T=unknown> = () => TIterator<T>
 export type TUnaryFunc<TIn, TOut> = (item: TIn) => TOut

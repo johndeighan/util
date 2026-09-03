@@ -1,27 +1,9 @@
 to do
 
-deno is running v8 version 14.7.173.20-rusty
-	in deno repl: console.log(process.versions.v8);
-chrome is running v8 version 14.8.178.21
-	chrome://version  key 'JavaScript'
+use unit test sameItemsInArray() in await-all.lib.test.civet
+	- which should use equal for limit = 1 or Infinity
+		and sameItemsInArray() for other limits
 
-on 6/12/2026
-	deno: 14.9.207.2-rusty
-	chrome: V8 14.9.207.27
-
-on 6/27/2026
-	deno: 14.9.207.2-rusty
-	chrome: V8 14.9.207.35
-
-on 7/27/2026
-	deno: 15.0.245.2-rusty
-	chrome: V8 15.0.245.21
-
-on 8/25/2026
-	deno: 15.0.245.2-rusty
-	chrome: V8 15.1.206.23
-
-promise-utils unit test fails !!!
 rename stack.lib to v8-stack.lib
 get 'utest all' to work
 	- use unitTestsFor() in compile.lib
