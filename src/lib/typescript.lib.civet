@@ -43,7 +43,11 @@ export typeCheckTsFile := (
 		path: string
 		): string =>
 
-	{success, stderr} := await execCmd 'deno', ["check", path]
+	{success, stderr} := await execCmd 'deno', [
+		"check"
+		'--quiet'
+		path
+		]
 	if success
 		return ''
 	else

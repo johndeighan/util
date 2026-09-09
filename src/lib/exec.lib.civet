@@ -34,7 +34,7 @@ import {
 import {debugging, inspect} from 'cmd-args'
 import {OL} from 'nice'
 import {
-	barf, pathStr, allFilesMatching, normalizePath, barfTempFile,
+	barf, allFilesMatching, normalizePath, barfTempFile,
 	fileExt, withExt, slurpAsync, parsePath, CWritableFile,
 	newerDestFileExists, isFullPath, inSameDir, mkpath, isFile,
 	toRelPath, findFile, TPathInfo,
@@ -314,7 +314,7 @@ export abstract class CFileHandler
 				return {
 					success: false
 					timeTaken: timer.timeTaken()
-					infile: pathStr(path)
+					infile: toRelPath(path)
 					stderr
 					}
 
@@ -327,7 +327,7 @@ export abstract class CFileHandler
 					success: true
 					notNeeded: true
 					timeTaken: timer.timeTaken()
-					infile: pathStr(path)
+					infile: toRelPath(path)
 					}
 
 			hResult := await @handle path, hOptions
@@ -335,9 +335,10 @@ export abstract class CFileHandler
 			unless ('outfile' in hResult)
 				lOutFiles := @allOutPaths(path, hOptions)
 				if (lOutFiles.length == 1)
-					Object.assign hResult, {outfile: lOutFiles[0]}
+					Object.assign hResult, {outfile: toRelPath(lOutFiles[0])}
 				else if (lOutFiles.length > 1)
-					Object.assign hResult, {outfile: lOutFiles}
+					lRelPaths := lOutFiles.map((path) => toRelPath(path))
+					Object.assign hResult, {outfile: lRelPaths}
 
 			if not hOptions.nopp
 				hPostResult := await @postProcess path, hOptions
@@ -346,7 +347,7 @@ export abstract class CFileHandler
 					Object.assign hResult, {hPostResult}
 
 			return Object.assign hResult, {
-				infile: path
+				infile: toRelPath(path)
 				timeTaken: timer.timeTaken()
 				}
 
@@ -356,7 +357,7 @@ export abstract class CFileHandler
 			return {
 				success: false
 				timeTaken: timer.timeTaken()
-				infile: pathStr(path)
+				infile: toRelPath(path)
 				stderr
 				}
 

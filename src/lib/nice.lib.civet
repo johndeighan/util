@@ -5,8 +5,8 @@ import {sprintf} from '@std/fmt/printf'
 
 import {LOG, DBG, logWidth} from 'logger'
 import {
-	undef, defined, notdefined, assert, obviously, croak,
-	pass, toBool, allLinesIn, decolorize,
+	undef, defined, assert, obviously, croak,
+	toBool, allLinesIn, decolorize,
 	} from 'base'
 import {uni, esc} from 'unicode'
 import {
@@ -14,9 +14,9 @@ import {
 	jsType, regexpDef,  symbolName, functionName, className,
 	isString, isNumber, isFunction, isClass, isArray, isPrimitive,
 	} from 'datatypes'
-import {MAP, mkArray, accum} from 'mapper'
+import {mkArray, accum} from 'mapper'
 import {
-	truncStr, getOptions, arrayToBlock, sep, f, rtrim,
+	getOptions, arrayToBlock, sep, f, rtrim,
 	} from 'llutils'
 import {indented} from 'indent'
 

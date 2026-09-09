@@ -8,7 +8,7 @@ import {
 	} from 'base'
 import {hash} from 'datatypes'
 import {getOptions} from 'llutils'
-import {fileExt, withExt, pathStr} from 'fsys'
+import {fileExt, withExt} from 'fsys'
 import {CFileHandler, TExecResult} from 'exec'
 import {TMacroLib, CMacroCompiler} from 'macros'
 

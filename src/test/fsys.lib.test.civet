@@ -20,7 +20,7 @@ import {
 	clearDir, mkDir, mkDirsForFile, slurp, slurpAsync, barf, isPathType,
 	removeFilesMatching, watchFile, FileEventHandler, TFsEventHandler,
 	TPathType, TPathInfo, patchFirstLine, toFullPath, splitPatterns,
-	fromJsonFile, toJsonFile, addJsonValue, pathStr, inHiddenFolder,
+	fromJsonFile, toJsonFile, addJsonValue, inHiddenFolder,
 	CReadableFile, CWritableFile, toRelPath, findFile, findDir,
 	} from 'fsys'
 import {
@@ -582,7 +582,7 @@ await (() =>
 	)()
 
 fullpath := "c:\\Users\\johnd\\util\\src\\lib\\datatypes.lib.civet"
-equal pathStr(fullpath), 'src/lib/datatypes.lib.civet'
+equal toRelPath(fullpath), 'src/lib/datatypes.lib.civet'
 
 (() =>
 	path := r'dummy.txt'

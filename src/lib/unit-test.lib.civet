@@ -492,7 +492,7 @@ export fileOpsTable := (
 export mockAsyncTask := <T=unknown>(
 		value: T
 		ms: number = 10
-		doFail: boolean = false
+		errMsg: string? = undef
 		): () => Promise<T> =>
 
 	return () =>
@@ -500,8 +500,8 @@ export mockAsyncTask := <T=unknown>(
 			DBG "START TASK #{value}"
 			await sleep(ms)
 			DBG "END TASK #{value}"
-			if doFail
-				reject(new Error("Task #{value} failed"))
+			if defined(errMsg)
+				reject(new Error(errMsg))
 			else
 				resolve(value)
 

@@ -1,8 +1,12 @@
 to do
 
-use unit test sameItemsInArray() in await-all.lib.test.civet
-	- which should use equal for limit = 1 or Infinity
-		and sameItemsInArray() for other limits
+massage await.lib.civet so that
+	- getPromise() can be used instead of what's
+		currently assigned to the variable promise
+
+in proc-files.lib.civet
+	there shouldn't be an onSettle
+	instead, code should be executed as part of awaitAll()
 
 rename stack.lib to v8-stack.lib
 get 'utest all' to work

@@ -52,6 +52,14 @@ await (() =>
 		console.log 'File test.civet did not exist'
 
 	hResult := await procOneFile(r'test.cielo', doCompileCielo)
+	console.log hResult
+
+	infile := r'test.cielo'
+	console.log "infile = #{infile}"
+
+	outfile := r'test.civet'
+	console.log "outfile = #{outfile}"
+
 	strongerThan hResult, {
 		success: true
 		infile: r'test.cielo'

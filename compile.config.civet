@@ -8,7 +8,7 @@ import {CTimer} from 'timer'
 import {hash} from 'datatypes'
 import {
 	fileExt, withExt, rmFile, barf, slurp,
-	parsePath, patchFirstLine,
+	parsePath, patchFirstLine, toRelPath,
 	} from 'fsys'
 import {execCmd, doInstallCmd, TExecResult} from 'exec'
 import {procOneFile} from 'proc-files'
@@ -66,7 +66,7 @@ export hConfig: TCompilerConfig := {
 				return {
 					success: true
 					timeTaken: timer.timeTaken()
-					outfile: jsPath
+					outfile: toRelPath(jsPath)
 					}
 			}
 
@@ -94,7 +94,7 @@ export hConfig: TCompilerConfig := {
 				return {
 					success: true
 					timeTaken: timer.timeTaken()
-					outfile: svgPath
+					outfile: toRelPath(svgPath)
 					}
 			}
 
@@ -134,7 +134,7 @@ export hConfig: TCompilerConfig := {
 				return {
 					success: true
 					timeTaken: timer.timeTaken()
-					outfile: tsPath
+					outfile: toRelPath(tsPath)
 					}
 			}
 
@@ -167,7 +167,7 @@ export hConfig: TCompilerConfig := {
 				return {
 					success: true
 					timeTaken: timer.timeTaken()
-					outfile: tsPath
+					outfile: toRelPath(tsPath)
 					}
 			}
 
@@ -197,7 +197,7 @@ export hConfig: TCompilerConfig := {
 				return {
 					success: true
 					timeTaken: timer.timeTaken()
-					outfile: htmlPath
+					outfile: toRelPath(htmlPath)
 					}
 			}
 		} # --- end hCompilers

@@ -15,7 +15,7 @@ import {OL} from 'nice'
 import {entries, toBlock, keys, getOptions} from 'llutils'
 import {mkArray} from 'mapper'
 import {
-	withExt, parsePath, CReadableFile, pathStr,
+	withExt, parsePath, CReadableFile, toRelPath,
 	} from 'fsys'
 import {CFileHandler, TExecResult} from 'exec'
 import {parseText} from 'hera-parse'
@@ -185,7 +185,7 @@ export class CMacroCompiler extends CFileHandler
 				}
 
 		catch err
-			errMsg := "MACRO FAILED: #{pathStr(path)} - #{getErrStr(err)}"
+			errMsg := "MACRO FAILED: #{toRelPath(path)} - #{getErrStr(err)}"
 			DBG errMsg
 			return {
 				success: false

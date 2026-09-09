@@ -9,7 +9,7 @@ import {MAP} from 'mapper'
 import {EXEC} from 'llutils'
 import {getCmdArgs} from 'cmd-args'
 import {
-	isFile, withExt, CWritableFile, pathStr, allFilesMatching,
+	isFile, withExt, CWritableFile, toRelPath, allFilesMatching,
 	} from 'fsys'
 
 [[stub]] := getCmdArgs 'patchtest', {
@@ -20,7 +20,7 @@ import {
 
 patchOneFile := (path: string): void =>
 
-	assert isFile(path), "No such file: #{pathStr(path)}"
+	assert isFile(path), "No such file: #{toRelPath(path)}"
 	LOG "patch #{path}"
 
 	lLines: string[] := []

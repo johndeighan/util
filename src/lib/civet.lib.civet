@@ -17,7 +17,7 @@ import {CTimer} from 'timer'
 import {getOptions} from 'llutils'
 import {
 	fileExt, withExt, isFullPath, inSameDir, barf,
-	newerDestFileExists, pathStr, touch, mkpath,
+	newerDestFileExists, touch, mkpath, toRelPath,
 	} from 'fsys'
 import {CFileHandler, TExecResult} from 'exec'
 import {procFiles, TCounts} from 'proc-files'
@@ -78,7 +78,6 @@ export civet2tsFile := (
 
 	civetCode := await Deno.readTextFile civetPath
 	tsCode := await civet2ts civetCode, hOptions
-#	await Deno.writeTextFile tsPath, tsCode
 	barf tsPath, tsCode
 	if not nocheck
 		errMsg := await typeCheckTsFile tsPath
@@ -203,7 +202,7 @@ class CCivetCompiler extends CFileHandler
 			return {
 				success: false
 				timeTaken: -1
-				stderr: "COMPILE FAILED: #{pathStr(path)} - #{errMsg}"
+				stderr: "COMPILE FAILED: #{toRelPath(path)} - #{errMsg}"
 				}
 
 export doCompileCivet := new CCivetCompiler()

@@ -10,8 +10,10 @@ import {
 	resetLine, write, writeln, getErrStr,
 	} from 'base'
 import {CTimer} from 'timer'
-import {awaitAll, awaitAllSerially, TSettleResult} from 'promise-utils'
-import {hash, hashof, nonEmpty, isArray} from 'datatypes'
+import {
+	hash, hashof, nonEmpty, isArray,
+	} from 'datatypes'
+import {awaitAll, TThunk, TSettleResult} from 'await'
 import {f, getOptions} from 'llutils'
 import {LOGVALUE} from 'nice'
 import {allFilesMatching, isFile, mkpath, toRelPath} from 'fsys'
@@ -45,15 +47,15 @@ export procFiles := (
 	type opt = {
 		quiet: boolean
 		verbose: boolean
-		serial: boolean
+		maxRunning: number
 		callback: TCallback?
 		box: boolean
 		}
-	{quiet, verbose, serial, callback, box
+	{quiet, verbose, maxRunning, callback, box
 		} := getOptions<opt> hOptions, {
 			quiet: false
 			verbose: false
-			serial: false
+			maxRunning: Infinity
 			callback: undef
 			box: false
 			}
@@ -66,11 +68,7 @@ export procFiles := (
 
 	# --- NOTE: We need array lPaths to index into later
 
-	lPaths: string[] := (
-		  isArray(fileSpec)
-		? Array.from(allFilesMatching(fileSpec))
-		: [fileSpec]
-		)
+	lPaths := Array.from(allFilesMatching(fileSpec))
 
 	hCounts: TCounts := {
 		ok:        0
@@ -86,15 +84,19 @@ export procFiles := (
 			endBox()
 		return [hCounts, timer.timeTaken(), []]
 
-	lPromises := for path of lPaths
-		handler.handleFile(path, hOptions)
+	lThunks := for path of lPaths
+		() => handler.handleFile(path, hOptions)
 
 	# --- NOTE: if success is true, str is a file path
 	#           if success is false, str is an error message
 
 	lAllResults: TExecResult[] := []
-	onSettle := (result: TSettleResult<TExecResult>) =>
-		[resolved, value, i] := result
+	if box
+		title: string := isArray(fileSpec) ? fileSpec.join(' ') : fileSpec
+		beginBox handler.op + ' ' + title
+
+	# --- hResult is a TExecResult
+	for await [resolved, value, i] of awaitAll(lThunks, maxRunning)
 		path := lPaths[i]
 		if box
 			beginBox path
@@ -131,21 +133,12 @@ export procFiles := (
 			showErrResult handler, path, errMsg, hOptions
 		if box
 			endBox()
-		return
-
-	if box
-		title: string := isArray(fileSpec) ? fileSpec.join(' ') : fileSpec
-		beginBox handler.op + ' ' + title
-
-	if serial
-		await awaitAllSerially lPromises, onSettle
-	else
-		await awaitAll lPromises, onSettle
 
 	if not quiet || (hCounts.err > 0)
 		showFinalResult
 			op, fileSpec, hCounts,
 			timer.timeTaken(), verbose
+
 	if box
 		endBox()
 
@@ -166,51 +159,6 @@ export procOneFile := (
 
 	[hCounts, secs, lResults] := await procFiles [handler, path], hOptions
 	return lResults[0]
-
-# ---------------------------------------------------------------------------
-# ASYNC
-
-export procOneFile_old := (
-		path: string,
-		handler: CFileHandler,
-		hOptions: hash = {}
-		): TExecResult =>
-
-	type opt = {
-		inspect: boolean
-		quiet: boolean
-		}
-	{inspect, quiet} := getOptions<opt> hOptions, {
-		inspect: false
-		quiet: false
-		}
-
-	op := handler.op
-	if not quiet
-		prelog op, path
-
-	timer := new CTimer()
-	try
-		hResult := await handler.handleFile path, hOptions
-		if quiet
-			# --- handler.handleFile() will have set infile key
-			return hResult
-
-		postlog hResult
-		if hResult.success
-			showOkResult handler, path, hResult, hOptions
-		else
-			showErrResult handler, path, handler.getOutput(hResult), hOptions
-		return hResult
-
-	catch err
-		showErrResult handler, path, getErrStr(err), hOptions
-		return {
-			success: false
-			stderr: getErrStr(err)
-			infile: path
-			timeTaken: timer.timeTaken()
-			}
 
 # ---------------------------------------------------------------------------
 

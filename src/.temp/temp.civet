@@ -13,6 +13,7 @@ import {
 	TAsyncIterator, deepEqual, sleep, getErrStr, colorize,
 	decolorize, TIterator, range, deepFreeze,
 	} from 'base'
+import {hash, hashof} from 'datatypes'
 import {f, s, toBlock, EXEC, SKIP, sep, rtrim} from 'llutils'
 import {fromFSM, defaultDoneFunc, TState} from 'fsm'
 import {resetOneIndent, splitLine, indented} from 'indent'
@@ -44,9 +45,6 @@ import {
 	getFileOps, TFileOp, setDirTree,
 	} from 'unit-test'
 import {CRule, CRuleBranch, mkCodeBlock} from 'rule'
-import {
-	awaitAll, awaitAllSerially, TSettleResult,
-	} from 'promise-utils'
 import {mockPromise, checkType} from 'unit-test'
 import {doCompileFile, doUnitTest} from 'compile'
 import {
@@ -63,55 +61,42 @@ import {
 	slot, TStrLoc, TParseMatch, CParseMatches,
 	} from 'parse-utils'
 import {doMakeUnitTest} from 'ut-macros'
+import {awaitAll} from 'await'
+
+# ---------------------------------------------------------------------------
+
+avg := (lNumbers: number[]): number =>
+
+	let sum = 0
+	for i of lNumbers
+		sum += i
+	return sum / lNumbers.length
 
 # ---------------------------------------------------------------------------
 
 await EXEC () =>
-	debugger
-	lPromises := [
-		mockPromise(42, 3000)
-		mockPromise(23, 1000)
-		mockPromise(300, 2000, 'bad')
-		]
+	pat := '**/*.lib.civet'
+	hOptions: hash := {force: true}
 
-	lAllResults: TSettleResult<number>[] := []
-	await awaitAllSerially lPromises, (result) =>
-		lAllResults.push result
-	console.log lAllResults
+	hData: hashof<number[]> := {}
 
-	expected := [
-		[true, 42, 0]
-		[true, 23, 1]
-		[false, "bad", 2]
-		]
+	test := (n: number): void =>
+		hOptions.maxRunning = (n > 0) ? n : Infinity
+		[hCounts, timeTaken] := await procFiles [doCompileCivet, pat], hOptions
+		if (hCounts.err > 0)
+			console.log "There were errors"
+			Deno.exit(-1)
+		nStr := n.toString()
+		if not (nStr in hData)
+			hData[nStr] = [] as number[]
+		hData[nStr].push timeTaken
 
-SKIP () =>
-	root := 'src/test/llfs'
-	await setDirTree """
-		./#{root} clear
-		file.txt
-			abc
-		file.civet compile
-			console.log "Hello"
-		/temp
-			file.txt
-				xyz
-		"""
+	for rep of range(5)
+		for i of range(10)
+			await test(i)
 
-SKIP () =>
-	debugger
-	awaitAllSerially<string>
-		[
-			mockPromise('abc', 500)
-			mockPromise('def', 300, 'bad input')
-			mockPromise('ghi', 800)
-			mockPromise('jkl', 100, 'bad input 2')
-			mockPromise('mno', 200)
-			]
-		(result) =>
-			[ok, val, i] := result
-			pre := "#{sinceLoadStr()} [#{i}]"
-			if ok
-				console.log f"#{pre} #{OL(val)}:{green}"
-			else
-				console.log f"#{pre} #{getErrStr(val)}:{red}"
+	console.log hData
+
+	for key,lItems in hData
+		console.log "[#{key}] #{avg(lItems)}"
+

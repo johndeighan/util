@@ -1,0 +1,62 @@
+# --- Executes an array of thunks concurrently up to a specified limit
+#     and yields their results or errors as they resolve.
+
+import {
+	undef, defined, getErrStr, assert, TAsyncIterator, range,
+	} from 'base'
+import {integer} from 'datatypes'
+
+export type TThunk<T> = () => Promise<T>
+export type TSettleResult<T> = [true, T, integer] | [false, string, integer]
+
+# ---------------------------------------------------------------------------
+
+getPromise := <T>(
+		i: integer
+		thunk: TThunk<T>
+		): Promise<TSettleResult<T>> ->
+	try
+		result: T := await thunk()
+		return [true, result, i]
+	catch err
+		return [false, getErrStr(err), i]
+
+# ---------------------------------------------------------------------------
+
+export awaitAll := <T>(
+		lThunks: TThunk<T>[],
+		limit: number = Infinity
+		): TAsyncIterator<TSettleResult<T>> ->
+
+	assert (limit > 0), "Bad limit: #{limit}"
+
+	# --- A pool to store currently active promises
+	#     along with their original index
+	pool := new Map<number, Promise<TSettleResult<T>>>()
+
+	# --- 1. Prime the pool up to the max concurrency limit
+	n := Math.min(lThunks.length, limit)
+	for i of range(n)
+		pool.set i, getPromise(i, lThunks[i])
+	let nextPos = n
+
+	while (pool.size > 0)
+		# --- Wait for the earliest promise in the active pool to settle
+		[success, result, i] := await Promise.race(pool.values())
+
+		# --- Clean up the completed worker from the pool
+		if defined(i)
+			pool.delete(i)
+
+		# --- Immediately yield the result or error
+		if success
+			yield [true, result, i]
+		else
+			yield [false, result, i]
+
+		# --- Pull in the next thunk if any
+		#     from the queue to maintain the limit
+		if (nextPos < lThunks.length)
+			pool.set nextPos, getPromise(nextPos, lThunks[nextPos])
+			nextPos += 1
+

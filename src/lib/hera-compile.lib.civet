@@ -26,7 +26,7 @@ import {LOGVALUE, DBGVALUE} from 'nice'
 import {TState, fromFSM} from 'fsm'
 import {mdGet} from 'meta-data'
 import {
-	fileExt, withExt, pathStr, newerDestFileExists,
+	fileExt, withExt, toRelPath, newerDestFileExists,
 	CReadableFile, barfTempFile, parsePath,
 	} from 'fsys'
 import {CFileHandler, TExecResult} from 'exec'
@@ -92,7 +92,7 @@ class CHeraCompiler extends CFileHandler
 				}
 
 		catch err
-			errMsg := "HERA COMPILE FAILED: #{pathStr(path)} - #{getErrStr(err)}"
+			errMsg := "HERA COMPILE FAILED: #{toRelPath(path)} - #{getErrStr(err)}"
 			ERR errMsg
 			return {
 				success: false

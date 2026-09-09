@@ -406,15 +406,6 @@ export slurpAsync := async (path: string): string =>
 
 # ---------------------------------------------------------------------------
 
-export pathStr := (
-		path: string
-		root: string = '.'
-		): string =>
-
-	return normalizePath relative root, path
-
-# ---------------------------------------------------------------------------
-
 export splitPatterns := (
 		lPatterns: string[],
 		): [string[], string[]] =>
