@@ -74,7 +74,6 @@ class CHeraCompiler extends CFileHandler
 			trace: false
 			}
 
-		debugger
 		destPath := withExt path, '.ts'
 		try
 			# --- preprocess, save to a temp file

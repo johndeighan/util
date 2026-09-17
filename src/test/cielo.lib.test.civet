@@ -38,7 +38,8 @@ await setup()
 # ---------------------------------------------------------------------------
 
 equal await cielo2civet('x := 42'), 'x := 42'
-(() =>
+
+await (() =>
 	equal await cielo2civetFile(r'test.cielo'), r'test.civet'
 	truthy isFile(r'test.civet')
 	rmFile r'test.civet'
@@ -59,6 +60,11 @@ await (() =>
 
 	outfile := r'test.civet'
 	console.log "outfile = #{outfile}"
+
+	if isFile(r'test.civet')
+		console.log 'File test.civet exists'
+	else
+		console.log 'file test.civet DOES NOT EXIST'
 
 	strongerThan hResult, {
 		success: true

@@ -78,8 +78,6 @@ export getCmdArgs := (
 			hashof<number>
 			] =>
 
-	debugger
-
 	# --- Any errors in this throws an exception
 	{
 		hFlagNames      # hashof<string>
@@ -200,12 +198,12 @@ export getCmdArgs := (
 
 	n := lNonOptions.length
 	if (n < minNonOpt)
-		lErrors.push "#{n} non-options but min is #{minNonOpt}"
+		lErrors.push "#{n} non-options in #{cmdName} but min is #{minNonOpt}"
 	if (n > maxNonOpt)
-		lErrors.push "#{n} non-options but max is #{maxNonOpt}"
+		lErrors.push "#{n} non-options in #{cmdName} but max is #{maxNonOpt}"
 
 	if nonEmpty(lErrors)
-		LOGVALUE lErrors, "Command Arg Errors"
+		LOGVALUE lErrors, "Command Arg Errors", {escape: false}
 		croak "Errors in Command Args"
 
 	if helping && (curLogLevel() != 'testing')

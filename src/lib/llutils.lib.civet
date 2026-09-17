@@ -615,6 +615,7 @@ export EXEC := (
 		func: () => void
 		): void =>
 
+	debugger
 	try
 		if isAsyncFunction func
 			await func()

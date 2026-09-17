@@ -6,6 +6,7 @@ import {toFileUrl} from '@std/path'
 
 import {
 	LOG, DBG, WARN, ERR, INDENT, UNDENT,
+	pushLogLevel, popLogLevel,
 	} from 'logger'
 import {CTimer} from 'timer'
 import {
@@ -17,7 +18,7 @@ import {MAP} from 'mapper'
 import {
 	nonEmptyString, hash, hashof, isArray, isEmpty,
 	} from 'datatypes'
-import {keys, getOptions} from 'llutils'
+import {f, keys, getOptions} from 'llutils'
 import {OL, DBGVALUE} from 'nice'
 import {
 	slurp, barf, patchFirstLine, TPathInfo, parsePath, toRelPath,
@@ -27,7 +28,7 @@ import {
 import {
 	execCmd, CFileHandler, TExecResult,
 	} from 'exec'
-import {procOneFile} from 'proc-files'
+import {procOneFile, allExecResults} from 'proc-files'
 import {civet2tsFile, doCompileCivet} from 'civet'
 import {cielo2civetFile} from 'cielo'
 
@@ -143,38 +144,6 @@ class CFileCompiler extends CFileHandler
 		return getOutPaths path
 
 	# ..........................................................
-
-	override postProcess(
-			path: string
-			hOptions: hash = {}
-			): TExecResult
-
-		{purpose} := parsePath path
-		if isEmpty(purpose)
-			return {
-				success: true
-				notNeeded: true
-				timeTaken: -1
-				}
-		obviously defined(purpose)
-		postProc := await getPostProcessor purpose
-		if notdefined(postProc)
-			return {
-				success: true
-				notNeeded: true
-				timeTaken: -1
-				}
-		DBG "post-processing file"
-		try
-			return await postProc(path, hOptions)
-		catch err
-			return {
-				success: false
-				stderr: getErrStr(err)
-				timeTaken: -1
-				}
-
-	# ..........................................................
 	# --- file existence has already been checked.
 
 	override async handle(
@@ -192,19 +161,28 @@ class CFileCompiler extends CFileHandler
 		hResult := await compiler(path, hOptions)
 		{success} := hResult
 
+		if purpose
+			postProc := await getPostProcessor purpose
+			if defined(postProc)
+				hResult.hPostResult = await postProc(path, hOptions)
+
 		DBG UNDENT
 		return hResult
 
 export doCompileFile := new CFileCompiler()
 
 # ---------------------------------------------------------------------------
+# --- For now, there is at most one unit test for a file
 
-export unitTestsFor := (path: string): string[]? =>
+export unitTestsFor := (path: string): string[] =>
 
-	{dir, stub, purpose, ext} := parsePath(path)
+	{stub, purpose, ext} := parsePath(path)
 	assert (ext == '.ts'), "Bad path in unitTestsFor: #{path}"
+	if (purpose == 'test')
+		return []
 	fileName := "#{stub}.#{purpose}.test.ts"
-	return [mkpath(dir, fileName)]
+	utPath := findFile fileName
+	return defined(utPath) ? [utPath] : []
 
 # ---------------------------------------------------------------------------
 # --- path will be the file being tested, e.g.
@@ -215,6 +193,7 @@ export unitTestsFor := (path: string): string[]? =>
 class CUnitTester extends CFileHandler
 
 	hPathInfo: TPathInfo?
+	lUnitTestPaths: string[] = []   # --- set in isNeeded()
 
 	get op()
 		return 'doUnitTest'
@@ -227,8 +206,21 @@ class CUnitTester extends CFileHandler
 			)
 
 		@hPathInfo = parsePath(path)
-		{stub, purpose, ext} := @hPathInfo
-		return (ext == '.ts') || (purpose != 'test')
+		{purpose, ext} := @hPathInfo
+
+		# --- NOTE: purpose should NOT be 'test'
+		return (ext == '.ts') && (purpose != 'test')
+
+	# ..........................................................
+
+	override async isNeeded(
+			path: string
+			hOptions: hash = {}
+			): boolean
+
+		# --- see if there are any unit tests for this file
+		@lUnitTestPaths := unitTestsFor(path)
+		return (@lUnitTestPaths.length > 0)
 
 	# ..........................................................
 
@@ -248,17 +240,19 @@ class CUnitTester extends CFileHandler
 			lineNum: undef
 			}
 
-		# --- We already know that the file exists
-		#     and that ext is '.ts' and purpose is 'test'
+		# --- We already know that
+		#        - the file exists
+		#        - the file extension is .ts
+		#        - field lUnitTestPaths exists
+		#        - all paths in lUnitTestPaths:
+		#           - have purpose 'test' and extension .ts
+		#           - (for now, there is only one unit test path)
 
-		# --- ensure that it's a recently compiled version
-		#     of any corresponding '.civet' file if it exists
+		# --- this should work, but doesn't
+#		utPath := @lUnitTestPaths[0]
 
-		civetPath := withExt path, '.civet'
-		if isFile(civetPath)
-			hResult := await procOneFile civetPath, doCompileCivet
-			assert hResult.success && isFile(path),
-				"Compile of #{civetPath} failed"
+		lUtPaths := unitTestsFor(path)
+		utPath := lUtPaths[0]
 
 		return await execCmd 'deno', [
 				'test'
@@ -272,7 +266,7 @@ class CUnitTester extends CFileHandler
 					? ['--filter', "/^line #{lineNum}$/"]
 					: []
 					)
-				path
+				utPath
 				], {capture}
 
 	# ..........................................................
@@ -319,3 +313,52 @@ class CUnitTester extends CFileHandler
 		return lLines.join('\n')
 
 export doUnitTest := new CUnitTester()
+
+# ---------------------------------------------------------------------------
+# ASYNC
+# --- returns [num actually tested, total secs]
+
+export testFilesMatching := (
+		pat: string
+		hOptions: hash = {}
+		): [number, number] =>   # --- [# tested, secs]
+
+	type opt = {
+		quiet: boolean     # --- no output
+		verbose: boolean   #     output even if not needed
+		maxRunning: number
+		}
+	{quiet, verbose, maxRunning} := getOptions<opt> hOptions, {
+		quiet: false
+		verbose: false
+		maxRunning: 8
+		}
+
+	assert not (quiet && verbose), "Can't use both quiet and verbose"
+	let nErr = 0
+	let nProcessed = 0
+	timer := new CTimer()
+	for await [ok, result] of allExecResults [doUnitTest, pat], hOptions
+		if ok
+			# --- result is a TExecResult
+			{infile, success, notNeeded} := result
+			prefix := "COMPILE #{infile}"
+			if notNeeded
+				assert success, "success true with notNeeded true"
+				if verbose
+					console.log f"#{prefix} - #{'Not Needed'}:{yellow}"
+			else if success
+				nProcessed += 1
+				if not quiet
+					console.log f"#{prefix} - #{'Succeeded'}:{green}"
+			else
+				if not quiet
+					console.log f"#{prefix} - #{'Failed'}:{red}"
+		else
+			console.log f"ERROR: #{result}:{red}"
+			nErr += 1
+	if (nErr > 0)
+		croak "Some files failed to compile"
+	return [nProcessed, timer.timeTaken()]
+
+# ---------------------------------------------------------------------------

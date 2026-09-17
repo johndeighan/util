@@ -1,3 +1,5 @@
+await
+	allPromiseResults TSettleResult TThunk
 base
 	allChars allDefined allLinesIn allOf allValuesFrom allValuesFromAsync
 	anyDefined anyMatches anyNotDefined anyOf assert clearPreviousLines
@@ -11,15 +13,15 @@ base
 cielo
 	cielo2civet cielo2civetFile doCompileCielo
 civet
-	a A civet2ast civet2js civet2ts civet2tsFile compileAllLibs
-	compileAllUnitTests doCompileCivet TCivetOptions
+	a A civet2ast civet2js civet2ts civet2tsFile compileAllCmds compileAllLibs
+	compileAllUnitTests compileFilesMatching doCompileCivet TCivetOptions
 cmd-args
 	debugging doHandleClearScreen doSetLogLevel getCmdArgs helping helpStr
 	inspect parseCmdArgDesc silent TArgDesc TBoolValDesc TNonOptionDesc TValueDesc
 compile
 	doCompileFile doUnitTest getCompilerInfo getPostProcessor isCompilerConfig
-	isCompilerInfo TCompilerConfig TCompilerFunc TCompilerInfo TPostProcessor
-	unitTestsFor
+	isCompilerInfo TCompilerConfig TCompilerFunc TCompilerInfo testFilesMatching
+	TPostProcessor unitTestsFor
 datatypes
 	array arrayof char classDef className clearArray clearHash functionDef
 	functionName hash hashof hashToIterator integer isArray isArrayOfIntegers
@@ -29,9 +31,9 @@ datatypes
 	isNonEmptyString isNumber isObject isPrimitive isPromise isRegExp isString
 	isStringMapper isSymbol jsType looksLikeInteger looksLikeNumber lPrimTypes
 	mapToIterator nonEmpty nonEmptyString regexp regexpDef setArray setHash
-	setToIterator symbolName TAsyncStringMapper TAsyncVoidFunc THashEntry
-	TIntArray TMapEntry TSequence TStringFilterFunc TStringifier TStringMapper
-	TStringSeq TUnaryFunc TVoidFunc TVoidIterator
+	setToIterator symbolName TAsyncStringMapper TAsyncVoidFunc TGlobPattern
+	THashEntry TIntArray TMapEntry TSequence TStringFilterFunc TStringifier
+	TStringMapper TStringSeq TUnaryFunc TVoidFunc TVoidIterator
 exec
 	CFileHandler cmdIsInstalled doInstallCmd doUninstallCmd execCmd execTsFile
 	getCmdLine getCmdName mkstr TExecResult TStreamType
@@ -49,10 +51,10 @@ fsys
 	findDir findFile fromJsonFile getFileStats getPathType inHiddenFolder
 	inSameDir isDir isFile isFullPath isPathType mkDir mkDirsForFile mkpath
 	mkTempFile mkTempFileSync modTime myself newerDestFileExists normalizePath
-	parsePath patchFirstLine pathStr pathSubDirs pathToURL removeCR
-	removeFilesMatching rmDir rmFile slurp slurpAsync splitPatterns
-	TFsEventHandler toFullPath toJsonFile toRelPath touch TPathDesc TPathFilter
-	TPathInfo TPathType WalkEntry watchFile watchFiles withExt
+	parsePath patchFirstLine pathSubDirs pathToURL removeCR removeFilesMatching
+	rmDir rmFile slurp slurpAsync splitPatterns TFsEventHandler toFullPath
+	toJsonFile toRelPath touch TPathDesc TPathFilter TPathInfo TPathType WalkEntry
+	watchFile watchFiles withExt
 hera-compile
 	doCompileHera preprocHera preprocHeraFile testHeraCode unbalanced
 hera-parse
@@ -79,8 +81,8 @@ llutils
 	blockWidth centered cmdTitle countChars CStringSetMap CWS dashes entries EXEC
 	f formatVal fromTAML fsplit getLineAndColumn getOptions hasKey hasKeys
 	isAlignment isBlockSpec isTAML keys likeNum lpad ltrim o require rpad rtrim s
-	s2 s4 sep SKIP spaces strToHash t tabify tabs TAlignment TBlockSpec toArray
-	toBlock truncStr untabify zpad
+	s2 s4 sep SKIP sortAnyArray spaces strToHash t tabify tabs TAlignment
+	TBlockSpec toArray toBlock truncStr untabify zpad
 logger
 	appendDebugFile beginBox clearLog closeDebugFile curLogLevel DBG endBox ERR
 	getLog INDENT initLogLevel inUnitTest LOG logLevelFromStr logLevelStr logWidth
@@ -104,9 +106,8 @@ nice
 parse-utils
 	CParseMatches slot TParseMatch TStrLoc
 proc-files
-	procFiles procOneFile TCallback TCounts TProcResult TProcSpec
-promise-utils
-	awaitAll awaitAllSerially evalPromise TPromiseFunc TSettleResult
+	allExecResults execResult procFiles procOneFile TCallback TCounts TProcResult
+	TProcSpec
 rule
 	CRule CRuleBranch CRuleSet isValidRuleName mkCodeBlock
 scope
@@ -114,9 +115,6 @@ scope
 section-map
 	CSection CSet isSectionName isSetName SectionMap TItem TSectionName
 	TSectionTree TSetName
-stack
-	allStackFrames decodeLine extractSourceMap frameStr getMappings getOrgPos
-	mapPos mapPosSync RawSourceMap TFilePosition TFrameType TStackFrame
 symbols
 	buildDotSymbols getNeededImportStmts getSymbolLib loadSymbols loadSymbolsFrom
 	symbolsFromString
@@ -131,6 +129,8 @@ trace
 	logReturnFrom logValue logYield parseFuncStr resetTracing setTracing shortStr
 	stack tr traceInternalDebugging TRACEVAL trEnter trResume trReturnFrom
 	trYieldFrom
+tui
+	Listr prompt runTasks TTask TTuiOption
 typescript
 	analyzeTsCode ast2ts astAsString AstWalker CAnalysis descFunc getNode
 	getSymbolsFromType kindStr ts2ast typeCheckTsCode typeCheckTsFile
@@ -141,9 +141,13 @@ unify
 unit-test
 	beginUnitTest checkType equal execFileOps fails falsy fileOpsTable generates
 	generatesAsync getFileOps getMyOutsideCaller getTestName getTsCode isType line
-	matches mockAsyncTask mockPromise notType same sampleVal setDirTree
-	splitFuncStr strongerThan succeeds TFileOp truthy unifies
+	matches mockAsyncTask mockPromise notType same sameItemsInArray sampleVal
+	setDirTree splitFuncStr strongerThan succeeds TFileOp truthy unifies
+	utTableHeader utTableRow utTableSep
 ut-macros
 	doMakeUnitTest hUTMacroLib
+v8-stack
+	allStackFrames decodeLine extractSourceMap frameStr getMappings getOrgPos
+	mapPos mapPosSync RawSourceMap TFilePosition TFrameType TStackFrame
 walker
 	TVisitKind Walker

@@ -7,13 +7,13 @@ import {cyan, red, green, yellow} from '@std/fmt/colors'
 import {LOG, DBG, ERR, beginBox, endBox} from 'logger'
 import {
 	undef, defined, notdefined, assert, obviously, croak,
-	resetLine, write, writeln, getErrStr,
+	resetLine, write, writeln, getErrStr, TAsyncIterator,
 	} from 'base'
 import {CTimer} from 'timer'
 import {
-	hash, hashof, nonEmpty, isArray,
+	hash, hashof, nonEmpty, isArray, TGlobPattern,
 	} from 'datatypes'
-import {awaitAll, TThunk, TSettleResult} from 'await'
+import {allPromiseResults, TThunk, TSettleResult} from 'await'
 import {f, getOptions} from 'llutils'
 import {LOGVALUE} from 'nice'
 import {allFilesMatching, isFile, mkpath, toRelPath} from 'fsys'
@@ -25,7 +25,7 @@ import {CFileHandler, TExecResult} from 'exec'
 # --- Later, I want to allow passing multiple TProcSpecs
 #     string is a glob pattern or file path
 
-export type TProcSpec = [CFileHandler, (string | string[])]
+export type TProcSpec = [CFileHandler, (TGlobPattern | TGlobPattern[])]
 export type TProcResult = [boolean, string]
 export type TCallback = (path: string, hResult: TExecResult) => void
 export type TCounts = {
@@ -36,7 +36,7 @@ export type TCounts = {
 	}
 
 export procFiles := (
-		procSpec: TProcSpec,
+		procSpec: TProcSpec
 		hOptions: hash = {}
 		): [
 			TCounts         # ok, notNeeded, processed, err
@@ -61,14 +61,14 @@ export procFiles := (
 			}
 
 	assert not (quiet && verbose), "Can't use both quiet and verbose"
-	[handler, fileSpec] := procSpec
+	[handler, globPat] := procSpec
 	{op} := handler
 
 	timer := new CTimer()
 
 	# --- NOTE: We need array lPaths to index into later
 
-	lPaths := Array.from(allFilesMatching(fileSpec))
+	lPaths := Array.from(allFilesMatching(globPat))
 
 	hCounts: TCounts := {
 		ok:        0
@@ -92,11 +92,12 @@ export procFiles := (
 
 	lAllResults: TExecResult[] := []
 	if box
-		title: string := isArray(fileSpec) ? fileSpec.join(' ') : fileSpec
+		title: string := isArray(globPat) ? globPat.join(' ') : globPat
 		beginBox handler.op + ' ' + title
 
 	# --- hResult is a TExecResult
-	for await [resolved, value, i] of awaitAll(lThunks, maxRunning)
+	for await result of allPromiseResults lThunks, maxRunning
+		[resolved, value, i] := result
 		path := lPaths[i]
 		if box
 			beginBox path
@@ -136,7 +137,7 @@ export procFiles := (
 
 	if not quiet || (hCounts.err > 0)
 		showFinalResult
-			op, fileSpec, hCounts,
+			op, globPat, hCounts,
 			timer.timeTaken(), verbose
 
 	if box
@@ -210,7 +211,7 @@ showErrResult := (
 		): void =>
 
 	if errMsg.includes('\n')
-		LOGVALUE errMsg, 'ERROR OUTPUT'
+		LOGVALUE errMsg, 'ERROR OUTPUT', {escape: false}
 	else
 		ERR "ERROR: #{errMsg}"
 	return
@@ -221,7 +222,7 @@ let headerPrinted = false
 
 showFinalResult := (
 		op: string
-		fileSpec: string | string[]
+		globPat: string | string[]
 		hCounts: hashof<number>
 		timeTaken: number        # --- in secs
 		verbose: boolean = false
@@ -249,6 +250,40 @@ showFinalResult := (
 		sprintf('%3d', hCounts.notNeeded)
 		(ok == 0)  ? sprintf('%3d', ok)  : green(sprintf('%3d', ok))
 		(err == 0) ? sprintf('%3d', err) : red(sprintf('%3d', err))
-		isArray(fileSpec) ? fileSpec.join(' + ') : fileSpec
+		isArray(globPat) ? globPat.join(' + ') : globPat
 	].join ' '
+	return
+
+# --- type TProcSpec = [CFileHandler, (string | string[])]
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export execResult := async (
+		handler: CFileHandler
+		path: string
+		hOptions: hash = {}
+		): TExecResult =>
+
+	return await handler.handleFile path, hOptions
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export allExecResults := async (
+		procSpec: TProcSpec
+		hOptions: hash = {}      # --- may contain 'transFunc', which
+		maxRunning: number = 10  #     is passed to handleFile()
+		): TAsyncIterator<TSettleResult<TExecResult>> ->
+
+	[handler, pat] := procSpec
+	{op} := handler
+	lThunks: TThunk<TExecResult>[] := for path of allFilesMatching(pat)
+		() =>
+			return await handler.handleFile path, hOptions
+
+	# --- allPromiseResults<TExecResult> yields items of type:
+	#     TSettleResult<TExecResult>, i.e.
+	#     [true, TExecResult, integer] | [false, string, integer]
+
+	yield* allPromiseResults<TExecResult> lThunks, maxRunning
 	return

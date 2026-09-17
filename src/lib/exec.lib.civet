@@ -32,7 +32,7 @@ import {
 	sep, centered, f,
 	} from 'llutils'
 import {debugging, inspect} from 'cmd-args'
-import {OL} from 'nice'
+import {OL, LOGVALUE} from 'nice'
 import {
 	barf, allFilesMatching, normalizePath, barfTempFile,
 	fileExt, withExt, slurpAsync, parsePath, CWritableFile,
@@ -51,19 +51,17 @@ export getCmdLine := (
 
 	assert isString(cmdName), "cmdName not a string: #{OL(cmdName)}"
 	assert isArrayOfStrings(lArgs), "not an array of strings: #{OL(lArgs)}"
-	cmdLine := "#{cmdName} #{lArgs.join(' ')}"
-	DBG "cmdLine = #{OL(cmdLine)}"
-	return cmdLine
+	return "#{cmdName} #{lArgs.join(' ')}"
 
 # ---------------------------------------------------------------------------
 
 export type TStreamType = 'piped' | 'inherit'
 
 export type TExecResult =
+	cmdLine?: string
 	success: boolean
 	notNeeded?: true
 	timeTaken: number          # --- in secs
-	cmdLine?: string
 	stdout?: string
 	stderr?: string
 	infile?: string
@@ -132,8 +130,8 @@ export execCmd := (
 		child := Deno.spawn cmdName, lArgs
 		status := await child.status
 		return {
-			success: status.success
 			cmdLine
+			success: status.success
 			timeTaken: timer.timeTaken()
 			}
 
@@ -210,8 +208,8 @@ export execCmd := (
 	stderr := await child.stderr.text()
 
 	return {
-		success: status.success
 		cmdLine
+		success: status.success
 		timeTaken: timer.timeTaken()
 		stdout
 		stderr
@@ -285,25 +283,19 @@ export abstract class CFileHandler
 	# ..........................................................
 	# ASYNC
 
-	async postProcess(
-			path: string
-			hOptions: hash = {}
-			): TExecResult
-
-		return {
-			success: true
-			notNeeded: true   # --- no post processing was done
-			timeTaken: 0
-			}
-
-	# ..........................................................
-	# ASYNC
-
 	handleFile(
 			path: string
 			hOptions: hash = {}
 			): TExecResult
 
+		type opt = {
+			force: boolean
+			}
+		{force} := getOptions<opt> hOptions, {
+			force: false
+			}
+
+		{stub} := parsePath path
 		timer := new CTimer()
 		try
 			assert isFile(path), "No such file: #{path}"
@@ -318,7 +310,6 @@ export abstract class CFileHandler
 					stderr
 					}
 
-			force := ('force' in hOptions) && hOptions.force
 			DBG "force = #{force}"
 			needed := await @isNeeded(path, hOptions)
 			if not needed && not force
@@ -340,13 +331,8 @@ export abstract class CFileHandler
 					lRelPaths := lOutFiles.map((path) => toRelPath(path))
 					Object.assign hResult, {outfile: lRelPaths}
 
-			if not hOptions.nopp
-				hPostResult := await @postProcess path, hOptions
-				unless ('notNeeded' in hPostResult)
-					Object.assign hPostResult, {timeTaken: timer.timeTaken()}
-					Object.assign hResult, {hPostResult}
-
-			return Object.assign hResult, {
+			return {
+				...hResult
 				infile: toRelPath(path)
 				timeTaken: timer.timeTaken()
 				}
@@ -469,3 +455,5 @@ class CCmdUninstaller extends CFileHandler
 			]
 
 export doUninstallCmd := new CCmdUninstaller()
+
+# ---------------------------------------------------------------------------

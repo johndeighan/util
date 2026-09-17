@@ -1,67 +1,10 @@
 # temp.civet
 
-import {expandGlobSync} from '@std/fs/expand-glob'
-import {TextLineStream} from "jsr:@std/streams/text-line-stream"
-import {exists, existsSync} from '@std/fs'
-
-import {
-	LOG, DBG, ERR, clearLog, getLog, toConsole,
-	beginBox, endBox,
-	} from 'logger'
-import {
-	undef, defined, notdefined, assert, obviously, croak,
-	TAsyncIterator, deepEqual, sleep, getErrStr, colorize,
-	decolorize, TIterator, range, deepFreeze,
-	} from 'base'
+import {range} from 'base'
 import {hash, hashof} from 'datatypes'
-import {f, s, toBlock, EXEC, SKIP, sep, rtrim} from 'llutils'
-import {fromFSM, defaultDoneFunc, TState} from 'fsm'
-import {resetOneIndent, splitLine, indented} from 'indent'
-import {
-	execCmd, doInstallCmd, doUninstallCmd,
-	} from 'exec'
+import {EXEC} from 'llutils'
+import {procFiles} from 'proc-files'
 import {doCompileCivet} from 'civet'
-import {procOneFile, procFiles} from 'proc-files'
-import {
-	withExt, rmFile, allFilesMatching, allDirsMatching,
-	CReadableFile, CWritableFile,
-	barf, slurp, parsePath, findFile, isFile,
-	} from 'fsys'
-import {nice, OL, ML, LOGVALUE} from 'nice'
-import {TextTable, splitRows} from 'text-table'
-import {
-	doCompileHera, testHeraCode, preprocHera, preprocHeraFile,
-	} from 'hera-compile'
-import {parseText} from 'hera-parse'
-import {compileHera} from 'llhera'
-import {buildDotSymbols, loadSymbols, symbolsFromString} from 'symbols'
-import {typeCheckTsCode, CAnalysis, analyzeTsCode} from 'typescript'
-import {
-	TTextBlock, TMacroBlock, TBlock,
-	TMacroFunc, TMacroLib, isMacroLib,
-	expand, strApplyMacros, fileApplyMacros,
-	} from 'macros'
-import {
-	getFileOps, TFileOp, setDirTree,
-	} from 'unit-test'
-import {CRule, CRuleBranch, mkCodeBlock} from 'rule'
-import {mockPromise, checkType} from 'unit-test'
-import {doCompileFile, doUnitTest} from 'compile'
-import {
-	stack, setTracing,
-	trEnter, trReturnFrom, trYieldFrom, trResume, tr,
-	} from 'trace'
-import {CCallStack} from 'trace-stack'
-import {civet2js, civet2ts, civet2tsFile} from 'civet'
-import {generateAsync} from 'iter-utils'
-import {CTimer, sinceLoadStr} from 'timer'
-import {doMakeMarkdown} from 'md-macros'
-import {doCompileCielo} from 'cielo'
-import {
-	slot, TStrLoc, TParseMatch, CParseMatches,
-	} from 'parse-utils'
-import {doMakeUnitTest} from 'ut-macros'
-import {awaitAll} from 'await'
 
 # ---------------------------------------------------------------------------
 

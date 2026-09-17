@@ -16,54 +16,44 @@ import {
 	doCompileCivet, compileAllLibs, compileAllUnitTests,
 	} from 'civet'
 import {
-	TProcSpec, procFiles, procOneFile,
+	TProcSpec, execResult, allExecResults,
 	} from 'proc-files'
 import {LOGVALUE, OL} from 'nice'
 import {CTimer} from 'timer'
 import {getCmdArgs, inspect} from 'cmd-args'
 import {doUnitTest} from 'compile'
+import {utTableHeader, utTableSep, utTableRow} from 'unit-test'
 
 [
 	lStubs
-	{force, parallel, line: lineNum, box}
+	{force, quite, verbose, maxRunning, line: lineNum, box}
 	] := getCmdArgs 'utest', {
-		_:        {range: [1,99], desc: "stubs to test or 'all'"}
-		force:    {flag: 'f', desc: 'force recompile of libs and tests'}
-		parallel: {flag: 'p', desc: 'run tests in parallel'}
-		line:     {valType: 'integer', desc: 'line number to test'}
-		box:      {flag: 'b', desc: 'box in procFiles output'}
+		_:          {range: [0,99], desc: "stubs to test or 'all'"}
+		force:      {flag: 'f', desc: 'force recompile of libs and tests'}
+		quiet:      {flag: 'q', desc: 'quiet output'}
+		verbose:    {flag: 'v', desc: 'verbose output'}
+		maxRunning: {flag: 'm', desc: 'max running'}
+		line:       {valType: 'integer', desc: 'line number to test'}
+		box:        {flag: 'b', desc: 'box in procFiles output'}
 		}
 
 # ---------------------------------------------------------------------------
 
 await EXEC () =>
 	debugger
-	[hCounts, secs, lCompileResults] := await compileAllLibs {
-		force
-		box
-		quiet: true
-		}
-	if (hCounts.err == 0)
-		if (hCounts.processed > 0)
-			LOG "#{hCounts.processed} libs compiled in #{secs} secs"
-	else
-		ERR "Some libs failed compile"
-		console.log lCompileResults
+	try
+		LOG cmdTitle("COMPILE ALL LIBS")
+#		await compileAllLibs {force, box}
+		LOG "...done"
+	catch err
 		Deno.exit(-1)
 
-	if (lStubs[0] == 'all')
-
-		[hUTCounts, utSecs, lUTResults] := await compileAllUnitTests {
-			force
-			box
-			quiet: true
-			}
-		if (hUTCounts.err == 0)
-			if (hUTCounts.processed > 0)
-				LOG "#{hUTCounts.processed} libs compiled in #{utSecs} secs"
-		else
-			ERR "Some unit tests failed compile"
-			console.log lUTResults
+	if (lStubs.length == 0) || (lStubs[0] == 'all')
+		try
+			LOG cmdTitle("COMPILE ALL UNIT TESTS")
+#			await compileAllUnitTests {force, box}
+			LOG '...done'
+		catch err
 			Deno.exit(-1)
 
 		# --- At this point, all libs and unit tests have been compiled
@@ -75,103 +65,18 @@ await EXEC () =>
 		LOG cmdTitle("UNIT TEST ALL")
 		timer := new CTimer()
 
-		if parallel
-			LOG "Running tests in parallel"
-		else
-			LOG "Running tests serially"
-
 		# --- Print the header
 		LOG f"#{'Lib'}:-14 #{'OK'}:4 #{'Fail'}:4 #{'Time'}:8"
 		LOG [dashes(14), dashes(4), dashes(4), dashes(8)].join(' ')
 
-		if parallel
-			await procFiles [doUnitTest, ['**/*.test.ts']], {
-				callback: showResult
-				quiet: true
-				}
-		else
-			for path of allFilesMatching('**/*.{lib,cmd,parse}.ts')
-				hResult := await procOneFile path, doUnitTest, {
-					capture: true
-					quiet: true
-					}
-				showResult path, hResult
+		LOG utTableHeader()
+		LOG utTableSep()
+		for path of allFilesMatching '**/*.lib.ts'
+			LOG toRelPath(path)
+			hResult := await execResult doUnitTest, path
+			LOG (hResult.success) ? colorize('OK', 'green') : colorize('Failed', 'red')
 
-		console.log "TIME TAKEN: #{timer.timeTakenStr()}"
-		if not inspect
-			# --- Create HTML coverage file
-			write "Building coverage report..."
-			hResult := await execCmd 'deno', ['coverage', '--html']
-			writeln "Done"
+
 	else
 		for stub of lStubs
 			LOG cmdTitle("UNIT TEST #{stub}")
-
-			fileName := (
-				  stub.includes('.')
-				? "#{stub}.test.civet"
-				: "#{stub}.lib.test.civet"   # --- default is a 'lib' unit test
-				)
-			path := findFile fileName
-			if notdefined(path)
-				ERR "No such file: #{fileName}"
-				continue
-
-			# --- compile the test file
-			await procOneFile path, doCompileCivet, {force, quiet: true}
-
-			tsPath := withExt(path, '.ts')
-			hResult := await procOneFile tsPath, doUnitTest, {
-				lineNum
-				inspect
-				}
-
-# ---------------------------------------------------------------------------
-
-showResult := (
-		path: string
-		hResult: TExecResult
-		): void =>
-
-	if not hResult.success
-		ERR "Unit Test of #{path} failed"
-		LOGVALUE hResult.stderr, 'STDERR'
-
-	h := parsePath(path)
-	stub := h.stub.endsWith('.lib') ? h.stub.replace('.lib', '') : h.stub
-
-	stdout := hResult.stdout || 'BAD'
-	lMatches := decolorize(stdout).match ///
-		ok \s*
-		\| \s*
-		(\d+) \s*
-		passed \s*
-		\| \s*
-		(\d+) \s*
-		failed \s*
-		\(
-		(\d+)
-		(s | ms)
-		\)
-		///
-	if defined(lMatches)
-		[_, nOk, nBad, tm, units] := lMatches
-		nOkStr  := (
-			  (nOk == '0')
-			? colorize(nOk, 'red')
-			: colorize(nOk, 'green')
-			)
-		nBadStr := (
-			  (nBad == '0')
-			? colorize(nBad, 'green')
-			: colorize(nBad, 'red')
-			)
-		timeStr := (
-			  (units == 's')
-			? "#{tm}  s"
-			: "#{tm} #{units}"
-			)
-		LOG f"#{stub}:-14 #{nOkStr}:4 #{nBadStr}:4 #{timeStr}:8"
-	else
-		LOG hResult.stdout
-

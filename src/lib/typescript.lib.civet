@@ -19,7 +19,7 @@ import {
 	isHash, isString, isEmpty, nonEmpty, isNumber,
 	} from 'datatypes'
 import {MAP} from 'mapper'
-import {extractSourceMap} from 'stack'
+import {extractSourceMap} from 'v8-stack'
 import {
 	getOptions, hasKey, CStringSetMap, f,
 	} from 'llutils'

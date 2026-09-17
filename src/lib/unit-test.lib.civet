@@ -12,9 +12,10 @@ import {doesNotThrow} from "node:assert"
 import {
 	LOG, DBG, ERR, initLogLevel, pushLogLevel, popLogLevel,
 	} from 'logger'
-import {allStackFrames, TStackFrame, frameStr,} from 'stack'
+import {allStackFrames, TStackFrame, frameStr,} from 'v8-stack'
 import {
 	undef, defined, notdefined, pass, sleep, toBool,
+	colorize, decolorize,
 	croak, TIterator, TAsyncIterator, getErrStr, deepEqual,
 	} from 'base'
 import {esc} from 'unicode'
@@ -22,7 +23,7 @@ import {unify, isStrongerThan} from 'unify'
 import {
 	TVoidFunc, TAsyncVoidFunc, hash, regexp, isString, isArray,
 	isEmpty, nonEmpty, isIterator, isAsyncIterator, isIterable,
-	TStringMapper,
+	TStringMapper, integer,
 	isFunction, functionDef, isClass, classDef, isAsyncFunction,
 	} from 'datatypes'
 import {
@@ -30,6 +31,7 @@ import {
 	} from 'llutils'
 import {TState, fromFSM} from 'fsm'
 import {TextTable} from 'text-table'
+import {TExecResult} from 'exec'
 import {parseText} from 'hera-parse'
 import {
 	mkDir, clearDir, barf, myself, parsePath, mkpath,
@@ -522,6 +524,75 @@ export mockPromise := <T=unknown>(
 			reject(new Error(errMsg))
 		else
 			resolve(value)
+
+# ---------------------------------------------------------------------------
+
+export utTableHeader := (): string =>
+
+	return f"#{'OK'}:4  #{'Fail'}:4  #{'secs.'}:6  Stub"
+
+# ---------------------------------------------------------------------------
+
+export utTableSep := (): string =>
+
+	return '-'.repeat(24)
+
+# ---------------------------------------------------------------------------
+
+fmtRow := (
+		nOK: integer
+		nBad: integer
+		secs: string
+		stub: string
+		): string =>
+
+	okStr  := (nOK == 0)  ? colorize(nOK, 'red')    : colorize(nOK, 'green')
+	badStr := (nBad == 0) ? colorize(nBad, 'green') : colorize(nBad, 'red')
+	return f"#{okStr}:4  #{badStr}:4  #{secs}:6  #{stub}"
+
+# ---------------------------------------------------------------------------
+
+fmtError := (
+		errMsg: string
+		stub: string
+		): string =>
+
+	return f"#{errMsg}:{red} #{stub}"
+
+# ---------------------------------------------------------------------------
+
+export utTableRow := (h: TExecResult): string =>
+
+	{success, notNeeded, infile, stdout} := h
+	assert defined(infile), "No infile in hResult"
+	{stub} := parsePath(infile)
+	if notNeeded
+		return fmtError 'Missing Unit Test', stub
+	if notdefined(stdout)
+		console.log "EXEC RESULT:"
+		console.log h
+		console.log '-'.repeat(64)
+		return fmtError 'No STDOUT', stub
+	lMatches := decolorize(stdout).match ///
+			(\d+)
+			\s+
+			passed
+			\s+
+			\|
+			\s+
+			(\d+)
+			\s+
+			failed
+			\s+
+			\(
+			(\d+\w+)
+			\)
+			///
+	if defined(lMatches)
+		[_, nOK, nBad, timeTaken] := lMatches
+		return fmtRow parseInt(nOK), parseInt(nBad), timeTaken, stub
+	else
+		return fmtError "NO MATCH:\n#{stdout}", stub
 
 # ---------------------------------------------------------------------------
 # --- Create some values for testing

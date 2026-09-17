@@ -71,7 +71,7 @@ export async function compile(path: string): Promise<void> {
 		'--inline-map',
 		'-o', '.ts',
 		'-c', path
-		]);
+		], 'COMPILE');
 	return;
 	}
 
@@ -81,8 +81,9 @@ export async function typeCheck(path: string): Promise<void> {
 
 	await execCmd("deno", [
 		'check',
+		'--quiet',
 		withExt(path, '.ts')
-		]);
+		], 'TYPE CHECK');
 	return;
 	}
 
@@ -103,7 +104,7 @@ export async function installCmd(
 		'-A',
 		'--name', cmdName,
 		path
-		]);
+		], 'INSTALL');
 	return;
 	}
 
@@ -112,11 +113,18 @@ export async function installCmd(
 
 export async function execCmd(
 		cmdName: string,
-		lArgs: string[] = []
+		lArgs: string[] = [],  // --- last arg is a file path
+		label: string
 		): Promise<void> {
 
 	const cmdStr = getCmdStr(cmdName, lArgs);
-	console.log(`EXEC ${cmdStr}`);
+	const path = lArgs.at(-1);
+	if (label) {
+		console.log(`${label} ${path}`);
+		}
+	else {
+		console.log(`EXEC ${cmdStr}`);
+		}
 	const cmd = new Deno.Command(cmdName, {
 		args: lArgs,
 		stdout: 'inherit',
@@ -125,7 +133,12 @@ export async function execCmd(
 
 	const {code} = await cmd.output();
 	assert((code == 0), `Command ${cmdName} failed with code ${code}`);
-	console.log(green(`   ${cmdStr} SUCCEEDED`));
+	if (label) {
+		console.log(green(`   ${label} ${path} SUCCEEDED`));
+		}
+	else {
+		console.log(green(`   ${cmdStr} SUCCEEDED`));
+		}
 	return;
 	}
 

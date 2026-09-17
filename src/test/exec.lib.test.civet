@@ -374,7 +374,6 @@ await (() =>
 	truthy await cmdIsInstalled('hello')       # FAILED 3
 	await doUninstallCmd.handleFile(r'hello.cmd.ts')
 	falsy await cmdIsInstalled('hello')
-	debugger
 	await doUninstallCmd.handleFile(r'hello.cmd.ts')
 	)()
 

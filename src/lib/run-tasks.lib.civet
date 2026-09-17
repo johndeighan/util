@@ -1,0 +1,140 @@
+# run-tasks.lib.civet
+
+import {
+	cyan, black, red, green, magenta, yellow,
+	stripAnsiCode,
+	} from '@std/fmt/colors'
+import {
+	Listr, ListrTask, ListrRenderer, ListrTaskEventType,
+	ListrRendererSelection, ListrLogLevels, ListrDefaultRendererLogLevels,
+	ListrEventManager, ListrTaskObject, ListrLogger, DefaultRenderer,
+	} from 'listr2'
+
+import {hash} from 'datatypes'
+
+listrLogger := new ListrLogger({useIcons: false})
+
+# ---------------------------------------------------------------------------
+
+export LOG := (msg: string): void =>
+
+	listrLogger.log(ListrLogLevels.STARTED, msg)
+	return
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export runTasks := async <T=hash>(
+		lTasks: ListrTask<T>[]
+		ctx: T
+		): T =>
+
+	listr := new Listr<T> lTasks, {
+		concurrent: true
+		exitOnError: false
+		forceUnicode: true
+		ctx
+		renderer: 'default'
+		rendererOptions: {
+			icon: {
+				// Removes icons for all states (PENDING, SUCCESS, FAILED, etc.)
+				PENDING: () => '⏳'
+				COMPLETED: () => '✅'
+				FAILED: () => '❌'
+				RETRY: '🔄'
+				SKIPPED_WITH_COLLAPSE: '⏩',
+				SKIPPED_WITHOUT_COLLAPSE: '⏩',
+				ROLLING_BACK: '↩️'
+				ROLLED_BACK: '↩️'
+				}
+			color: {
+				FAILED: (message?: string) => red(message || '')
+				COMPLETED: (message?: string) => green(message || '')
+				ROLLED_BACK: (message?: string) => magenta(message || '')
+				}
+			}
+		}
+	await listr.run()
+	return await ctx
+
+# export declare enum ListrDefaultRendererLogLevels {
+#   PENDING = "PENDING",
+#   COMPLETED = "COMPLETED",
+#   COMPLETED_WITH_FAILED_SUBTASKS = "COMPLETED_WITH_FAILED_SUBTASKS",
+#   COMPLETED_WITH_FAILED_SISTER_TASKS = "COMPLETED_WITH_SISTER_TASKS_FAILED",
+#   SKIPPED_WITH_COLLAPSE = "SKIPPED_WITH_COLLAPSE",
+#   SKIPPED_WITHOUT_COLLAPSE = "SKIPPED_WITHOUT_COLLAPSE",
+#   OUTPUT = "OUTPUT",
+#   RETRY = "RETRY",
+#   ROLLING_BACK = "ROLLING_BACK",
+#   ROLLED_BACK = "ROLLED_BACK",
+#   FAILED = "FAILED",
+#   FAILED_WITH_FAILED_SUBTASKS = "FAILED_WITH_SUBTASKS",
+#   WAITING = "WAITING",
+#   PAUSED = "PAUSED"
+# }
+
+# ---------------------------------------------------------------------------
+# --- NOT CURRENTLY USED, but keep as an example
+
+# ---------------------------------------------------------------------------
+
+export type TRendererOptions = {
+	timestamp?: boolean
+	}
+
+export class MyRenderer implements ListrRenderer
+
+	# --- Tells listr2 whether this renderer can run in a non-TTY environment
+	static nonTTY = true;
+
+	# --- Required: hook up custom renderer-wide options
+	public static rendererOptions: TRendererOptions = {
+		timestamp: false
+		}
+
+	# --- Required: hook up task-specific custom options
+	public static rendererTaskOptions: TRendererOptions = {}
+
+	# ..........................................................
+
+	# --- Constructor receives the tasks array
+	#     and the configured renderer options
+
+	constructor(
+			public readonly tasks: ListrTaskObject<any, typeof DefaultRenderer>[]
+			public readonly options: TRendererOptions
+			public readonly events?: any    # --- EventManager passed down by listr2
+			)
+
+	# ..........................................................
+
+	# --- The render method is called by listr2 when execution begins.
+	#     This is where you subscribe to task events to update the output.
+
+	public render(): void
+
+		for task of @tasks
+
+			# --- Listen for when a task changes states
+			#     (PENDING, COMPLETED, FAILED, etc.)
+			task.on ListrTaskEventType.STATE, (state) =>
+				prefix := @options.timestamp ? "[#{new Date().toLocaleTimeString()}] " : '';
+				console.log "#{prefix}Task "#{task.title}" updated state to: #{state}"
+
+			# --- Listen for output data emitted during task execution
+			task.on ListrTaskEventType.OUTPUT, (output) =>
+				if output
+					console.log "  -> [#{task.title}]: #{output}"
+
+	# ..........................................................
+	#    The end method is automatically called when all tasks finish
+	#    or when a task throws an unhandled error.
+
+	end(err?: Error): void
+
+		if (err)
+			console.error "❌ Execution finished with an error: #{err.message}"
+		else
+			console.log '✅ All tasks finished successfully!'
+

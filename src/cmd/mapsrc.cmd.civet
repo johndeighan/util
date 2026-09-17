@@ -1,6 +1,6 @@
 # mapsrc.cmd.civet
 
-import {mapPos} from 'stack'
+import {mapPos} from 'v8-stack'
 import {assert, defined} from 'base'
 import {EXEC} from 'llutils'
 import {looksLikeInteger} from 'datatypes'

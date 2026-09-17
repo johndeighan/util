@@ -465,25 +465,26 @@ export DUMPER := (
 	{width, char, endLabel, escape, lineNumbers, type
 		} := getOptions<opt> hOptions, {
 			width: 64
-			char: '-'
+			char: '─'
 			endLabel: false
 			escape: true
 			lineNumbers: false
 			type: 'nice'
 			}
 
-	lLines: string[] := [sep(char, cyan(label), width)]
+	lLines: string[] := ['┌─' + sep(char, cyan(label), width)]
 	if isString(x)
 		for line,i of allLinesIn(x)
 			str := escape ? esc(decolorize(line) + '\n') : line
-			lLines.push (lineNumbers ? "#{sprintf('%3d', i+1)} #{str}" : str)
+			lLines.push '│ ' + (lineNumbers ? "#{sprintf('%3d', i+1)} #{str}" : str)
 	else
-		lLines.push (
+		lLines.push '│ ' + (
 			  (type == 'nice')
 			? nice(x, 78, hOptions)
 			: JSON.stringify(x, null, 3)
 			)
-	lLines.push sep(char, (endLabel ? "END #{label}" : undef), width)
+	lLines.push '└─' + sep(char, (endLabel ? "END #{label}" : undef), width)
+
 	return lLines.join('\n')
 
 # ---------------------------------------------------------------------------

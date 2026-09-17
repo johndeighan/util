@@ -1,14 +1,54 @@
 to do
 
-massage await.lib.civet so that
-	- getPromise() can be used instead of what's
-		currently assigned to the variable promise
+try to get tui.temp.civet working again
+	- it doesn't print the check marks
 
-in proc-files.lib.civet
-	there shouldn't be an onSettle
-	instead, code should be executed as part of awaitAll()
+----------------------------------------------------
+how can i execute a sequence of async tasks,
+limiting the number running at any one time,
+while reacting to each as it settles
+including if it throws an error
+----------------------------------------------------
+async function poolTasks(tasks, concurrencyLimit, onResult) {
+  // 1. Create an iterator from your array of tasks
+  const iterator = tasks.entries();
 
-rename stack.lib to v8-stack.lib
+  // 2. Define a worker that continuously pulls and executes tasks
+  async function worker() {
+    for (const [index, task] of iterator) {
+      try {
+        const value = await task();
+        // React immediately to success
+        onResult({ index, status: 'fulfilled', value });
+      } catch (reason) {
+        // React immediately to failure without stopping the pool
+        onResult({ index, status: 'rejected', reason });
+      }
+    }
+  }
+
+  // 3. Start the maximum allowed workers concurrently
+  const workers = Array(Math.min(concurrencyLimit, tasks.length))
+    .fill(null)
+    .map(() => worker());
+
+  // 4. Wait for all workers to finish draining the iterator
+  await Promise.all(workers);
+}----------------------------------------------------
+
+Run 'temp utest', get it working, use for command utest
+
+Completely replace uses of procOneFile and procFiles
+	with execCmd() and allPromiseResults()
+
+Run temp utest
+	- output is mostly correct except for alignment
+	- work it into a working 'utest all'
+	- test time taken
+
+test function compileAllLibs(), which should use {force: true}
+	- see temp file 'compile.civet'
+
 get 'utest all' to work
 	- use unitTestsFor() in compile.lib
 	- should return [] for commands for now
@@ -30,22 +70,6 @@ Use:
 	parstr <stub> <string> - to parse a string
 	parfile <stub> <filename> - to parse file contents
 ------------------------------------------
-
-Work on script allUnitTests.civet
-	- should run unit tests in parallel
-
-Replace isNeeded() with allOutPaths()
-	- if all out paths exist and are newer than path
-		assume it's not needed
-	- if allOutPaths() returns an empty arrey
-		assume it's needed
-
-Unit test for 'proc-files' lib fails !!!
-	- trying procOneFile('doesnotexist.ts', doRemoveTsFile)
-
-REVIEW all code that compiles civet to ts
-	- prefer use of procOneFile path, doCompileCivet
-	- maybe create a doTypeCheck ???
 
 Unit test for fsm has a test that should fail, but doesn't
 	- it's currently skipped, line 117

@@ -25,6 +25,8 @@
 		"@webui": "jsr:@webui/deno-webui"
 		"@std/http/file-server": "jsr:@std/http/file-server",
 		"@mwid/better-sse": "jsr:@mwid/better-sse",
+		"@henrygd/queue": "jsr:@henrygd/queue",
+		"crayon": "jsr:@crayon/crayon",
 
 		"@deno/emit": "jsr:@deno/emit",
 		"@danielx/civet": "npm:@danielx/civet@0.11.7",
@@ -44,13 +46,16 @@
 		"npm-@types/node": "npm:@types/node",
 		"npm-svelte/compiler": "npm:svelte/compiler",
 		"npm-console-gui-tools": "npm:console-gui-tools",
-		"npm-blessed": "npm:@unblessed/node",
+		"npm-blessed": "npm:blessed",
 		"npm-pug": "npm:pug",
+		"listr2": "npm:listr2",
 
 		"compile-config": "file:///C:/Users/johnd/util/compile.config.ts",
 
+		"run-tasks":     "file:///C:/Users/johnd/util/src/lib/run-tasks.lib.ts",
+		"tui":           "file:///C:/Users/johnd/util/src/lib/tui.lib.ts",
 		"logger":        "file:///C:/Users/johnd/util/src/lib/logger.lib.ts",
-		"stack":         "file:///C:/Users/johnd/util/src/lib/stack.lib.ts",
+		"v8-stack":      "file:///C:/Users/johnd/util/src/lib/v8-stack.lib.ts",
 		"base":          "file:///C:/Users/johnd/util/src/lib/base.lib.ts",
 		"timer":         "file:///C:/Users/johnd/util/src/lib/timer.lib.ts",
 		"llfs":          "file:///C:/Users/johnd/util/src/lib/llfs.lib.ts",

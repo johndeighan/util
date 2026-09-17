@@ -27,7 +27,10 @@ import {compileAllLibs} from 'civet'
 await EXEC () =>
 	if not noCompile
 		# --- Compile any changed libraries
-		await compileAllLibs()
+		try
+			await compileAllLibs()
+		catch err
+			Deno.exit(-1)
 
 	# --- compile temp file
 	stub := lNonOptions[0] || 'temp'

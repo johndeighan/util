@@ -1,4 +1,4 @@
-# stack.lib.civet
+# v8-stack.lib.civet
 
 import {existsSync} from '@std/fs'
 import {sprintf} from '@std/fmt/printf'
@@ -109,9 +109,9 @@ export allStackFrames := (
 				let source: string = orgFrame.getFileName() || ''
 				if source
 					source = toRelPath source
-				let line: number   = orgFrame.getLineNumber() || -1
-				let col: number    = orgFrame.getColumnNumber() || -1
-				name: string   := orgFrame.getFunctionName() || orgFrame.getMethodName() || ''
+				let line: number = orgFrame.getLineNumber() || -1
+				let col: number  = orgFrame.getColumnNumber() || -1
+				name: string    := orgFrame.getFunctionName() || orgFrame.getMethodName() || ''
 
 				# --- Get an initial frame object
 				frame: TStackFrame := {
@@ -129,7 +129,7 @@ export allStackFrames := (
 				if trace
 					console.log frameStr(frame)
 
-				if not source
+				if not source || source.startsWith('ext:')
 					continue
 
 				# --- follow source maps recursively

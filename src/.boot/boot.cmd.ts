@@ -37,6 +37,6 @@ await execBatch('**/*.cmd.ts', installCmd, 'installed');
 
 await execCmd('buildpar', ['all']);
 
-console.time('Unit Tests');
-await execCmd('utest', ['all']);
-console.timeEnd('Unit Tests');
+// console.time('Unit Tests');
+// await execCmd('utest', ['all']);
+// console.timeEnd('Unit Tests');

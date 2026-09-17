@@ -47,7 +47,6 @@ patchOneFile := (path: string): void =>
 # ---------------------------------------------------------------------------
 
 await EXEC () =>
-	debugger
 	LOG "stub = #{stub}"
 	if (stub == 'all')
 		for path of allFilesMatching('./**/*.test.civet')
