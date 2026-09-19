@@ -10,14 +10,10 @@ import {
 	isAsyncIterator, isAsyncFunction,
 	} from 'datatypes'
 import {f, getOptions} from 'llutils'
-import {OL, nice} from 'nice'
 
 # ---------------------------------------------------------------------------
 
 export type TState = number
-
-export isStateNum := (x: number): x is TState =>
-	return isInteger(x) && (x >= 0)
 
 # --- a TStateFunc can throw the final value
 #     for a premature exit
@@ -46,25 +42,19 @@ export fsmSync := <TIn, TOut>(
 
 	let state: TState = 0
 	try
-		DBG "fsmSync Initial State: #{state}"
 		let numItems = 0
 		for item,i of iter
 			numItems += 1
-			DBG "Got item #{item}"
 			stateFunc := lStates[state]
 			assert defined(stateFunc), "Bad state func (undef)"
 			newState := stateFunc item, i
-			DBG f"#{state}:3 => #{newState}:3 on item #{OL(item)}"
 			assert (0 <= newState < lStates.length),
 				"Bad state: #{newState}"
 			state = newState
-		DBG "Processed all #{numItems} items, state = #{state}"
 		return doneFunc(state)
 	catch x
-		DBG "FAILED in STATE #{state}"
 		if (x instanceof Error)
 			throw x
-		DBG nice(x)
 		return x as TOut
 
 # ---------------------------------------------------------------------------
@@ -78,25 +68,19 @@ export fsmAsync := <TIn, TOut>(
 
 	let state: TState = 0
 	try
-		DBG "fsmAsync Initial State: #{state}"
 		let numItems = 0
 		for await item,i of iter
 			numItems += 1
-			DBG "Got item #{item}"
 			stateFunc := lStates[state]
 			assert defined(stateFunc), "Bad state func (undef)"
 			newState := stateFunc item, i
-			DBG f"#{state}:3 => #{newState}:3 on item #{OL(item)}"
 			assert (0 <= newState < lStates.length),
 				"Bad state: #{newState}"
 			state = newState
-		DBG "Processed all #{numItems} items, state = #{state}"
 		return await doneFunc(state)
 	catch x
-		DBG "FAILED in STATE #{state}"
 		if (x instanceof Error)
 			throw x
-		DBG nice(x)
 		return x as Awaited<TOut>
 
 # ---------------------------------------------------------------------------
@@ -133,21 +117,16 @@ export function fromFSM<TIn, TOut=unknown>(
 
 	if trace
 		pushLogLevel 'debug'
-		DBG "===== FSM ====="
 	if defined(initFunc)
-		DBG "Running initFunc"
 		initFunc()
 
 	# --- determine whether to run sync or async version
 	result := (
 		if isAsyncIterator(iter)
-			DBG "exec fsmAsync"
 			fsmAsync iter, lStates, doneFunc
 		else if isArray(iter)
-			DBG "exec fsmSync for array"
 			fsmSync iter.values(), lStates, doneFunc
 		else
-			DBG "exec fsmSync for iterator"
 			fsmSync iter, lStates, doneFunc
 		)
 

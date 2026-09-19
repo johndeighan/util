@@ -11,9 +11,10 @@ import {
 	openDebugFile, removeDebugFile, closeDebugFile, inUnitTest,
 	LOG, DBG, ERR,
 	} from 'logger'
-import {undef, defined, getErrStr} from 'base'
+import {undef, defined, notdefined, getErrStr, assert} from 'base'
 import {integer} from 'datatypes'
 import {normalizePath, toRelPath, isFullPath, toFullPath} from 'llfs'
+import {fromFSM, TState} from 'fsm'
 
 type TIterator<TIn, TOut=void, TAcc=void> = Generator<TIn, TOut, TAcc>
 
@@ -21,20 +22,10 @@ removeDebugFile 'stack'
 
 # ---------------------------------------------------------------------------
 
-export type TFrameType = (
-	'eval' |
-	'native' |
-	'constructor' |
-	'method' |
-	'function' |
-	'script' |
-	'unknown'
-	)
-
 export type TStackFrame = {
 	i: integer
 	type: string
-	source: string        # relative file path or 'unknown'
+	source: string        # relative file path or ''
 	line: number
 	col: number
 	name: string          # name of function or method
@@ -63,31 +54,48 @@ export type TFilePosition = {
 
 # ---------------------------------------------------------------------------
 
-getFrameType := (site: CallSite): string =>
+export type TFrameType = (
+	'for-next' |
+	'for-from' |
+	'null' |
+	'external' |
+	'eval' |
+	'native' |
+	'constructor' |
+	'method' |
+	'function' |
+	'script' |
+	'unknown'
+	)
 
+getFrameType := (
+		site: CallSite
+		name: string
+		): TFrameType =>
+
+	source := site.getFileName()
+	if notdefined(source)
+		return (
+			  (name == 'next') ? 'for-next'
+			: (name == 'from') ? 'for-from'
+			:                    'null'
+			)
 	return (
-		site.getFunctionName() ? 'function'
-		: site.getMethodName() ? 'method'
-		: site.isTopLevel      ? 'script'
-		: site.isEval()        ? 'eval'
-		: site.isNative()      ? 'native'
-		: site.isConstructor() ? 'constructor'
-		:                        'unknown'
+		  source.startsWith('ext:') ? 'external'
+		: site.getFunctionName()    ? 'function'
+		: site.getMethodName()      ? 'method'
+		: site.isTopLevel           ? 'script'
+		: site.isEval()             ? 'eval'
+		: site.isNative()           ? 'native'
+		: site.isConstructor()      ? 'constructor'
+		:                             'script'
 		)
 
 # ---------------------------------------------------------------------------
 
-export allStackFrames := (
-		trace = false
-		): TIterator<TStackFrame> ->
+export allStackFrames := (): TIterator<TStackFrame> ->
 
 	openDebugFile 'stack'
-	fmt := (
-			line: number,
-			col: number,
-			src: string
-			): string =>
-		return "#{sprintf('%3d', line)} #{sprintf('%3d', col)} #{src}"
 
 	try
 		# @ts-ignore
@@ -100,10 +108,14 @@ export allStackFrames := (
 		let prevFrame: TStackFrame? = undefined
 
 		# @ts-ignore
-		Error.prepareStackTrace = (error, lOrgFrames: CallSite[]) =>
+		Error.prepareStackTrace = (
+				error,
+				lOrgFrames: CallSite[]
+				) =>
 
+			if (lOrgFrames.length == 0)
+				console.log "===== lOrgFrames is EMPTY ====="
 			let lFrames: TStackFrame[] = []    # return value
-
 			for orgFrame,i of lOrgFrames
 
 				let source: string = orgFrame.getFileName() || ''
@@ -111,12 +123,17 @@ export allStackFrames := (
 					source = toRelPath source
 				let line: number = orgFrame.getLineNumber() || -1
 				let col: number  = orgFrame.getColumnNumber() || -1
-				name: string    := orgFrame.getFunctionName() || orgFrame.getMethodName() || ''
+				name: string := (
+					   orgFrame.getFunctionName()
+					|| orgFrame.getMethodName()
+					|| ''
+					)
+				type: TFrameType := getFrameType(orgFrame, name)
 
 				# --- Get an initial frame object
 				frame: TStackFrame := {
 					i
-					type: getFrameType(orgFrame)
+					type
 					orgSource: source
 					orgLine:   line
 					orgCol:    col
@@ -126,10 +143,8 @@ export allStackFrames := (
 					name
 					}
 
-				if trace
-					console.log frameStr(frame)
-
-				if not source || source.startsWith('ext:')
+				if ['for-next','for-from','null','external'].includes type
+					lFrames.push frame
 					continue
 
 				# --- follow source maps recursively
@@ -140,8 +155,6 @@ export allStackFrames := (
 						source = toRelPath source
 					line   = newFilePos.line
 					col    = newFilePos.col
-					if trace
-						console.log "   => #{source}:#{line}:#{col}"
 					newFilePos = mapPosSync(newFilePos)
 
 				# --- Add new line & col if mapped
@@ -167,6 +180,9 @@ export allStackFrames := (
 		Error.captureStackTrace(obj)
 		# @ts-ignore
 		lStack: TStackFrame[] := obj.stack
+
+		if (lStack.length == 0)
+			console.log "===== captureStackTrace returned EMPTY STACK ====="
 
 		# --- reset to previous values
 		# @ts-ignore
@@ -293,6 +309,12 @@ export getMappings := (
 
 # ---------------------------------------------------------------------------
 
+export frameHdr := (): string =>
+
+	return sprintf "%2s %-8s %-16s %s", 'i', 'type', 'name', 'source'
+
+# ---------------------------------------------------------------------------
+
 export frameStr := (
 		frame: TStackFrame,
 		): string =>
@@ -303,12 +325,27 @@ export frameStr := (
 	{i, type, orgSource, orgLine, orgCol, source, line, col, name} := frame
 	typeStr := sprintf('%-8s', type)
 	nameStr := sprintf('%-16s', name)
-	prefix := "#{i}: #{typeStr} #{nameStr}"
+	prefix := "#{sprintf('%2d', i)}: #{typeStr} #{nameStr}"
 	if orgSource
 		mapped := (source == orgSource) ? '' : " => #{source} #{posStr(line, col)}"
 		return "#{prefix} #{orgSource} #{posStr(orgLine, orgCol)}" + mapped
 	else
 		return "#{prefix} <none>"
+
+# ---------------------------------------------------------------------------
+
+export v8StackStr := (
+		lFrames: TStackFrame[]? = undef
+		): string =>
+
+	lLines := for frame of (lFrames || allStackFrames())
+		frameStr frame
+	return [
+		frameHdr()
+		'-'.repeat(78)
+		...lLines
+		'-'.repeat(78)
+		].join('\n')
 
 # ---------------------------------------------------------------------------
 
@@ -356,3 +393,46 @@ export decodeLine := (line: string): number[][] =>
 				shift += 5
 			lOutput.push(v & 1 ? -(v >> 1) : v >> 1) # low bit is sign
 		lOutput
+
+# ---------------------------------------------------------------------------
+
+type TReturnType = [TStackFrame | undefined, TStackFrame[]]
+
+export getMyOutsideCaller := (): TReturnType =>
+
+	let mySrc: string? = undef
+
+	lFrames := Array.from allStackFrames()
+	if (lFrames.length == 0)
+		console.log "===== getMyOutsideCaller() NO FRAMES ====="
+		return [undef, []]
+	return fromFSM lFrames, [
+		# --- state 0
+		(frame: TStackFrame): TState =>
+			{name, source} := frame
+			if (
+						(name == 'getMyOutsideCaller')
+					&& source.match(/\bv8-stack\.lib\.(?:ts|civet)$/)
+					)
+				return 1
+			else
+				return 0
+
+		# --- state 1
+		(frame: TStackFrame): TState =>
+			{source} := frame
+			assert defined(source), "source after getMyOutsideCaller is undef"
+			mySrc = source
+			return 2
+
+		# --- state 2
+		(frame: TStackFrame): TState =>
+			{source} := frame
+			if (source == mySrc)
+				return 2
+			else
+				throw [frame, lFrames]     # found !
+		],
+		(finalState: TState) =>
+			return [undef, lFrames]
+		{}

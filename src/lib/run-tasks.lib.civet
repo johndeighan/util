@@ -1,24 +1,25 @@
 # run-tasks.lib.civet
 
 import {
-	cyan, black, red, green, magenta, yellow,
-	stripAnsiCode,
-	} from '@std/fmt/colors'
-import {
 	Listr, ListrTask, ListrRenderer, ListrTaskEventType,
 	ListrRendererSelection, ListrLogLevels, ListrDefaultRendererLogLevels,
 	ListrEventManager, ListrTaskObject, ListrLogger, DefaultRenderer,
 	} from 'listr2'
 
+import {colorize} from 'base'
 import {hash} from 'datatypes'
+import {f} from 'llutils'
 
 listrLogger := new ListrLogger({useIcons: false})
+
+export type TTask = any
 
 # ---------------------------------------------------------------------------
 
 export LOG := (msg: string): void =>
 
-	listrLogger.log(ListrLogLevels.STARTED, msg)
+	console.log '===== ' + colorize(msg, 'cyan')
+#	listrLogger.log(ListrLogLevels.STARTED, msg)
 	return
 
 # ---------------------------------------------------------------------------
@@ -27,32 +28,37 @@ export LOG := (msg: string): void =>
 export runTasks := async <T=hash>(
 		lTasks: ListrTask<T>[]
 		ctx: T
+		hOptions: hash = {}
 		): T =>
 
+	console.log "There are #{lTasks.length} tasks in the task list"
+
 	listr := new Listr<T> lTasks, {
-		concurrent: true
+		concurrent: false
 		exitOnError: false
 		forceUnicode: true
 		ctx
 		renderer: 'default'
 		rendererOptions: {
+			logger: listrLogger
 			icon: {
-				// Removes icons for all states (PENDING, SUCCESS, FAILED, etc.)
-				PENDING: () => '⏳'
+				PENDING: '⏳'
 				COMPLETED: () => '✅'
-				FAILED: () => '❌'
+				FAILED: '❌'
 				RETRY: '🔄'
 				SKIPPED_WITH_COLLAPSE: '⏩',
 				SKIPPED_WITHOUT_COLLAPSE: '⏩',
 				ROLLING_BACK: '↩️'
 				ROLLED_BACK: '↩️'
+				WAITING: '⏳'
 				}
 			color: {
-				FAILED: (message?: string) => red(message || '')
-				COMPLETED: (message?: string) => green(message || '')
-				ROLLED_BACK: (message?: string) => magenta(message || '')
+				FAILED: (msg?: string) => colorize(msg || '', 'red')
+				COMPLETED: (msg?: string) => colorize(msg || '', 'green')
+				ROLLED_BACK: (msg?: string) => colorize(msg || '', 'magenta')
 				}
 			}
+		...hOptions
 		}
 	await listr.run()
 	return await ctx

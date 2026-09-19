@@ -218,7 +218,8 @@ export hConfig: TCompilerConfig := {
 				hOptions: hash = {}
 				): TExecResult =>
 
-			hResult := await procOneFile withExt(path, '.ts'), doUnitTest
+#			hResult := await procOneFile withExt(path, '.ts'), doUnitTest
+			hResult := await doUnitTest.handleFile withExt(path, '.ts')
 			if not hResult.success
 				LOG "Unit test #{path} failed"
 			return hResult

@@ -23,6 +23,12 @@ defWidth := 64     # ---used in sep, centered
 
 # ---------------------------------------------------------------------------
 
+export add_s = (str: string, n: number): string =>
+
+	return (n == 1) ? str : str + 's'
+
+# ---------------------------------------------------------------------------
+
 export CWS = (str: string): string =>
 
 	return str.trim().replace(/\s+/sg, ' ')

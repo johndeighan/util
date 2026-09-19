@@ -12,7 +12,10 @@ import {doesNotThrow} from "node:assert"
 import {
 	LOG, DBG, ERR, initLogLevel, pushLogLevel, popLogLevel,
 	} from 'logger'
-import {allStackFrames, TStackFrame, frameStr,} from 'v8-stack'
+import {
+	allStackFrames, TStackFrame, frameStr, v8StackStr,
+	getMyOutsideCaller,
+	} from 'v8-stack'
 import {
 	undef, defined, notdefined, pass, sleep, toBool,
 	colorize, decolorize,
@@ -41,7 +44,6 @@ import {doCompileFile} from 'compile'
 import {typeCheckTsCode} from 'typescript'
 import {nice, OL, ML, LOGVALUE} from 'nice'
 import {getNeededImportStmts} from 'symbols'
-let nextNum = 1
 
 # ---------------------------------------------------------------------------
 
@@ -70,11 +72,11 @@ export line := (n: number): string =>
 
 export getTestName := (): string =>
 
-	n := nextNum
-	nextNum += 1
-	frame := getMyOutsideCaller()
-#	console.log frame
-	return (defined(frame) ? "line #{frame.line}" : "line ?")
+	result := getMyOutsideCaller()
+	debugger
+	[frame] := result
+	name := defined(frame) ? "line #{frame.line}" : "line ?"
+	return name
 
 # ---------------------------------------------------------------------------
 
@@ -350,51 +352,6 @@ export splitFuncStr := (valueStr: string): TSplitResult? =>
 				]
 	else
 		return undef
-
-# ---------------------------------------------------------------------------
-
-export getMyOutsideCaller := (
-	trace: boolean = false
-	): TStackFrame? =>
-
-	if trace
-		LOG '-'.repeat(70)
-		for frame of allStackFrames()
-			LOG frameStr(frame)
-
-	let mySrc: string? = undef
-
-	return fromFSM allStackFrames(), [
-		# --- state 0
-		(frame: TStackFrame): TState =>
-			if (
-						(frame.name == 'getMyOutsideCaller')
-					&& frame.source.match(/\bunit-test\.lib\.(?:ts|civet)$/)
-					)
-				if trace
-					LOG "getMyOutsideCaller found, set state to 1"
-				return 1
-			else
-				return 0
-
-		# --- state 1
-		(frame: TStackFrame): TState =>
-			{source} := frame
-			assert defined(source), "source after getMyOutsideCaller is undef"
-			mySrc = source
-			return 2
-
-		# --- state 2
-		(frame: TStackFrame): TState =>
-			{source} := frame
-			if (source == mySrc)
-				return 2
-			else
-				throw frame     # found !
-		],
-		(finalState: TState) =>
-			return undef
-		{}
 
 # ---------------------------------------------------------------------------
 

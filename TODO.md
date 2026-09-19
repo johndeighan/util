@@ -1,7 +1,14 @@
 to do
 
-try to get tui.temp.civet working again
-	- it doesn't print the check marks
+getMyOutsideCaller() is not in v8-stack
+	- so should be tested in v8-stack.lib.test.civet
+
+fix and test:
+	- compile-all
+	- test-all
+
+work with v8-stack.lib.civet
+	- always return all frames
 
 ----------------------------------------------------
 how can i execute a sequence of async tasks,
