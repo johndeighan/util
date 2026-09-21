@@ -18,7 +18,7 @@ import {
 	} from 'v8-stack'
 import {
 	undef, defined, notdefined, pass, sleep, toBool,
-	colorize, decolorize,
+	colorize, decolorize, strHasPat,
 	croak, TIterator, TAsyncIterator, getErrStr, deepEqual,
 	} from 'base'
 import {esc} from 'unicode'
@@ -72,9 +72,8 @@ export line := (n: number): string =>
 
 export getTestName := (): string =>
 
-	result := getMyOutsideCaller()
 	debugger
-	[frame] := result
+	frame := getMyOutsideCaller()
 	name := defined(frame) ? "line #{frame.line}" : "line ?"
 	return name
 
@@ -92,18 +91,6 @@ export equal := (
 	else
 		Deno.test name || getTestName(), () =>
 			assertEquals value, expected
-	return
-
-# ---------------------------------------------------------------------------
-
-export matches := (
-		value: string,
-		expected: regexp
-		name?: string
-		): void =>
-
-	Deno.test name || getTestName(), () =>
-		assertMatch rtrim(value), expected
 	return
 
 # ---------------------------------------------------------------------------

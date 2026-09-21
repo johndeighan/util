@@ -17,7 +17,7 @@ import {
 	pushLogLevel, popLogLevel,
 	} from 'logger'
 import {
-	pass, undef, defined, notdefined, reMatch,
+	pass, undef, defined, notdefined, matches,
 	TIterator, TAsyncIterator, encode,
 	croak, assert, obviously, words,
 	getEmptyIterator, getEmptyAsyncIterator,
@@ -432,7 +432,7 @@ export type TPathFilter = (path: string) => boolean
 export inHiddenFolder := (path: string): boolean =>
 
 	h := parsePath(path)
-	return reMatch(h.dir, /\/\./)
+	return matches(h.dir, /\/\./)
 
 # ---------------------------------------------------------------------------
 # TIterator

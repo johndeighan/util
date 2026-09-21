@@ -134,19 +134,66 @@ export croak: TNeverFunc := (
 
 export matches := (
 		str: string
-		regexp: RegExp
+		regexp: string | RegExp
 		): boolean =>
 
-	return regexp.test(str)
+	if (typeof regexp == 'string')
+		return new RegExp(regexp).test(str)
+	else
+		return regexp.test(str)
 
 # ---------------------------------------------------------------------------
 
-export reMatch := (
-		str: string
-		regexp: RegExp
+similarWords := (
+		word1: string
+		word2: string
 		): boolean =>
 
-	return regexp.test(str)
+	if (word1 == word2)
+		return true
+
+	# --- check if word2 is a regular expression within '{' and '}'
+	lMatches := word2.match /^\{(.*)\}$/
+	if defined(lMatches)
+		# --- It's a regexp pattern
+		re := new RegExp(lMatches[1])
+		return re.test word1
+
+	return false
+
+# ---------------------------------------------------------------------------
+
+similarLines := (
+		line1: string
+		line2: string
+		): boolean =>
+
+	lWords1 := words(line1)
+	n := lWords1.length
+	lWords2 := words(line2)
+	if (lWords2.length != n)
+		return false
+	for i of range(n)
+		if not similarWords(lWords1[i], lWords2[i])
+			return false
+	return true
+
+# ---------------------------------------------------------------------------
+
+export strHasPat := (
+		str1: string
+		str2: string
+		): boolean =>
+
+	lLines1 := str1.split('\n')
+	n := lLines1.length
+	lLines2 := str2.split('\n')
+	if (lLines2.length != n)
+		return false
+	for i of range(n)
+		if not similarLines(lLines1[i], lLines2[i])
+			return false
+	return true
 
 # ---------------------------------------------------------------------------
 
@@ -209,6 +256,15 @@ export obviously: TObviouslyFunc := (
 	if not cond
 		croak "#{condStr || 'condition'} not obviously true"
 		Deno.exit()
+	return
+
+export checkThat := (
+		cond: unknown
+		condStr: string
+		): void =>
+
+	if not cond
+		console.log "WARNING: #{condStr}"
 	return
 
 # ---------------------------------------------------------------------------

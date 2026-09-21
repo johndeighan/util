@@ -3,7 +3,7 @@
 import {initLogLevel, LOG, DBG, ERR, curLogLevel} from 'logger'
 import {
 	undef, defined, notdefined, croak, assert,
-	obviously, matches, clearScreen,
+	obviously, clearScreen,
 	} from 'base'
 import {
 	hash, hashof, array, char, integer, nonEmpty,

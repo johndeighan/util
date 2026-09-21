@@ -21,7 +21,7 @@ import {doUnitTest} from 'compile'
 		_:           {range: [1,99], desc: 'list of stubs'}
 		force:       {flag: 'f',     desc: 'force build'}
 		doTest:      {flag: 't',     desc: 'run unit test(s)'}
-		inspectTest: {flag: 'J', desc: 'inspect unit test'}
+		inspectTest: {flag: 'J',     desc: 'inspect unit test'}
 		}
 
 # ---------------------------------------------------------------------------

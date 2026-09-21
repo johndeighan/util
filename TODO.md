@@ -1,14 +1,8 @@
 to do
 
-getMyOutsideCaller() is not in v8-stack
-	- so should be tested in v8-stack.lib.test.civet
-
 fix and test:
 	- compile-all
 	- test-all
-
-work with v8-stack.lib.civet
-	- always return all frames
 
 ----------------------------------------------------
 how can i execute a sequence of async tasks,
@@ -41,7 +35,8 @@ async function poolTasks(tasks, concurrencyLimit, onResult) {
 
   // 4. Wait for all workers to finish draining the iterator
   await Promise.all(workers);
-}----------------------------------------------------
+}
+----------------------------------------------------
 
 Run 'temp utest', get it working, use for command utest
 

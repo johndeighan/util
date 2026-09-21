@@ -1,45 +1,12 @@
 # temp.civet
 
-import {range} from 'base'
+import {undef, range} from 'base'
 import {hash, hashof} from 'datatypes'
 import {EXEC} from 'llutils'
-import {procFiles} from 'proc-files'
-import {doCompileCivet} from 'civet'
+import {inFunc, deeplyInFunc, v8StackStr} from 'v8-stack'
+import {func1} from './temp.lib.ts'
 
 # ---------------------------------------------------------------------------
 
-avg := (lNumbers: number[]): number =>
-
-	let sum = 0
-	for i of lNumbers
-		sum += i
-	return sum / lNumbers.length
-
-# ---------------------------------------------------------------------------
-
-await EXEC () =>
-	pat := '**/*.lib.civet'
-	hOptions: hash := {force: true}
-
-	hData: hashof<number[]> := {}
-
-	test := (n: number): void =>
-		hOptions.maxRunning = (n > 0) ? n : Infinity
-		[hCounts, timeTaken] := await procFiles [doCompileCivet, pat], hOptions
-		if (hCounts.err > 0)
-			console.log "There were errors"
-			Deno.exit(-1)
-		nStr := n.toString()
-		if not (nStr in hData)
-			hData[nStr] = [] as number[]
-		hData[nStr].push timeTaken
-
-	for rep of range(5)
-		for i of range(10)
-			await test(i)
-
-	console.log hData
-
-	for key,lItems in hData
-		console.log "[#{key}] #{avg(lItems)}"
-
+EXEC () =>
+	func1()

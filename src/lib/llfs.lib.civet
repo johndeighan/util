@@ -11,6 +11,7 @@ import {
 	undef, defined, notdefined, assert, obviously, croak,
 	TAsyncIterator, matches,
 	} from 'base'
+import {isEmpty} from 'datatypes'
 
 # ---------------------------------------------------------------------------
 
@@ -173,6 +174,8 @@ export toRelPath := (
 		root: string = Deno.cwd()
 		): string =>
 
+	if isEmpty(path)
+		return ''
 	return normalizePath relative(root, path)
 
 # ---------------------------------------------------------------------------

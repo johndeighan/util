@@ -4,7 +4,7 @@ import {cyan, red, green} from '@std/fmt/colors'
 
 import {initLogLevel} from 'logger'
 import {
-	undef, defined, notdefined, sleep, reMatch, obviously,
+	undef, defined, notdefined, sleep, matches, obviously,
 	} from 'base'
 import {
 	hash, isString, isFunction, isAsyncIterator,
@@ -403,7 +403,7 @@ await equal await slurpAsync(r'file1.txt'), """
 			else if isFile(path)
 				return (
 					   not inHiddenFolder(path)
-					&& reMatch(fileName, /^[a-z0-9]+\.txt$/)
+					&& matches(fileName, /^[a-z0-9]+\.txt$/)
 					)
 			else
 				return false

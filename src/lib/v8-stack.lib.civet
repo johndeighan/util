@@ -11,19 +11,18 @@ import {
 	openDebugFile, removeDebugFile, closeDebugFile, inUnitTest,
 	LOG, DBG, ERR,
 	} from 'logger'
-import {undef, defined, notdefined, getErrStr, assert} from 'base'
+import {
+	undef, defined, notdefined, getErrStr, assert, matches, TIterator,
+	} from 'base'
 import {integer} from 'datatypes'
 import {normalizePath, toRelPath, isFullPath, toFullPath} from 'llfs'
-import {fromFSM, TState} from 'fsm'
-
-type TIterator<TIn, TOut=void, TAcc=void> = Generator<TIn, TOut, TAcc>
+import {fromFSM, TState, defaultDoneFunc} from 'fsm'
 
 removeDebugFile 'stack'
 
 # ---------------------------------------------------------------------------
 
 export type TStackFrame = {
-	i: integer
 	type: string
 	source: string        # relative file path or ''
 	line: number
@@ -46,18 +45,133 @@ export type RawSourceMap = {
 	mappings: string;          # The actual encoded mappings (Base64 VLQ)
 	}
 
-export type TFilePosition = {
-	source: string
-	line: number
-	col: number
-	}
+# ---------------------------------------------------------------------------
+
+export allStackFrames := (
+		debug: boolean = false
+		): TIterator<TStackFrame> ->
+
+	openDebugFile 'stack'
+
+	try
+		oldLimit: number := Error.stackTraceLimit
+		oldPreparer := Error.prepareStackTrace
+		Error.stackTraceLimit = 99
+
+		Error.prepareStackTrace = (
+				error: unknown
+				lCallSites: CallSite[]
+				) =>
+
+			assert (lCallSites.length > 0), "lCallSites is EMPTY"
+
+			if debug
+				for site of lCallSites
+					console.log '='.repeat(64)
+					console.log fullCallSite(site)
+					console.log getFrame(site)
+
+			lFrames: TStackFrame[] := []    # yield these values later
+
+			fromFSM
+				lCallSites,
+				[
+					# --- state 0
+					(site, i): TState =>
+						type := getFrameType(site)
+						if (type == 'for-next') || (type == 'for-from')
+							return 0
+						if (type != 'function')
+							return 0
+						source := getFrameSource(site)
+						if matches source, /\bv8-stack\.lib\.(?:ts|civet)$/
+							return 0
+						else
+							lFrames.push getFrame(site)
+							return 1
+
+					# --- state 1
+					(site, i): TState =>
+						lFrames.push getFrame(site)
+						return 1
+					]
+				(state) => return lFrames
+				{}
+
+			# --- fix a bug in the V8 engine where calls inside a
+			#     top level anonymous function is reported as
+			#     being of type 'script'
+
+			nFrames := lFrames.length
+			for frame,i of lFrames
+				if (i < nFrames-1) && (frame.type == 'script')
+					frame.type = 'function'
+			return lFrames
+
+		obj: Object := {}
+		Error.captureStackTrace(obj)
+		# @ts-ignore
+		lStack: TStackFrame[] := obj.stack
+
+		assert (lStack.length > 0), "EMPTY STACK"
+
+		# --- reset to previous values
+		Error.stackTraceLimit = oldLimit
+		Error.prepareStackTrace = oldPreparer
+		for frame of lStack
+			yield frame
+		return
+
+	catch err
+		ERR "'ERROR in allStackFrames: #{getErrStr(err)}"
+		return
+	finally
+		closeDebugFile 'stack'
+
+# ---------------------------------------------------------------------------
+
+getFrame := (site: CallSite): TStackFrame =>
+
+	type: TFrameType := getFrameType(site)
+	name := getFrameName(site)
+	orgSource: string := getFrameSource(site)
+	orgLine: number   := site.getLineNumber() || -1
+	orgCol: number    := site.getColumnNumber() || -1
+
+	frame: TStackFrame := {
+		type
+		orgSource
+		orgLine
+		orgCol
+		source: orgSource
+		line:   orgLine
+		col:    orgCol
+		name
+		}
+
+	if ['for-next','for-from','unknown','external'].includes type
+		console.log "DEBUG: type = #{type}"
+		return frame
+
+	# --- follow source maps recursively
+
+	let {source, line, col} = frame
+	let newFilePos = mapPosSync({source, line, col})
+	if notdefined(newFilePos)
+		console.log "DEBUG: No source map in #{source}"
+	while defined(newFilePos)
+		frame.source = toRelPath(newFilePos.source)
+		frame.line   = newFilePos.line
+		frame.col    = newFilePos.col
+		newFilePos = mapPosSync(newFilePos)
+	return frame
 
 # ---------------------------------------------------------------------------
 
 export type TFrameType = (
 	'for-next' |
 	'for-from' |
-	'null' |
+	'unknown' |
 	'external' |
 	'eval' |
 	'native' |
@@ -70,137 +184,62 @@ export type TFrameType = (
 
 getFrameType := (
 		site: CallSite
-		name: string
 		): TFrameType =>
 
-	source := site.getFileName()
-	if notdefined(source)
-		return (
+	source: string? := site.getFileName()
+	type := (
+		if defined(source)
+			(
+			  source.startsWith('ext:') ? 'external'
+			: site.getFunctionName()    ? 'function'
+			: site.getMethodName()      ? 'method'
+			: site.isTopLevel           ? 'script'
+			: site.isEval()             ? 'eval'
+			: site.isNative()           ? 'native'
+			: site.isConstructor()      ? 'constructor'
+			:                             'script'
+			)
+		else
+			name := (
+					site.getFunctionName()
+				|| site.getMethodName()
+				|| ''
+				)
+			(
 			  (name == 'next') ? 'for-next'
 			: (name == 'from') ? 'for-from'
-			:                    'null'
+			:                    'unknown'
 			)
+		)
+	return type
+
+# ---------------------------------------------------------------------------
+
+getFrameName := (site: CallSite): string =>
+
 	return (
-		  source.startsWith('ext:') ? 'external'
-		: site.getFunctionName()    ? 'function'
-		: site.getMethodName()      ? 'method'
-		: site.isTopLevel           ? 'script'
-		: site.isEval()             ? 'eval'
-		: site.isNative()           ? 'native'
-		: site.isConstructor()      ? 'constructor'
-		:                             'script'
+			site.getFunctionName()
+		|| site.getMethodName()
+		|| ''
 		)
 
 # ---------------------------------------------------------------------------
 
-export allStackFrames := (): TIterator<TStackFrame> ->
+getFrameSource := (site: CallSite): string =>
 
-	openDebugFile 'stack'
-
-	try
-		# @ts-ignore
-		oldLimit := Error.stackTraceLimit
-		# @ts-ignore
-		oldPreparer := Error.prepareStackTrace
-		# @ts-ignore
-		Error.stackTraceLimit = 99
-
-		let prevFrame: TStackFrame? = undefined
-
-		# @ts-ignore
-		Error.prepareStackTrace = (
-				error,
-				lOrgFrames: CallSite[]
-				) =>
-
-			if (lOrgFrames.length == 0)
-				console.log "===== lOrgFrames is EMPTY ====="
-			let lFrames: TStackFrame[] = []    # return value
-			for orgFrame,i of lOrgFrames
-
-				let source: string = orgFrame.getFileName() || ''
-				if source
-					source = toRelPath source
-				let line: number = orgFrame.getLineNumber() || -1
-				let col: number  = orgFrame.getColumnNumber() || -1
-				name: string := (
-					   orgFrame.getFunctionName()
-					|| orgFrame.getMethodName()
-					|| ''
-					)
-				type: TFrameType := getFrameType(orgFrame, name)
-
-				# --- Get an initial frame object
-				frame: TStackFrame := {
-					i
-					type
-					orgSource: source
-					orgLine:   line
-					orgCol:    col
-					source:    source
-					line:      line
-					col:       col
-					name
-					}
-
-				if ['for-next','for-from','null','external'].includes type
-					lFrames.push frame
-					continue
-
-				# --- follow source maps recursively
-				let newFilePos = mapPosSync({source, line, col})
-				while (newFilePos != undefined)
-					source = newFilePos.source
-					if source
-						source = toRelPath source
-					line   = newFilePos.line
-					col    = newFilePos.col
-					newFilePos = mapPosSync(newFilePos)
-
-				# --- Add new line & col if mapped
-				if (source != frame.orgSource)
-					frame.source = source
-					frame.line = line
-					frame.col = col
-
-				# --- fix a bug in the V8 engine where calls inside a
-				#     top level anonymous function is reported as
-				#     being of type 'script'
-
-				if prevFrame && (frame.type == 'script') && (prevFrame.type == 'script')
-					prevFrame.type = 'function'
-					prevFrame.name = '<anon>'
-
-				prevFrame = frame
-				lFrames.push frame
-
-			return lFrames
-
-		obj: Object := {}
-		Error.captureStackTrace(obj)
-		# @ts-ignore
-		lStack: TStackFrame[] := obj.stack
-
-		if (lStack.length == 0)
-			console.log "===== captureStackTrace returned EMPTY STACK ====="
-
-		# --- reset to previous values
-		# @ts-ignore
-		Error.stackTraceLimit = oldLimit
-		# @ts-ignore
-		Error.prepareStackTrace = oldPreparer
-		for frame of lStack
-			yield frame
-		return
-
-	catch err
-		ERR "#{red('ERROR in allStackFrames:')} #{getErrStr(err)}"
-		return
-	finally
-		closeDebugFile 'stack'
+	src := site.getFileName()
+	if not src
+		return ''
+	return src.startsWith('ext:') ? src : toRelPath(src || '')
 
 # ---------------------------------------------------------------------------
 # ASYNC
+
+export type TFilePosition = {
+	source: string
+	line: number
+	col: number
+	}
 
 export mapPos := (
 	filePos: TFilePosition
@@ -209,28 +248,39 @@ export mapPos := (
 	{source, line, col} := filePos
 	contents := await Deno.readTextFile source
 	[code, hSrcMap] := extractSourceMap contents
-	if (hSrcMap != undefined)
+	if defined(hSrcMap)
 		consumer := await new SourceMapConsumer(hSrcMap)
 		pos := consumer.originalPositionFor({line, column: col})
 		return pos as TFilePosition
 	else
-		return undefined
+		return undef
 
 # ---------------------------------------------------------------------------
 
-export mapPosSync := (
-	filePos: TFilePosition
-	): TFilePosition? =>
+hCache := new Map<string,RawSourceMap>()
+
+export mapPosSync := (filePos: TFilePosition): TFilePosition? =>
 
 	{source, line, col} := filePos
 	contents := Deno.readTextFileSync source
-	[code, hSrcMap] := extractSourceMap contents
-	if (hSrcMap == undefined)
-		return undefined
+	hSrcMap := (
+		if hCache.has source
+			hCache.get source
+		else
+			[_, hSrcMap] := extractSourceMap contents
+			hSrcMap
+		)
+
+	if notdefined(hSrcMap)
+		return undef
+
+	# --- add to the cache
+	hCache.set source, hSrcMap
+
 	[fileNum, srcLine, srcCol] := getOrgPos hSrcMap, line, col
 	fileName := hSrcMap.sources[fileNum]
 	if (fileName == 'unknown')
-		return undefined
+		return undef
 	return {
 		source: normalizePath "#{dirname(source)}/#{fileName}"
 		line: srcLine
@@ -286,7 +336,7 @@ export getOrgPos := (
 		return [orgFileNum, civetLine, civetCol]
 	else
 		last := lMappings.at(-1)
-		if (last == undefined)
+		if notdefined(last)
 			throw new Error "last not defined"
 		[tsLine, tsCol, orgFileNum, civetLine, civetCol] := last
 		return [orgFileNum, civetLine, civetCol]
@@ -311,7 +361,7 @@ export getMappings := (
 
 export frameHdr := (): string =>
 
-	return sprintf "%2s %-8s %-16s %s", 'i', 'type', 'name', 'source'
+	return sprintf "%-8s %-16s %s", 'type', 'name', 'source'
 
 # ---------------------------------------------------------------------------
 
@@ -322,12 +372,21 @@ export frameStr := (
 	posStr := (line: number, col: number): string =>
 		return inUnitTest() ? "#{line}:#{col}" : green("#{line}:#{col}")
 
-	{i, type, orgSource, orgLine, orgCol, source, line, col, name} := frame
+	{type, orgSource, orgLine, orgCol, source, line, col, name} := frame
 	typeStr := sprintf('%-8s', type)
-	nameStr := sprintf('%-16s', name)
-	prefix := "#{sprintf('%2d', i)}: #{typeStr} #{nameStr}"
+	nameStr := (
+		if (type == 'function') && not name
+			sprintf('%-16s', '<anon>')
+		else
+			sprintf('%-16s', name)
+		)
+	prefix := "#{typeStr} #{nameStr}"
 	if orgSource
-		mapped := (source == orgSource) ? '' : " => #{source} #{posStr(line, col)}"
+		mapped := (
+			  (source == orgSource)
+			? ''
+			: "\n#{' '.repeat(30)}=> #{source} #{posStr(line, col)}"
+			)
 		return "#{prefix} #{orgSource} #{posStr(orgLine, orgCol)}" + mapped
 	else
 		return "#{prefix} <none>"
@@ -336,15 +395,16 @@ export frameStr := (
 
 export v8StackStr := (
 		lFrames: TStackFrame[]? = undef
+		debug: boolean = false
 		): string =>
 
-	lLines := for frame of (lFrames || allStackFrames())
+	lLines := for frame of (lFrames || allStackFrames(debug))
 		frameStr frame
 	return [
 		frameHdr()
-		'-'.repeat(78)
+		'-'.repeat(68)
 		...lLines
-		'-'.repeat(78)
+		'-'.repeat(68)
 		].join('\n')
 
 # ---------------------------------------------------------------------------
@@ -362,7 +422,7 @@ export extractSourceMap := (
 			(.+)
 			$///s
 	if (lMatches == null)
-		return [contents, undefined]
+		return [contents, undef]
 	[_, code, hSrcMapStr] := lMatches
 	hSrcMap := JSON.parse(atob(hSrcMapStr)) as RawSourceMap
 	{file} := hSrcMap
@@ -396,43 +456,78 @@ export decodeLine := (line: string): number[][] =>
 
 # ---------------------------------------------------------------------------
 
-type TReturnType = [TStackFrame | undefined, TStackFrame[]]
-
-export getMyOutsideCaller := (): TReturnType =>
+export getMyOutsideCaller := (): TStackFrame? =>
 
 	let mySrc: string? = undef
 
 	lFrames := Array.from allStackFrames()
-	if (lFrames.length == 0)
-		console.log "===== getMyOutsideCaller() NO FRAMES ====="
-		return [undef, []]
-	return fromFSM lFrames, [
-		# --- state 0
-		(frame: TStackFrame): TState =>
-			{name, source} := frame
-			if (
-						(name == 'getMyOutsideCaller')
-					&& source.match(/\bv8-stack\.lib\.(?:ts|civet)$/)
-					)
-				return 1
-			else
-				return 0
+	return fromFSM
+		lFrames,
+		[
+			# --- state 0
+			(frame: TStackFrame): TState =>
+				{source} := frame
+				if source
+					mySrc = source
+					return 1
+				else
+					return 0
 
-		# --- state 1
-		(frame: TStackFrame): TState =>
-			{source} := frame
-			assert defined(source), "source after getMyOutsideCaller is undef"
-			mySrc = source
-			return 2
-
-		# --- state 2
-		(frame: TStackFrame): TState =>
-			{source} := frame
-			if (source == mySrc)
-				return 2
-			else
-				throw [frame, lFrames]     # found !
-		],
+			# --- state 1
+			(frame: TStackFrame): TState =>
+				{source} := frame
+				if source && (source != mySrc)
+					throw frame
+				else
+					return 1
+			]
 		(finalState: TState) =>
-			return [undef, lFrames]
+			return undef
 		{}
+
+# ---------------------------------------------------------------------------
+
+export inFunc := (funcName: string): boolean =>
+
+	lFrames := Array.from allStackFrames()
+	frame := lFrames[0]
+	return (frame.type == 'function') && (frame.name == funcName)
+
+# ---------------------------------------------------------------------------
+
+export deeplyInFunc := (funcName: string): boolean =>
+
+	for frame of allStackFrames()
+		if (frame.type == 'function') && (frame.name == funcName)
+			return true
+	return false
+
+# ---------------------------------------------------------------------------
+
+type CallSiteEx = {
+	fileName: string | undefined
+	functionName: string | undefined
+	methodName: string | undefined
+	isTopLevel: boolean
+	isEval: boolean
+	isNative: boolean
+	isConstructor: boolean
+	lineNumber: number
+	columnNumber: number
+	}
+
+fullCallSite := (
+		site: CallSite
+		): CallSiteEx =>
+
+	return {
+		fileName: site.getFileName()
+		functionName: site.getFunctionName()
+		methodName: site.getMethodName()
+		isTopLevel: site.isTopLevel
+		isEval: site.isEval()
+		isNative: site.isNative()
+		isConstructor: site.isConstructor()
+		lineNumber: site.getLineNumber() || -1
+		columnNumber: site.getColumnNumber() || -1
+		}
