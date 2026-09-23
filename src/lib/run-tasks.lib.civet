@@ -31,8 +31,6 @@ export runTasks := async <T=hash>(
 		hOptions: hash = {}
 		): T =>
 
-	console.log "There are #{lTasks.length} tasks in the task list"
-
 	listr := new Listr<T> lTasks, {
 		concurrent: false
 		exitOnError: false
@@ -40,6 +38,7 @@ export runTasks := async <T=hash>(
 		ctx
 		renderer: 'default'
 		rendererOptions: {
+			clearOutput: true
 			logger: listrLogger
 			icon: {
 				PENDING: '⏳'

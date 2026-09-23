@@ -6,7 +6,8 @@ import {
 	colorize, decolorize, write, writeln, clearScreen,
 	} from 'base'
 import {isString} from 'datatypes'
-import {cmdTitle, f, dashes, EXEC} from 'llutils'
+import {f, dashes, EXEC} from 'llutils'
+import {cmdStep} from 'cmd-utils'
 import {
 	isFile, rmDir, withExt, findFile, allFilesMatching,
 	parsePath, toRelPath,
@@ -26,7 +27,7 @@ import {utTableHeader, utTableSep, utTableRow} from 'unit-test'
 
 [
 	lStubs
-	{force, quite, verbose, maxRunning, line: lineNum, box}
+	{force, quiet, verbose, maxRunning, line: lineNum, box}
 	] := getCmdArgs 'utest', {
 		_:          {range: [0,99], desc: "stubs to test or 'all'"}
 		force:      {flag: 'f', desc: 'force recompile of libs and tests'}
@@ -42,7 +43,7 @@ import {utTableHeader, utTableSep, utTableRow} from 'unit-test'
 await EXEC () =>
 	debugger
 	try
-		LOG cmdTitle("COMPILE ALL LIBS")
+		LOG cmdStep("COMPILE ALL LIBS")
 #		await compileAllLibs {force, box}
 		LOG "...done"
 	catch err
@@ -50,7 +51,7 @@ await EXEC () =>
 
 	if (lStubs.length == 0) || (lStubs[0] == 'all')
 		try
-			LOG cmdTitle("COMPILE ALL UNIT TESTS")
+			LOG cmdStep("COMPILE ALL UNIT TESTS")
 #			await compileAllUnitTests {force, box}
 			LOG '...done'
 		catch err
@@ -62,7 +63,7 @@ await EXEC () =>
 		assert not inspect, "Can't use -I with 'all'"
 		rmDir './coverage', {clear: true}
 
-		LOG cmdTitle("UNIT TEST ALL")
+		LOG cmdStep("UNIT TEST ALL")
 		timer := new CTimer()
 
 		# --- Print the header
@@ -79,4 +80,4 @@ await EXEC () =>
 
 	else
 		for stub of lStubs
-			LOG cmdTitle("UNIT TEST #{stub}")
+			LOG cmdStep("UNIT TEST #{stub}")

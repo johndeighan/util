@@ -3,7 +3,8 @@
 import {existsSync} from '@std/fs'
 
 import {LOG, DBG} from 'logger'
-import {cmdTitle, EXEC} from 'llutils'
+import {EXEC} from 'llutils'
+import {cmdStep} from 'cmd-utils'
 import {getCmdArgs} from 'cmd-args'
 import {
 	doInstallCmd, doUninstallCmd,
@@ -21,25 +22,25 @@ getCmdArgs "clearAll"
 await EXEC () =>
 	# 1. remove all *.ts files corresponding to *.civet files
 	#           if purpose is 'lib', 'cmd', 'parse', or 'test'
-	LOG cmdTitle("Remove *.{lib,cmd,parse,text}.ts")
+	LOG cmdStep("Remove *.{lib,cmd,parse,text}.ts")
 	await removeFilesMatching 'src/**/*.{lib,cmd,parse,test}.ts', {
 		filter: (path: string) =>
 			return existsSync withExt(path, '.civet')
 		}
 
 	# 2. remove all temp files
-	LOG cmdTitle("Remove temp files")
+	LOG cmdStep("Remove temp files")
 	await removeFilesMatching 'src/**/*.temp.*'
 
 	# 3. If there is a directory named 'test', remove any subfolders
-	LOG cmdTitle("Remove test subfolders")
+	LOG cmdStep("Remove test subfolders")
 	for path of allDirsMatching("src/**/test/*")
 		rmDir path, {clear: true}
 
 	# 4. remove all log files
-	LOG cmdTitle("Remove log files")
+	LOG cmdStep("Remove log files")
 	await removeFilesMatching 'src/**/log/*'
 
 	# 5. uninstall all commands installed by this project
-	LOG cmdTitle("Uninstall cmd files")
+	LOG cmdStep("Uninstall cmd files")
 	await procFiles [doUninstallCmd, ['src/**/*.cmd.ts']]

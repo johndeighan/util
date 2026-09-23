@@ -2,7 +2,8 @@
 
 import {LOG, DBG, WARN, ERR} from 'logger'
 import {assert, defined, croak} from 'base'
-import {cmdTitle, EXEC} from 'llutils'
+import {EXEC} from 'llutils'
+import {cmdStep} from 'cmd-utils'
 import {getCmdArgs, inspect} from 'cmd-args'
 import {withExt, findFile, isFile} from 'fsys'
 import {doInstallCmd} from 'exec'
@@ -25,7 +26,7 @@ import {doUnitTest} from 'compile'
 
 await EXEC () =>
 	if (lStubs[0] == 'all')
-		LOG cmdTitle("BUILD ALL CMDS")
+		LOG cmdStep("BUILD ALL CMDS")
 		[hCounts] := await procFiles
 			[doCompileCivet, ['src/**/*.cmd.civet']],
 			{force, quiet: true}
@@ -49,7 +50,7 @@ await EXEC () =>
 				LOG "#{hInstallCounts.processed] commands installed"
 	else
 		for stub of lStubs
-			LOG cmdTitle("BUILD CMD #{stub}")
+			LOG cmdStep("BUILD CMD #{stub}")
 
 			fileName := "#{stub}.cmd.civet"
 			path := findFile fileName
@@ -64,7 +65,7 @@ await EXEC () =>
 			assert isFile(tsPath), "File #{tsPath} not created"
 
 			if doTest
-				LOG cmdTitle("RUN TEST FOR #{stub}")
+				LOG cmdStep("RUN TEST FOR #{stub}")
 
 				tsPath := withExt(path, '.ts')
 				await procOneFile tsPath, doUnitTest, {

@@ -4,7 +4,8 @@ import {LOG, ERR} from 'logger'
 import {
 	assert, defined, notdefined,
 	} from 'base'
-import {o, cmdTitle, EXEC} from 'llutils'
+import {o, EXEC} from 'llutils'
+import {cmdStep} from 'cmd-utils'
 import {getCmdArgs, inspect} from 'cmd-args'
 import {withExt, findFile, toRelPath} from 'fsys'
 import {execCmd} from 'exec'
@@ -34,7 +35,7 @@ import {doUnitTest} from 'compile'
 
 await EXEC () =>
 	if (lStubs[0] == 'all')
-		LOG cmdTitle("BUILD ALL LIBS serially")
+		LOG cmdStep("BUILD ALL LIBS serially")
 		await procFiles [doCompileCivet, ['**/*.lib.civet']], {
 			force
 			serial: true
@@ -48,7 +49,7 @@ await EXEC () =>
 			await execCmd 'deno', ['coverage', '--html']
 	else
 		for stub of lStubs
-			LOG cmdTitle("BUILD LIB #{stub}")
+			LOG cmdStep("BUILD LIB #{stub}")
 
 			fileName := "#{stub}.lib.civet"
 			path := findFile fileName
@@ -60,7 +61,7 @@ await EXEC () =>
 				{force, inspect}
 
 			if doTest
-				LOG cmdTitle("RUN TEST FOR #{stub}")
+				LOG cmdStep("RUN TEST FOR #{stub}")
 
 				tsPath := withExt(path, '.ts')
 				await procOneFile tsPath, doUnitTest, {

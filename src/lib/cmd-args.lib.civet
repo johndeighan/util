@@ -17,7 +17,7 @@ import {
 	keys, getOptions, o, spaces,
 	} from 'llutils'
 import {resetOneIndent, indented} from 'indent'
-import {OL, LOGVALUE} from 'nice'
+import {OL, ML, LOGVALUE} from 'nice'
 
 export doSetLogLevel := true
 	# --- interprets:
@@ -78,14 +78,19 @@ export getCmdArgs := (
 			hashof<number>
 			] =>
 
-	# --- Any errors in this throws an exception
+	# --- clear screen first if doHandleClearScreen
+	if (lArgs.at(-1) == '!') && doHandleClearScreen
+		clearScreen()
+
+	hParsed := parseCmdArgDesc hDesc
+	DBG ML(hParsed)
 	{
 		hFlagNames      # hashof<string>
 		hStrTypes       # hashof<string>
 		hNumTypes       # hashof<string>
 		minNonOpt
 		maxNonOpt
-		} := parseCmdArgDesc hDesc
+		} := hParsed
 
 	# ..........................................................
 	# Error handling
@@ -113,9 +118,9 @@ export getCmdArgs := (
 	# --- Return errMsg if error, else return ''
 
 	setFlag := (ch: char): string =>
-		fullName := hFlagNames[ch]
-		if defined(fullName)
-			hFlags[fullName] = true
+		name := hFlagNames[ch]
+		if defined(name)
+			hFlags[name] = true
 		else
 			# --- check for builtin standard flags
 			switch ch
@@ -158,10 +163,6 @@ export getCmdArgs := (
 		return ''
 
 	# ..........................................................
-
-	# --- clear screen first if isNeeded, so user sees any errors
-	if (lArgs.at(-1) == '!') && doHandleClearScreen
-		clearScreen()
 
 	for arg,i of lArgs
 		if (arg == '--') || (arg == '!')
@@ -216,6 +217,10 @@ export getCmdArgs := (
 			initLogLevel 'debug'
 		else if silent
 			initLogLevel 'silent'
+
+	for ch,name in hFlagNames
+		if (name not in hFlags)
+			hFlags[name] = false
 
 	return [lNonOptions, hFlags, hStrVals, hNumVals]
 

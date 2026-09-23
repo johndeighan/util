@@ -2,11 +2,11 @@ await
 	allPromiseResults TSettleResult TThunk
 base
 	allChars allDefined allLinesIn allOf allValuesFrom allValuesFromAsync
-	anyDefined anyMatches anyNotDefined anyOf assert clearPreviousLines
+	anyDefined anyMatches anyNotDefined anyOf assert checkThat clearPreviousLines
 	clearScreen colorize croak decode decolorize deepCopy deepEqual deepFreeze
 	defined encode getEmptyAsyncIterator getEmptyIterator getErrStr
 	isAsyncGeneratorFunction isChineseChar isColor matches max notdefined
-	obviously pass range RawSourceMap reMatch resetLine sleep TAssertFunc
+	obviously pass range RawSourceMap resetLine sleep strHasPat TAssertFunc
 	TAsyncIterator TColor TDefined TFilePosition TIterator TNonFunction
 	TNotDefined toBool TPredicate undef withColors words working_deepFreeze write
 	writeln
@@ -18,6 +18,8 @@ civet
 cmd-args
 	debugging doHandleClearScreen doSetLogLevel getCmdArgs helping helpStr
 	inspect parseCmdArgDesc silent TArgDesc TBoolValDesc TNonOptionDesc TValueDesc
+cmd-utils
+	cmdStep
 compile
 	doCompileFile doUnitTest getCompilerInfo getPostProcessor isCompilerConfig
 	isCompilerInfo TCompilerConfig TCompilerFunc TCompilerInfo testFilesMatching
@@ -43,8 +45,7 @@ extract
 file-server
 	CFileServer getFile
 fsm
-	defaultDoneFunc fromFSM fsmAsync fsmSync isStateNum TDoneFunc TState
-	TStateFunc
+	defaultDoneFunc fromFSM fsmAsync fsmSync TDoneFunc TState TStateFunc
 fsys
 	addJsonValue allDirsMatching allFilesMatching allLinesInFile barf
 	barfTempFile clearDir CReadableFile CWritableFile FileEventHandler fileExt
@@ -77,9 +78,9 @@ llfs
 llhera
 	compileHera isHeraType THeraType
 llutils
-	abbrevStr alignString allMatches arrayToBlock blockHeight blockToArray
-	blockWidth centered cmdTitle countChars CStringSetMap CWS dashes entries EXEC
-	f formatVal fromTAML fsplit getLineAndColumn getOptions hasKey hasKeys
+	abbrevStr add_s alignString allMatches arrayToBlock blockHeight blockToArray
+	blockWidth centered countChars CStringSetMap CWS dashes entries EXEC f
+	formatVal fromTAML fsplit getLineAndColumn getOptions hasKey hasKeys
 	isAlignment isBlockSpec isTAML keys likeNum lpad ltrim o require rpad rtrim s
 	s2 s4 sep SKIP sortAnyArray spaces strToHash t tabify tabs TAlignment
 	TBlockSpec toArray toBlock truncStr untabify zpad
@@ -110,6 +111,8 @@ proc-files
 	TProcSpec
 rule
 	CRule CRuleBranch CRuleSet isValidRuleName mkCodeBlock
+run-tasks
+	LOG MyRenderer runTasks TRendererOptions TTask
 scope
 	CMainScope CScope
 section-map
@@ -129,8 +132,6 @@ trace
 	logReturnFrom logValue logYield parseFuncStr resetTracing setTracing shortStr
 	stack tr traceInternalDebugging TRACEVAL trEnter trResume trReturnFrom
 	trYieldFrom
-tui
-	Listr prompt runTasks TTask TTuiOption
 typescript
 	analyzeTsCode ast2ts astAsString AstWalker CAnalysis descFunc getNode
 	getSymbolsFromType kindStr ts2ast typeCheckTsCode typeCheckTsFile
@@ -140,14 +141,15 @@ unify
 	isStrongerThan unify
 unit-test
 	beginUnitTest checkType equal execFileOps fails falsy fileOpsTable generates
-	generatesAsync getFileOps getMyOutsideCaller getTestName getTsCode isType line
-	matches mockAsyncTask mockPromise notType same sameItemsInArray sampleVal
-	setDirTree splitFuncStr strongerThan succeeds TFileOp truthy unifies
-	utTableHeader utTableRow utTableSep
+	generatesAsync getFileOps getTestName getTsCode isType line mockAsyncTask
+	mockPromise notType same sameItemsInArray sampleVal setDirTree splitFuncStr
+	strongerThan succeeds TFileOp truthy unifies utTableHeader utTableRow
+	utTableSep
 ut-macros
 	doMakeUnitTest hUTMacroLib
 v8-stack
-	allStackFrames decodeLine extractSourceMap frameStr getMappings getOrgPos
-	mapPos mapPosSync RawSourceMap TFilePosition TFrameType TStackFrame
+	allStackFrames decodeLine deeplyInFunc extractSourceMap frameHdr frameStr
+	getMappings getMyOutsideCaller getOrgPos inFunc mapPos mapPosSync RawSourceMap
+	TFilePosition TFrameType TStackFrame v8StackStr
 walker
 	TVisitKind Walker

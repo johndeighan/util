@@ -1,0 +1,65 @@
+# unit-test.cmd.civet
+
+import {initLogLevel, LOG, DBG, ERR, curLogLevel} from 'logger'
+import {getErrStr} from 'base'
+import {hash} from 'datatypes'
+import {f, dashes, EXEC} from 'llutils'
+import {cmdStep} from 'cmd-utils'
+import {OL} from 'nice'
+import {parsePath, allFilesMatching} from 'fsys'
+import {getCmdArgs} from 'cmd-args'
+import {
+	doCompileCivet, compileAllLibs, compileAllUnitTests,
+	} from 'civet'
+import {runTasks, TTask} from 'run-tasks'
+
+[
+	lStubs
+	{force, quiet, verbose, box}
+	_
+	{maxRunning, line}
+	] := getCmdArgs 'unit-test', {
+		_:          {range: [0,99], desc: "stubs to test or 'all'"}
+		force:      {flag: 'f', desc: 'force recompile of libs and tests'}
+		quiet:      {flag: 'q', desc: 'quiet output'}
+		verbose:    {flag: 'v', desc: 'verbose output'}
+		maxRunning: {valType: 'integer', desc: 'max running'}
+		line:       {valType: 'integer', desc: 'line number to test'}
+		box:        {flag: 'b', desc: 'box in procFiles output'}
+		}
+
+# ---------------------------------------------------------------------------
+
+EXEC () =>
+	if verbose
+		LOG "stubs = #{OL(lStubs)}"
+		LOG "force = #{OL(force)}"
+		LOG "quiet = #{OL(quiet)}"
+		LOG "verbose = #{OL(verbose)}"
+		LOG "box = #{OL(box)}"
+
+	try
+		LOG cmdStep("COMPILE ALL LIBS")
+		{nCompiled, nNotNeeded, timeTaken} := await compileAllLibs()
+		if (nCompiled > 0)
+			LOG "#{nCompiled} libs compiled"
+		if (nNotNeeded > 0)
+			LOG "#{nNotNeeded} libs already compiled"
+		LOG "(#{timeTaken} secs.)"
+
+	catch err
+		ERR "Not all libs compiled: #{getErrStr(err)}"
+		Deno.exit(-1)
+
+	try
+		LOG cmdStep("COMPILE ALL UNIT TESTS")
+		{nCompiled, nNotNeeded, timeTaken} := await compileAllUnitTests()
+		if (nCompiled > 0)
+			LOG "#{nCompiled} unit tests compiled"
+		if (nNotNeeded > 0)
+			LOG "#{nNotNeeded} unit tests already compiled"
+		LOG "(#{timeTaken} secs.)"
+
+	catch err
+		ERR "Not all unit tests compiled: #{getErrStr(err)}"
+		Deno.exit(-1)

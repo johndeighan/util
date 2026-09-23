@@ -1,0 +1,11 @@
+# cmd-utils.lib.civet
+
+import {centered} from 'llutils'
+
+# ---------------------------------------------------------------------------
+
+export cmdStep := (str: string): string =>
+
+	return centered str, {char: '=', color: 'cyan'}
+
+# ---------------------------------------------------------------------------

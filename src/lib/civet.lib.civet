@@ -16,12 +16,13 @@ import {hash} from 'datatypes'
 import {CTimer} from 'timer'
 import {f, getOptions} from 'llutils'
 import {
-	fileExt, withExt, isFullPath, inSameDir, barf,
-	newerDestFileExists, touch, mkpath, toRelPath,
+	fileExt, withExt, isFullPath, inSameDir, barf, allFilesMatching,
+	newerDestFileExists, touch, mkpath, toRelPath, parsePath,
 	} from 'fsys'
 import {CFileHandler, TExecResult} from 'exec'
 import {procFiles, TCounts, allExecResults} from 'proc-files'
 import {typeCheckTsFile, ts2ast, analyzeTsCode} from 'typescript'
+import {TTask, runTasks} from 'run-tasks'
 
 let hCivetConfig: CompileOptions? = undef
 
@@ -208,40 +209,39 @@ class CCivetCompiler extends CFileHandler
 export doCompileCivet := new CCivetCompiler()
 
 # ---------------------------------------------------------------------------
+
+export type TCompileContext = {
+	nCompiled: number
+	nNotNeeded: number
+	timeTaken: number
+	}
+
+# ---------------------------------------------------------------------------
 # ASYNC
 
 export compileAllLibs := (
 		hOptions: hash = {}
-		): void =>
+		): TCompileContext =>
 
-	[n, secs] := await compileFilesMatching '**/*.lib.civet', hOptions
-	if (n > 0)
-		LOG "#{n} libs compiled in #{secs} secs."
-	return
+	return await compileFilesMatching '**/*.lib.civet', hOptions
 
 # ---------------------------------------------------------------------------
 # ASYNC
 
 export compileAllUnitTests := (
 		hOptions: hash = {}
-		): void =>
+		): TCompileContext =>
 
-	[n, secs] := await compileFilesMatching '**/*.test.civet', hOptions
-	if (n > 0)
-		LOG "#{n} unit tests compiled in #{secs} secs."
-	return
+	return await compileFilesMatching '**/*.test.civet', hOptions
 
 # ---------------------------------------------------------------------------
 # ASYNC
 
 export compileAllCmds := (
 		hOptions: hash = {}
-		): void =>
+		): TCompileContext =>
 
-	[n, secs] := await compileFilesMatching '**/*.cmd.civet', hOptions
-	if (n > 0)
-		LOG "#{n} commands compiled in #{secs} secs."
-	return
+	return await compileFilesMatching '**/*.cmd.civet', hOptions
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -250,43 +250,46 @@ export compileAllCmds := (
 export compileFilesMatching := (
 		pat: string
 		hOptions: hash = {}
-		): [number, number] =>
+		): TCompileContext =>
 
 	type opt = {
+		force: boolean
 		quiet: boolean     # --- no output
 		verbose: boolean   #     output even if not needed
 		maxRunning: number
 		}
-	{quiet, verbose, maxRunning
+	{force, quiet, verbose, maxRunning
 		} := getOptions<opt> hOptions, {
+			force: false
 			quiet: false
 			verbose: false
 			maxRunning: 8
 			}
 
-	assert not (quiet && verbose), "Can't use both quiet and verbose"
-	let nErr = 0
-	let nProcessed = 0
 	timer := new CTimer()
-	for await [ok, result] of allExecResults [doCompileCivet, pat], hOptions
-		if ok
-			# --- result is a TExecResult
-			{infile, success, notNeeded} := result
-			prefix := "COMPILE #{infile}"
-			if notNeeded
-				assert success, "success true with notNeeded true"
-				if verbose
-					console.log f"#{prefix} - #{'Not Needed'}:{yellow}"
-			else if success
-				if not quiet
-					console.log f"#{prefix} - #{'Succeeded'}:{green}"
-			else
-				nProcessed += 1
-				if not quiet
-					console.log f"#{prefix} - #{'Failed'}:{red}"
-		else
-			console.log f"ERROR: #{result}:{red}"
-			nErr += 1
-	if (nErr > 0)
-		croak "Some files failed to compile"
-	return [nProcessed, timer.timeTaken()]
+	lTasks := for path of allFilesMatching pat
+		stub := parsePath(path).stub
+		{
+			title: stub,
+			task: (ctx: TCompileContext, task: TTask): void =>
+				task.output = 'Compiling...'
+				hResult := await doCompileCivet.handleFile path, {
+					force
+					postproc: false
+					}
+				if (hResult.notNeeded)
+					ctx.nNotNeeded += 1
+					task.title = f"#{task.title}:-14 #{'not needed'}:{yellow}"
+				else
+					ctx.nCompiled += 1
+					task.title = f"#{task.title}:-14 #{'compiled'}:{green}"
+				return
+			}
+
+	h := await runTasks lTasks, {
+		nNotNeeded: 0
+		nCompiled: 0
+		timeTaken: 0
+		}
+	h.timeTaken = timer.timeTaken()
+	return h

@@ -2,7 +2,8 @@
 
 import {LOG, DBG, ERR} from 'logger'
 import {assert, defined} from 'base'
-import {centered, EXEC, cmdTitle} from 'llutils'
+import {centered, EXEC} from 'llutils'
+import {cmdStep} from 'cmd-utils'
 import {getCmdArgs, inspect} from 'cmd-args'
 import {
 	withExt, findFile, parsePath,
@@ -35,14 +36,14 @@ await EXEC () =>
 			await procFiles [doUnitTest, ['src/**/*.parse.ts']]
 	else
 		for stub of lStubs
-			LOG cmdTitle("BUILD PARSER #{stub}")
+			LOG cmdStep("BUILD PARSER #{stub}")
 
 			fileName := "#{stub}.parse.hera"
 			path := findFile fileName
 			assert defined(path), "No such file: #{fileName}"
 			await procOneFile path, doCompileHera, {force, inspect}
 			if doTest
-				LOG cmdTitle("RUN TEST FOR #{stub}")
+				LOG cmdStep("RUN TEST FOR #{stub}")
 
 				tsPath := withExt(path, '.ts')
 				await procOneFile tsPath, doUnitTest, {

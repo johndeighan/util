@@ -19,7 +19,7 @@ import {
 	blockWidth, blockHeight, CStringSetMap,
 	isTAML, fromTAML, f, SKIP, EXEC,
 	dashes, sep, centered, abbrevStr,
-	tabify, untabify, cmdTitle, sortAnyArray,
+	tabify, untabify, sortAnyArray,
 	} from 'llutils'
 import {
 	beginUnitTest, equal, truthy, falsy, succeeds, fails,
@@ -339,9 +339,6 @@ equal sep('-', 'HI', 10), '--  HI  --'
 equal centered('John'), spaces(30) + 'John' + spaces(30)
 equal centered('John', {char: '-'}),
 	dashes(28) + spaces(2) + 'John' + spaces(2) + dashes(28)
-
-equal decolorize(cmdTitle('THIS')),
-	'='.repeat(28) + spaces(2) + 'THIS' + spaces(2) + '='.repeat(28)
 
 vfunc: TVoidFunc := (): void =>
 	console.log 'hello'

@@ -4,7 +4,8 @@ import {LOG} from 'logger'
 import {
 	undef, defined, notdefined, assert, croak,
 	} from 'base'
-import {cmdTitle, EXEC} from 'llutils'
+import {EXEC} from 'llutils'
+import {cmdStep} from 'cmd-utils'
 import {getCmdArgs, inspect} from 'cmd-args'
 import {findFile, toRelPath} from 'fsys'
 import {procFiles, procOneFile} from 'proc-files'
@@ -22,7 +23,7 @@ import {doMakeMarkdown} from 'md-macros'
 
 await EXEC () =>
 	if (lStubs[0] == 'all')
-		LOG cmdTitle("BUILD ALL DOCS")
+		LOG cmdStep("BUILD ALL DOCS")
 		await procFiles [doMakeMarkdown, ['**/*.doc.$md']], {force}
 	else
 		for stub of lStubs
@@ -30,5 +31,5 @@ await EXEC () =>
 			path := findFile fileName
 			assert defined(path), "No such file: #{fileName}"
 
-			LOG cmdTitle("BUILD DOC #{toRelPath(path)}")
+			LOG cmdStep("BUILD DOC #{toRelPath(path)}")
 			await procOneFile path, doMakeMarkdown, {force}

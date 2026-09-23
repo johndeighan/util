@@ -1,9 +1,5 @@
 to do
 
-fix and test:
-	- compile-all
-	- test-all
-
 ----------------------------------------------------
 how can i execute a sequence of async tasks,
 limiting the number running at any one time,

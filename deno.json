@@ -65,6 +65,7 @@
 		"unify":         "file:///C:/Users/johnd/util/src/lib/unify.lib.ts",
 		"f-strings":     "file:///C:/Users/johnd/util/src/lib/f-strings.lib.ts",
 		"llutils":       "file:///C:/Users/johnd/util/src/lib/llutils.lib.ts",
+		"cmd-utils":     "file:///C:/Users/johnd/util/src/lib/cmd-utils.lib.ts",
 		"meta-data":     "file:///C:/Users/johnd/util/src/lib/meta-data.lib.ts",
 		"unicode":       "file:///C:/Users/johnd/util/src/lib/unicode.lib.ts",
 		"console-utils": "file:///C:/Users/johnd/util/src/lib/console-utils.lib.ts",
