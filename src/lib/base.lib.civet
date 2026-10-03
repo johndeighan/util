@@ -15,6 +15,13 @@ import {
 
 export {deepEqual}
 
+defWidth := 64     # ---used in sep, centered
+export type hashof<T> = {
+	[key: string | symbol]: T
+	}
+export type hash = hashof<unknown>
+
+
 export deepCopy = structuredClone
 export sleep := (ms: number): void =>
 	await delay(ms)
@@ -516,3 +523,75 @@ export working_deepFreeze := <T extends object>(obj: T): DeepReadonly<T> =>
 		)
 
 	return Object.freeze(obj) as DeepReadonly<T>
+
+# ---------------------------------------------------------------------------
+
+export getOptions := <T extends hash>(
+		hOptions: hash = {}
+		hDefaults: T
+		): T =>
+
+	return { ...hDefaults, ...hOptions }
+
+# ---------------------------------------------------------------------------
+# --- valid options:
+#        char - char to use on left and right
+#        width - full width
+#        numBuffer - num spaces around label when char <> ' '
+#        color - color of entire string
+
+export centered := (
+		label: string
+		hOptions: hash = {}
+		): string =>
+
+	type opt = {
+		char: string
+		width: number
+		numBuffer: number
+		color: string?
+		}
+	{char, width, numBuffer, color} := getOptions<opt> hOptions, {
+		char: ' '
+		width: defWidth
+		numBuffer: 2
+		color: undef
+		}
+
+	assert (char.length == 1), "char must be a single char: #{char}"
+
+	labelLen := decolorize(label).length
+	if (labelLen >= width)
+		return defined(color) ? colorize(label, color) : label
+
+	totSpaces := (
+		  (width >= label.length)
+		? width - labelLen
+		: 0
+		)
+	numLeft := Math.floor totSpaces / 2
+	numRight := totSpaces - numLeft
+	text := (
+		if (char == ' ')
+			' '.repeat(numLeft) + colorize(label, color) + ' '.repeat(numRight)
+		else
+			buf   := ' '.repeat numBuffer
+			left  := char.repeat numLeft - numBuffer
+			right := char.repeat numRight - numBuffer
+			left + buf + colorize(label, color) + buf + right
+		)
+	return text
+
+# ---------------------------------------------------------------------------
+
+export sep := (
+		char: string = '-',
+		label: string? = undef,
+		width: number = defWidth
+		): string =>
+
+	assert (char.length == 1), "Not a char: #{char}"
+	if defined(label)
+		return centered label, {char, width}
+	else
+		return char.repeat width

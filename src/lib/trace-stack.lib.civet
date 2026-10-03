@@ -3,14 +3,14 @@
 import {LOG, DBG} from 'logger'
 import {
 	undef, defined, notdefined, assert, obviously, croak,
-	deepCopy, TIterator, colorize,
+	deepCopy, TIterator, colorize, getOptions, centered, sep,
 	} from 'base'
 import {esc} from 'unicode'
 import {
 	hash, isInteger, isString, isArray, isNonEmptyString, isEmpty,
 	} from 'datatypes'
 import {
-	spaces, getOptions, centered, sep, arrayToBlock, rtrim,
+	spaces, arrayToBlock, rtrim,
 	} from 'llutils'
 import {indented} from 'indent'
 import {OL} from 'nice'

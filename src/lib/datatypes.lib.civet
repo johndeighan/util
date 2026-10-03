@@ -5,9 +5,11 @@ import {minify} from 'npm-uglify-js'
 import {
 	deepCopy, undef, defined, notdefined, words,
 	anyDefined, anyNotDefined, toBool, matches,
-	croak, assert, obviously, getErrStr,
+	croak, assert, obviously, getErrStr, hash, hashof,
 	TIterator, TAsyncIterator, TNonFunction,
 	} from 'base'
+
+export type {hash, hashof}
 
 # ---------------------------------------------------------------------------
 
@@ -78,11 +80,6 @@ export jsType := (x: unknown): string =>
 
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
-
-export type hashof<T> = {
-	[key: string | symbol]: T
-	}
-export type hash = hashof<unknown>
 
 export type THashEntry<T=unknown> = [string | symbol, T]
 export type TMapEntry<T=unknown,V=unknown> = [T, V]

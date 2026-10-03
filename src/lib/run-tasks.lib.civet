@@ -13,6 +13,7 @@ import {f} from 'llutils'
 listrLogger := new ListrLogger({useIcons: false})
 
 export type TTask = any
+# export type TTask<T> = (ctx: T, task: ListrTask) => Promise<void>
 
 # ---------------------------------------------------------------------------
 

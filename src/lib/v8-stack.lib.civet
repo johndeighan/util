@@ -13,6 +13,7 @@ import {
 	} from 'logger'
 import {
 	undef, defined, notdefined, getErrStr, assert, matches, TIterator,
+	centered,
 	} from 'base'
 import {integer} from 'datatypes'
 import {normalizePath, toRelPath, isFullPath, toFullPath} from 'llfs'
@@ -57,7 +58,6 @@ export allStackFrames := (
 		oldLimit: number := Error.stackTraceLimit
 		oldPreparer := Error.prepareStackTrace
 		Error.stackTraceLimit = 99
-
 		Error.prepareStackTrace = (
 				error: unknown
 				lCallSites: CallSite[]
@@ -65,11 +65,12 @@ export allStackFrames := (
 
 			assert (lCallSites.length > 0), "lCallSites is EMPTY"
 
-			if debug
-				for site of lCallSites
-					console.log '='.repeat(64)
-					console.log fullCallSite(site)
-					console.log getFrame(site)
+			for site of lCallSites
+				DBG centered 'fullCallSite', {char: '='}
+				DBG fullCallSite(site)
+
+				DBG centered 'getFrame', {char: '-'}
+				DBG getFrame(site)
 
 			lFrames: TStackFrame[] := []    # yield these values later
 
@@ -119,6 +120,7 @@ export allStackFrames := (
 		Error.stackTraceLimit = oldLimit
 		Error.prepareStackTrace = oldPreparer
 		for frame of lStack
+			DBG frame
 			yield frame
 		return
 
@@ -127,44 +129,6 @@ export allStackFrames := (
 		return
 	finally
 		closeDebugFile 'stack'
-
-# ---------------------------------------------------------------------------
-
-getFrame := (site: CallSite): TStackFrame =>
-
-	type: TFrameType := getFrameType(site)
-	name := getFrameName(site)
-	orgSource: string := getFrameSource(site)
-	orgLine: number   := site.getLineNumber() || -1
-	orgCol: number    := site.getColumnNumber() || -1
-
-	frame: TStackFrame := {
-		type
-		orgSource
-		orgLine
-		orgCol
-		source: orgSource
-		line:   orgLine
-		col:    orgCol
-		name
-		}
-
-	if ['for-next','for-from','unknown','external'].includes type
-		console.log "DEBUG: type = #{type}"
-		return frame
-
-	# --- follow source maps recursively
-
-	let {source, line, col} = frame
-	let newFilePos = mapPosSync({source, line, col})
-	if notdefined(newFilePos)
-		console.log "DEBUG: No source map in #{source}"
-	while defined(newFilePos)
-		frame.source = toRelPath(newFilePos.source)
-		frame.line   = newFilePos.line
-		frame.col    = newFilePos.col
-		newFilePos = mapPosSync(newFilePos)
-	return frame
 
 # ---------------------------------------------------------------------------
 
@@ -178,8 +142,7 @@ export type TFrameType = (
 	'constructor' |
 	'method' |
 	'function' |
-	'script' |
-	'unknown'
+	'script'
 	)
 
 getFrameType := (
@@ -279,7 +242,7 @@ export mapPosSync := (filePos: TFilePosition): TFilePosition? =>
 
 	[fileNum, srcLine, srcCol] := getOrgPos hSrcMap, line, col
 	fileName := hSrcMap.sources[fileNum]
-	if (fileName == 'unknown')
+	if notdefined(fileName)
 		return undef
 	return {
 		source: normalizePath "#{dirname(source)}/#{fileName}"
@@ -490,6 +453,7 @@ export getMyOutsideCaller := (): TStackFrame? =>
 export inFunc := (funcName: string): boolean =>
 
 	lFrames := Array.from allStackFrames()
+	assert (lFrames.length > 0), "No stack frames in inFunc()"
 	frame := lFrames[0]
 	return (frame.type == 'function') && (frame.name == funcName)
 
@@ -531,3 +495,40 @@ fullCallSite := (
 		lineNumber: site.getLineNumber() || -1
 		columnNumber: site.getColumnNumber() || -1
 		}
+
+# ---------------------------------------------------------------------------
+
+getFrame := (site: CallSite): TStackFrame =>
+
+	type: TFrameType := getFrameType(site)
+	name := getFrameName(site)
+	orgSource: string := getFrameSource(site)
+	orgLine: number   := site.getLineNumber() || -1
+	orgCol: number    := site.getColumnNumber() || -1
+
+	frame: TStackFrame := {
+		type
+		orgSource
+		orgLine
+		orgCol
+		source: orgSource
+		line:   orgLine
+		col:    orgCol
+		name
+		}
+
+	if ['for-next','for-from','unknown','external'].includes type
+		return frame
+
+	# --- follow source maps recursively
+
+	let {source, line, col} = frame
+	let newFilePos = mapPosSync({source, line, col})
+	if notdefined(newFilePos)
+		console.log "DEBUG: No source map in #{source}"
+	while defined(newFilePos)
+		frame.source = toRelPath(newFilePos.source)
+		frame.line   = newFilePos.line
+		frame.col    = newFilePos.col
+		newFilePos = mapPosSync(newFilePos)
+	return frame

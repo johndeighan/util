@@ -6,7 +6,7 @@ import {sprintf} from '@std/fmt/printf'
 import {LOG, DBG, logWidth} from 'logger'
 import {
 	undef, defined, assert, obviously, croak,
-	toBool, allLinesIn, decolorize,
+	toBool, allLinesIn, decolorize, getOptions, sep,
 	} from 'base'
 import {uni, esc} from 'unicode'
 import {
@@ -15,9 +15,7 @@ import {
 	isString, isNumber, isFunction, isClass, isArray, isPrimitive,
 	} from 'datatypes'
 import {mkArray, accum} from 'mapper'
-import {
-	getOptions, arrayToBlock, sep, f, rtrim,
-	} from 'llutils'
+import {arrayToBlock, f, rtrim} from 'llutils'
 import {indented} from 'indent'
 
 # ---------------------------------------------------------------------------

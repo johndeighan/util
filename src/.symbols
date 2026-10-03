@@ -2,24 +2,26 @@ await
 	allPromiseResults TSettleResult TThunk
 base
 	allChars allDefined allLinesIn allOf allValuesFrom allValuesFromAsync
-	anyDefined anyMatches anyNotDefined anyOf assert checkThat clearPreviousLines
-	clearScreen colorize croak decode decolorize deepCopy deepEqual deepFreeze
-	defined encode getEmptyAsyncIterator getEmptyIterator getErrStr
-	isAsyncGeneratorFunction isChineseChar isColor matches max notdefined
-	obviously pass range RawSourceMap resetLine sleep strHasPat TAssertFunc
-	TAsyncIterator TColor TDefined TFilePosition TIterator TNonFunction
-	TNotDefined toBool TPredicate undef withColors words working_deepFreeze write
-	writeln
+	anyDefined anyMatches anyNotDefined anyOf assert centered checkThat
+	clearPreviousLines clearScreen colorize croak decode decolorize deepCopy
+	deepEqual deepFreeze defined encode getEmptyAsyncIterator getEmptyIterator
+	getErrStr getOptions hash hashof isAsyncGeneratorFunction isChineseChar
+	isColor matches max notdefined obviously pass range RawSourceMap resetLine sep
+	sleep strHasPat TAssertFunc TAsyncIterator TColor TDefined TFilePosition
+	TIterator TNonFunction TNotDefined toBool TPredicate undef withColors words
+	working_deepFreeze write writeln
+cache
+	CCache
 cielo
 	cielo2civet cielo2civetFile doCompileCielo
 civet
-	a A civet2ast civet2js civet2ts civet2tsFile compileAllCmds compileAllLibs
-	compileAllUnitTests compileFilesMatching doCompileCivet TCivetOptions
+	a A civet2ast civet2js civet2ts civet2tsFile compileCmds compileFilesMatching
+	compileLibs compileUnitTests doCompileCivet TCivetOptions TCompileContext
 cmd-args
 	debugging doHandleClearScreen doSetLogLevel getCmdArgs helping helpStr
 	inspect parseCmdArgDesc silent TArgDesc TBoolValDesc TNonOptionDesc TValueDesc
 cmd-utils
-	cmdStep
+	cmdStep compileAllLibs compileAllUnitTests runAllUnitTests TUnitTestContext
 compile
 	doCompileFile doUnitTest getCompilerInfo getPostProcessor isCompilerConfig
 	isCompilerInfo TCompilerConfig TCompilerFunc TCompilerInfo testFilesMatching
@@ -79,11 +81,11 @@ llhera
 	compileHera isHeraType THeraType
 llutils
 	abbrevStr add_s alignString allMatches arrayToBlock blockHeight blockToArray
-	blockWidth centered countChars CStringSetMap CWS dashes entries EXEC f
-	formatVal fromTAML fsplit getLineAndColumn getOptions hasKey hasKeys
-	isAlignment isBlockSpec isTAML keys likeNum lpad ltrim o require rpad rtrim s
-	s2 s4 sep SKIP sortAnyArray spaces strToHash t tabify tabs TAlignment
-	TBlockSpec toArray toBlock truncStr untabify zpad
+	blockWidth countChars CStringSetMap CWS dashes entries EXEC f formatVal
+	fromTAML fsplit getLineAndColumn hasKey hasKeys isAlignment isBlockSpec isTAML
+	keys likeNum lpad ltrim o require rpad rtrim s s2 s4 SKIP sortAnyArray spaces
+	strToHash t tabify tabs TAlignment TBlockSpec toArray toBlock truncStr
+	untabify zpad
 logger
 	appendDebugFile beginBox clearLog closeDebugFile curLogLevel DBG endBox ERR
 	getLog INDENT initLogLevel inUnitTest LOG logLevelFromStr logLevelStr logWidth

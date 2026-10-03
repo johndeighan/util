@@ -5,7 +5,7 @@ import {toFileUrl} from "@std/path"
 import {curLogLevel, LOG, DBG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, deepCopy,
-	croak, assert, getErrStr, allLinesIn,
+	croak, assert, getErrStr, allLinesIn, getOptions,
 	} from 'base'
 import {uni, esc} from 'unicode'
 import {
@@ -14,7 +14,6 @@ import {
 	} from 'datatypes'
 import {MAP, mkArray} from 'mapper'
 import {resetOneIndent, splitLine} from 'indent'
-import {getOptions, sep} from 'llutils'
 import {isFile, findFile, CReadableFile} from 'fsys'
 import {procOneFile} from 'proc-files'
 import {CParseMatches} from 'parse-utils';

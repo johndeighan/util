@@ -4,12 +4,11 @@ import {yellow, cyan, red, green} from '@std/fmt/colors'
 
 import {LOG, DBG} from 'logger'
 import {
-	undef, defined, notdefined, croak, assert,
+	undef, defined, notdefined, croak, assert, getOptions,
 	} from 'base'
 import {
 	integer, hash, array, isArray, isHash, isEmpty,
 	} from 'datatypes'
-import {getOptions} from 'llutils'
 import {nice, OL, ML} from 'nice'
 
 # ---------------------------------------------------------------------------

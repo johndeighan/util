@@ -20,7 +20,7 @@ import {
 	pass, undef, defined, notdefined, matches,
 	TIterator, TAsyncIterator, encode,
 	croak, assert, obviously, words,
-	getEmptyIterator, getEmptyAsyncIterator,
+	getEmptyIterator, getEmptyAsyncIterator, getOptions,
 	} from 'base'
 import {
 	normalizePath, fileExt, withExt, touch, newerDestFileExists,
@@ -35,10 +35,7 @@ import {
 	} from 'datatypes'
 import {sinceLoadStr} from 'timer'
 import {MAP} from 'mapper'
-import {
-	getOptions, spaces,
-	arrayToBlock, f,
-	} from 'llutils'
+import {spaces, arrayToBlock, f} from 'llutils'
 import {OL, DBGVALUE} from 'nice'
 import {isMetaDataStart, getMetaDataHash} from 'meta-data'
 import {debugging} from 'cmd-args'
@@ -233,59 +230,19 @@ export mkDirsForFile := (path: string): void =>
 
 # ---------------------------------------------------------------------------
 
-export type TFsEventHandler = (kind: string, path: string) => void | boolean
-/**
- * class FileEventHandler
- *    handles file changed events when .handleEvent(fsEvent) is called
- *    callback is a function, debounced by 200 ms
- *       that takes an FsEvent and returns a TVoidFunc
- *       which will be called if the callback returns a function reference
- * [unit tests](../test/fs.test.civet#:~:text=%23%20%2D%2D%2D%20class%20FileEventHandler)
- */
+export type TFsEventKind = 'create' | 'modify' | 'remove'
+export isEventKind := (x: unknown): x is TFsEventKind =>
+	return (
+		   (typeof x == 'string')
+		&& ['create','modify','remove'].includes x
+		)
 
-export class FileEventHandler
-	handler: TFsEventHandler # --- debounced handler
-	onStop: => void = pass
-
-	# ..........................................................
-
-	constructor(callback: TFsEventHandler, hOptions: hash = {})
-		type opt = {
-			onStop: TVoidFunc
-			debounceBy: number
-			}
-		{onStop: onStop1, debounceBy} := getOptions<opt> hOptions,
-			onStop: pass
-			debounceBy: 200
-		@onStop = onStop1
-		handler1 := debounce callback, debounceBy
-		@handler = handler1
-		DBG "FileEventHandler constructor() called"
-
-	# ..........................................................
-	# --- Calls a TVoidFunc, but is debounced by @ms ms
-
-	handleEvent(fsEvent: FsEvent): void
-		{kind, paths} := fsEvent
-		DBG "HANDLE: [#{sinceLoadStr()}] #{kind} #{OL(paths)}"
-		for path of paths
-			@handler kind, path
-		return
+export type TFsEventHandler = (
+	kind: TFsEventKind,
+	path: string
+	) => void | boolean
 
 # ---------------------------------------------------------------------------
-# ASYNC
-
-/**
- * a function that watches for changes one or more files or directories
- *    and calls a callback function for each change.
- * If the callback returns true, watching is halted
- *
- * Usage:
- *   handler := (kind, path) => console.log path
- *   await watchFile 'temp.txt', handler
- *   await watchFile 'src/lib',  handler
- *   await watchFile ['temp.txt', 'src/lib'], handler
- */
 
 export watchFiles := (
 		path: string | string[],
@@ -293,38 +250,50 @@ export watchFiles := (
 		hOptions: hash = {}
 		): void ->
 
-	# --- debounceBy is milliseconds to debounce by, default is 200
 	type opt = {
+		onStop: TVoidFunc
 		debounceBy: number
 		}
-	{debounceBy} := getOptions<opt> hOptions, {
-		debounceBy: 200
-		}
+	{onStop, debounceBy} := getOptions<opt> hOptions,
+		onStop: pass
+		debounceBy: 300
 
-	DBG "WATCH: #{OL(path)}"
 	watcher := Deno.watchFs path
-	let doStop: boolean = false
-	fsCallback: TFsEventHandler := (kind, path): void =>
-		result := watcherCB kind, normalizePath(path)
-		DBG "FCB: result = #{result}"
-		if result
-			watcher.close()
-		return
-	handler := new FileEventHandler(fsCallback, { debounceBy })
-	for await item of watcher
-		fsEvent: FsEvent := item
-		DBG "watcher event fired"
-		if doStop
-			DBG "doStop = #{doStop}, Closing watcher"
-			break
-		for path of fsEvent.paths
-			# --- fsCallback will be (eventually) called
-			await handler.handleEvent fsEvent
-export watchFile := watchFiles
+
+	sEvents := new Set<string>()
+
+	func := () =>
+		for eventStr of sEvents
+			[kind, path] := eventStr.split ' ', 2
+			assert isEventKind(kind), "Bad event kind: #{kind}"
+			retval := watcherCB kind, toRelPath(path)
+
+			if (retval == true)
+				watcher.close()
+				onStop()
+		sEvents.clear()
+
+	trigger := debounce(func, debounceBy)
+
+	for await event of watcher
+		{kind, paths} := event
+
+		# --- Track unique paths modified during the bounce window
+		if ['create','modify','remove'].includes kind
+			for path of event.paths
+				sEvents.add "#{kind} #{path}"
+
+		# --- Refresh the debounce timer
+		trigger()
+	return
 
 # ---------------------------------------------------------------------------
 
-export patchFirstLine := (path: string, str: string, newstr: string): void =>
+export patchFirstLine := (
+		path: string
+		str: string
+		newstr: string
+		): void =>
 
 	# --- Replace str with newstr, but only on first line
 	contents := Deno.readTextFileSync path

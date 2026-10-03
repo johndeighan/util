@@ -13,7 +13,7 @@ import {procOneFile} from 'proc-files'
 import {ts2ast, astAsString} from 'typescript'
 import {
 	civet2ts, civet2js, civet2tsFile, civet2ast, a, A,
-	doCompileCivet, compileAllLibs, compileAllUnitTests,
+	doCompileCivet, compileLibs, compileUnitTests, compileCmds,
 	} from 'civet'
 import {
 	beginUnitTest, setDirTree,

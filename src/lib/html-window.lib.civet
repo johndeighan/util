@@ -6,12 +6,12 @@ import {render} from 'npm-pug'
 
 import {LOG, DBG, ERR} from 'logger'
 import {
-	undef, defined, notdefined, croak, assert, matches,
+	undef, defined, notdefined, croak, assert, matches, getOptions,
 	} from 'base'
 import {
 	TVoidFunc, hash, hashof, TStringMapper, TAsyncStringMapper,
 	} from 'datatypes'
-import {getOptions, abbrevStr} from 'llutils'
+import {abbrevStr} from 'llutils'
 import {mkpath, withExt, slurp, barf, isFile, isDir} from 'fsys'
 import {civet2js} from 'civet'
 

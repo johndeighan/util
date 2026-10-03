@@ -18,7 +18,7 @@ import {
 	} from 'v8-stack'
 import {
 	undef, defined, notdefined, pass, sleep, toBool,
-	colorize, decolorize, strHasPat,
+	colorize, decolorize, strHasPat, getOptions,
 	croak, TIterator, TAsyncIterator, getErrStr, deepEqual,
 	} from 'base'
 import {esc} from 'unicode'
@@ -30,7 +30,7 @@ import {
 	isFunction, functionDef, isClass, classDef, isAsyncFunction,
 	} from 'datatypes'
 import {
-	getOptions, truncStr, blockToArray, f, rtrim, centered,
+	truncStr, blockToArray, f, rtrim,
 	} from 'llutils'
 import {TState, fromFSM} from 'fsm'
 import {TextTable} from 'text-table'
@@ -234,6 +234,7 @@ export strongerThan := (
 		name?: string
 		): void =>
 
+	debugger
 	# --- if either value or expected is an iterator
 	#     get an array from it
 	if isIterable(value)

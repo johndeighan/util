@@ -4,7 +4,7 @@ import {DBG} from 'logger'
 import {CTimer} from 'timer'
 import {
 	undef, defined, notdefined, assert, obviously,
-	croak, matches, getErrStr,
+	croak, matches, getErrStr, getOptions,
 	} from 'base'
 import {
 	hash, hashof, isString, isHash, isFunction, TStringMapper,
@@ -12,7 +12,7 @@ import {
 	} from 'datatypes'
 import {indented} from 'indent'
 import {OL} from 'nice'
-import {entries, toBlock, keys, getOptions} from 'llutils'
+import {entries, toBlock, keys} from 'llutils'
 import {mkArray} from 'mapper'
 import {
 	withExt, parsePath, CReadableFile, toRelPath,

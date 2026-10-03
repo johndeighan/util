@@ -3,13 +3,13 @@
 import {LOG, DBG, pushLogLevel, popLogLevel} from 'logger'
 import {
 	undef, defined, notdefined, croak, assert, obviously,
-	TIterator, TAsyncIterator, pass,
+	TIterator, TAsyncIterator, pass, getOptions,
 	} from 'base'
 import {
 	hash, isArray, isInteger, TVoidFunc,
 	isAsyncIterator, isAsyncFunction,
 	} from 'datatypes'
-import {f, getOptions} from 'llutils'
+import {f} from 'llutils'
 
 # ---------------------------------------------------------------------------
 

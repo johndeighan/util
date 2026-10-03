@@ -8,14 +8,14 @@ import {
 import {uni} from 'unicode'
 import {
 	pass, undef, defined, notdefined,
-	assert, obviously, croak, words,
+	assert, obviously, croak, words, getOptions,
 	} from 'base'
 import {
 	jsType, hash, isArrayOfStrings, integer, isString,
 	isFunction, isArray, isInteger, nonEmpty, isObject,
 	} from 'datatypes'
 import {
-	blockToArray, arrayToBlock, getOptions, spaces, tabs,
+	blockToArray, arrayToBlock, spaces, tabs,
 	} from 'llutils'
 import {OL, OLS, nice} from 'nice'
 import {CCallStack} from 'trace-stack'

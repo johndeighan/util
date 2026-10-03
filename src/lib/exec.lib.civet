@@ -18,7 +18,8 @@ import {
 	pass, undef, defined, anyDefined, notdefined, matches,
 	croak, assert, obviously, getErrStr, allLinesIn,
 	write, writeln, resetLine, TIterator, toBool,
-	encode, decode, TAsyncIterator, colorize, decolorize, withColors,
+	encode, decode, TAsyncIterator, colorize, decolorize,
+	withColors, getOptions, sep,
 	} from 'base'
 import {CTimer} from 'timer'
 import {
@@ -28,8 +29,7 @@ import {
 import {arrayAndAccumFrom} from 'iter-utils'
 import {MAP, accum} from 'mapper'
 import {
-	getOptions, blockToArray, toBlock,
-	sep, centered, f,
+	blockToArray, toBlock, f,
 	} from 'llutils'
 import {debugging, inspect} from 'cmd-args'
 import {OL, LOGVALUE} from 'nice'

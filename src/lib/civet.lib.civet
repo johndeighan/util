@@ -10,11 +10,11 @@ import {findInDir, loadConfig} from "@danielx/civet/config"
 import {LOG, DBG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, assert, croak,
-	getErrStr, toBool,
+	getErrStr, toBool, getOptions,
 	} from 'base'
 import {hash} from 'datatypes'
 import {CTimer} from 'timer'
-import {f, getOptions} from 'llutils'
+import {f} from 'llutils'
 import {
 	fileExt, withExt, isFullPath, inSameDir, barf, allFilesMatching,
 	newerDestFileExists, touch, mkpath, toRelPath, parsePath,
@@ -219,29 +219,32 @@ export type TCompileContext = {
 # ---------------------------------------------------------------------------
 # ASYNC
 
-export compileAllLibs := (
+export compileLibs := (
 		hOptions: hash = {}
+		pat: string = '**/*.lib.civet'
 		): TCompileContext =>
 
-	return await compileFilesMatching '**/*.lib.civet', hOptions
+	return await compileFilesMatching pat, hOptions
 
 # ---------------------------------------------------------------------------
 # ASYNC
 
-export compileAllUnitTests := (
+export compileUnitTests := (
 		hOptions: hash = {}
+		pat: string = '**/*.test.civet'
 		): TCompileContext =>
 
-	return await compileFilesMatching '**/*.test.civet', hOptions
+	return await compileFilesMatching pat, hOptions
 
 # ---------------------------------------------------------------------------
 # ASYNC
 
-export compileAllCmds := (
+export compileCmds := (
 		hOptions: hash = {}
+		pat: string = '**/*.cmd.civet'
 		): TCompileContext =>
 
-	return await compileFilesMatching '**/*.cmd.civet', hOptions
+	return await compileFilesMatching pat, hOptions
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -271,7 +274,10 @@ export compileFilesMatching := (
 		stub := parsePath(path).stub
 		{
 			title: stub,
-			task: (ctx: TCompileContext, task: TTask): void =>
+			task: (
+					ctx: TCompileContext,
+					task: TTask
+					): void =>
 				task.output = 'Compiling...'
 				hResult := await doCompileCivet.handleFile path, {
 					force

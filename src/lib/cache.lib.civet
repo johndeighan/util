@@ -1,0 +1,21 @@
+# cache.lib.civet
+
+import {undef, defined, notdefined} from 'base'
+import {hashof} from 'datatypes'
+
+# ---------------------------------------------------------------------------
+
+export class CCache<T>
+
+	mCache = new Map<string,T>()
+
+	# ..........................................................
+
+	set(name: string, value: T)
+		@mCache.set name, value
+
+	# ..........................................................
+
+	get(name: string)
+		return @mCache.get(name)
+

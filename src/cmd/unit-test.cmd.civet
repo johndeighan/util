@@ -1,23 +1,22 @@
 # unit-test.cmd.civet
 
 import {initLogLevel, LOG, DBG, ERR, curLogLevel} from 'logger'
-import {getErrStr} from 'base'
+import {undef, defined, notdefined, assert, getErrStr} from 'base'
 import {hash} from 'datatypes'
 import {f, dashes, EXEC} from 'llutils'
-import {cmdStep} from 'cmd-utils'
-import {OL} from 'nice'
-import {parsePath, allFilesMatching} from 'fsys'
-import {getCmdArgs} from 'cmd-args'
 import {
-	doCompileCivet, compileAllLibs, compileAllUnitTests,
-	} from 'civet'
+	cmdStep, compileAllLibs, compileAllUnitTests, runAllUnitTests,
+	} from 'cmd-utils'
+import {OL} from 'nice'
+import {parsePath, allFilesMatching, rmDir} from 'fsys'
+import {getCmdArgs} from 'cmd-args'
 import {runTasks, TTask} from 'run-tasks'
 
 [
 	lStubs
 	{force, quiet, verbose, box}
 	_
-	{maxRunning, line}
+	{maxRunning, line: lineNum}
 	] := getCmdArgs 'unit-test', {
 		_:          {range: [0,99], desc: "stubs to test or 'all'"}
 		force:      {flag: 'f', desc: 'force recompile of libs and tests'}
@@ -38,28 +37,18 @@ EXEC () =>
 		LOG "verbose = #{OL(verbose)}"
 		LOG "box = #{OL(box)}"
 
-	try
-		LOG cmdStep("COMPILE ALL LIBS")
-		{nCompiled, nNotNeeded, timeTaken} := await compileAllLibs()
-		if (nCompiled > 0)
-			LOG "#{nCompiled} libs compiled"
-		if (nNotNeeded > 0)
-			LOG "#{nNotNeeded} libs already compiled"
-		LOG "(#{timeTaken} secs.)"
+	if not await compileAllLibs()
+		Deno.exit -1
 
-	catch err
-		ERR "Not all libs compiled: #{getErrStr(err)}"
-		Deno.exit(-1)
+	if (lStubs.length == 0) || (lStubs[0] == 'all')
+		if not await compileAllUnitTests()
+			Deno.exit -1
 
-	try
-		LOG cmdStep("COMPILE ALL UNIT TESTS")
-		{nCompiled, nNotNeeded, timeTaken} := await compileAllUnitTests()
-		if (nCompiled > 0)
-			LOG "#{nCompiled} unit tests compiled"
-		if (nNotNeeded > 0)
-			LOG "#{nNotNeeded} unit tests already compiled"
-		LOG "(#{timeTaken} secs.)"
+		# --- At this point, all libs and unit tests have been compiled
 
-	catch err
-		ERR "Not all unit tests compiled: #{getErrStr(err)}"
-		Deno.exit(-1)
+		assert notdefined(lineNum), "Can't use -line with 'all'"
+		rmDir './coverage', {clear: true}
+
+		ok := await runAllUnitTests()
+		LOG ok ? "OK" : "Failed"
+

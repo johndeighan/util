@@ -5,10 +5,11 @@ import {sprintf} from '@std/fmt/printf'
 import {LOG, DBG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, croak, assert, colorize,
+	centered, sep,
 	} from 'base'
 import {uni, esc} from 'unicode'
 import {hash, hashof, isArray} from 'datatypes'
-import {centered, sep, f} from 'llutils'
+import {f} from 'llutils'
 import {OL, LOGVALUE} from 'nice'
 import {TextTable} from 'text-table'
 

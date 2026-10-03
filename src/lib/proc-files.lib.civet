@@ -8,13 +8,14 @@ import {LOG, DBG, ERR, beginBox, endBox} from 'logger'
 import {
 	undef, defined, notdefined, assert, obviously, croak,
 	resetLine, write, writeln, getErrStr, TAsyncIterator,
+	getOptions,
 	} from 'base'
 import {CTimer} from 'timer'
 import {
 	hash, hashof, nonEmpty, isArray, TGlobPattern,
 	} from 'datatypes'
 import {allPromiseResults, TThunk, TSettleResult} from 'await'
-import {f, getOptions} from 'llutils'
+import {f} from 'llutils'
 import {LOGVALUE} from 'nice'
 import {allFilesMatching, isFile, mkpath, toRelPath} from 'fsys'
 import {CFileHandler, TExecResult} from 'exec'

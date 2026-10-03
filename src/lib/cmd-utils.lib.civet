@@ -1,6 +1,14 @@
 # cmd-utils.lib.civet
 
-import {centered} from 'llutils'
+import {LOG, ERR} from 'logger'
+import {getErrStr, centered} from 'base'
+import {hash} from 'datatypes'
+import {CTimer} from 'timer'
+import {f} from 'llutils'
+import {allFilesMatching, parsePath} from 'fsys'
+import {compileLibs, compileUnitTests} from 'civet'
+import {TTask, runTasks} from 'run-tasks'
+import {doUnitTest} from 'compile'
 
 # ---------------------------------------------------------------------------
 
@@ -9,3 +17,94 @@ export cmdStep := (str: string): string =>
 	return centered str, {char: '=', color: 'cyan'}
 
 # ---------------------------------------------------------------------------
+
+export compileAllLibs := (
+		hOptions: hash = {}
+		): boolean =>
+
+	try
+		LOG cmdStep("COMPILE ALL LIBS")
+		{
+			nCompiled, nNotNeeded, timeTaken
+			} := await compileLibs(hOptions)
+		if (nCompiled > 0)
+			LOG "#{nCompiled} libs compiled"
+		if (nNotNeeded > 0)
+			LOG "#{nNotNeeded} libs already compiled"
+		LOG "   (#{timeTaken} secs.)"
+		return true
+	catch err
+		ERR "Not all libs compiled: #{getErrStr(err)}"
+		return false
+
+# ---------------------------------------------------------------------------
+
+export compileAllUnitTests := (
+		hOptions: hash = {}
+		): boolean =>
+
+	try
+		LOG cmdStep("COMPILE ALL UNIT TESTS")
+		{
+			nCompiled, nNotNeeded, timeTaken
+			} := await compileUnitTests(hOptions)
+		if (nCompiled > 0)
+			LOG "#{nCompiled} unit tests compiled"
+		if (nNotNeeded > 0)
+			LOG "#{nNotNeeded} unit tests already compiled"
+		LOG "   (#{timeTaken} secs.)"
+		return true
+	catch err
+		ERR "Not all unit tests compiled: #{getErrStr(err)}"
+		return false
+
+# ---------------------------------------------------------------------------
+# ASYNC
+
+export type TUnitTestContext = {
+	numNotNeeded: number
+	numPassed: number
+	numFailed: number
+	timeTaken: number
+	lErrors?: string[]
+	}
+
+export runAllUnitTests := (
+		hOptions: hash = {}
+		): boolean =>
+
+	LOG cmdStep("RUN ALL UNIT TESTS")
+	timer := new CTimer()
+	lTasks := for path of allFilesMatching "**/*.lib.ts"
+		stub := parsePath(path).stub
+		{
+			title: stub,
+			task: (ctx: TUnitTestContext, task: TTask): void =>
+				task.output = 'Testing...'
+				hResult := await doUnitTest.handleFile path
+				if hResult.notNeeded
+					ctx.numNotNeeded += 1
+					task.title = f"#{task.title}:-14 #{'not needed'}:{yellow}"
+				else if hResult.success
+					ctx.numPassed += 1
+					task.title = f"#{task.title}:-14 #{'passed'}:{green}"
+				else
+					ctx.numFailed += 1
+					task.title = f"#{task.title}:-14 #{'failed'}:{red}"
+				return
+			}
+	{
+		numNotNeeded, numPassed, numFailed, timeTaken
+		} := await runTasks lTasks, {
+			numNotNeeded: 0
+			numPassed: 0
+			numFailed: 0
+			timeTaken: 0
+			}
+	LOG "#{numPassed} unit tests passed"
+	if (numFailed > 0)
+		LOG "#{numFailed} unit tests failed"
+	if (numNotNeeded > 0)
+		LOG "#{numNotNeeded} unit tests already run"
+	LOG "   (#{timer.timeTaken} secs.)"
+	return (numFailed == 0)

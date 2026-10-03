@@ -14,7 +14,7 @@ import {
 	} from 'datatypes'
 import {MAP, mkArray} from 'mapper'
 import {
-	keys, getOptions, o, spaces,
+	keys, o, spaces,
 	} from 'llutils'
 import {resetOneIndent, indented} from 'indent'
 import {OL, ML, LOGVALUE} from 'nice'

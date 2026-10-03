@@ -12,7 +12,8 @@ import {
 	LOG, DBG, ERR, INDENT, UNDENT,
 	} from 'logger'
 import {
-	undef, defined, notdefined, croak, assert, getErrStr, words,
+	undef, defined, notdefined, croak, assert,
+	getErrStr, words, getOptions,
 	} from 'base'
 import {
 	integer, hash, hashof,
@@ -21,7 +22,7 @@ import {
 import {MAP} from 'mapper'
 import {extractSourceMap} from 'v8-stack'
 import {
-	getOptions, hasKey, CStringSetMap, f,
+	hasKey, CStringSetMap, f,
 	} from 'llutils'
 import {TBlockDesc, Blockify} from 'indent'
 import {

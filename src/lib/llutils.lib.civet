@@ -7,7 +7,7 @@ import {LOG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, deepEqual, croak, assert, matches,
 	colorize, isColor, obviously, toBool, TIterator,
-	getErrStr, allLinesIn, decolorize,
+	getErrStr, allLinesIn, decolorize, sep,
 	} from 'base'
 import {toRelPath} from 'llfs'
 import {esc, uni} from 'unicode'
@@ -18,8 +18,6 @@ import {
 	functionDef, TStringMapper, isAsyncFunction,
 	} from 'datatypes'
 import {MAP} from 'mapper'
-
-defWidth := 64     # ---used in sep, centered
 
 # ---------------------------------------------------------------------------
 
@@ -184,7 +182,10 @@ export rtrim := (line: string): string =>
 
 # ---------------------------------------------------------------------------
 
-export countChars := (str: string, ch: string): number =>
+export countChars := (
+		str: string
+		ch: string
+		): number =>
 
 	let count = 0
 	let pos = -1
@@ -272,7 +273,10 @@ export lpad := (
 export type TAlignment = 'l' | 'c' | 'r' | 'left' | 'center' | 'right'
 
 export isAlignment := (x: unknown): x is TAlignment =>
-	return ((typeof x == 'string') && ['l', 'c', 'r', 'left', 'center', 'right'].includes(x))
+	return (
+		  (typeof x == 'string')
+		&& ['l', 'c', 'r', 'left', 'center', 'right'].includes(x)
+		)
 
 export alignString := function(
 		str: string,
@@ -348,29 +352,6 @@ export blockHeight := (block: string): number =>
 
 # ---------------------------------------------------------------------------
 
-export getOptions := <T extends hash>(
-		hOptions: hash = {}
-		hDefaults: T
-		): T =>
-
-	return { ...hDefaults, ...hOptions }
-
-# ---------------------------------------------------------------------------
-
-export sep := (
-		char: string = '-',
-		label: string? = undef,
-		width: number = defWidth
-		): string =>
-
-	assert (char.length == 1), "Not a char: #{char}"
-	if defined(label)
-		return centered label, {char, width}
-	else
-		return char.repeat width
-
-# ---------------------------------------------------------------------------
-
 export tabify := (
 		str: string,
 		nSpaces: number = 3
@@ -387,49 +368,6 @@ export untabify := (
 		): string =>
 
 	return str.replaceAll '\t', replacement
-
-# ---------------------------------------------------------------------------
-# --- valid options:
-#        char - char to use on left and right
-#        width - full width
-#        numBuffer - num spaces around label when char <> ' '
-#        color - color of entire string
-
-export centered := (
-		label: string
-		hOptions: hash = {}
-		): string =>
-
-	type opt = {
-		char: char
-		width: number
-		numBuffer: number
-		color: string?
-		}
-	{char, width, numBuffer, color} := getOptions<opt> hOptions, {
-		char: ' '
-		width: defWidth
-		numBuffer: 2
-		color: undef
-		}
-
-	labelLen := decolorize(label).length
-	if (labelLen >= width)
-		return label
-
-	totSpaces := (width >= label.length) ? width - labelLen : 0
-	numLeft := Math.floor totSpaces / 2
-	numRight := totSpaces - numLeft
-	text := (
-		if (char == ' ')
-			' '.repeat(numLeft) + colorize(label, color) + ' '.repeat(numRight)
-		else
-			buf := ' '.repeat numBuffer
-			left := char.repeat numLeft - numBuffer
-			right := char.repeat numRight - numBuffer
-			left + buf + colorize(label, color) + buf + right
-		)
-	return text
 
 # ---------------------------------------------------------------------------
 

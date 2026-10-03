@@ -6,7 +6,7 @@ import {LOG, DBG, ERR, pushLogLevel, popLogLevel} from 'logger'
 import {
 	pass, undef, defined, notdefined,
 	croak, assert, getErrStr, allLinesIn,
-	TIterator, TAsyncIterator, toBool,
+	TIterator, TAsyncIterator, toBool, getOptions,
 	} from 'base'
 import {CTimer} from 'timer'
 import {uni, esc} from 'unicode'
@@ -15,8 +15,8 @@ import {
 	} from 'datatypes'
 import {mkArray} from 'mapper'
 import {
-	arrayToBlock, getOptions,
-	sep, untabify, f, hasKey, spaces, countChars,
+	arrayToBlock,
+	untabify, f, hasKey, spaces, countChars,
 	} from 'llutils'
 import {
 	resetOneIndent, splitLine, indented, undented,

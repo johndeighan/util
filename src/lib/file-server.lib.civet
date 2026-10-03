@@ -7,7 +7,6 @@ import {
 	undef, defined, notdefined, croak, assert, getErrStr,
 	} from 'base'
 import {hash, TStringFilterFunc} from 'datatypes'
-import {getOptions} from 'llutils'
 import {mkpath, fileExt} from 'fsys'
 
 type TFileResponse = [true, string] | [false, number]

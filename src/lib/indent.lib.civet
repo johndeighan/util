@@ -2,7 +2,8 @@
 
 import {LOG, ERR} from 'logger'
 import {
-	undef, defined, notdefined, croak, assert, matches, allLinesIn,
+	undef, defined, notdefined, croak, assert,
+	matches, allLinesIn, getOptions,
 	} from 'base'
 import {esc, escm} from 'unicode'
 import {
@@ -10,7 +11,7 @@ import {
 	hash, hashof, isHash, integer, isInteger,
 	} from 'datatypes'
 import {
-	rtrim, countChars, getOptions, blockToArray, arrayToBlock,
+	rtrim, countChars, blockToArray, arrayToBlock,
 	toArray, toBlock, blockWidth, blockHeight, keys, spaces,
 	} from 'llutils'
 

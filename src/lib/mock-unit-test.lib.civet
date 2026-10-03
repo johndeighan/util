@@ -3,10 +3,9 @@
 import {yellow, cyan, red, green} from '@std/fmt/colors'
 
 import {LOG, logWidth} from 'logger'
-import {undef, defined, deepEqual} from 'base'
+import {undef, defined, deepEqual, centered} from 'base'
 import {TVoidFunc} from 'datatypes'
 import {ML} from 'nice'
-import {centered} from 'llutils'
 import {getTestName} from 'unit-test'
 
 # ---------------------------------------------------------------------------

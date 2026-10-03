@@ -1,8 +1,8 @@
 # buildpar.cmd.civet
 
 import {LOG, DBG, ERR} from 'logger'
-import {assert, defined} from 'base'
-import {centered, EXEC} from 'llutils'
+import {assert, defined, centered} from 'base'
+import {EXEC} from 'llutils'
 import {cmdStep} from 'cmd-utils'
 import {getCmdArgs, inspect} from 'cmd-args'
 import {

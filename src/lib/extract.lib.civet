@@ -2,13 +2,13 @@
 
 import {LOG, ERR} from 'logger'
 import {
-	undef, defined, notdefined, croak, assert, deepEqual,
+	undef, defined, notdefined, croak, assert,
+	deepEqual, sep,
 	} from 'base'
 import {
 	isString, isArray, isNumber,
 	isEmpty, nonEmpty, integer, array,
 	} from 'datatypes'
-import {sep} from 'llutils'
 import {nice, LOGVALUE} from 'nice'
 
 # ---------------------------------------------------------------------------

@@ -52,6 +52,7 @@
 
 		"compile-config": "file:///C:/Users/johnd/util/compile.config.ts",
 
+		"cache":         "file:///C:/Users/johnd/util/src/lib/cache.lib.ts",
 		"run-tasks":     "file:///C:/Users/johnd/util/src/lib/run-tasks.lib.ts",
 		"tui":           "file:///C:/Users/johnd/util/src/lib/tui.lib.ts",
 		"logger":        "file:///C:/Users/johnd/util/src/lib/logger.lib.ts",

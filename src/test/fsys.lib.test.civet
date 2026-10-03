@@ -18,7 +18,8 @@ import {
 	normalizePath, pathToURL, mkpath, pathSubDirs, myself, touch,
 	rmFile, rmDir, newerDestFileExists, barfTempFile, WalkEntry,
 	clearDir, mkDir, mkDirsForFile, slurp, slurpAsync, barf, isPathType,
-	removeFilesMatching, watchFile, FileEventHandler, TFsEventHandler,
+	removeFilesMatching, TFsEventKind,
+	watchFiles, TFsEventHandler,
 	TPathType, TPathInfo, patchFirstLine, toFullPath, splitPatterns,
 	fromJsonFile, toJsonFile, addJsonValue, inHiddenFolder,
 	CReadableFile, CWritableFile, toRelPath, findFile, findDir,
@@ -29,7 +30,6 @@ import {
 	} from 'unit-test'
 
 [root, r] := beginUnitTest(import.meta.url)
-console.log "root = #{root}"
 
 # ---------------------------------------------------------------------------
 # ASYNC
@@ -266,97 +266,6 @@ await equal await slurpAsync(r'file1.txt'), """
 	line3
 	"""
 
-(() =>
-	lChanges: string[] := []
-	fileChangeFunc: TFsEventHandler := (kind, path) =>
-		lChanges.push kind
-		return
-
-	handler := new FileEventHandler(fileChangeFunc)
-	handler.handleEvent {
-		kind: 'modify',
-		paths: ['/usr/lib/temp.txt']
-		}
-	handler.handleEvent {
-		kind: 'modify',
-		paths: ['/usr/lib/temp.txt']
-		}
-	handler.handleEvent {
-		kind: 'modify',
-		paths: ['/usr/lib/temp2.txt']
-		}
-	handler.handleEvent {
-		kind: 'modify',
-		paths: ['/usr/lib/temp.txt']
-		}
-
-	await sleep 3000
-
-	handler.handleEvent {
-		kind: 'modify',
-		paths: ['/usr/lib/temp.txt']
-		}
-	handler.handleEvent {
-		kind: 'modify',
-		paths: ['/usr/lib/temp.txt']
-		}
-
-	await sleep 3000
-
-	expected := [
-		{kind: 'modify', paths: ['/usr/lib/temp2.txt']}
-		{kind: 'modify', paths: ['/usr/lib/temp.txt']}
-		{kind: 'modify', paths: ['/usr/lib/temp.txt']}
-		]
-
-	equal lChanges, expected
-	)()
-
-(() =>
-	lChanges: hash[] := []
-	handler := new FileEventHandler((kind, path) =>
-		lChanges.push {kind, path}
-		return
-		)
-	handler.handleEvent {
-		kind: 'modify',
-		paths: ['/usr/lib/temp.txt']
-		}
-	handler.handleEvent {
-		kind: 'modify',
-		paths: ['/usr/lib/temp.txt']
-		}
-	handler.handleEvent {
-		kind: 'modify',
-		paths: ['/usr/lib/temp2.txt']
-		}
-	handler.handleEvent {
-		kind: 'modify',
-		paths: ['/usr/lib/temp.txt']
-		}
-
-	await sleep 3000
-
-	handler.handleEvent {
-		kind: 'modify',
-		paths: ['/usr/lib/temp.txt']
-		}
-	handler.handleEvent {
-		kind: 'modify',
-		paths: ['/usr/lib/temp.txt']
-		}
-
-	await sleep 3000
-
-	expected := [
-		{kind: 'modify', path: '/usr/lib/temp2.txt'}
-		{kind: 'modify', path: '/usr/lib/temp.txt'}
-		{kind: 'modify', path: '/usr/lib/temp.txt'}
-		]
-
-	equal lChanges, expected
-	)()
-
 # ---------------------------------------------------------------------------
 # --- These tests depend on my particular directory structure
 
@@ -523,17 +432,28 @@ await (() =>
 	truthy isDir(r'notthere')
 	)()
 
-(() =>
+await (() =>
 	# --- Set contents of dummy.txt to standard contents
 	path := toFullPath(r'dummy.txt')
 	barf path, 'dummy'
 
 	let doStop: boolean = false
-	lChanges: hash[] := []
-	add := (str: string, stop: boolean=false): void =>
+
+	type TChangeInfo = (
+		kind: TFsEventKind
+		path: string
+		ms: number
+		)
+
+	lChanges: TChangeInfo[] := []
+
+	append := (
+			str: string,
+			stop: boolean = false
+			): void =>
+		barf path, str, {append: true}
 		if stop
 			doStop = true
-		barf path, str, {append: true}
 		return
 
 	callback: TFsEventHandler := (kind, path) =>
@@ -544,21 +464,30 @@ await (() =>
 			}
 		return doStop
 
-	promise := watchFile path, callback
+	# --- no await, so execution continues
+	watchFiles path, callback
 
-	add 'A'
-	add 'B'
-	add 'C'
-	await sleep 300
-	add 'D'
-	add 'E', true
-
-	await Promise.allSettled([promise])
+	append 'A'
+	append 'B'
+	append 'C'
+	await sleep 1000
+	append 'D'
+	append 'E', true
+	await sleep 1000    # allow time for callback to happen
 
 	equal slurp(path), 'dummyABCDE'
 
 	strongerThan lChanges, [
-		{kind: 'modify', path}
+		{
+			kind: 'modify'
+			ms: undef
+			path: 'src/test/fsys/dummy.txt'
+			}
+		{
+			kind: 'modify'
+			ms: undef
+			path: 'src/test/fsys/dummy.txt'
+			}
 		]
 	)()
 

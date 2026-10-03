@@ -12,13 +12,13 @@ import {CTimer} from 'timer'
 import {
 	undef, defined, notdefined, allDefined, matches,
 	croak, assert, obviously, getErrStr, allOf, allLinesIn,
-	decolorize, withColors,
+	decolorize, withColors, getOptions,
 	} from 'base'
 import {MAP} from 'mapper'
 import {
 	nonEmptyString, hash, hashof, isArray, isEmpty,
 	} from 'datatypes'
-import {f, keys, getOptions} from 'llutils'
+import {f, keys} from 'llutils'
 import {OL, DBGVALUE} from 'nice'
 import {
 	slurp, barf, patchFirstLine, TPathInfo, parsePath, toRelPath,
