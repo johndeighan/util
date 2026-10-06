@@ -1,0 +1,43 @@
+# debug-file.lib.civet
+
+import {appendFileSync} from 'node-fs'
+import {cyan, red, yellow, stripAnsiCode} from '@std/fmt/colors'
+import {existsSync} from '@std/fs'
+
+# ---------------------------------------------------------------------------
+
+export debugFilePath := (stub: string): string =>
+
+	return "./logs/#{stub}.log"
+
+# ---------------------------------------------------------------------------
+
+export appendDebugFile := (
+		stub: string
+		...lItems: unknown[]
+		): void =>
+
+	path := debugFilePath stub
+	for item of lItems
+		block := (
+			  (typeof item == 'string')
+			? stripAnsiCode(item)
+			: JSON.stringify(item, null, 3)
+			)
+		appendFileSync path, block
+	return
+
+# ---------------------------------------------------------------------------
+
+export rmDebugFile := (stub: string): void =>
+
+	path := debugFilePath stub
+	if existsSync path
+		Deno.removeSync path
+	return
+
+# ---------------------------------------------------------------------------
+
+export debugFileContents := (stub: string) =>
+
+	return Deno.readTextFileSync debugFilePath(stub)

@@ -1,12 +1,15 @@
 # cmd-utils.lib.civet
 
-import {LOG, ERR} from 'logger'
-import {getErrStr, centered} from 'base'
+import {LOG, DBG, ERR} from 'logger'
+import {
+	undef, defined, notdefined, getOptions, getErrStr, centered,
+	} from 'base'
 import {hash} from 'datatypes'
 import {CTimer} from 'timer'
+import {toRelPath} from 'llfs'
 import {f} from 'llutils'
 import {allFilesMatching, parsePath} from 'fsys'
-import {compileLibs, compileUnitTests} from 'civet'
+import {doCompileCivet} from 'civet'
 import {TTask, runTasks} from 'run-tasks'
 import {doUnitTest} from 'compile'
 
@@ -18,15 +21,102 @@ export cmdStep := (str: string): string =>
 
 # ---------------------------------------------------------------------------
 
+type opt = {
+	root: string
+	force: boolean
+	quiet: boolean
+	verbose: boolean
+	}
+
+getCmdOptions := (hOptions: hash = {}): opt =>
+
+	return getOptions<opt> hOptions, {
+		root: Deno.cwd()
+		force: false
+		quiet: false
+		verbose: false
+		}
+
+# ---------------------------------------------------------------------------
+# Exclude any files in a subdirectory of 'test' directory
+
+filter := (path: string): boolean =>
+
+	relPath := toRelPath(path)
+	index := relPath.indexOf('/test/')
+	keep := (index == -1)
+	DBG "#{relPath} #{keep ? 'keep' : 'discard'}"
+	return (relPath.indexOf('/test/') == -1)
+
+# ---------------------------------------------------------------------------
+
 export compileAllLibs := (
 		hOptions: hash = {}
 		): boolean =>
 
+	return await compileFilesMatching '**/*.lib.civet', {...hOptions, filter}
+
+# ---------------------------------------------------------------------------
+
+export compileAllUnitTests := (
+		hOptions: hash = {}
+		): boolean =>
+
+	return await compileFilesMatching '**/*.test.civet', {...hOptions, filter}
+
+# ---------------------------------------------------------------------------
+
+export compileAllCommands := (
+		hOptions: hash = {}
+		): boolean =>
+
+	return await compileFilesMatching '**/*.cmd.civet', {...hOptions, filter}
+
+# ---------------------------------------------------------------------------
+
+export type TCompileContext = {
+	nCompiled: number
+	nNotNeeded: number
+	timeTaken: number
+	}
+
+export compileFilesMatching := (
+		pat: string
+		hOptions: hash = {}
+		): boolean =>
+
+	{root, force, quiet, verbose} := getCmdOptions hOptions
 	try
 		LOG cmdStep("COMPILE ALL LIBS")
+		timer := new CTimer()
+		lTasks := for path of allFilesMatching pat, {root}
+			{
+				title: toRelPath(path),
+				task: (
+						ctx: TCompileContext,
+						task: TTask
+						): void =>
+					task.output = 'Compiling...'
+					hResult := await doCompileCivet.handleFile path, {
+						force
+						postproc: false
+						}
+					if (hResult.notNeeded)
+						ctx.nNotNeeded += 1
+						task.title = ''
+					else
+						ctx.nCompiled += 1
+						task.title = f"#{task.title}:-14 #{'compiled'}:{green}"
+					return
+				}
 		{
 			nCompiled, nNotNeeded, timeTaken
-			} := await compileLibs(hOptions)
+			} := await runTasks lTasks, {
+				nCompiled: 0
+				nNotNeeded: 0
+				timeTaken: 0
+				}, {concurrent: 8}
+
 		if (nCompiled > 0)
 			LOG "#{nCompiled} libs compiled"
 		if (nNotNeeded > 0)
@@ -35,27 +125,6 @@ export compileAllLibs := (
 		return true
 	catch err
 		ERR "Not all libs compiled: #{getErrStr(err)}"
-		return false
-
-# ---------------------------------------------------------------------------
-
-export compileAllUnitTests := (
-		hOptions: hash = {}
-		): boolean =>
-
-	try
-		LOG cmdStep("COMPILE ALL UNIT TESTS")
-		{
-			nCompiled, nNotNeeded, timeTaken
-			} := await compileUnitTests(hOptions)
-		if (nCompiled > 0)
-			LOG "#{nCompiled} unit tests compiled"
-		if (nNotNeeded > 0)
-			LOG "#{nNotNeeded} unit tests already compiled"
-		LOG "   (#{timeTaken} secs.)"
-		return true
-	catch err
-		ERR "Not all unit tests compiled: #{getErrStr(err)}"
 		return false
 
 # ---------------------------------------------------------------------------
@@ -73,12 +142,13 @@ export runAllUnitTests := (
 		hOptions: hash = {}
 		): boolean =>
 
+	{force, quiet, verbose} := getCmdOptions hOptions
 	LOG cmdStep("RUN ALL UNIT TESTS")
 	timer := new CTimer()
-	lTasks := for path of allFilesMatching "**/*.lib.ts"
+	lTasks := for path of allFilesMatching ["**/*.lib.ts", "src/test/*/*"]
 		stub := parsePath(path).stub
 		{
-			title: stub,
+			title: toRelPath(path),
 			task: (ctx: TUnitTestContext, task: TTask): void =>
 				task.output = 'Testing...'
 				hResult := await doUnitTest.handleFile path
@@ -100,7 +170,8 @@ export runAllUnitTests := (
 			numPassed: 0
 			numFailed: 0
 			timeTaken: 0
-			}
+			}, {concurrent: 8}
+
 	LOG "#{numPassed} unit tests passed"
 	if (numFailed > 0)
 		LOG "#{numFailed} unit tests failed"

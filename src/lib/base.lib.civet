@@ -10,7 +10,7 @@ import {sprintf} from '@std/fmt/printf'
 import {delay} from "@std/async/delay"
 
 import {
-	curLogLevel, LOG, DBG, openDebugFile, closeDebugFile,
+	curLogLevel, LOG, DBG,
 	} from 'logger'
 
 export {deepEqual}

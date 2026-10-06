@@ -1,5 +1,7 @@
 to do
 
+put appendDebugFile, etc. into new lib debug-file
+
 ----------------------------------------------------
 how can i execute a sequence of async tasks,
 limiting the number running at any one time,

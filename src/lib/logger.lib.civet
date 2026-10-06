@@ -1,5 +1,6 @@
 # logger.lib.civet
 
+import {appendFileSync} from 'node-fs'
 import {cyan, red, yellow, stripAnsiCode} from '@std/fmt/colors'
 import {existsSync} from '@std/fs'
 
@@ -84,61 +85,6 @@ let lLogLines: string[] = []   # none should include \n
 
 export INDENT := Symbol 'indent'
 export UNDENT := Symbol 'undent'
-
-# ---------------------------------------------------------------------------
-#   debug files
-# ---------------------------------------------------------------------------
-
-setDebugFiles := new Set<string>()
-
-# ---------------------------------------------------------------------------
-
-debugFilePath := (stub: string): string =>
-
-	return "./logs/#{stub}.log"
-
-# ---------------------------------------------------------------------------
-
-export openDebugFile := (
-		stub: string
-		): void =>
-
-	path := debugFilePath stub
-	setDebugFiles.add path
-	return
-
-# ---------------------------------------------------------------------------
-
-export removeDebugFile := (stub: string): void =>
-
-	path := debugFilePath stub
-	if existsSync(path)
-		Deno.removeSync path
-	return
-
-# ---------------------------------------------------------------------------
-
-export appendDebugFile := (
-		...lItems: unknown[]
-		): void =>
-
-	for item of lItems
-		block := (
-			  (typeof item == 'string')
-			? stripAnsiCode(item)
-			: toJSON(item)
-			)
-		for path of setDebugFiles
-			Deno.writeTextFileSync path, block + "\n", {append: true}
-	return
-
-# ---------------------------------------------------------------------------
-
-export closeDebugFile := (stub: string): void =>
-
-	path := "src/logs/#{stub}.log"
-	setDebugFiles.delete path
-	return
 
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
@@ -226,10 +172,6 @@ export DBG := (
 		item: unknown
 		): void =>
 
-	# --- if a debug file is defined, output even if
-	#     current log level is not 'debug'
-	appendDebugFile item
-
 	if curLevelLowerThan TLogLevel.DEBUG
 		return
 	logItem item
@@ -247,10 +189,6 @@ export ERR := (
 		: (typeof err == 'string') ? err
 		:                            'Unknown error'
 		)
-
-	# --- if a debug file is defined, output even if
-	#     current log level is not 'debug'
-	appendDebugFile msg
 
 	logItem red(label) + ': ' + msg
 	return

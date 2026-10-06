@@ -39,7 +39,7 @@ export runTasks := async <T=hash>(
 		ctx
 		renderer: 'default'
 		rendererOptions: {
-			clearOutput: true
+			clearOutput: false
 			logger: listrLogger
 			icon: {
 				PENDING: '⏳'

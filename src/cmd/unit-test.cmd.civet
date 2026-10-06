@@ -1,6 +1,8 @@
 # unit-test.cmd.civet
 
-import {initLogLevel, LOG, DBG, ERR, curLogLevel} from 'logger'
+import {
+	initLogLevel, LOG, DBG, ERR, curLogLevel, appendDebugFile,
+	} from 'logger'
 import {undef, defined, notdefined, assert, getErrStr} from 'base'
 import {hash} from 'datatypes'
 import {f, dashes, EXEC} from 'llutils'
@@ -43,6 +45,8 @@ EXEC () =>
 	if (lStubs.length == 0) || (lStubs[0] == 'all')
 		if not await compileAllUnitTests()
 			Deno.exit -1
+
+		Deno.exit 0
 
 		# --- At this point, all libs and unit tests have been compiled
 

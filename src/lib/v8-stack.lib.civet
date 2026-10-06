@@ -7,10 +7,8 @@ import {red, green, stripAnsiCode} from '@std/fmt/colors'
 import {dirname} from '@std/path'
 import {CallSite} from "node-types";
 
-import {
-	openDebugFile, removeDebugFile, closeDebugFile, inUnitTest,
-	LOG, DBG, ERR,
-	} from 'logger'
+import {appendDebugFile} from 'debug-file'
+import {inUnitTest, LOG, DBG, ERR} from 'logger'
 import {
 	undef, defined, notdefined, getErrStr, assert, matches, TIterator,
 	centered,
@@ -18,8 +16,6 @@ import {
 import {integer} from 'datatypes'
 import {normalizePath, toRelPath, isFullPath, toFullPath} from 'llfs'
 import {fromFSM, TState, defaultDoneFunc} from 'fsm'
-
-removeDebugFile 'stack'
 
 # ---------------------------------------------------------------------------
 
@@ -52,8 +48,6 @@ export allStackFrames := (
 		debug: boolean = false
 		): TIterator<TStackFrame> ->
 
-	openDebugFile 'stack'
-
 	try
 		oldLimit: number := Error.stackTraceLimit
 		oldPreparer := Error.prepareStackTrace
@@ -66,11 +60,11 @@ export allStackFrames := (
 			assert (lCallSites.length > 0), "lCallSites is EMPTY"
 
 			for site of lCallSites
-				DBG centered 'fullCallSite', {char: '='}
-				DBG fullCallSite(site)
+				appendDebugFile 'stack', centered 'fullCallSite', {char: '='}
+				appendDebugFile 'stack',  fullCallSite(site)
 
-				DBG centered 'getFrame', {char: '-'}
-				DBG getFrame(site)
+				appendDebugFile 'stack',  centered 'getFrame', {char: '-'}
+				appendDebugFile 'stack',  getFrame(site)
 
 			lFrames: TStackFrame[] := []    # yield these values later
 
@@ -120,15 +114,13 @@ export allStackFrames := (
 		Error.stackTraceLimit = oldLimit
 		Error.prepareStackTrace = oldPreparer
 		for frame of lStack
-			DBG frame
+			appendDebugFile 'stack',  frame
 			yield frame
 		return
 
 	catch err
 		ERR "'ERROR in allStackFrames: #{getErrStr(err)}"
 		return
-	finally
-		closeDebugFile 'stack'
 
 # ---------------------------------------------------------------------------
 

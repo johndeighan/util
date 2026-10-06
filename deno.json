@@ -55,6 +55,7 @@
 		"cache":         "file:///C:/Users/johnd/util/src/lib/cache.lib.ts",
 		"run-tasks":     "file:///C:/Users/johnd/util/src/lib/run-tasks.lib.ts",
 		"tui":           "file:///C:/Users/johnd/util/src/lib/tui.lib.ts",
+		"debug-file":    "file:///C:/Users/johnd/util/src/lib/debug-file.lib.ts",
 		"logger":        "file:///C:/Users/johnd/util/src/lib/logger.lib.ts",
 		"v8-stack":      "file:///C:/Users/johnd/util/src/lib/v8-stack.lib.ts",
 		"base":          "file:///C:/Users/johnd/util/src/lib/base.lib.ts",

@@ -425,7 +425,7 @@ export allFilesMatching := (
 	type opt = {
 		root: string
 		hMoreGlobOptions: hash
-		filter: TPathFilter
+		filter: TPathFilter     # return true to keep
 		includeDirs: boolean
 		}
 
